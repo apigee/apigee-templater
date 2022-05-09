@@ -14,5 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-sudo rm -rf report
-npx mega-linter-runner
+echo "Building client..."
+rm -rf client/build
+cd client && npm cache clean --force && npm install && npm run build
+
+echo "Copying build outputs to service..."
+rm -rf ../service/public
+mkdir ../service/public
+cp -rf build/. ../service/public
+
+echo "Build service"
+cd ../service
+npm install && npm run build

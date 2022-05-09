@@ -1,43 +1,48 @@
 # Apigee Templater
-A tool for automating the templating of Apigee API proxies through either a **CLI** or a **Typescript/Javascript** module. The generated proxy can either be saved locally as a bundle, or deployed directly to an Apigee X environment.
+Provides tooling for the templating and automation of Apigee proxies using simplified inputs, for example through a JSON/YAML input file, a REST call, or a CLI.
+
+Apigee proxies are ideal for templating since the bundles are composed of simple files & directories, which can be easily automated, even for complex use-cases. This tool helps do exactly that.
+
+## Prerequisites
+
+* [Node.js](https://nodejs.org/) installed
+* [gcloud CLI](https://cloud.google.com/sdk/gcloud) installed, and with the default project set to the Apigee X project (simply run **gcloud config set project PROJECT** to set, where **PROJECT** is your Google Cloud project).
+* [gcloud CLI](https://cloud.google.com/sdk/gcloud) authenticated with  [application-default](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) credentials (run **gcloud auth application-default login** to set in your shell, no action needed in GCP environments like Cloud Run).
+* [Apigee X](https://cloud.google.com/apigee/docs/api-platform/get-started/provisioning-intro) org and environment (either eval or production).  
 
 You can try out the tool easily in Google Cloud Shell including a tutorial walk-through of the features by clicking here:
 
-[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.png)](https://ssh.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/tyayers/apigee-templater&cloudshell_git_branch=main&cloudshell_workspace=.&cloudshell_tutorial=docs/cloudshell-tutorial.md)
+[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.png)](https://ssh.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/apigee/apigee-templater&cloudshell_git_branch=main&cloudshell_workspace=.&cloudshell_tutorial=docs/cloudshell-tutorial.md)
 
-## Prerequisites
-This tool assumes you already have an Apigee X org and environment provisioned (either production or eval, see [here](https://cloud.google.com/apigee/docs/api-platform/get-started/provisioning-intro) for more info).  Also you should have **gcloud** installed and the project set to where Apigee X is provisioned, and logged into gcloud with [application-default credentials](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) (gcloud auth application-default login).
 
-## TLDR;
+## Install
 
-### Proxy a web endpoint
-
-Just run this command to deploy a sample test proxy to your Apigee X **eval** environment (or change to any environment) in your current project.
+You can install the CLI to use globally on your system using npm. 
 
 ```sh
-# Install CLI globally and use a simple template to create a proxy
-npm install -g apigee-templater-cli
+npm i -g apigee-templater-cli
+```
+
+## Usage
+
+### Create an Apigee proxy to a web endpoint and deploy to the 'eval' environment
+
+```sh
 apigee-template -n HttpBinProxy -b /httpbin -t https://httpbin.org -d -e eval
-# OR just run using npx
-npx apigee-templater-cli -n HttpBinProxy -b /httpbin -t https://httpbin.org -d -e eval
 ```
 Output:
 ```sh
-# Proxy bundle was generated and deployed to environment "eval"
+# Proxy bundle generated and deployed to environment "eval"
 > Proxy HttpBinProxy generated to ./HttpBinProxy.zip in 32 milliseconds.
 > Proxy HttpBinProxy version 1 deployed to environment eval in 2258 milliseconds.
 > Wait 2-3 minutes, then test here: https://eval-group.34-111-104-118.nip.io/httpbin
 ```
 
-### Proxy a BigQuery data table
-
-Run this command to build and deploy a proxy to the **Austin Bike Sharing Trips public dataset** and access that data (including filters, paging and sorting) through a REST API.
+### Create and deploy a proxy to a BigQuery table
 
 ```sh
-# Build proxy to BigQuery table using globally installed CLI
+# Build and deploy a REST proxy to the BigQuery Austin bikesharing public dataset
 apigee-template -n BikeTrips-v1 -b /trips -q bigquery-public-data.austin_bikeshare.bikeshare_trips -d -e eval -s serviceaccount@project.iam.gserviceaccount.com
-# OR run with npx without installing CLI
-npx apigee-templater-cli -n BikeTrips-v1 -b /trips -q bigquery-public-data.austin_bikeshare.bikeshare_trips -d -e eval -s serviceaccount@project.iam.gserviceaccount.com
 ```
 
 Output:
@@ -68,9 +73,30 @@ After waiting a few minutes, you can run **curl https://eval-group.34-111-104-11
 }
 ```
 
-Check out the deployed proxies in the [Apigee console](https://apigee.google.com), where you can check the status of the deployments, do tracing, and create API products based on these automated proxies.
+### Use the CLI either in command or interactive mode
 
-## Features
+```sh
+#Use the CLI in interactive mode to collect inputs
+apigee-template
+> Welcome to apigee-template, use -h for more command line options. 
+? What should the proxy be called? MyProxy
+? Which base path should be used? /test
+? Which backend target should be called? https://test.com
+? Do you want to deploy the proxy to an Apigee X environment? No
+> Proxy MyProxy generated to ./MyProxy.zip in 60 milliseconds.
+```
+```sh
+#Show all commands
+apigee-template -h
+```
+```sh
+#Generate a proxy based on input.json and deploy it to environment test1 with credentials in key.json
+apigee-template -f ./samples/input.json -d -e test1
+```
+
+All deployed proxies can then be viewed and managed in the [Apigee console](https://apigee.google.com), where you can check the status of the deployments, do tracing, and create API products based on these automated proxies.
+
+## Supported Features
 
 The module & CLI can generate and deploy Apigee X proxies with these features out-of-the-box, and can be extended with new features easily (see "Extending & Customizing" section below).
 
@@ -86,45 +112,32 @@ The module & CLI can generate and deploy Apigee X proxies with these features ou
 
 The templating engine uses the [Handlebars](https://handlebarsjs.com/) framework to build any type of proxy based on structured inputs.  And because the logic is contained in Javascript or Typescript plugins, logic can be added for any type of requirement.
 
-## Getting Started
+## REST service and web client
 
-### CLI
-Install the CLI like this.
-```bash
-npm install -g apigee-templater-cli
-```
-Or use the CLI without installing.
-```bash
-npx apigee-templater-cli
-```
+![Web client screenshot](img/screen1.png)
 
-Before calling the CLI, make sure you have a user and project set in your environment.  These are used to authenticate to the Apigee X API for deployments (if you are not deploying, then you don't need this).  The default application user can be set with **gcloud auth application-default login** and the default project set with **gcloud config set project PROJECT**.
+A sample [REST service](/service) and [web client](/client) show how the Apigee Templater can be used to template and deploy proxies directly from users interacting in a client.
 
-Use the CLI either in command or interactive mode.
-```bash
-#Use the CLI in interactive mode to collect inputs
-apigee-template
-> Welcome to apigee-template, use -h for more command line options. 
-? What should the proxy be called? MyProxy
-? Which base path should be used? /test
-? Which backend target should be called? https://test.com
-? Do you want to deploy the proxy to an Apigee X environment? No
-> Proxy MyProxy generated to ./MyProxy.zip in 60 milliseconds.
-```
-```bash
-#Show all commands
-apigee-template -h
-```
-```bash
-#Generate a proxy based on input.json and deploy it to environment test1 with credentials in key.json
-apigee-template -f ./samples/input.json -d -e test1
-```
-```bash
-#Generate a proxy that creates an API to a BigQuery table, including the raw data-to-REST mapping logic, and deploy it to the Apigee X environment eval with the service account (for authenticating to BigQuery)
-apigee-template -n BikeTrips-v1 -b /trips -q bigquery-public-data.austin_bikeshare.bikeshare_trips -d -e eval -s serviceaccount@project@project.iam.gserviceaccount.com
-```
+To build and run the service and web client locally:
 
-### Typescript/Javascript
+```sh
+# Build and copy the client outputs to the service 
+./build_service.sh
+# Run service
+cd service
+node dist
+```
+Then you can open the service locally at [http://localhost:8080](http://localhost:8080).
+
+You can also build and deploy the service to [Cloud Run](https://cloud.google.com/run) by clicking here:
+
+[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run)
+
+## Extending and usage in code
+
+The project is designed to be extensible. All templating and proxy generation is done in Typescript/Javascript plugins, which can be extended or replaced based on the templating requirements.
+
+### Usage with Typescript/Javascript
 First install and import into your project.
 ```bash
 npm install apigee-templater-module
@@ -168,12 +181,9 @@ apigeeGenerator.generateProxy(input, "./proxies").then((result) => {
 });
 
 ```
+### Customizing plugins
 
-## Extending & Customizing the Templates
-The project is designed to be extensible.  You can extend or customize in 2 ways.
-
-### 1. Create your own cli or service project
-This option requires you to change the host CLI or service process to inject your own plugins in the ApigeeGenerator constructor.  You can see how the **cli** and **service** projects do this when they create the object.
+You can change / write your own plugins (see /module/lib/plugins), and then inject them when instantiating the **ApigeeGenerator** service object.
 
 ```typescript
   // Pass an array of template and input converter plugins that are used at runtime.
@@ -186,18 +196,16 @@ This option requires you to change the host CLI or service process to inject you
         new QuotaPlugin(),
         new TargetsPlugin(),
         new ProxiesPlugin(),
-      ],
-    },
-    [
-      new Json1Converter(),
-      new Json2Converter(),
-      new OpenApiV3Converter()
-  ]);
+      ]
+    });
 ```
-The above plugins are delivered in the **apigee-templater-module** package, but you can easily write your own by implementing the **ApigeeTemplatePlugin** interface (see /module/lib/plugins for examples).
+The above plugins are delivered in the **apigee-templater-module** package, but you can easily write your own by implementing the **ApigeeTemplatePlugin** interface (see /module/lib/plugins for examples). 
 
-### 2. Add a script callout when using the CLI
-The second option is to add a script using the **-s** parameter when calling the **apigee-template** CLI.  This script is evaluated before the templating is done, and can make changes to the **ApigeeGenerator** object as needed, by for example removing, replacing or adding plugins for both templating and input conversion.
+When generating proxies, the plugins are called in the order given above, and proceed to create the proxy package for their particular task (spike arrest, key validation, etc..).
+
+### CLI script customization
+
+You can customize the CLI directly without changing the **ApigeeGenerator** object by adding a javascript script using the **-s** parameter when calling the **apigee-template** CLI.  This script is evaluated before the templating is done, and can make changes to the **ApigeeGenerator** object as needed, by for example removing, replacing or adding plugins for both templating and input conversion (see [/samples/script.js](/samples/script.js) for an example).
 
 ```bash
 # Create a proxy based on ./samples/input.json using customization script ./samples/script.js,
