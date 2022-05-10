@@ -21,7 +21,7 @@ cd client && npm cache clean --force && npm install && npm run build
 echo "Copying build outputs to service..."
 rm -rf ../service/public
 mkdir ../service/public
-cp -rf build/. ../service/public
+cp -rf dist/. ../service/public
 
 echo "Build service"
 cd ../service
