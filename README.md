@@ -10,11 +10,6 @@ Apigee proxies are ideal for templating since the bundles are composed of simple
 * [gcloud CLI](https://cloud.google.com/sdk/gcloud) authenticated with  [application-default](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) credentials (run **gcloud auth application-default login** to set in your shell, no action needed in GCP environments like Cloud Run).
 * [Apigee X](https://cloud.google.com/apigee/docs/api-platform/get-started/provisioning-intro) org and environment (either eval or production).  
 
-You can try out the tool easily in Google Cloud Shell including a tutorial walk-through of the features by clicking here:
-
-[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.png)](https://ssh.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/apigee/apigee-templater&cloudshell_git_branch=main&cloudshell_workspace=.&cloudshell_tutorial=docs/cloudshell-tutorial.md)
-
-
 ## Install
 
 You can install the CLI to use globally on your system using npm. 
@@ -22,6 +17,10 @@ You can install the CLI to use globally on your system using npm.
 ```sh
 npm i -g apigee-templater-cli
 ```
+
+You can try out the tool easily in Google Cloud Shell including a tutorial walk-through of the features by clicking here:
+
+[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.png)](https://ssh.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/apigee/apigee-templater&cloudshell_git_branch=main&cloudshell_workspace=.&cloudshell_tutorial=docs/cloudshell-tutorial.md)
 
 ## Usage
 
