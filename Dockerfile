@@ -25,7 +25,7 @@ RUN npm run build
 
 COPY client ./client
 RUN cd client && npm cache clean --force && npm install && npm run build
-RUN cp -rf client/build/. ./public/
+RUN cp -rf client/dist/. ./public/
 
 EXPOSE 8080
 
