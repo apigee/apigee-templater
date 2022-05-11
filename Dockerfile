@@ -29,4 +29,4 @@ RUN cp -rf client/dist/. ./public/
 
 EXPOSE 8080
 
-CMD [ "node", "dist/src" ]
+CMD [ "node", "dist" ]
