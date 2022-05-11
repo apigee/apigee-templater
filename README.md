@@ -24,6 +24,10 @@ You can try out the tool easily in Google Cloud Shell including a tutorial walk-
 
 ## Usage
 
+Example CLI usage:
+
+[![asciicast](https://asciinema.org/a/ZbJUQRHkmpkAZm9iWHOfGCu9T.svg)](https://asciinema.org/a/ZbJUQRHkmpkAZm9iWHOfGCu9T)
+
 ### Create an Apigee proxy to a web endpoint and deploy to the 'eval' environment
 
 ```sh

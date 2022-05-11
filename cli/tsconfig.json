@@ -2,7 +2,9 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "display": "Node 17",
   "compilerOptions": {
-    "lib": ["es2021"],
+    "lib": [
+      "es2021"
+    ],
     "module": "commonjs",
     "target": "es2021",
     "declaration": true,
@@ -13,7 +15,15 @@
     "useDefineForClassFields": true,
     "outDir": "dist"
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "**/*.spec.ts"],
-  "lib": ["es2015"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts",
+    "bin"
+  ],
+  "lib": [
+    "es2015"
+  ]
 }

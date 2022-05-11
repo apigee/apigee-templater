@@ -1,11 +1,13 @@
-## Usage
+## Apigee Templater Client
 
-Those templates dependencies are maintained via [pnpm](https://pnpm.io) via `pnpm up -Lri`.
+This example client is built using [Solid](https://solidjs.com), a lightweight but powerful frontend client framework (similar to React or Angular). 
 
-This is the reason you see a `pnpm-lock.yaml`. That being said, any package manager will work. This file can be safely be removed once you clone a template.
+## Getting started
 
 ```bash
+# First install dependencies
 $ npm install # or pnpm install or yarn install
+$ npm run dev # start dev server
 ```
 
 ### Learn more on the [Solid Website](https://solidjs.com) and come chat with us on our [Discord](https://discord.com/invite/solidjs)

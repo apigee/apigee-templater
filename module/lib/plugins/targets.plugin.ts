@@ -58,6 +58,11 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
       const fileResult: PlugInResult = new PlugInResult()
 
       if (inputConfig.target) {
+
+        if (inputConfig.target.url && !inputConfig.target.url.startsWith("http")) {
+          inputConfig.target.url = "https://" + inputConfig.target.url;
+        }
+
         fileResult.files = [
           {
             path: '/targets/' + inputConfig.target.name + '.xml',
