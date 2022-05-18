@@ -30,7 +30,13 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <TargetEndpoint name="{{targetName}}">
       <PreFlow name="PreFlow">
-          <Request/>
+          <Request>
+            {{#if preflow_request_assign}}
+              <Step>
+                <Name>Set-Target-Message</Name>
+              </Step>
+            {{/if}}
+          </Request>
           <Response/>
       </PreFlow>
       <Flows/>
@@ -43,8 +49,24 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
       </HTTPTargetConnection>
   </TargetEndpoint>`;
 
-  template = Handlebars.compile(this.snippet);
+  preFlowAssignMessageSnippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage continueOnError="false" enabled="true" name="Set-Target-Message">
+  <DisplayName>Set-Target-Message</DisplayName>
+  <Properties/>
+  <Set>
+    <Headers>
+    {{#each headers}}
+      <Header name="{{@key}}">{{this}}</Header>
+    {{/each}}    
+    </Headers>
+  </Set>
+  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+  <AssignTo createNew="false" transport="http" type="request"/>
+</AssignMessage>
+`;
 
+  template = Handlebars.compile(this.snippet);
+  messageAssignTemplate = Handlebars.compile(this.preFlowAssignMessageSnippet);
   /**
    * Templates the targets configurations
    * @date 2/14/2022 - 8:15:57 AM
@@ -59,16 +81,30 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
 
       if (inputConfig.target) {
 
+        // Make sure the target has the https prefix
         if (inputConfig.target.url && !inputConfig.target.url.startsWith("http")) {
           inputConfig.target.url = "https://" + inputConfig.target.url;
         }
 
+        let context: any = { targetName: inputConfig.target.name, targetUrl: inputConfig.target.url, preflow_request_assign: (inputConfig.target.headers && Object.keys(inputConfig.target.headers).length > 0) };
         fileResult.files = [
           {
             path: '/targets/' + inputConfig.target.name + '.xml',
-            contents: this.template({ targetName: inputConfig.target.name, targetUrl: inputConfig.target.url })
+            contents: this.template(context)
           }
-        ]
+        ];
+
+        if (context.preflow_request_assign) {
+          let assignContext: any = {
+            headers: inputConfig.target.headers
+          };
+
+          fileResult.files.push({
+            path: "/policies/Set-Target-Message.xml",
+            contents: this.messageAssignTemplate(assignContext)
+          });
+        }
+
       }
 
       resolve(fileResult)

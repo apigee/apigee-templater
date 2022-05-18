@@ -21,6 +21,7 @@ export class proxyTarget {
   query?= '';
   table?= '';
   authScopes?= [];
+  headers?: { [key: string]: string } = {};
 }
 
 /** A proxy endpoint describes a basepath, targets and other proxy features */
@@ -84,6 +85,7 @@ export enum authTypes {
 }
 
 export interface ApigeeTemplateService {
+  convertStringToProxyInput(inputString: string): Promise<ApigeeTemplateInput>
   generateProxyFromString(inputString: string, outputDir: string): Promise<GenerateResult>
   generateProxy(inputConfig: ApigeeTemplateInput, outputDir: string): Promise<GenerateResult>
 }

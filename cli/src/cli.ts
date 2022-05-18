@@ -20,9 +20,11 @@ import { performance } from 'perf_hooks'
 import inquirer from 'inquirer'
 import chalk from 'chalk'
 import 'dotenv/config'
+import { ApigeeTemplateInput, ApigeeTemplateService, ApigeeGenerator, GenerateResult } from 'apigee-templater-module'
+import { ApigeeService, ApiManagementInterface, EnvironmentGroup, EnvironmentGroupAttachment, ProxyDeployment, ProxyRevision } from 'apigee-x-module'
+import { isContinueStatement } from 'typescript'
 
-import { ApigeeTemplateInput, ApigeeTemplateService, ApigeeGenerator } from 'apigee-templater-module'
-import { ApigeeService, ApiManagementInterface, EnvironmentGroup, EnvironmentGroupAttachment, ProxyRevision } from 'apigee-x-module'
+const axios = require('axios').default;
 
 process.on('uncaughtException', function () {
   console.error(`${chalk.redBright('! Error:')} Problem executing the command, maybe your user or Google Cloud project isn't set?  You can set your default user credentials using ${chalk.blueBright('gcloud auth application-default login')} and default project using  ${chalk.blueBright('gcloud config set project PROJECT')}`)
@@ -227,8 +229,18 @@ export default class cli {
       return
     }
 
-    if (fs.existsSync(options.file)) {
-      options.input = fs.readFileSync(options.file, 'utf-8')
+    if (options.file) {
+      // We have a file input, let's check if local or remote..
+      if (options.file.startsWith("http")) {
+        // Remote file, fetch..
+        if (options.verbose) this.logVerbose(`Fetching remote file ${options.file}`, 'env:')
+        const response = await axios.get(options.file);
+        options.input = JSON.stringify(response.data);
+      }
+      else if (fs.existsSync(options.file)) {
+        // Local file
+        options.input = fs.readFileSync(options.file, 'utf-8')
+      }
     }
 
     if (!options.input && !options.file) {
@@ -238,7 +250,6 @@ export default class cli {
       try {
         options = await this.promptForMissingOptions(options)
       } catch (error) {
-        console.log("hello")
         console.error(`${chalk.redBright('! Error:')} Error during prompt for inputs, that's all we know.`)
         if (options.verbose) this.logVerbose(JSON.stringify(error), 'prompt error:')
       }
@@ -302,66 +313,132 @@ export default class cli {
 
     if (options.verbose) this.logVerbose(options.input, 'template:')
 
-    this.apigeeGenerator.generateProxyFromString(options.input, _proxyDir).then((result) => {
-      if (result && result.template) { console.log(`${chalk.green('>')} Proxy ${chalk.bold(chalk.blue(result.template.name))} generated to ${chalk.magentaBright(chalk.bold(result.localPath))} in ${chalk.bold(chalk.green(Math.round(result.duration) + ' milliseconds'))}.`) }
+    this.apigeeGenerator.convertStringToProxyInput(options.input).then((inputTemplate: ApigeeTemplateInput) => {
 
-      if (options.deploy && !options.environment) {
-        console.error(`${chalk.redBright('! Error:')} No environment found to deploy to, please pass the -e parameter with an Apigee X environment.`)
-      } else if (options.deploy) {
-        const startTime = performance.now()
-        try {
-          if (result && result.template) {
-            this.apigeeService.updateProxy(result.template.name, _proxyDir + '/' + result.template.name + '.zip').then((updateResult: ProxyRevision) => {
-              if (updateResult && updateResult.revision) {
-                if (result && result.template) {
-                  this.apigeeService.deployProxyRevision(options.environment, result.template.name, updateResult.revision, options.deployServiceAccount).then(() => {
-                    const endTime = performance.now()
-                    const duration = endTime - startTime
-                    if (options.verbose) this.logVerbose(JSON.stringify(result), 'deploy result:')
-                    if (result && result.template) {
-                      console.log(`${chalk.green('>')} Proxy ${chalk.bold(chalk.blue(result.template.name + ' version ' + updateResult.revision))} deployed to environment ${chalk.bold(chalk.magentaBright(options.environment))} in ${chalk.bold(chalk.green(Math.round(duration) + ' milliseconds'))}.`)
+      if (options.basePath) inputTemplate.endpoints[0].basePath = options.basePath;
+      if (options.name) inputTemplate.name = options.name;
 
-                      // Now try to get the env group URL
-                      this.apigeeService.getEnvironmentGroups().then((result: EnvironmentGroup[]) => {
-                        result.forEach((group: EnvironmentGroup) => {
-                          this.apigeeService.getEnvironmentGroupAttachments(group.name).then((result => {
-                            result.forEach((element: EnvironmentGroupAttachment) => {
-                              if (element.environment === options.environment) {
-                                // Here we have an attachment, to print host URL link
-                                group.hostnames.forEach((hostname: string) => {
-                                  console.log(`${chalk.green('>')} Wait 2-3 minutes, then test here: ${chalk.bold(chalk.blue(`https://${hostname}${options.basePath}`))}`);
-                                });
-                              }
-                            });
-                          }))
+      this.apigeeGenerator.generateProxy(inputTemplate, _proxyDir).then((generateResult: GenerateResult) => {
+        if (generateResult && generateResult.template) { console.log(`${chalk.green('>')} Proxy ${chalk.bold(chalk.blue(generateResult.template.name))} generated to ${chalk.magentaBright(chalk.bold(generateResult.localPath))} in ${chalk.bold(chalk.green(Math.round(generateResult.duration) + ' milliseconds'))}.`) }
+
+        if (options.deploy && !options.environment) {
+          console.error(`${chalk.redBright('! Error:')} No environment found to deploy to, please pass the -e parameter with an Apigee X environment.`)
+        } else if (options.deploy) {
+          const startTime = performance.now()
+          try {
+            if (generateResult && generateResult.template) {
+              this.apigeeService.updateProxy(generateResult.template.name, _proxyDir + '/' + generateResult.template.name + '.zip').then((updateResult: ProxyRevision) => {
+                if (updateResult && updateResult.revision) {
+                  if (generateResult && generateResult.template) {
+                    this.apigeeService.deployProxyRevision(options.environment, generateResult.template.name, updateResult.revision, options.deployServiceAccount).then((deployResult: ProxyDeployment) => {
+                      const endTime = performance.now()
+                      const duration = endTime - startTime
+                      if (options.verbose) this.logVerbose(JSON.stringify(generateResult), 'deploy result:')
+                      if (generateResult && generateResult.template) {
+                        console.log(`${chalk.green('>')} Proxy ${chalk.bold(chalk.blue(generateResult.template.name + ' version ' + updateResult.revision))} deployed to environment ${chalk.bold(chalk.magentaBright(options.environment))} in ${chalk.bold(chalk.green(Math.round(duration) + ' milliseconds'))}.`)
+
+                        // Now try to get the env group URL
+                        this.apigeeService.getEnvironmentGroups().then((result: EnvironmentGroup[]) => {
+                          result.forEach((group: EnvironmentGroup) => {
+                            this.apigeeService.getEnvironmentGroupAttachments(group.name).then((result => {
+                              result.forEach((element: EnvironmentGroupAttachment) => {
+                                if (element.environment === options.environment) {
+                                  // Here we have an attachment, to print host URL link
+                                  group.hostnames.forEach((hostname: string) => {
+                                    if (generateResult.template)
+                                      console.log(`${chalk.green('>')} Wait 30-60 seconds, then test here: ${chalk.bold(chalk.blue(`https://${hostname}${generateResult.template.endpoints[0].basePath}`))}`);
+                                  });
+                                }
+                              });
+                            }))
+                          });
                         });
-                      });
-                    }
+                      }
 
-                  }).catch((error) => {
-                    console.error(`${chalk.redBright('! Error:')} Error deploying proxy revision.`)
-                    if (options.verbose) this.logVerbose(JSON.stringify(error), 'deploy error:')
-                  })
+                    }).catch((error) => {
+                      console.error(`${chalk.redBright('! Error:')} Error deploying proxy revision.`)
+                      if (options.verbose) this.logVerbose(JSON.stringify(error), 'deploy error:')
+                    })
+                  }
                 }
-              }
-            }).catch((error) => {
-              if (error && error.response && error.response.status && error.response.status === 400) {
-                console.error(`${chalk.redBright('! Error:')} Error in proxy bundle definition, try importing manually for more detailed error information.`)
-              }
-              else {
-                console.error(`${chalk.redBright('! Error:')} Error updating proxy.`)
-              }
-            });
+              }).catch((error) => {
+                if (error && error.response && error.response.status && error.response.status === 400) {
+                  console.error(`${chalk.redBright('! Error:')} Error in proxy bundle definition, try importing manually for more detailed error information.`)
+                }
+                else {
+                  console.error(`${chalk.redBright('! Error:')} Error updating proxy.`)
+                }
+              });
+            }
+          }
+          catch (error) {
+            console.error(`${chalk.redBright('! Error:')} Error generating proxy.`)
           }
         }
-        catch (error) {
-          console.error(`${chalk.redBright('! Error:')} Error generating proxy.`)
-        }
-      }
-    }).catch(() => {
-      console.error(`${chalk.redBright('! Error:')} Error templating proxy, invalid inputs given.`)
-      process.exit()
-    })
+      });
+    });
+
+    // this.apigeeGenerator.generateProxyFromString(options.input, _proxyDir).then((generateResult: GenerateResult) => {
+    //   if (generateResult && generateResult.template) { console.log(`${chalk.green('>')} Proxy ${chalk.bold(chalk.blue(generateResult.template.name))} generated to ${chalk.magentaBright(chalk.bold(generateResult.localPath))} in ${chalk.bold(chalk.green(Math.round(generateResult.duration) + ' milliseconds'))}.`) }
+
+    //   if (options.deploy && !options.environment) {
+    //     console.error(`${chalk.redBright('! Error:')} No environment found to deploy to, please pass the -e parameter with an Apigee X environment.`)
+    //   } else if (options.deploy) {
+    //     const startTime = performance.now()
+    //     try {
+    //       if (generateResult && generateResult.template) {
+    //         this.apigeeService.updateProxy(generateResult.template.name, _proxyDir + '/' + generateResult.template.name + '.zip').then((updateResult: ProxyRevision) => {
+    //           if (updateResult && updateResult.revision) {
+    //             if (generateResult && generateResult.template) {
+    //               this.apigeeService.deployProxyRevision(options.environment, generateResult.template.name, updateResult.revision, options.deployServiceAccount).then((deployResult: ProxyDeployment) => {
+    //                 const endTime = performance.now()
+    //                 const duration = endTime - startTime
+    //                 if (options.verbose) this.logVerbose(JSON.stringify(generateResult), 'deploy result:')
+    //                 if (generateResult && generateResult.template) {
+    //                   console.log(`${chalk.green('>')} Proxy ${chalk.bold(chalk.blue(generateResult.template.name + ' version ' + updateResult.revision))} deployed to environment ${chalk.bold(chalk.magentaBright(options.environment))} in ${chalk.bold(chalk.green(Math.round(duration) + ' milliseconds'))}.`)
+
+    //                   // Now try to get the env group URL
+    //                   this.apigeeService.getEnvironmentGroups().then((result: EnvironmentGroup[]) => {
+    //                     result.forEach((group: EnvironmentGroup) => {
+    //                       this.apigeeService.getEnvironmentGroupAttachments(group.name).then((result => {
+    //                         result.forEach((element: EnvironmentGroupAttachment) => {
+    //                           if (element.environment === options.environment) {
+    //                             // Here we have an attachment, to print host URL link
+    //                             group.hostnames.forEach((hostname: string) => {
+    //                               if (generateResult.template)
+    //                                 console.log(`${chalk.green('>')} Wait 30-60 seconds, then test here: ${chalk.bold(chalk.blue(`https://${hostname}${generateResult.template.endpoints[0].basePath}`))}`);
+    //                             });
+    //                           }
+    //                         });
+    //                       }))
+    //                     });
+    //                   });
+    //                 }
+
+    //               }).catch((error) => {
+    //                 console.error(`${chalk.redBright('! Error:')} Error deploying proxy revision.`)
+    //                 if (options.verbose) this.logVerbose(JSON.stringify(error), 'deploy error:')
+    //               })
+    //             }
+    //           }
+    //         }).catch((error) => {
+    //           if (error && error.response && error.response.status && error.response.status === 400) {
+    //             console.error(`${chalk.redBright('! Error:')} Error in proxy bundle definition, try importing manually for more detailed error information.`)
+    //           }
+    //           else {
+    //             console.error(`${chalk.redBright('! Error:')} Error updating proxy.`)
+    //           }
+    //         });
+    //       }
+    //     }
+    //     catch (error) {
+    //       console.error(`${chalk.redBright('! Error:')} Error generating proxy.`)
+    //     }
+    //   }
+    // }).catch(() => {
+    //   console.error(`${chalk.redBright('! Error:')} Error templating proxy, invalid inputs given.`)
+    //   process.exit()
+    // })
   }
 
   /**

@@ -1,6 +1,6 @@
 {
   "name": "apigee-templater-module",
-  "version": "0.6.6",
+  "version": "0.6.8",
   "description": "This library provides templating services for Apigee X proxies.",
   "homepage": "https://github.com/tyayers/apigee-templater",
   "bugs": "https://github.com/tyayers/apigee-templater/issues",

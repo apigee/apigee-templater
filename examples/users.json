@@ -1,0 +1,20 @@
+{
+  "name": "UsersProxy-v1",
+  "profile": "default",
+  "endpoints": [
+    {
+      "name": "default",
+      "basePath": "/v1/users",
+      "target": {
+        "name": "default",
+        "url": "https://randomuser.me/api",
+        "headers": {
+          "Accept-Encoding": "gzip,deflate"
+        }
+      },
+      "spikeArrest": {
+        "rate": "30ps"
+      }
+    }
+  ]
+}

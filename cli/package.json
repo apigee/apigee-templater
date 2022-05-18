@@ -1,6 +1,6 @@
 {
   "name": "apigee-templater-cli",
-  "version": "0.4.26",
+  "version": "0.4.27",
   "description": "A CLI to easily template and deploy Apigee proxies.",
   "homepage": "https://github.com/tyayers/apigee-templater",
   "bugs": "https://github.com/tyayers/apigee-templater/issues",
@@ -25,9 +25,10 @@
   "author": "tayers",
   "license": "ISC",
   "dependencies": {
-    "apigee-templater-module": "^0.6.6",
+    "apigee-templater-module": "^0.6.8",
     "apigee-x-module": "^0.7.3",
     "arg": "^5.0.1",
+    "axios": "^0.27.2",
     "chalk": "^4.1.2",
     "dotenv": "^14.3.2",
     "esm": "^3.2.25",

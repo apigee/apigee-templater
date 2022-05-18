@@ -7,7 +7,10 @@
       "basePath": "/httpbin",
       "target": {
         "name": "default",
-        "url": "https://httpbin.org"
+        "url": "https://httpbin.org",
+        "headers": {
+          "Accept-Encoding": "gzip,deflate"
+        }
       },
       "quotas": [
         {

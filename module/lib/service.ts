@@ -98,7 +98,7 @@ export class ApigeeGenerator implements ApigeeTemplateService {
    * @param {string} inputString
    * @return {Promise<ApigeeTemplateInput>}
    */
-  convertStringToTemplate(inputString: string): Promise<ApigeeTemplateInput> {
+  convertStringToProxyInput(inputString: string): Promise<ApigeeTemplateInput> {
     return new Promise((resolve, reject) => {
       const conversions: Promise<ApigeeTemplateInput>[] = []
       for (const plugin of this.converterPlugins) {
@@ -131,7 +131,7 @@ export class ApigeeGenerator implements ApigeeTemplateService {
    */
   generateProxyFromString(inputString: string, outputDir: string): Promise<GenerateResult> {
     return new Promise((resolve, reject) => {
-      this.convertStringToTemplate(inputString).then((result) => {
+      this.convertStringToProxyInput(inputString).then((result) => {
         this.generateProxy(result, outputDir).then((generateResult) => {
           resolve(generateResult)
         })

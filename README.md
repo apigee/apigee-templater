@@ -93,8 +93,8 @@ apigee-template
 apigee-template -h
 ```
 ```sh
-#Generate a proxy based on input.json and deploy it to environment test1 with credentials in key.json
-apigee-template -f ./samples/input.json -d -e test1
+#Generate a proxy based on httpbin.json and deploy it to environment test1 with credentials in key.json
+apigee-template -f ./samples/httpbin.json -d -e test1
 ```
 
 All deployed proxies can then be viewed and managed in the [Apigee console](https://apigee.google.com), where you can check the status of the deployments, do tracing, and create API products based on these automated proxies.
@@ -211,9 +211,9 @@ When generating proxies, the plugins are called in the order given above, and pr
 You can customize the CLI directly without changing the **ApigeeGenerator** object by adding a javascript script using the **-s** parameter when calling the **apigee-template** CLI.  This script is evaluated before the templating is done, and can make changes to the **ApigeeGenerator** object as needed, by for example removing, replacing or adding plugins for both templating and input conversion (see [/samples/script.js](/samples/script.js) for an example).
 
 ```bash
-# Create a proxy based on ./samples/input.json using customization script ./samples/script.js,
+# Create a proxy based on ./samples/httpbin.json using customization script ./samples/script.js,
 # which replaces the generic **QuotaPlugin** with a developer-specific **DevQuotaPlugin**
-apigee-template -f ./samples/input.json -s ./samples/script.js
+apigee-template -f ./samples/httpbin.json -s ./samples/script.js
 ```
 
 ## Contributing
