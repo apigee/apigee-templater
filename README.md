@@ -154,7 +154,6 @@ apigeeTemplater: ApigeeGenerator = new ApigeeGenerator(); // Optionally custom c
 
 let input: ApigeeTemplateInput = {
   name: "MyProxy",
-  type: proxyTypes.programmable,
   endpoints: [
     {
       name: "default",
