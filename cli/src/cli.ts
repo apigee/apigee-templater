@@ -22,12 +22,11 @@ import chalk from 'chalk'
 import 'dotenv/config'
 import { ApigeeTemplateInput, ApigeeTemplateService, ApigeeGenerator, GenerateResult } from 'apigee-templater-module'
 import { ApigeeService, ApiManagementInterface, EnvironmentGroup, EnvironmentGroupAttachment, ProxyDeployment, ProxyRevision } from 'apigee-x-module'
-import { isContinueStatement } from 'typescript'
 
-const axios = require('axios').default;
+import axios from 'axios';
 
-process.on('uncaughtException', function () {
-  console.error(`${chalk.redBright('! Error:')} Problem executing the command, maybe your user or Google Cloud project isn't set?  You can set your default user credentials using ${chalk.blueBright('gcloud auth application-default login')} and default project using  ${chalk.blueBright('gcloud config set project PROJECT')}`)
+process.on('uncaughtException', function (e) {
+  console.error(`${chalk.redBright('! Error: An unexpected error occurred. ' + e.toString())}`)
 });
 
 /**
@@ -38,7 +37,7 @@ process.on('uncaughtException', function () {
  * @class cli
  * @typedef {cli}
  */
-export default class cli {
+export class cli {
   /**
    * The ApigeeService object, using default application credentials
    * @date 3/16/2022 - 11:20:23 AM
@@ -198,10 +197,10 @@ export default class cli {
   printHelp() {
     console.log('')
     console.log(`${chalk.bold(chalk.blueBright('Simple examples:'))}`)
-    console.log(`apigee-template ${chalk.grey('# Start interactive mode to enter the parameters.')}`)
-    console.log(`apigee-template -n TestProxy -b /httpbin -t https://httpbin.org ${chalk.grey('# Create a proxy called TestProxy under the base path /test to https://httpbin.org > will produce a TestProxy.zip bundle.')}`)
-    console.log(`apigee-template -n TestProxy -b /httpbin -t https://httpbin.org -d -e test1 ${chalk.grey("# Create a proxy called TestProxy and deploy to the Apigee X environment 'test1'.")}`)
-    console.log(`apigee-template -f ./PetStore.yaml -d -e test1 ${chalk.grey("# Create a proxy based on the PetStore.yaml file and deploy to environment 'test1'")}`)
+    console.log(`apigee-templater ${chalk.grey('# Start interactive mode to enter the parameters.')}`)
+    console.log(`apigee-templater -n TestProxy -b /httpbin -t https://httpbin.org ${chalk.grey('# Create a proxy called TestProxy under the base path /test to https://httpbin.org > will produce a TestProxy.zip bundle.')}`)
+    console.log(`apigee-templater -n TestProxy -b /httpbin -t https://httpbin.org -d -e test1 ${chalk.grey("# Create a proxy called TestProxy and deploy to the Apigee X environment 'test1'.")}`)
+    console.log(`apigee-templater -f ./PetStore.yaml -d -e test1 ${chalk.grey("# Create a proxy based on the PetStore.yaml file and deploy to environment 'test1'")}`)
 
     console.log('')
     console.log(`${chalk.bold(chalk.blueBright('All parameters:'))}`)
@@ -222,7 +221,7 @@ export default class cli {
     if (options.keyPath) process.env.GOOGLE_APPLICATION_CREDENTIALS = options.keyPath
     if (options.verbose) this.logVerbose(JSON.stringify(options), 'options:')
 
-    console.log(`${chalk.green('>')} ${chalk.bold(chalk.greenBright('Welcome to apigee-template'))}, use -h for more command line options. `)
+    console.log(`${chalk.green('>')} ${chalk.bold(chalk.greenBright('Welcome to apigee-templater'))}, use -h for more command line options. `)
 
     if (options.help) {
       this.printHelp()
@@ -231,7 +230,7 @@ export default class cli {
 
     if (options.file) {
       // We have a file input, let's check if local or remote..
-      if (options.file.startsWith("http")) {
+      if (options.file.startsWith("http://")) {
         // Remote file, fetch..
         if (options.verbose) this.logVerbose(`Fetching remote file ${options.file}`, 'env:')
         const response = await axios.get(options.file);
@@ -540,3 +539,5 @@ const helpCommands = [
     description: 'If no GOOGLE_APPLICATION_CREDENTIALS are set to authorize the proxy deployment, this can point to a GCP service account JSON key file to use for authorization.'
   }
 ]
+
+export default cli;

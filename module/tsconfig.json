@@ -3,17 +3,18 @@
   "display": "Node 17",
   "compilerOptions": {
     "lib": [
-      "es2021"
+      "ES6"
     ],
-    "module": "commonjs",
-    "target": "es2021",
+    "module": "ES6",
+    "target": "ES6",
     "declaration": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "useDefineForClassFields": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "moduleResolution": "node"
   },
   "include": [
     "src/**/*",
@@ -25,6 +26,6 @@
     "**/*.spec.ts"
   ],
   "lib": [
-    "es2015"
+    "ES6"
   ]
 }

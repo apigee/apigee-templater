@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint } from '../interfaces'
+import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint } from '../interfaces.js'
 
 /**
  * Creates proxy endpoints for the template

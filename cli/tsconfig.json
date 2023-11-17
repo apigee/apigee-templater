@@ -3,17 +3,18 @@
   "display": "Node 17",
   "compilerOptions": {
     "lib": [
-      "es2021"
+      "ES6"
     ],
-    "module": "commonjs",
-    "target": "es2021",
+    "module": "NodeNext",
+    "target": "ES6",
     "declaration": true,
-    "strict": true,
+    "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "useDefineForClassFields": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "moduleResolution": "NodeNext"
   },
   "include": [
     "src/**/*"
@@ -24,6 +25,6 @@
     "bin"
   ],
   "lib": [
-    "es2015"
+    "ES6"
   ]
 }

@@ -15,7 +15,7 @@
  */
 
 import yaml from 'js-yaml'
-import { ApigeeConverterPlugin, ApigeeTemplateInput } from '../interfaces'
+import { ApigeeConverterPlugin, ApigeeTemplateInput } from '../interfaces.js'
 
 /**
  * Converter from OpenAPI spec v3 format to ApigeeTemplateInput
@@ -45,7 +45,7 @@ export class OpenApiV3Converter implements ApigeeConverterPlugin {
             endpoints: [
               {
                 name: 'default',
-                basePath: Object.keys(specObj.paths)[0].replace('/', ''),
+                basePath: Object.keys(specObj.paths)[0],
                 target: {
                   name: 'default',
                   url: specObj.servers[0].url.replace('http://', '').replace('https://', '')

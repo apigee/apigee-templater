@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint, authTypes } from '../interfaces'
+import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint, authTypes } from '../interfaces.js'
 
 /**
  * Plugin class for handling API Key template requests

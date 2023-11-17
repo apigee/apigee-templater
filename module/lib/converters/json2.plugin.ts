@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ApigeeConverterPlugin, ApigeeTemplateInput, authTypes } from '../interfaces'
+import { ApigeeConverterPlugin, ApigeeTemplateInput, authTypes } from '../interfaces.js'
 
 /**
  * Converter from JSON format 2 to ApigeeTemplateInput

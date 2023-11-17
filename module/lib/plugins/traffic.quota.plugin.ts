@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult } from '../interfaces'
+import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult } from '../interfaces.js'
 
 /**
  * Plugin for traffic quota templating

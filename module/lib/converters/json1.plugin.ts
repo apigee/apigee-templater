@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ApigeeConverterPlugin, ApigeeTemplateInput } from '../interfaces'
+import { ApigeeConverterPlugin, ApigeeTemplateInput } from '../interfaces.js'
 
 /**
  * Converter from input string JSON format to ApigeeConverterPlugin

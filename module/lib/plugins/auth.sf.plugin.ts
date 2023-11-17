@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, proxyEndpoint, authTypes, PlugInResult } from '../interfaces'
+import { ApigeeTemplatePlugin, proxyEndpoint, authTypes, PlugInResult } from '../interfaces.js'
 
 /**
  * Template plugin to evaluate a sharedflow for authn
