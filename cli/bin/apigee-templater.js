@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
-// require = require('esm')(module /*, options*/);
-// const cli = require('../dist/cli.js').default;
-
 import cli from "../dist/cli.js";
+
+process.removeAllListeners('warning');
 
 const myCli = new cli();
 myCli.process(process.argv);

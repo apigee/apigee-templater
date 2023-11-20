@@ -19,7 +19,6 @@ import fs from 'fs'
 import { performance } from 'perf_hooks'
 import inquirer from 'inquirer'
 import chalk from 'chalk'
-import 'dotenv/config'
 import { ApigeeTemplateInput, ApigeeTemplateService, ApigeeGenerator, GenerateResult } from 'apigee-templater-module'
 import { ApigeeService, ApiManagementInterface, EnvironmentGroup, EnvironmentGroupAttachment, ProxyDeployment, ProxyRevision } from 'apigee-x-module'
 
@@ -196,16 +195,16 @@ export class cli {
    **/
   printHelp() {
     console.log('')
-    console.log(`${chalk.bold(chalk.blueBright('Simple examples:'))}`)
-    console.log(`apigee-templater ${chalk.grey('# Start interactive mode to enter the parameters.')}`)
-    console.log(`apigee-templater -n TestProxy -b /httpbin -t https://httpbin.org ${chalk.grey('# Create a proxy called TestProxy under the base path /test to https://httpbin.org > will produce a TestProxy.zip bundle.')}`)
-    console.log(`apigee-templater -n TestProxy -b /httpbin -t https://httpbin.org -d -e test1 ${chalk.grey("# Create a proxy called TestProxy and deploy to the Apigee X environment 'test1'.")}`)
-    console.log(`apigee-templater -f ./PetStore.yaml -d -e test1 ${chalk.grey("# Create a proxy based on the PetStore.yaml file and deploy to environment 'test1'")}`)
+    console.log(`${chalk.bold(chalk.magentaBright('> Simple examples:'))}`)
+    console.log(`> apigee-templater ${chalk.italic(chalk.magentaBright('# Start interactive mode to enter the parameters.'))}`)
+    console.log(`> apigee-templater -n TestProxy -b /httpbin -t https://httpbin.org' ${chalk.italic(chalk.magentaBright('# Create a proxy called TestProxy with the base path /test to target https://httpbin.org > will produce a TestProxy.zip bundle.'))}`)
+    console.log(`> apigee-templater -n TestProxy -b /httpbin -t https://httpbin.org -d -e test1' ${chalk.italic(chalk.magentaBright("# Create a proxy called TestProxy and deploy to the Apigee X environment 'test1'."))}`)
+    console.log(`> apigee-templater -f ./PetStore.yaml -d -e test1' ${chalk.italic(chalk.magentaBright("# Create a proxy based on the PetStore.yaml file and deploy to environment 'test1'"))}`)
 
     console.log('')
-    console.log(`${chalk.bold(chalk.blueBright('All parameters:'))}`)
+    console.log(`${chalk.bold(chalk.magentaBright('All parameters:'))}`)
     for (const line of helpCommands) {
-      console.log(`${chalk.bold(chalk.green(line.name))}: ${chalk.grey(line.description)} `)
+      console.log(`${line.name}: ${chalk.italic(chalk.magentaBright(line.description))} `)
     }
   }
 
@@ -221,7 +220,7 @@ export class cli {
     if (options.keyPath) process.env.GOOGLE_APPLICATION_CREDENTIALS = options.keyPath
     if (options.verbose) this.logVerbose(JSON.stringify(options), 'options:')
 
-    console.log(`${chalk.green('>')} ${chalk.bold(chalk.greenBright('Welcome to apigee-templater'))}, use -h for more command line options. `)
+    console.log(`${chalk.bold(chalk.magentaBright('> Welcome to Apigee Templater'))}, ${chalk.green('use -h for more command line options.')} `)
 
     if (options.help) {
       this.printHelp()
@@ -230,7 +229,7 @@ export class cli {
 
     if (options.file) {
       // We have a file input, let's check if local or remote..
-      if (options.file.startsWith("http://")) {
+      if (options.file.startsWith("https://")) {
         // Remote file, fetch..
         if (options.verbose) this.logVerbose(`Fetching remote file ${options.file}`, 'env:')
         const response = await axios.get(options.file);
@@ -376,68 +375,6 @@ export class cli {
         }
       });
     });
-
-    // this.apigeeGenerator.generateProxyFromString(options.input, _proxyDir).then((generateResult: GenerateResult) => {
-    //   if (generateResult && generateResult.template) { console.log(`${chalk.green('>')} Proxy ${chalk.bold(chalk.blue(generateResult.template.name))} generated to ${chalk.magentaBright(chalk.bold(generateResult.localPath))} in ${chalk.bold(chalk.green(Math.round(generateResult.duration) + ' milliseconds'))}.`) }
-
-    //   if (options.deploy && !options.environment) {
-    //     console.error(`${chalk.redBright('! Error:')} No environment found to deploy to, please pass the -e parameter with an Apigee X environment.`)
-    //   } else if (options.deploy) {
-    //     const startTime = performance.now()
-    //     try {
-    //       if (generateResult && generateResult.template) {
-    //         this.apigeeService.updateProxy(generateResult.template.name, _proxyDir + '/' + generateResult.template.name + '.zip').then((updateResult: ProxyRevision) => {
-    //           if (updateResult && updateResult.revision) {
-    //             if (generateResult && generateResult.template) {
-    //               this.apigeeService.deployProxyRevision(options.environment, generateResult.template.name, updateResult.revision, options.deployServiceAccount).then((deployResult: ProxyDeployment) => {
-    //                 const endTime = performance.now()
-    //                 const duration = endTime - startTime
-    //                 if (options.verbose) this.logVerbose(JSON.stringify(generateResult), 'deploy result:')
-    //                 if (generateResult && generateResult.template) {
-    //                   console.log(`${chalk.green('>')} Proxy ${chalk.bold(chalk.blue(generateResult.template.name + ' version ' + updateResult.revision))} deployed to environment ${chalk.bold(chalk.magentaBright(options.environment))} in ${chalk.bold(chalk.green(Math.round(duration) + ' milliseconds'))}.`)
-
-    //                   // Now try to get the env group URL
-    //                   this.apigeeService.getEnvironmentGroups().then((result: EnvironmentGroup[]) => {
-    //                     result.forEach((group: EnvironmentGroup) => {
-    //                       this.apigeeService.getEnvironmentGroupAttachments(group.name).then((result => {
-    //                         result.forEach((element: EnvironmentGroupAttachment) => {
-    //                           if (element.environment === options.environment) {
-    //                             // Here we have an attachment, to print host URL link
-    //                             group.hostnames.forEach((hostname: string) => {
-    //                               if (generateResult.template)
-    //                                 console.log(`${chalk.green('>')} Wait 30-60 seconds, then test here: ${chalk.bold(chalk.blue(`https://${hostname}${generateResult.template.endpoints[0].basePath}`))}`);
-    //                             });
-    //                           }
-    //                         });
-    //                       }))
-    //                     });
-    //                   });
-    //                 }
-
-    //               }).catch((error) => {
-    //                 console.error(`${chalk.redBright('! Error:')} Error deploying proxy revision.`)
-    //                 if (options.verbose) this.logVerbose(JSON.stringify(error), 'deploy error:')
-    //               })
-    //             }
-    //           }
-    //         }).catch((error) => {
-    //           if (error && error.response && error.response.status && error.response.status === 400) {
-    //             console.error(`${chalk.redBright('! Error:')} Error in proxy bundle definition, try importing manually for more detailed error information.`)
-    //           }
-    //           else {
-    //             console.error(`${chalk.redBright('! Error:')} Error updating proxy.`)
-    //           }
-    //         });
-    //       }
-    //     }
-    //     catch (error) {
-    //       console.error(`${chalk.redBright('! Error:')} Error generating proxy.`)
-    //     }
-    //   }
-    // }).catch(() => {
-    //   console.error(`${chalk.redBright('! Error:')} Error templating proxy, invalid inputs given.`)
-    //   process.exit()
-    // })
   }
 
   /**
@@ -449,9 +386,9 @@ export class cli {
    */
   logVerbose(input: string, label?: string) {
     if (label)
-      console.log(`${chalk.grey('> ' + label + ' ' + input)}`);
+      console.log(`${chalk.cyanBright('> ' + label + ' ' + input)}`);
     else
-      console.log(`${chalk.grey('> ' + input)} `)
+      console.log(`${chalk.cyanBright('> ' + input)} `)
   }
 }
 
