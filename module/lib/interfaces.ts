@@ -22,6 +22,8 @@ export class proxyTarget {
   table?= '';
   authScopes?= [];
   headers?: { [key: string]: string } = {};
+  preFlows?: string[] = [];
+  postFlows?: string[] = [];
 }
 
 /** A proxy endpoint describes a basepath, targets and other proxy features */
@@ -35,6 +37,8 @@ export class proxyEndpoint {
   auth?: authConfig[];
   quotas?: quotaConfig[];
   spikeArrest?: spikeArrestConfig;
+  preFlows?: string[] = [];
+  postFlows?: string[] = [];
   parameters?: { [key: string]: string } = {};
 }
 
@@ -42,6 +46,7 @@ export class proxyEndpoint {
 export class ApigeeTemplateInput {
   name = 'MyProxy';
   profile = 'default';
+  sharedFlow?: proxyEndpoint = undefined;
   endpoints: proxyEndpoint[] = [];
 
   /**

@@ -28,26 +28,38 @@ import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint } from '../interfaces
  */
 export class TargetsPlugin implements ApigeeTemplatePlugin {
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-  <TargetEndpoint name="{{targetName}}">
-      <PreFlow name="PreFlow">
-          <Request>
-            {{#if preflow_request_assign}}
-              <Step>
-                <Name>Set-Target-Message</Name>
-              </Step>
-            {{/if}}
-          </Request>
-          <Response/>
-      </PreFlow>
-      <Flows/>
-      <PostFlow name="PostFlow">
-          <Request/>
-          <Response/>
-      </PostFlow>
-      <HTTPTargetConnection>
-          <URL>{{targetUrl}}</URL>
-      </HTTPTargetConnection>
-  </TargetEndpoint>`;
+<TargetEndpoint name="{{targetName}}">
+    <PreFlow name="PreFlow">
+        <Request>
+          {{#if preflow_request_assign}}
+            <Step>
+              <Name>Set-Target-Message</Name>
+            </Step>
+          {{/if}}
+        </Request>
+        <Response/>
+    </PreFlow>
+    <Flows/>
+    <PostFlow name="PostFlow">
+        <Request>
+        {{#each pre_flows}}
+          <Step>
+            <Name>FC-{{this}}</Name>
+          </Step>
+        {{/each}}
+        </Request>
+        <Response>
+        {{#each post_flows}}
+          <Step>
+            <Name>{{FC-this}}</Name>
+          </Step>
+        {{/each}}
+        </Response>
+    </PostFlow>
+    <HTTPTargetConnection>
+        <URL>{{targetUrl}}</URL>
+    </HTTPTargetConnection>
+</TargetEndpoint>`;
 
   preFlowAssignMessageSnippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <AssignMessage continueOnError="false" enabled="true" name="Set-Target-Message">
@@ -65,8 +77,17 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
 </AssignMessage>
 `;
 
+  sharedFlowSnippet = `
+<FlowCallout continueOnError="false" enabled="true" name="FC-{{flowName}}">
+  <DisplayName>FC-{{flowName}}</DisplayName>
+  <Parameters/>
+  <SharedFlowBundle>{{flowName}}</SharedFlowBundle>
+</FlowCallout>
+  `;
+
   template = Handlebars.compile(this.snippet);
   messageAssignTemplate = Handlebars.compile(this.preFlowAssignMessageSnippet);
+  sharedFlowTemplate = Handlebars.compile(this.sharedFlowSnippet);
   /**
    * Templates the targets configurations
    * @date 2/14/2022 - 8:15:57 AM
@@ -86,7 +107,14 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
           inputConfig.target.url = "https://" + inputConfig.target.url;
         }
 
-        let context: any = { targetName: inputConfig.target.name, targetUrl: inputConfig.target.url, preflow_request_assign: (inputConfig.target.headers && Object.keys(inputConfig.target.headers).length > 0) };
+        let context: any = { 
+          targetName: inputConfig.target.name, 
+          targetUrl: inputConfig.target.url, 
+          preflow_request_assign: (inputConfig.target.headers && Object.keys(inputConfig.target.headers).length > 0),
+          pre_flows: inputConfig.target.preFlows,
+          post_flows: inputConfig.target.postFlows
+        };
+
         fileResult.files = [
           {
             path: '/targets/' + inputConfig.target.name + '.xml',
@@ -104,7 +132,6 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
             contents: this.messageAssignTemplate(assignContext)
           });
         }
-
       }
 
       resolve(fileResult)

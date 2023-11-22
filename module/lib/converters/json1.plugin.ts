@@ -39,7 +39,7 @@ export class Json1Converter implements ApigeeConverterPlugin {
 
       try {
         const inputData = JSON.parse(input)
-        if (inputData.name && inputData.endpoints) {
+        if (inputData.name && (inputData.endpoints || inputData.sharedFlow)) {
           result = inputData as ApigeeTemplateInput
           resolve(result)
         } else { reject(new Error('Conversion not posible, data incomplete')) }

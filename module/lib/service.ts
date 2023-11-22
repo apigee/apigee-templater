@@ -18,8 +18,10 @@ import archiver from 'archiver'
 import fs from 'fs'
 import path from 'path'
 import { performance } from 'perf_hooks'
-import { ApigeeTemplateService, ApigeeTemplateInput, ApigeeTemplateProfile, PlugInResult, PlugInFile, ApigeeConverterPlugin, GenerateResult } from './interfaces.js'
+import { ApigeeTemplateService, ApigeeTemplateInput, ApigeeTemplateProfile, PlugInResult, PlugInFile, ApigeeConverterPlugin, GenerateResult, proxyEndpoint } from './interfaces.js'
 import { ProxiesPlugin } from './plugins/proxies.plugin.js'
+import { FlowPlugin } from './plugins/flow.plugin.js'
+import { FlowCalloutPlugin } from './plugins/flow.callout.plugin.js'
 import { TargetsPlugin } from './plugins/targets.plugin.js'
 import { TargetsBigQueryPlugin } from './plugins/targets.bigquery.plugin.js'
 import { AuthSfPlugin } from './plugins/auth.sf.plugin.js'
@@ -53,9 +55,20 @@ export class ApigeeGenerator implements ApigeeTemplateService {
         new AuthApiKeyPlugin(),
         new AuthSfPlugin(),
         new QuotaPlugin(),
+        new FlowCalloutPlugin(),
         new TargetsPlugin(),
         new ProxiesPlugin()
       ]
+    },
+    sharedflow: {
+      plugins: [
+        new SpikeArrestPlugin(),
+        new AuthApiKeyPlugin(),
+        new AuthSfPlugin(),
+        new QuotaPlugin(),
+        new TargetsPlugin(),
+        new FlowPlugin()
+      ]      
     },
     bigquery: {
       plugins: [
@@ -152,48 +165,43 @@ export class ApigeeGenerator implements ApigeeTemplateService {
    */
   generateProxy(genInput: ApigeeTemplateInput, outputDir: string): Promise<GenerateResult> {
     return new Promise((resolve, reject) => {
-      const startTime = performance.now()
+      const startTime = performance.now();
 
       const result: GenerateResult = {
         success: true,
         duration: 0,
         message: '',
         localPath: ''
+      };
+
+      const processingVars: Map<string, object> = new Map<string, object>();
+
+      let newOutputDir = "";
+
+      if (genInput.sharedFlow != undefined) 
+        newOutputDir = outputDir + '/' + genInput.name + '/sharedflowbundle';
+      else
+        newOutputDir = outputDir + '/' + genInput.name + '/apiproxy';
+
+      fs.mkdirSync(newOutputDir, { recursive: true });
+
+      if (genInput.sharedFlow != undefined)
+        fs.mkdirSync(newOutputDir + '/sharedflows', { recursive: true });
+      else
+        fs.mkdirSync(newOutputDir + '/proxies', { recursive: true });
+
+      fs.mkdirSync(newOutputDir + '/targets', { recursive: true });
+      fs.mkdirSync(newOutputDir + '/policies', { recursive: true });
+      fs.mkdirSync(newOutputDir + '/resources', { recursive: true });
+
+      // First process all endpoint objects for normal proxies
+      if (genInput.endpoints != undefined && genInput.endpoints.length > 0) {
+        for (const endpoint of genInput.endpoints) {
+          this.callPlugins(genInput, endpoint, newOutputDir, processingVars);
+        }
       }
-
-      const processingVars: Map<string, object> = new Map<string, object>()
-      const newOutputDir = outputDir + '/' + genInput.name + '/apiproxy'
-      fs.mkdirSync(newOutputDir, { recursive: true })
-
-      fs.mkdirSync(newOutputDir + '/proxies', { recursive: true })
-      fs.mkdirSync(newOutputDir + '/targets', { recursive: true })
-      fs.mkdirSync(newOutputDir + '/policies', { recursive: true })
-      fs.mkdirSync(newOutputDir + '/resources', { recursive: true })
-
-      for (const endpoint of genInput.endpoints) {
-        // Initialize variables for endpoint
-        processingVars.set('preflow_request_policies', [])
-        processingVars.set('preflow_response_policies', [])
-        processingVars.set('postflow_request_policies', [])
-        processingVars.set('postflow_response_policies', [])
-
-        if (process.env.PROJECT) {
-          if (!endpoint.parameters) endpoint.parameters = {};
-          endpoint.parameters.PROJECT = process.env.PROJECT;
-        }
-
-        if (Object.keys(this.profiles).includes(genInput.profile)) {
-          for (const plugin of this.profiles[genInput.profile].plugins) {
-            plugin.applyTemplate(endpoint, processingVars).then((result: PlugInResult) => {
-              result.files.forEach((file: PlugInFile) => {
-                fs.mkdirSync(path.dirname(newOutputDir + file.path), { recursive: true })
-                fs.writeFileSync(newOutputDir + file.path, file.contents)
-              })
-            })
-          }
-        } else {
-          reject(new Error(`Profile ${genInput.profile} was not found!  No conversion is possible without a valid profile (current profiles available: ${Object.keys(this.profiles)})`))
-        }
+      else if (genInput.sharedFlow != undefined) {
+        this.callPlugins(genInput, genInput.sharedFlow, newOutputDir, processingVars);
       }
 
       const archive = archiver('zip')
@@ -220,5 +228,29 @@ export class ApigeeGenerator implements ApigeeTemplateService {
       archive.pipe(output)
       archive.finalize()
     })
+  }
+
+  callPlugins(genInput: ApigeeTemplateInput, endpoint: proxyEndpoint, newOutputDir: string, processingVars: Map<string, object>) {
+    // Initialize variables for endpoint
+    processingVars.set('preflow_request_policies', [])
+    processingVars.set('preflow_response_policies', [])
+    processingVars.set('postflow_request_policies', [])
+    processingVars.set('postflow_response_policies', [])
+
+    if (process.env.PROJECT) {
+      if (!endpoint.parameters) endpoint.parameters = {};
+      endpoint.parameters.PROJECT = process.env.PROJECT;
+    }
+
+    if (Object.keys(this.profiles).includes(genInput.profile)) {
+      for (const plugin of this.profiles[genInput.profile].plugins) {
+        plugin.applyTemplate(endpoint, processingVars).then((result: PlugInResult) => {
+          result.files.forEach((file: PlugInFile) => {
+            fs.mkdirSync(path.dirname(newOutputDir + file.path), { recursive: true })
+            fs.writeFileSync(newOutputDir + file.path, file.contents)
+          })
+        })
+      }
+    }
   }
 }

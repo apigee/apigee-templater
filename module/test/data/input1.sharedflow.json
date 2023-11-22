@@ -1,0 +1,10 @@
+{
+  "name": "testflow",
+  "profile": "sharedflow",
+  "sharedFlow": {
+    "name": "default",
+    "spikeArrest": {
+      "rate": "20s"
+    }
+  }
+}

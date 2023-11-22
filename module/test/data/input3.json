@@ -1,0 +1,21 @@
+{
+  "name": "testproxy3",
+  "profile": "default",
+  "endpoints": [
+    {
+      "name": "default",
+      "basePath": "/httpbin",
+      "target": {
+        "name": "default",
+        "url": "https://httpbin.org",
+        "headers": {
+          "Accept-Encoding": "gzip,deflate"
+        },
+        "preFlows": ["testflow"]
+      },
+      "spikeArrest": {
+        "rate": "20s"
+      }
+    }
+  ]
+}

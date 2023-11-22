@@ -33,9 +33,31 @@ describe('Generate simple normal JSON 1 proxy', () => {
   })
 })
 
+describe('Generate simple JSON 1 shared flow', () => {
+  return it('should produce a valid sharedflow bundle', () => {
+    const input = fs.readFileSync('./test/data/input1.sharedflow.json', 'utf-8')
+    return apigeeGenerator.generateProxyFromString(input, 'test/proxies').then((response) => {
+      expect(response.success).to.equal(true)
+      expect(response.duration).to.greaterThan(0)
+      expect(fs.existsSync(response.localPath)).to.equal(true)
+    })
+  })
+})
+
 describe('Generate custom JSON 2 proxy', () => {
   return it('should produce a valid proxy bundle', () => {
     const input = fs.readFileSync('./test/data/input2.json', 'utf-8')
+    return apigeeGenerator.generateProxyFromString(input, 'test/proxies').then((response) => {
+      expect(response.success).to.equal(true)
+      expect(response.duration).to.greaterThan(0)
+      expect(fs.existsSync(response.localPath)).to.equal(true)
+    })
+  })
+})
+
+describe('Generate simple JSON 3 proxy with shared flow callout', () => {
+  return it('should produce a valid proxy bundle', () => {
+    const input = fs.readFileSync('./test/data/input3.json', 'utf-8')
     return apigeeGenerator.generateProxyFromString(input, 'test/proxies').then((response) => {
       expect(response.success).to.equal(true)
       expect(response.duration).to.greaterThan(0)
