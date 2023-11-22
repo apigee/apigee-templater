@@ -13,7 +13,7 @@ npm install apigee-templater-module
 
 ## Profiles
 
-The module supports multiple profiles of plugin configurations. The profiles can provide custom configurations for any standardized proxy requirements.  The **default** and **bigquery** profiles are provided out-of-the-box for testing. Profiles can be injected when creating the **ApigeeGenerator** service object, or later by adjusting the **converterPlugins** and **profiles** collections.
+The module supports multiple profiles of plugin configurations. The profiles can provide custom configurations for any standardized proxy requirements.  The **default**, **sharedflow** and **bigquery** profiles are provided out-of-the-box for testing. Profiles can be injected when creating the **ApigeeGenerator** service object, or later by adjusting the **converterPlugins** and **profiles** collections.
 
 ## Converters
 
