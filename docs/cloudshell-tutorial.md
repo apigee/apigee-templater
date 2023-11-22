@@ -1,7 +1,7 @@
 # Apigee Templater Demo
 
 ---
-This tutorial shows you how to use the **apigee-templater-cli** to create and deploy proxies using simple commands and template files.
+This tutorial shows you how to use the **apigee-templater** CLI to create and deploy proxies using simple commands and template files.
 
 Let's get started!
 
@@ -24,7 +24,7 @@ Let's create a simple proxy to [httpbin.org](https://httpbin.org).
 Run this command in the Cloud Shell.
 
 ```sh
-npx apigee-templater-cli -n HttpBinProxy -b /httpbin -t https://httpbin.org -d -e $APIGEE_ENV
+npx apigee-templater -n HttpBinProxy -b /httpbin -t https://httpbin.org -d -e $APIGEE_ENV
 ```
 Now jump over to the [Apigee console](https://apigee.google.com) to see the status of the proxy deployment.
 
@@ -49,7 +49,7 @@ This is an example of using automation to ease the management of data products p
 Run this command in the Cloud Shell.
 
 ```sh
-npx apigee-templater-cli -n BikeTrips-v1 -b /trips -q bigquery-public-data.austin_bikeshare.bikeshare_trips -d -e $APIGEE_ENV -s bq-api-service@$PROJECT.iam.gserviceaccount.com
+npx apigee-templater -n BikeTrips-v1 -b /trips -q bigquery-public-data.austin_bikeshare.bikeshare_trips -d -e $APIGEE_ENV -s bq-api-service@$PROJECT.iam.gserviceaccount.com
 ```
 This should create a new proxy with a path **/trips** for accessing and querying the bike trip data.
 
@@ -65,6 +65,6 @@ You should see 5 records returned in clean JSON format. The proxy is doing the q
 ## Conclusion
 <walkthrough-conclusion-trophy></walkthrough-conclusion-trophy>
 
-Congratulations! You've successfully used apigee-templater-cli to create and deploy APIs through templating.
+Congratulations! You've successfully used apigee-templater to create and deploy APIs through templating.
 
 <walkthrough-inline-feedback></walkthrough-inline-feedback>

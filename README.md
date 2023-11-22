@@ -15,14 +15,14 @@ Apigee proxies are ideal for templating since the bundles are composed of simple
 You can install the CLI to use globally on your system using npm. 
 
 ```sh
-npm i -g apigee-templater-cli
+npm i -g apigee-templater
 ```
-
 You can try out the tool easily in Google Cloud Shell including a tutorial walk-through of the features by clicking here:
 
 [![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.png)](https://ssh.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/apigee/apigee-templater&cloudshell_git_branch=main&cloudshell_workspace=.&cloudshell_tutorial=docs/cloudshell-tutorial.md)
 
-## Usage
+## Example usage
+You can find examples of both proxy and shared flow generation in the `./module/tests` directory. The tests use both JSON and YAML to demonstrate configuration of proxies and shared flows.
 
 Create an Apigee proxy to a web endpoint and deploy to the 'eval' environment
 
@@ -36,9 +36,7 @@ Output:
 > Proxy HttpBinProxy version 1 deployed to environment eval in 2258 milliseconds.
 > Wait 2-3 minutes, then test here: https://eval-group.34-111-104-118.nip.io/httpbin
 ```
-
-### Create and deploy a proxy to a BigQuery table
-
+Create and deploy a proxy to data in a BigQuery table
 ```sh
 # Build and deploy a REST proxy to the BigQuery Austin bikesharing public dataset
 apigee-templater -n BikeTrips-v1 -b /trips -q bigquery-public-data.austin_bikeshare.bikeshare_trips -d -e eval -s serviceaccount@project.iam.gserviceaccount.com
@@ -105,6 +103,7 @@ The module & CLI can generate and deploy Apigee X proxies with these features ou
   * HTTP Urls
   * BigQuery Queries
   * BigQuery Tables
+  * Pre and post flow callouts
 * Auth with apikey or 3rd party OAuth token
 * Quotas
 * Spike Arrests
