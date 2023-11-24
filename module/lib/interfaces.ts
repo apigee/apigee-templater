@@ -37,9 +37,10 @@ export class proxyEndpoint {
   auth?: authConfig[];
   quotas?: quotaConfig[];
   spikeArrest?: spikeArrestConfig;
-  preFlows?: string[] = [];
-  postFlows?: string[] = [];
-  parameters?: { [key: string]: string } = {};
+  parameters: {[key: string]: string} = {};
+  preFlowSteps: any[] = [];
+  postFlowSteps: any[] = [];
+  fileResults?: PlugInResult[] = [];
 }
 
 /** Describes a proxy to be templated */
@@ -89,6 +90,15 @@ export enum authTypes {
   sharedflow = 'sharedflow'
 }
 
+export enum policyInsertPlaces {
+  preRequest = 'preRequest',
+  postRequest = 'postRequest',
+  preTarget = 'preTarget',
+  postTarget = 'postTarget',
+  preResponse = 'preResponse',
+  postResponse = 'postResponse'
+}
+
 export interface ApigeeTemplateService {
   convertStringToProxyInput(inputString: string): Promise<ApigeeTemplateInput>
   generateProxyFromString(inputString: string, outputDir: string): Promise<GenerateResult>
@@ -106,22 +116,35 @@ export class GenerateResult {
 
 /** The result of plugin processing */
 export class PlugInResult {
+  source: string = "";
   files: PlugInFile[] = [];
+
+  constructor(owner: string) {
+    this.source = owner;
+  }
 }
 
 /** Plugin file results to be written to disk */
 export class PlugInFile {
+  policyConfig? = new PlugInFilePolicyConfig();
   path = '';
   contents = '';
+}
+
+export class PlugInFilePolicyConfig {
+  name = '';
+  triggers: policyInsertPlaces[] = [];
 }
 
 /** Profile definition with plugins to be used for conversion */
 export class ApigeeTemplateProfile {
   plugins: ApigeeTemplatePlugin[] = [];
+  flowPlugins: {[key: string]: ApigeeTemplatePlugin} = {};
+  finalizePlugin?: ApigeeTemplatePlugin;
 }
 
 export interface ApigeeTemplatePlugin {
-  applyTemplate(inputConfig: proxyEndpoint, processingVars: Map<string, object>): Promise<PlugInResult>
+  applyTemplate(inputConfig: proxyEndpoint, additionalData?: Object): Promise<PlugInResult>
 }
 
 export interface ApigeeConverterPlugin {

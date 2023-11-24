@@ -55,7 +55,10 @@ export class Json2Converter implements ApigeeConverterPlugin {
                       type: authTypes.sharedflow,
                       parameters: {}
                     }
-                  ]
+                  ],
+                  parameters: {},
+                  requestSteps: {},
+                  responseSteps: {}
                 }
               ]
             })

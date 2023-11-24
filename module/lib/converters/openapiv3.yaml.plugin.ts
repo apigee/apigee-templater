@@ -49,7 +49,10 @@ export class OpenApiV3Converter implements ApigeeConverterPlugin {
                 target: {
                   name: 'default',
                   url: specObj.servers[0].url.replace('http://', '').replace('https://', '')
-                }
+                },
+                parameters: {},
+                requestSteps: {},
+                responseSteps: {}
               }
             ]
           })

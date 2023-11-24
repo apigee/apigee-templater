@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult } from '../interfaces.js'
+import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, policyInsertPlaces } from '../interfaces.js'
 
 /**
  * Plugin for templating spike arrests
@@ -46,23 +46,23 @@ export class SpikeArrestPlugin implements ApigeeTemplatePlugin {
    * @param {Map<string, object>} processingVars
    * @return {Promise<PlugInResult>}
    */
-  applyTemplate (inputConfig: proxyEndpoint, processingVars: Map<string, object>): Promise<PlugInResult> {
+  applyTemplate (inputConfig: proxyEndpoint): Promise<PlugInResult> {
     return new Promise((resolve) => {
-      const fileResult: PlugInResult = new PlugInResult()
+      const fileResult: PlugInResult = new PlugInResult(this.constructor.name)
 
       if (inputConfig.spikeArrest) {
         fileResult.files = [
           {
+            policyConfig: {
+              name: 'Spike-Arrest-1',
+              triggers: [policyInsertPlaces.preRequest]
+            },
             path: '/policies/Spike-Arrest-1.xml',
             contents: this.template({
               rate: inputConfig.spikeArrest.rate
             })
           }
         ];
-
-        // TODO: refactor to get rid of ugly Map string object here
-        // eslint-disable-next-line @typescript-eslint/ban-types
-        (processingVars.get('preflow_request_policies') as Object[]).push({ name: 'Spike-Arrest-1' })
       }
 
       resolve(fileResult)

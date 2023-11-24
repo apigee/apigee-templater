@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, proxyEndpoint, authTypes, PlugInResult } from '../interfaces.js'
+import { ApigeeTemplatePlugin, proxyEndpoint, authTypes, PlugInResult, policyInsertPlaces } from '../interfaces.js'
 
 /**
  * Template plugin to evaluate a sharedflow for authn
@@ -59,15 +59,19 @@ export class AuthSfPlugin implements ApigeeTemplatePlugin {
    * @param {Map<string, object>} processingVars
    * @return {Promise<PlugInResult>}
    */
-  applyTemplate (inputConfig: proxyEndpoint, processingVars: Map<string, object>): Promise<PlugInResult> {
+  applyTemplate (inputConfig: proxyEndpoint): Promise<PlugInResult> {
     return new Promise((resolve) => {
-      const fileResult: PlugInResult = new PlugInResult()
+      const fileResult: PlugInResult = new PlugInResult(this.constructor.name);
 
       if (inputConfig.auth && inputConfig.auth.filter(e => e.type === authTypes.sharedflow).length > 0) {
         const authConfig = inputConfig.auth.filter(e => e.type === authTypes.sharedflow)[0]
 
         fileResult.files = [
           {
+            policyConfig: {
+              name: 'VerifyJWT',
+              triggers: [policyInsertPlaces.preRequest]
+            },
             path: '/policies/VerifyJWT.xml',
             contents: this.template({
               audience: authConfig.parameters.audience,
@@ -77,10 +81,6 @@ export class AuthSfPlugin implements ApigeeTemplatePlugin {
             })
           }
         ];
-
-        // TODO: refactor to get rid of ugly Map string object here
-        // eslint-disable-next-line @typescript-eslint/ban-types
-        (processingVars.get('preflow_request_policies') as Object[]).push({ name: 'VerifyJWT' })
       }
 
       resolve(fileResult)

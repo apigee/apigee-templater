@@ -22,26 +22,59 @@ import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, policyInsertPlaces }
  * @date 2/14/2022 - 8:17:36 AM
  *
  * @export
- * @class QuotaPlugin
- * @typedef {QuotaPlugin}
+ * @class ExtractVariablesPlugin
+ * @typedef {ExtractVariablesPlugin}
  * @implements {ApigeeTemplatePlugin}
  */
-export class QuotaPlugin implements ApigeeTemplatePlugin {
+export class ExtractVariablesPlugin implements ApigeeTemplatePlugin {
+    
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-  <Quota continueOnError="false" enabled="true" name="Quota-{{index}}" type="calendar">
-      <DisplayName>Quota-{{index}}</DisplayName>
-      <Properties/>
-      <Allow count="{{count}}" countRef="request.header.allowed_quota"/>
-      <Interval ref="request.header.quota_count">1</Interval>
-      <Distributed>false</Distributed>
-      <Synchronous>false</Synchronous>
-      <TimeUnit ref="request.header.quota_timeout">{{timeUnit}}</TimeUnit>
-      <StartTime>2022-1-20 12:00:00</StartTime>
-      <AsynchronousConfiguration>
-          <SyncIntervalInSeconds>20</SyncIntervalInSeconds>
-          <SyncMessageCount>5</SyncMessageCount>
-      </AsynchronousConfiguration>
-  </Quota>`;
+<ExtractVariables continueOnError="false" enabled="true" name="EV-{{name}}">
+  <DisplayName>EV-{{name}}</DisplayName>
+  <URIPath>
+{{#each URIPaths}}
+    <Pattern ignoreCase="{{this.ignoreCase}}">{{this.pattern}}</Pattern>
+{{/each}}
+  </URIPath>
+{{#each URIPaths}}
+  <QueryParam name="{{this.name}}">
+    <Pattern ignoreCase="{{this.ignoreCase}}">{{this.pattern}}</Pattern>
+  </QueryParam>  
+{{/each}}
+{{#each headers}}
+  <Header name="{{this.name}}">
+    <Pattern ignoreCase="{{this.ignoreCase}}">{{this.pattern}}</Pattern>
+  </Header>  
+{{/each}}
+{{#each formParams}}
+  <FormParam name="{{this.name}}">
+    <Pattern>{{this.pattern}}</Pattern>
+  </FormParam>
+{{/each}}
+{{#each variables}}
+  <FormParam name="{{this.name}}">
+    <Pattern>{{this.pattern}}</Pattern>
+  </FormParam>
+{{/each}}
+{{#each JSONPaths}}
+  <JSONPayload>
+    <Variable name="{{this.name}}">
+      <JSONPath>{{this.path}}</JSONPath>
+    </Variable>
+  </JSONPayload>
+{{/each}}
+{{#each XMLPaths}}
+  <XMLPayload stopPayloadProcessing="false">
+    <Namespaces/>
+    <Variable name="{{this.name}}" type="{{this.type}}">
+      <XPath>{{this.path}}</XPath>
+    </Variable>
+  </XMLPayload>
+{{/each}}
+  <Source clearPayload="false">message</Source>
+  <VariablePrefix>{{prefix}}</VariablePrefix>
+  <IgnoreUnresolvedVariables>{{ignoreUnresolved}}</IgnoreUnresolvedVariables>
+</ExtractVariables>`;
 
   template = Handlebars.compile(this.snippet);
 

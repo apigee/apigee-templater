@@ -25,6 +25,38 @@
         {
           "type": "apikey"
         }
+      ],
+      "preFlowSteps": [
+        {
+          "type": "ExtractVariables",
+          "name": "extractHeaders",
+          "URIPaths": [
+            {
+              "ignoreCase": true,
+              "pattern": "/accounts/{id}" 
+            }
+          ],
+          "queryParams": [
+            {
+              "name": "w.2",
+              "ignoreCase": true,
+              "pattern": "{secondW}" 
+            }
+          ],
+          "headers": [""],
+          "formParams": [""],
+          "JSONPaths": [""],
+          "XMLPaths": [""],
+          "prefix": "",
+          "ignoreUnresolved": true
+        }
+      ],
+      "postFlowSteps": [
+        {
+          "type": "AssignMessage",
+          "assignTarget": "response",
+          "path": ""
+        }
       ]
     }
   ]

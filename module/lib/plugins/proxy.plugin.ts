@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint } from '../interfaces.js'
+import { ApigeeTemplatePlugin, PlugInResult, policyInsertPlaces, proxyEndpoint } from '../interfaces.js'
 
 /**
  * Creates proxy endpoints for the template
@@ -26,14 +26,14 @@ import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint } from '../interfaces
  * @typedef {ProxiesPlugin}
  * @implements {ApigeeTemplatePlugin}
  */
-export class ProxiesPlugin implements ApigeeTemplatePlugin {
+export class ProxyPlugin implements ApigeeTemplatePlugin {
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <ProxyEndpoint name="default">
       <PreFlow name="PreFlow">
           <Request>
-            {{#each preflow_request_policies}}
+            {{#each preRequestPolicies}}
               <Step>
-                <Name>{{this.name}}</Name>
+                <Name>{{this}}</Name>
               </Step>
             {{/each}}
           </Request>
@@ -64,9 +64,34 @@ export class ProxiesPlugin implements ApigeeTemplatePlugin {
    * @param {Map<string, object>} processingVars
    * @return {Promise<PlugInResult>}
    */
-  applyTemplate(inputConfig: proxyEndpoint, processingVars: Map<string, object>): Promise<PlugInResult> {
+  applyTemplate(inputConfig: proxyEndpoint): Promise<PlugInResult> {
     return new Promise((resolve) => {
-      const fileResult: PlugInResult = new PlugInResult()
+      const fileResult: PlugInResult = new PlugInResult(this.constructor.name)
+
+      const preRequestPolicies: string[] = [];
+      const postRequestPolicies: string[] = [];
+      const preResponsePolicies: string[] = [];
+      const postResponsePolicies: string[] = [];
+  
+      // Now collect all of our policies that should be triggered
+      if (inputConfig.fileResults)
+        for (let plugResult of inputConfig.fileResults) {
+          for (let fileResult of plugResult.files) {
+            if (fileResult.policyConfig) {
+              for (let policyTrigger of fileResult.policyConfig.triggers) {
+                if (policyTrigger == policyInsertPlaces.preRequest)
+                  preRequestPolicies.push(fileResult.policyConfig.name);
+                else if (policyTrigger == policyInsertPlaces.postRequest)
+                  postRequestPolicies.push(fileResult.policyConfig.name);
+                else if (policyTrigger == policyInsertPlaces.preResponse)
+                  preResponsePolicies.push(fileResult.policyConfig.name);
+                else if (policyTrigger == policyInsertPlaces.postResponse)
+                  postResponsePolicies.push(fileResult.policyConfig.name);
+              }
+            }
+          }
+        }
+
       fileResult.files = [
         {
           path: '/proxies/' + inputConfig.name + '.xml',
@@ -74,10 +99,10 @@ export class ProxiesPlugin implements ApigeeTemplatePlugin {
             {
               basePath: inputConfig.basePath,
               targetName: inputConfig.target.name,
-              preflow_request_policies: processingVars.get('preflow_request_policies'),
-              preflow_response_policies: processingVars.get('preflow_response_policies'),
-              postflow_request_policies: processingVars.get('postflow_request_policies'),
-              postflow_response_policies: processingVars.get('postflow_response_policies'),
+              preRequestPolicies: preRequestPolicies,
+              preResponsePolicies: preResponsePolicies,
+              postRequestPolicies: postRequestPolicies,
+              postResponsePolicies: postResponsePolicies,
             })
         }
       ]

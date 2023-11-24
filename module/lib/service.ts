@@ -19,7 +19,7 @@ import fs from 'fs'
 import path from 'path'
 import { performance } from 'perf_hooks'
 import { ApigeeTemplateService, ApigeeTemplateInput, ApigeeTemplateProfile, PlugInResult, PlugInFile, ApigeeConverterPlugin, GenerateResult, proxyEndpoint } from './interfaces.js'
-import { ProxiesPlugin } from './plugins/proxies.plugin.js'
+import { ProxyPlugin } from './plugins/proxy.plugin.js'
 import { FlowPlugin } from './plugins/flow.plugin.js'
 import { FlowCalloutPlugin } from './plugins/flow.callout.plugin.js'
 import { TargetsPlugin } from './plugins/targets.plugin.js'
@@ -31,6 +31,7 @@ import { SpikeArrestPlugin } from './plugins/traffic.spikearrest.plugin.js'
 import { Json1Converter } from './converters/json1.plugin.js'
 import { Json2Converter } from './converters/json2.plugin.js'
 import { OpenApiV3Converter } from './converters/openapiv3.yaml.plugin.js'
+import { ExtractVariablesPlugin } from './plugins/mediation.exvars.plugin.js'
 
 /**
  * ApigeeGenerator runs the complete templating operation with all injected plugins
@@ -57,8 +58,12 @@ export class ApigeeGenerator implements ApigeeTemplateService {
         new QuotaPlugin(),
         new FlowCalloutPlugin(),
         new TargetsPlugin(),
-        new ProxiesPlugin()
-      ]
+        new ProxyPlugin()
+      ],
+      flowPlugins: {
+        "ExtractVariables": new ExtractVariablesPlugin()
+      },
+      finalizePlugin: new ProxyPlugin()
     },
     sharedflow: {
       plugins: [
@@ -66,9 +71,10 @@ export class ApigeeGenerator implements ApigeeTemplateService {
         new AuthApiKeyPlugin(),
         new AuthSfPlugin(),
         new QuotaPlugin(),
-        new TargetsPlugin(),
-        new FlowPlugin()
-      ]      
+        new TargetsPlugin()
+      ],
+      flowPlugins: {},
+      finalizePlugin: new FlowPlugin()
     },
     bigquery: {
       plugins: [
@@ -76,9 +82,10 @@ export class ApigeeGenerator implements ApigeeTemplateService {
         new AuthApiKeyPlugin(),
         new AuthSfPlugin(),
         new QuotaPlugin(),
-        new TargetsBigQueryPlugin(),
-        new ProxiesPlugin()
-      ]
+        new TargetsBigQueryPlugin()
+      ],
+      flowPlugins: {},
+      finalizePlugin: new ProxyPlugin()
     }
   };
 
@@ -174,7 +181,7 @@ export class ApigeeGenerator implements ApigeeTemplateService {
         localPath: ''
       };
 
-      const processingVars: Map<string, object> = new Map<string, object>();
+      // const processingVars: Map<string, object> = new Map<string, object>();
 
       let newOutputDir = "";
 
@@ -194,63 +201,174 @@ export class ApigeeGenerator implements ApigeeTemplateService {
       fs.mkdirSync(newOutputDir + '/policies', { recursive: true });
       fs.mkdirSync(newOutputDir + '/resources', { recursive: true });
 
-      // First process all endpoint objects for normal proxies
+      let promises: Promise<PlugInResult[]>[] = [];
       if (genInput.endpoints != undefined && genInput.endpoints.length > 0) {
         for (const endpoint of genInput.endpoints) {
-          this.callPlugins(genInput, endpoint, newOutputDir, processingVars);
+          // First, call normal plugins
+          let newPromise = this.callPlugins(genInput, endpoint, newOutputDir);
+          promises.push(newPromise);
+          newPromise.then((results) => {
+            endpoint.fileResults = results;
+
+            // Now call flow plugins
+            let extensionPromise = this.callFlowPlugins(genInput, endpoint, newOutputDir);
+            promises.push(extensionPromise);
+            extensionPromise.then((results) => {
+              // And finally call finalizer plugin
+              let finalizerPromise = this.callFinalizerPlugin(genInput, endpoint, newOutputDir);
+              promises.push(finalizerPromise);
+              finalizerPromise.then((finalizerResults) => {
+                if (endpoint.fileResults) {
+                  endpoint.fileResults = endpoint.fileResults.concat(finalizerResults);
+                }
+              });
+            });
+          });
         }
       }
       else if (genInput.sharedFlow != undefined) {
-        this.callPlugins(genInput, genInput.sharedFlow, newOutputDir, processingVars);
+        // First call normal plugins
+        let newPromise = this.callPlugins(genInput, genInput.sharedFlow, newOutputDir);
+        promises.push(newPromise);
+        newPromise.then((results) => {
+          if (genInput.sharedFlow) {
+            genInput.sharedFlow.fileResults = results;
+
+            // Now call flow plugins
+            let extensionPromise = this.callFlowPlugins(genInput, genInput.sharedFlow, newOutputDir);
+            promises.push(extensionPromise);
+            extensionPromise.then((results) => {
+              if (genInput.sharedFlow) {
+                let finalizerPromise = this.callFinalizerPlugin(genInput, genInput.sharedFlow, newOutputDir);
+                promises.push(finalizerPromise);
+                finalizerPromise.then((finalizerResults) => {
+                  // Call finalizer plugin for flow
+                  if (genInput.sharedFlow && genInput.sharedFlow.fileResults) {
+                    genInput.sharedFlow.fileResults = genInput.sharedFlow.fileResults.concat(finalizerResults);
+                  }
+                });
+              }
+            });
+          }
+        });
       }
 
-      const archive = archiver('zip')
-      archive.on('error', function (err: Error) {
-        reject(err)
-      })
-
-      archive.directory(outputDir + '/' + genInput.name, false)
-
-      const output = fs.createWriteStream(outputDir + '/' + genInput.name + '.zip')
-
-      archive.on('end', () => {
-        // Zip is finished, cleanup files
-        fs.rmSync(outputDir + '/' + genInput.name, { recursive: true })
-        const endTime = performance.now()
-        result.duration = endTime - startTime
-        result.message = `Proxy generation completed in ${Math.round(result.duration)} milliseconds.`
-        result.localPath = outputDir + '/' + genInput.name + '.zip'
-        result.template = genInput
-
-        resolve(result)
-      })
-
-      archive.pipe(output)
-      archive.finalize()
+      Promise.all(promises).then((endpointPluginResults) => {
+        const archive = archiver('zip')
+        archive.on('error', function (err: Error) {
+          reject(err);
+        });
+  
+        archive.directory(outputDir + '/' + genInput.name, false);
+  
+        const output = fs.createWriteStream(outputDir + '/' + genInput.name + '.zip');
+  
+        archive.on('end', () => {
+          // Zip is finished, cleanup files
+          fs.rmSync(outputDir + '/' + genInput.name, { recursive: true });
+          const endTime = performance.now();
+          result.duration = endTime - startTime;
+          result.message = `Proxy generation completed in ${Math.round(result.duration)} milliseconds.`;
+          result.localPath = outputDir + '/' + genInput.name + '.zip';
+          result.template = genInput;
+  
+          resolve(result);
+        });
+  
+        archive.pipe(output);
+        archive.finalize();
+      })      
     })
   }
 
-  callPlugins(genInput: ApigeeTemplateInput, endpoint: proxyEndpoint, newOutputDir: string, processingVars: Map<string, object>) {
-    // Initialize variables for endpoint
-    processingVars.set('preflow_request_policies', [])
-    processingVars.set('preflow_response_policies', [])
-    processingVars.set('postflow_request_policies', [])
-    processingVars.set('postflow_response_policies', [])
+  callPlugins(genInput: ApigeeTemplateInput, endpoint: proxyEndpoint, newOutputDir: string): Promise<PlugInResult[]> {
+    return new Promise((resolve, reject) => {
+      if (process.env.PROJECT) {
+        if (!endpoint.parameters) endpoint.parameters = {};
+        endpoint.parameters.PROJECT = process.env.PROJECT;
+      }
 
-    if (process.env.PROJECT) {
-      if (!endpoint.parameters) endpoint.parameters = {};
-      endpoint.parameters.PROJECT = process.env.PROJECT;
-    }
+      if (Object.keys(this.profiles).includes(genInput.profile)) {
+        let promises: Promise<PlugInResult>[] = [];
 
-    if (Object.keys(this.profiles).includes(genInput.profile)) {
-      for (const plugin of this.profiles[genInput.profile].plugins) {
-        plugin.applyTemplate(endpoint, processingVars).then((result: PlugInResult) => {
+        for (const plugin of this.profiles[genInput.profile].plugins) {
+          promises.push(plugin.applyTemplate(endpoint));
+        }
+
+        Promise.all(promises).then((values) => {
+          for (let newResult of values) {
+            for (let file of newResult.files) {
+              fs.mkdirSync(path.dirname(newOutputDir + file.path), { recursive: true });
+              fs.writeFileSync(newOutputDir + file.path, file.contents);
+            }
+          }
+          resolve(values);
+        }).catch((error) => {
+          console.error("Error calling plugins, aborting.");
+          reject("Error calling plugins, aborting.");
+        });        
+      }
+    });
+  }
+
+  callFlowPlugins(genInput: ApigeeTemplateInput, endpoint: proxyEndpoint, newOutputDir: string): Promise<PlugInResult[]> {
+    return new Promise((resolve, reject) => {
+      if (process.env.PROJECT) {
+        if (!endpoint.parameters) endpoint.parameters = {};
+        endpoint.parameters.PROJECT = process.env.PROJECT;
+      }
+
+      if (Object.keys(this.profiles).includes(genInput.profile)) {
+        let promises: Promise<PlugInResult>[] = [];
+
+        if (endpoint.preFlowSteps) {
+          for (const step of endpoint.preFlowSteps) {
+            let stepDefinition: {type: string} = step;
+            if (this.profiles[genInput.profile].flowPlugins[stepDefinition.type]) {
+              // We have a plugin
+              promises.push(this.profiles[genInput.profile].flowPlugins[stepDefinition.type].applyTemplate(endpoint));
+            }
+          }
+        }
+
+        Promise.all(promises).then((values) => {
+          for (let newResult of values) {
+            for (let file of newResult.files) {
+              fs.mkdirSync(path.dirname(newOutputDir + file.path), { recursive: true });
+              fs.writeFileSync(newOutputDir + file.path, file.contents);
+            }
+          }
+          resolve(values);
+        }).catch((error) => {
+          console.error("Error calling extension plugins, aborting.");
+          reject("Error calling extension plugins, aborting.");
+        });        
+      }
+    });
+  }
+
+  callFinalizerPlugin(genInput: ApigeeTemplateInput, endpoint: proxyEndpoint, newOutputDir: string): Promise<PlugInResult[]> {
+    return new Promise((resolve, reject) => {
+      if (process.env.PROJECT) {
+        if (!endpoint.parameters) endpoint.parameters = {};
+        endpoint.parameters.PROJECT = process.env.PROJECT;
+      }
+
+      if (Object.keys(this.profiles).includes(genInput.profile)) {
+        let promises: Promise<PlugInResult>[] = [];
+
+        this.profiles[genInput.profile].finalizePlugin?.applyTemplate(endpoint).then((result: PlugInResult) => {
           result.files.forEach((file: PlugInFile) => {
             fs.mkdirSync(path.dirname(newOutputDir + file.path), { recursive: true })
             fs.writeFileSync(newOutputDir + file.path, file.contents)
-          })
-        })
+          });
+
+          resolve([result]);
+        }).catch((error) => {
+          console.error("Error calling plugins, aborting.");
+          reject("Error calling plugins, aborting.");
+        });
       }
-    }
+    });
   }
 }

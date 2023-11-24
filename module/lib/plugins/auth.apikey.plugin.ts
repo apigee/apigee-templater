@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint, authTypes } from '../interfaces.js'
+import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint, authTypes, policyInsertPlaces } from '../interfaces.js'
 
 /**
  * Plugin class for handling API Key template requests
@@ -56,27 +56,29 @@ export class AuthApiKeyPlugin implements ApigeeTemplatePlugin {
    * @param {Map<string, any>} processingVars
    * @return {Promise<PlugInResult>} Result of the plugin templating
    */
-  applyTemplate (inputConfig: proxyEndpoint, processingVars: Map<string, object>): Promise<PlugInResult> {
+  applyTemplate (inputConfig: proxyEndpoint): Promise<PlugInResult> {
     return new Promise((resolve) => {
-      const fileResult: PlugInResult = new PlugInResult()
+      const fileResult: PlugInResult = new PlugInResult(this.constructor.name);
 
       if (inputConfig.auth && inputConfig.auth.filter(e => e.type === authTypes.apikey).length > 0) {
         fileResult.files = [
           {
+            policyConfig: {
+              name: 'VerifyApiKey',
+              triggers: [policyInsertPlaces.preRequest]
+            },
             path: '/policies/VerifyApiKey.xml',
             contents: this.apikey_template({})
           },
           {
+            policyConfig: {
+              name: 'RemoveApiKey',
+              triggers: [policyInsertPlaces.preRequest]
+            },            
             path: '/policies/RemoveApiKey.xml',
             contents: this.removekey_template({})
           }
         ];
-
-        // TODO: refactor to get rid of ugly Map string object here
-        // eslint-disable-next-line @typescript-eslint/ban-types
-        (processingVars.get('preflow_request_policies') as Object[]).push({ name: 'VerifyApiKey' });
-        // eslint-disable-next-line @typescript-eslint/ban-types
-        (processingVars.get('preflow_request_policies') as Object[]).push({ name: 'RemoveApiKey' })
       }
 
       resolve(fileResult)

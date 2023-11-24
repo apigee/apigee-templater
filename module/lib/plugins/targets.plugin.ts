@@ -51,7 +51,7 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
         <Response>
         {{#each post_flows}}
           <Step>
-            <Name>{{FC-this}}</Name>
+            <Name>FC-{{this}}</Name>
           </Step>
         {{/each}}
         </Response>
@@ -98,7 +98,7 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
    */
   applyTemplate(inputConfig: proxyEndpoint): Promise<PlugInResult> {
     return new Promise((resolve) => {
-      const fileResult: PlugInResult = new PlugInResult()
+      const fileResult: PlugInResult = new PlugInResult(this.constructor.name)
 
       if (inputConfig.target) {
 

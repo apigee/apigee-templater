@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult } from '../interfaces.js'
+import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, policyInsertPlaces } from '../interfaces.js'
 
 /**
  * Plugin for traffic quota templating
@@ -47,14 +47,18 @@ export class FlowCalloutPlugin implements ApigeeTemplatePlugin {
    * @param {Map<string, any>} processingVars
    * @return {Promise<PlugInResult>}
    */
-  applyTemplate (inputConfig: proxyEndpoint, processingVars: Map<string, object>): Promise<PlugInResult> {
+  applyTemplate (inputConfig: proxyEndpoint): Promise<PlugInResult> {
     return new Promise((resolve) => {
-      const fileResult: PlugInResult = new PlugInResult()
+      const fileResult: PlugInResult = new PlugInResult(this.constructor.name);
 
       // Now set pre target flow callouts
       if (inputConfig.target.preFlows && inputConfig.target.preFlows.length > 0) {
         for (const flow of inputConfig.target.preFlows) {
           fileResult.files.push({
+            policyConfig: {
+              name: "FC-" + flow,
+              triggers: [policyInsertPlaces.preTarget]
+            },
             path: "/policies/FC-" + flow + ".xml",
             contents: this.template({flowName: flow})
           });
@@ -65,6 +69,10 @@ export class FlowCalloutPlugin implements ApigeeTemplatePlugin {
       if (inputConfig.target.postFlows && inputConfig.target.postFlows.length > 0) {
         for (const flow of inputConfig.target.postFlows) {
           fileResult.files.push({
+            policyConfig: {
+              name: "FC-" + flow,
+              triggers: [policyInsertPlaces.postTarget]
+            },
             path: "/policies/FC-" + flow + ".xml",
             contents: this.template({flowName: flow})
           });
