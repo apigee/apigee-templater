@@ -38,8 +38,7 @@ export class proxyEndpoint {
   quotas?: quotaConfig[];
   spikeArrest?: spikeArrestConfig;
   parameters: {[key: string]: string} = {};
-  preFlowSteps: any[] = [];
-  postFlowSteps: any[] = [];
+  extensionSteps: any[] = [];
   fileResults?: PlugInResult[] = [];
 }
 
@@ -144,7 +143,7 @@ export class ApigeeTemplateProfile {
 }
 
 export interface ApigeeTemplatePlugin {
-  applyTemplate(inputConfig: proxyEndpoint, additionalData?: Object): Promise<PlugInResult>
+  applyTemplate(inputConfig: proxyEndpoint, additionalData?: any): Promise<PlugInResult>
 }
 
 export interface ApigeeConverterPlugin {

@@ -17,6 +17,31 @@
 import Handlebars from 'handlebars'
 import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, policyInsertPlaces } from '../interfaces.js'
 
+export class ExtractVariablesConfig {
+  type: string = "";
+  name: string = "";
+  triggers: policyInsertPlaces[] = [];
+  URIPaths: PatternConfig[] = [];
+  queryParams: PatternConfig[] = [];
+  headers: PatternConfig[] = [];
+  formParams: PatternConfig[] = [];
+  variables: PatternConfig[] = [];
+  JSONPaths: PathConfig[] = [];
+  XMLPaths: PathConfig[] = [];
+}
+
+export class PathConfig {
+  name: string = "";
+  path: string = "";
+  type: string = "";
+}
+
+export class PatternConfig {
+  name: string = "";
+  ignoreCase: boolean = true;
+  pattern: string = "";
+}
+
 /**
  * Plugin for traffic quota templating
  * @date 2/14/2022 - 8:17:36 AM
@@ -52,9 +77,9 @@ export class ExtractVariablesPlugin implements ApigeeTemplatePlugin {
   </FormParam>
 {{/each}}
 {{#each variables}}
-  <FormParam name="{{this.name}}">
+  <Variable name="{{this.name}}">
     <Pattern>{{this.pattern}}</Pattern>
-  </FormParam>
+  </Variable>
 {{/each}}
 {{#each JSONPaths}}
   <JSONPayload>
@@ -86,29 +111,21 @@ export class ExtractVariablesPlugin implements ApigeeTemplatePlugin {
    * @param {Map<string, any>} processingVars
    * @return {Promise<PlugInResult>}
    */
-  applyTemplate (inputConfig: proxyEndpoint): Promise<PlugInResult> {
+  applyTemplate (inputConfig: proxyEndpoint, additionalData?: any): Promise<PlugInResult> {
     return new Promise((resolve) => {
       const fileResult: PlugInResult = new PlugInResult(this.constructor.name)
 
-      if (inputConfig.quotas && inputConfig.quotas.length > 0) {
-        fileResult.files = []
-        for (const i in inputConfig.quotas) {
-          if (inputConfig.quotas[i].count > 0) {
-            fileResult.files.push({
-              policyConfig: {
-                name: 'Quota-' + (Number(i) + 1).toString(),
-                triggers: [policyInsertPlaces.preRequest]
-              },
-              path: '/policies/Quota-' + (Number(i) + 1).toString() + '.xml',
-              contents: this.template({
-                index: (Number(i) + 1),
-                count: inputConfig.quotas[i].count,
-                timeUnit: inputConfig.quotas[i].timeUnit
-              })
-            });
-          }
-        }
-      }
+      let config: ExtractVariablesConfig = additionalData;
+      console.log(JSON.stringify(config));
+
+      fileResult.files.push({
+        policyConfig: {
+          name: "EV-" + config.name,
+          triggers: config.triggers
+        },
+        path: '/policies/EV-' + config.name + '.xml',
+        contents: this.template(config)
+      });
 
       resolve(fileResult)
     })

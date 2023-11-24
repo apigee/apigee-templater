@@ -314,19 +314,18 @@ export class ApigeeGenerator implements ApigeeTemplateService {
   callFlowPlugins(genInput: ApigeeTemplateInput, endpoint: proxyEndpoint, newOutputDir: string): Promise<PlugInResult[]> {
     return new Promise((resolve, reject) => {
       if (process.env.PROJECT) {
-        if (!endpoint.parameters) endpoint.parameters = {};
         endpoint.parameters.PROJECT = process.env.PROJECT;
       }
 
       if (Object.keys(this.profiles).includes(genInput.profile)) {
         let promises: Promise<PlugInResult>[] = [];
 
-        if (endpoint.preFlowSteps) {
-          for (const step of endpoint.preFlowSteps) {
+        if (endpoint.extensionSteps) {
+          for (const step of endpoint.extensionSteps) {
             let stepDefinition: {type: string} = step;
             if (this.profiles[genInput.profile].flowPlugins[stepDefinition.type]) {
               // We have a plugin
-              promises.push(this.profiles[genInput.profile].flowPlugins[stepDefinition.type].applyTemplate(endpoint));
+              promises.push(this.profiles[genInput.profile].flowPlugins[stepDefinition.type].applyTemplate(endpoint, step));
             }
           }
         }
