@@ -29,9 +29,9 @@ describe('Generate simple normal JSON 1 proxy', () => {
       expect(response.success).to.equal(true)
       expect(response.duration).to.greaterThan(0)
       expect(fs.existsSync(response.localPath)).to.equal(true)
-    })
-  })
-})
+    });
+  });
+});
 
 describe('Generate simple JSON 1 shared flow', () => {
   return it('should produce a valid sharedflow bundle', () => {
@@ -40,9 +40,20 @@ describe('Generate simple JSON 1 shared flow', () => {
       expect(response.success).to.equal(true)
       expect(response.duration).to.greaterThan(0)
       expect(fs.existsSync(response.localPath)).to.equal(true)
-    })
-  })
-})
+    });
+  });
+});
+
+describe('Generate JSON proxy with extension steps', () => {
+  return it('should produce a valid proxy bundle', () => {
+    const input = fs.readFileSync('./test/data/input1.exvars.json', 'utf-8')
+    return apigeeGenerator.generateProxyFromString(input, 'test/proxies').then((response) => {
+      expect(response.success).to.equal(true)
+      expect(response.duration).to.greaterThan(0)
+      expect(fs.existsSync(response.localPath)).to.equal(true)
+    });
+  });
+});
 
 describe('Generate custom JSON 2 proxy', () => {
   return it('should produce a valid proxy bundle', () => {

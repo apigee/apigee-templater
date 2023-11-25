@@ -214,13 +214,12 @@ export class ApigeeGenerator implements ApigeeTemplateService {
             let extensionPromise = this.callFlowPlugins(genInput, endpoint, newOutputDir);
             promises.push(extensionPromise);
             extensionPromise.then((results) => {
+              endpoint.fileResults = endpoint.fileResults?.concat(results);
               // And finally call finalizer plugin
               let finalizerPromise = this.callFinalizerPlugin(genInput, endpoint, newOutputDir);
               promises.push(finalizerPromise);
               finalizerPromise.then((finalizerResults) => {
-                if (endpoint.fileResults) {
-                  endpoint.fileResults = endpoint.fileResults.concat(finalizerResults);
-                }
+                  endpoint.fileResults = endpoint.fileResults?.concat(finalizerResults);
               });
             });
           });
@@ -239,6 +238,7 @@ export class ApigeeGenerator implements ApigeeTemplateService {
             promises.push(extensionPromise);
             extensionPromise.then((results) => {
               if (genInput.sharedFlow) {
+                genInput.sharedFlow.fileResults = genInput.sharedFlow.fileResults?.concat(results);
                 let finalizerPromise = this.callFinalizerPlugin(genInput, genInput.sharedFlow, newOutputDir);
                 promises.push(finalizerPromise);
                 finalizerPromise.then((finalizerResults) => {

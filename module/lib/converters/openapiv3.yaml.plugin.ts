@@ -51,8 +51,7 @@ export class OpenApiV3Converter implements ApigeeConverterPlugin {
                   url: specObj.servers[0].url.replace('http://', '').replace('https://', '')
                 },
                 parameters: {},
-                requestSteps: {},
-                responseSteps: {}
+                extensionSteps: []
               }
             ]
           })

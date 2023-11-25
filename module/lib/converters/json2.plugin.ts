@@ -57,8 +57,7 @@ export class Json2Converter implements ApigeeConverterPlugin {
                     }
                   ],
                   parameters: {},
-                  requestSteps: {},
-                  responseSteps: {}
+                  extensionSteps: []
                 }
               ]
             })
