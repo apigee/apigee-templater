@@ -31,6 +31,8 @@
           "type": "ExtractVariables",
           "name": "extractHeaders",
           "triggers": ["preRequest"],
+          "ignoreUnresolvedVariables": true,
+          "prefix": "test",        
           "URIPaths": [
             {
               "ignoreCase": true,
@@ -47,9 +49,7 @@
           "headers": [""],
           "formParams": [""],
           "JSONPaths": [""],
-          "XMLPaths": [""],
-          "prefix": "test",
-          "ignoreUnresolved": true
+          "XMLPaths": [""]
         }       
       ]
     }

@@ -21,6 +21,7 @@ export class ExtractVariablesConfig {
   type: string = "";
   name: string = "";
   triggers: policyInsertPlaces[] = [];
+  ignoreUnresolvedVariables: boolean = true;
   URIPaths: PatternConfig[] = [];
   queryParams: PatternConfig[] = [];
   headers: PatternConfig[] = [];

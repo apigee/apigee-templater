@@ -1,5 +1,5 @@
 {
-  "name": "testproxy",
+  "name": "test-exvars-proxy",
   "profile": "default",
   "endpoints": [
     {
@@ -25,6 +25,31 @@
         {
           "type": "apikey"
         }
+      ],
+      "extensionSteps": [
+        {
+          "type": "AssignMessage",
+          "name": "SetHeaders",
+          "triggers": ["preRequest"],
+          "continueOnError": true,
+          "assignTo": "request",
+          "ignoreUnresolvedVariables": true,
+          "assignVariables": [
+
+          ],
+          "add": [
+
+          ],
+          "copy": [
+
+          ],
+          "remove": [
+
+          ],
+          "set": [
+
+          ]
+        }       
       ]
     }
   ]
