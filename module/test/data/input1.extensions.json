@@ -1,0 +1,80 @@
+{
+  "name": "test-extensions-proxy",
+  "profile": "default",
+  "endpoints": [
+    {
+      "name": "default",
+      "basePath": "/test-extensions",
+      "target": {
+        "name": "default",
+        "url": "https://httpbin.org",
+        "headers": {
+          "Accept-Encoding": "gzip,deflate"
+        }
+      },
+      "quotas": [
+        {
+          "count": "200",
+          "timeUnit": "day"
+        }
+      ],
+      "spikeArrest": {
+        "rate": "20s"
+      },
+      "auth": [],
+      "extensionSteps": [
+        {
+          "type": "ExtractVariables",
+          "name": "extractQueryParam1",
+          "triggers": ["preRequest"],
+          "ignoreUnresolvedVariables": true,
+          "prefix": "test",        
+          "queryParams": [
+            {
+              "name": "param1",
+              "ignoreCase": true,
+              "pattern": "{param1}" 
+            }
+          ]
+        },
+        {
+          "type": "AssignMessage",
+          "name": "setTargetHeader",
+          "triggers": ["preTarget"],
+          "continueOnError": true,
+          "ignoreUnresolvedVariables": true,
+          "set": {
+            "headers": [
+              {
+                "name": "X-Test-Header",
+                "value": "{test.param1}"
+              }
+            ]
+          }
+        },
+        {
+          "type": "AssignMessage",
+          "name": "SetResponseHeader",
+          "triggers": ["postResponse"],
+          "continueOnError": true,
+          "assignTo": "response",
+          "ignoreUnresolvedVariables": true,
+          "set": {
+            "headers": [
+              {
+                "name": "testHeader2",
+                "value": "{test.param1}"
+              }
+            ]
+          }
+        },
+        {
+          "type": "FlowCallout",
+          "name": "CallSetHeaderFlow",
+          "triggers": ["postResponse"],
+          "flowName": "AddTestHeaderFlow" 
+        }
+      ]
+    }
+  ]
+}

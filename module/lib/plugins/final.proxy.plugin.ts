@@ -28,31 +28,47 @@ import { ApigeeTemplatePlugin, PlugInResult, policyInsertPlaces, proxyEndpoint }
  */
 export class ProxyPlugin implements ApigeeTemplatePlugin {
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-  <ProxyEndpoint name="default">
-      <PreFlow name="PreFlow">
-          <Request>
-            {{#each preRequestPolicies}}
-              <Step>
-                <Name>{{this}}</Name>
-              </Step>
-            {{/each}}
-          </Request>
-          <Response/>
-      </PreFlow>
-      <Flows/>
-      <PostFlow name="PostFlow">
-          <Request>
-          </Reqeust>
-          <Response>
-          </Response>
-      </PostFlow>
-      <HTTPProxyConnection>
-          <BasePath>{{basePath}}</BasePath>
-      </HTTPProxyConnection>
-      <RouteRule name="{{targetName}}">
-          <TargetEndpoint>{{targetName}}</TargetEndpoint>
-      </RouteRule>
-  </ProxyEndpoint>`;
+<ProxyEndpoint name="default">
+    <PreFlow name="PreFlow">
+        <Request>
+          {{#each preRequestPolicies}}
+          <Step>
+            <Name>{{this}}</Name>
+          </Step>
+          {{/each}}
+        </Request>
+        <Response>
+          {{#each postRequestPolicies}}
+          <Step>
+            <Name>{{this}}</Name>
+          </Step>
+          {{/each}}
+        </Response>
+    </PreFlow>
+    <Flows/>
+    <PostFlow name="PostFlow">
+        <Request>
+          {{#each preResponsePolicies}}
+          <Step>
+            <Name>{{this}}</Name>
+          </Step>
+          {{/each}}          
+        </Request>
+        <Response>
+          {{#each postResponsePolicies}}
+          <Step>
+            <Name>{{this}}</Name>
+          </Step>
+          {{/each}}              
+        </Response>
+    </PostFlow>
+    <HTTPProxyConnection>
+        <BasePath>{{basePath}}</BasePath>
+    </HTTPProxyConnection>
+    <RouteRule name="{{targetName}}">
+        <TargetEndpoint>{{targetName}}</TargetEndpoint>
+    </RouteRule>
+</ProxyEndpoint>`;
 
   template = Handlebars.compile(this.snippet);
 

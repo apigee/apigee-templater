@@ -1,10 +1,25 @@
 {
-  "name": "testflow",
+  "name": "AddTestHeaderFlow",
   "profile": "sharedflow",
   "sharedFlow": {
     "name": "default",
-    "spikeArrest": {
-      "rate": "20s"
-    }
+    "extensionSteps": [
+      {
+        "type": "AssignMessage",
+        "name": "setResponseHeader",
+        "triggers": ["postResponse"],
+        "continueOnError": true,
+        "assignTo": "response",
+        "ignoreUnresolvedVariables": true,
+        "set": {
+          "headers": [
+            {
+              "name": "X-Flow-Test-Header",
+              "value": "42"
+            }
+          ]
+        }
+      }
+    ]
   }
 }

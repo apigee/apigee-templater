@@ -28,8 +28,8 @@ import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, policyInsertPlaces }
  */
 export class QuotaPlugin implements ApigeeTemplatePlugin {
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-  <Quota continueOnError="false" enabled="true" name="Quota-{{index}}" type="calendar">
-      <DisplayName>Quota-{{index}}</DisplayName>
+  <Quota continueOnError="false" enabled="true" name="Q-Quota{{index}}" type="calendar">
+      <DisplayName>Q-Quota{{index}}</DisplayName>
       <Properties/>
       <Allow count="{{count}}" countRef="request.header.allowed_quota"/>
       <Interval ref="request.header.quota_count">1</Interval>
@@ -63,10 +63,10 @@ export class QuotaPlugin implements ApigeeTemplatePlugin {
           if (inputConfig.quotas[i].count > 0) {
             fileResult.files.push({
               policyConfig: {
-                name: 'Quota-' + (Number(i) + 1).toString(),
+                name: 'Q-Quota' + (Number(i) + 1).toString(),
                 triggers: [policyInsertPlaces.preRequest]
               },
-              path: '/policies/Quota-' + (Number(i) + 1).toString() + '.xml',
+              path: '/policies/Q-Quota' + (Number(i) + 1).toString() + '.xml',
               contents: this.template({
                 index: (Number(i) + 1),
                 count: inputConfig.quotas[i].count,

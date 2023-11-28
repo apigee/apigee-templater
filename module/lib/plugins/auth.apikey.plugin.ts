@@ -28,14 +28,14 @@ import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint, authTypes, policyIns
  */
 export class AuthApiKeyPlugin implements ApigeeTemplatePlugin {
   apikey_snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-  <VerifyAPIKey async="false" continueOnError="false" enabled="true" name="VerifyApiKey">
-      <DisplayName>Verify API Key</DisplayName>
+  <VerifyAPIKey async="false" continueOnError="false" enabled="true" name="VA-VerifyKey">
+      <DisplayName>VA-VerifyKey</DisplayName>
       <APIKey ref="request.queryparam.apikey"/>
   </VerifyAPIKey>`;
 
   removekey_snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-  <AssignMessage async="false" continueOnError="false" enabled="true" name="RemoveApiKey">
-      <DisplayName>Remove Query Param apikey</DisplayName>
+  <AssignMessage async="false" continueOnError="false" enabled="true" name="AM-RemoveApiKey">
+      <DisplayName>AM-RemoveKey</DisplayName>
       <Remove>
           <QueryParams>
               <QueryParam name="apikey"/>
@@ -64,18 +64,18 @@ export class AuthApiKeyPlugin implements ApigeeTemplatePlugin {
         fileResult.files = [
           {
             policyConfig: {
-              name: 'VerifyApiKey',
+              name: 'VA-VerifyKey',
               triggers: [policyInsertPlaces.preRequest]
             },
-            path: '/policies/VerifyApiKey.xml',
+            path: '/policies/VA-VerifyKey.xml',
             contents: this.apikey_template({})
           },
           {
             policyConfig: {
-              name: 'RemoveApiKey',
+              name: 'AM-RemoveApiKey',
               triggers: [policyInsertPlaces.preRequest]
             },            
-            path: '/policies/RemoveApiKey.xml',
+            path: '/policies/AM-RemoveApiKey.xml',
             contents: this.removekey_template({})
           }
         ];

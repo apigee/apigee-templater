@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint } from '../interfaces.js'
+import { ApigeeTemplatePlugin, PlugInResult, policyInsertPlaces, proxyEndpoint } from '../interfaces.js'
 
 /**
  * Plugin for generating targets
@@ -32,28 +32,28 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
     <PreFlow name="PreFlow">
         <Request>
           {{#if preflow_request_assign}}
-            <Step>
-              <Name>Set-Target-Message</Name>
-            </Step>
+          <Step>
+            <Name>AM-SetTargetHeaders</Name>
+          </Step>
           {{/if}}
+          {{#each preTargetPolicies}}
+          <Step>
+            <Name>{{this}}</Name>
+          </Step>
+          {{/each}}          
         </Request>
-        <Response/>
+        <Response />
     </PreFlow>
     <Flows/>
     <PostFlow name="PostFlow">
         <Request>
-        {{#each pre_flows}}
-          <Step>
-            <Name>FC-{{this}}</Name>
-          </Step>
-        {{/each}}
         </Request>
         <Response>
-        {{#each post_flows}}
+          {{#each postTargetPolicies}}
           <Step>
-            <Name>FC-{{this}}</Name>
+            <Name>{{this}}</Name>
           </Step>
-        {{/each}}
+          {{/each}}
         </Response>
     </PostFlow>
     <HTTPTargetConnection>
@@ -62,8 +62,8 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
 </TargetEndpoint>`;
 
   preFlowAssignMessageSnippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<AssignMessage continueOnError="false" enabled="true" name="Set-Target-Message">
-  <DisplayName>Set-Target-Message</DisplayName>
+<AssignMessage continueOnError="false" enabled="true" name="AM-SetTargetHeaders">
+  <DisplayName>AM-SetTargetHeaders</DisplayName>
   <Properties/>
   <Set>
     <Headers>
@@ -77,17 +77,9 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
 </AssignMessage>
 `;
 
-  sharedFlowSnippet = `
-<FlowCallout continueOnError="false" enabled="true" name="FC-{{flowName}}">
-  <DisplayName>FC-{{flowName}}</DisplayName>
-  <Parameters/>
-  <SharedFlowBundle>{{flowName}}</SharedFlowBundle>
-</FlowCallout>
-  `;
-
   template = Handlebars.compile(this.snippet);
   messageAssignTemplate = Handlebars.compile(this.preFlowAssignMessageSnippet);
-  sharedFlowTemplate = Handlebars.compile(this.sharedFlowSnippet);
+
   /**
    * Templates the targets configurations
    * @date 2/14/2022 - 8:15:57 AM
@@ -102,6 +94,24 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
 
       if (inputConfig.target) {
 
+        const preTargetPolicies: string[] = [];
+        const postTargetPolicies: string[] = [];
+    
+        // Now collect all of our policies that should be triggered
+        if (inputConfig.fileResults)
+          for (let plugResult of inputConfig.fileResults) {
+            for (let fileResult of plugResult.files) {
+              if (fileResult.policyConfig) {
+                for (let policyTrigger of fileResult.policyConfig.triggers) {
+                  if (policyTrigger == policyInsertPlaces.preTarget)
+                    preTargetPolicies.push(fileResult.policyConfig.name);
+                  else if (policyTrigger == policyInsertPlaces.postTarget)
+                    postTargetPolicies.push(fileResult.policyConfig.name);
+                }
+              }
+            }
+          }
+
         // Make sure the target has the https prefix
         if (inputConfig.target.url && !inputConfig.target.url.startsWith("http")) {
           inputConfig.target.url = "https://" + inputConfig.target.url;
@@ -111,8 +121,8 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
           targetName: inputConfig.target.name, 
           targetUrl: inputConfig.target.url, 
           preflow_request_assign: (inputConfig.target.headers && Object.keys(inputConfig.target.headers).length > 0),
-          pre_flows: inputConfig.target.preFlows,
-          post_flows: inputConfig.target.postFlows
+          preTargetPolicies: preTargetPolicies,
+          postTargetPolicies: postTargetPolicies
         };
 
         fileResult.files = [
@@ -128,7 +138,7 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
           };
 
           fileResult.files.push({
-            path: "/policies/Set-Target-Message.xml",
+            path: "/policies/AM-SetTargetHeaders.xml",
             contents: this.messageAssignTemplate(assignContext)
           });
         }

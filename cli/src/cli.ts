@@ -19,7 +19,7 @@ import fs from 'fs'
 import { performance } from 'perf_hooks'
 import inquirer from 'inquirer'
 import chalk from 'chalk'
-import { ApigeeTemplateInput, ApigeeTemplateService, ApigeeGenerator, GenerateResult } from 'apigee-templater-module'
+import { ApigeeTemplateInput, ApigeeTemplateService, ApigeeTemplater, GenerateResult } from 'apigee-templater-module'
 import { ApigeeService, ApiManagementInterface, EnvironmentGroup, EnvironmentGroupAttachment, ProxyDeployment, ProxyRevision } from 'apigee-x-module'
 
 import axios from 'axios';
@@ -51,7 +51,18 @@ export class cli {
    *
    * @type {ApigeeTemplateService}
    */
-  apigeeGenerator: ApigeeTemplateService = new ApigeeGenerator();
+  apigeeTemplater: ApigeeTemplateService;
+
+  /**
+   * Constructor 
+   * @param name 
+   */
+  constructor(templaterInstance?: ApigeeTemplateService) {
+    if (templaterInstance)
+      this.apigeeTemplater = templaterInstance;
+    else
+      this.apigeeTemplater = new ApigeeTemplater();
+  }
 
   /**
    * Parses the user inputs
@@ -216,11 +227,17 @@ export class cli {
    * @param {cliArgs} args The user input args to the process
    */
   async process(args: string[]) {
-    let options: cliArgs = this.parseArgumentsIntoOptions(args)
-    if (options.keyPath) process.env.GOOGLE_APPLICATION_CREDENTIALS = options.keyPath
-    if (options.verbose) this.logVerbose(JSON.stringify(options), 'options:')
+    let options: cliArgs = this.parseArgumentsIntoOptions(args);
+    if (options.verbose && fs.existsSync("apigee-templater-log.txt")) {
+      // Delete old log file, if it exists
+      fs.unlinkSync("apigee-templater-log.txt")  
+    }
+
+    if (options.keyPath) process.env.GOOGLE_APPLICATION_CREDENTIALS = options.keyPath;
 
     console.log(`${chalk.bold(chalk.magentaBright('> Welcome to Apigee Templater'))}, ${chalk.green('use -h for more command line options.')} `)
+
+    if (options.verbose) this.logVerbose(JSON.stringify(options, null, 2), 'start:');
 
     if (options.help) {
       this.printHelp()
@@ -248,7 +265,7 @@ export class cli {
       try {
         options = await this.promptForMissingOptions(options)
       } catch (error) {
-        console.error(`${chalk.redBright('! Error:')} Error during prompt for inputs, that's all we know.`)
+        console.error(`${chalk.redBright('! Error:')} Error during prompt for inputs.`)
         if (options.verbose) this.logVerbose(JSON.stringify(error), 'prompt error:')
       }
 
@@ -265,7 +282,9 @@ export class cli {
               target: {
                 name: 'default',
                 table: options.targetBigQueryTable
-              }
+              },
+              parameters: {},
+              extensionSteps: []
             }
           ]
         });
@@ -280,7 +299,9 @@ export class cli {
               target: {
                 name: 'default',
                 url: options.targetUrl
-              }
+              },
+              parameters: {},
+              extensionSteps: []
             }
           ]
         });
@@ -301,7 +322,7 @@ export class cli {
       process.env.PROJECT = (await this.apigeeService.getOrg()).toString();
     }
 
-    if (options.verbose) this.logVerbose(`Set Project to ${process.env.PROJECT}`, 'env:')
+    if (options.verbose) this.logVerbose(`Project set to ${process.env.PROJECT}`, 'project:')
 
     if (options.filter) {
       // users can add their own preprocessing filter scripts here
@@ -311,12 +332,13 @@ export class cli {
 
     if (options.verbose) this.logVerbose(options.input, 'template:')
 
-    this.apigeeGenerator.convertStringToProxyInput(options.input).then((inputTemplate: ApigeeTemplateInput) => {
+    this.apigeeTemplater.convertStringToProxyInput(options.input).then((inputTemplate: ApigeeTemplateInput) => {
 
       if (options.basePath) inputTemplate.endpoints[0].basePath = options.basePath;
       if (options.name) inputTemplate.name = options.name;
 
-      this.apigeeGenerator.generateProxy(inputTemplate, _proxyDir).then((generateResult: GenerateResult) => {
+      this.apigeeTemplater.generateProxy(inputTemplate, _proxyDir).then((generateResult: GenerateResult) => {
+        if (options.verbose) this.logVerbose(JSON.stringify(generateResult, null, 2), 'template result:');
         if (inputTemplate.sharedFlow && generateResult && generateResult.template)
           console.log(`${chalk.green('>')} Flow ${chalk.bold(chalk.blue(generateResult.template.name))} generated to ${chalk.magentaBright(chalk.bold(generateResult.localPath))} in ${chalk.bold(chalk.green(Math.round(generateResult.duration) + ' milliseconds'))}.`);
         else if (generateResult && generateResult.template)
@@ -335,7 +357,7 @@ export class cli {
                       this.apigeeService.deployFlowRevision(options.environment, generateResult.template.name, updateResult.revision, options.deployServiceAccount).then((deployResult: ProxyDeployment) => {
                         const endTime = performance.now()
                         const duration = endTime - startTime
-                        if (options.verbose) this.logVerbose(JSON.stringify(generateResult), 'deploy result:')
+                        if (options.verbose) this.logVerbose(JSON.stringify(generateResult), 'deploy result:');
                         if (generateResult && generateResult.template) {
                           console.log(`${chalk.green('>')} Flow ${chalk.bold(chalk.blue(generateResult.template.name + ' version ' + updateResult.revision))} deployed to environment ${chalk.bold(chalk.magentaBright(options.environment))} in ${chalk.bold(chalk.green(Math.round(duration) + ' milliseconds'))}.`);
                         }
@@ -352,9 +374,9 @@ export class cli {
                   if (updateResult && updateResult.revision) {
                     if (generateResult && generateResult.template) {
                       this.apigeeService.deployProxyRevision(options.environment, generateResult.template.name, updateResult.revision, options.deployServiceAccount).then((deployResult: ProxyDeployment) => {
-                        const endTime = performance.now()
-                        const duration = endTime - startTime
-                        if (options.verbose) this.logVerbose(JSON.stringify(generateResult), 'deploy result:')
+                        const endTime = performance.now();
+                        const duration = endTime - startTime;
+                        if (options.verbose) this.logVerbose(JSON.stringify(generateResult), 'deploy result:');
                         if (generateResult && generateResult.template) {
                           console.log(`${chalk.green('>')} Proxy ${chalk.bold(chalk.blue(generateResult.template.name + ' version ' + updateResult.revision))} deployed to environment ${chalk.bold(chalk.magentaBright(options.environment))} in ${chalk.bold(chalk.green(Math.round(duration) + ' milliseconds'))}.`)
 
@@ -409,10 +431,15 @@ export class cli {
    * @param {string} label An optional label as prefix label
    */
   logVerbose(input: string, label?: string) {
+    let logString: string = '> ' + input + '\n';
     if (label)
-      console.log(`${chalk.cyanBright('> ' + label + ' ' + input)}`);
-    else
-      console.log(`${chalk.cyanBright('> ' + input)} `)
+      logString = '> ' + label + ' ' + input + '\n';
+
+    console.log(`${chalk.cyanBright(logString)}`);
+    fs.appendFile('apigee-templater-log.txt', logString, function (err) {
+      if (err)
+        console.error(err);
+    });
   }
 }
 

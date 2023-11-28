@@ -17,21 +17,26 @@
 import Handlebars from 'handlebars'
 import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, policyInsertPlaces } from '../interfaces.js'
 
+export class FlowCalloutConfig {
+  flowName: string = "";
+  continueOnError: boolean = true;
+  triggers: policyInsertPlaces[] = [];
+}
+
 /**
- * Plugin for traffic quota templating
+ * Plugin for making shared flow callouts
  * @date 2/14/2022 - 8:17:36 AM
  *
  * @export
- * @class QuotaPlugin
- * @typedef {QuotaPlugin}
- * @implements {ApigeeTemplatePlugin}
+ * @class FlowCalloutPlugin
+ * @typedef {FlowCalloutPlugin}
+ * @implements {FlowCalloutPlugin}
  */
 export class FlowCalloutPlugin implements ApigeeTemplatePlugin {
   
   sharedFlowSnippet = `
-<FlowCallout continueOnError="false" enabled="true" name="FC-{{flowName}}">
+<FlowCallout continueOnError="{{contiueOnError}}" enabled="true" name="FC-{{flowName}}">
   <DisplayName>FC-{{flowName}}</DisplayName>
-  <Parameters/>
   <SharedFlowBundle>{{flowName}}</SharedFlowBundle>
 </FlowCallout>
   `;
@@ -47,37 +52,20 @@ export class FlowCalloutPlugin implements ApigeeTemplatePlugin {
    * @param {Map<string, any>} processingVars
    * @return {Promise<PlugInResult>}
    */
-  applyTemplate (inputConfig: proxyEndpoint): Promise<PlugInResult> {
+  applyTemplate (inputConfig: proxyEndpoint, additionalData?: any): Promise<PlugInResult> {
     return new Promise((resolve) => {
       const fileResult: PlugInResult = new PlugInResult(this.constructor.name);
 
-      // Now set pre target flow callouts
-      if (inputConfig.target.preFlows && inputConfig.target.preFlows.length > 0) {
-        for (const flow of inputConfig.target.preFlows) {
-          fileResult.files.push({
-            policyConfig: {
-              name: "FC-" + flow,
-              triggers: [policyInsertPlaces.preTarget]
-            },
-            path: "/policies/FC-" + flow + ".xml",
-            contents: this.template({flowName: flow})
-          });
-        }
-      }
+      let config: FlowCalloutConfig = additionalData;
 
-      // Now set post target flow callouts
-      if (inputConfig.target.postFlows && inputConfig.target.postFlows.length > 0) {
-        for (const flow of inputConfig.target.postFlows) {
-          fileResult.files.push({
-            policyConfig: {
-              name: "FC-" + flow,
-              triggers: [policyInsertPlaces.postTarget]
-            },
-            path: "/policies/FC-" + flow + ".xml",
-            contents: this.template({flowName: flow})
-          });
-        }          
-      }
+      fileResult.files.push({
+        policyConfig: {
+          name: "FC-" + config.flowName,
+          triggers: config.triggers
+        },
+        path: '/policies/FC-' + config.flowName + '.xml',
+        contents: this.template(config)
+      });
 
       resolve(fileResult)
     })

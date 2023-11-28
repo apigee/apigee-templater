@@ -22,8 +22,6 @@ export class proxyTarget {
   table?= '';
   authScopes?= [];
   headers?: { [key: string]: string } = {};
-  preFlows?: string[] = [];
-  postFlows?: string[] = [];
 }
 
 /** A proxy endpoint describes a basepath, targets and other proxy features */
@@ -138,8 +136,8 @@ export class PlugInFilePolicyConfig {
 /** Profile definition with plugins to be used for conversion */
 export class ApigeeTemplateProfile {
   plugins: ApigeeTemplatePlugin[] = [];
-  flowPlugins: {[key: string]: ApigeeTemplatePlugin} = {};
-  finalizePlugin?: ApigeeTemplatePlugin;
+  extensionPlugins: {[key: string]: ApigeeTemplatePlugin} = {};
+  finalizePlugins: ApigeeTemplatePlugin[] = [];
 }
 
 export interface ApigeeTemplatePlugin {

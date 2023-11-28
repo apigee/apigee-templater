@@ -28,8 +28,8 @@ import { ApigeeTemplatePlugin, proxyEndpoint, authTypes, PlugInResult, policyIns
  */
 export class AuthSfPlugin implements ApigeeTemplatePlugin {
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-  <FlowCallout continueOnError="false" enabled="true" name="VerifyJWT">
-      <DisplayName>VerifyJWT</DisplayName>
+  <FlowCallout continueOnError="false" enabled="true" name="FC-VerifyFlow">
+      <DisplayName>FC-VerifyFlow</DisplayName>
       <FaultRules/>
       <Properties/>
       <Parameters>
@@ -69,10 +69,10 @@ export class AuthSfPlugin implements ApigeeTemplatePlugin {
         fileResult.files = [
           {
             policyConfig: {
-              name: 'VerifyJWT',
+              name: 'FC-VerifyFlow',
               triggers: [policyInsertPlaces.preRequest]
             },
-            path: '/policies/VerifyJWT.xml',
+            path: '/policies/FC-VerifyFlow.xml',
             contents: this.template({
               audience: authConfig.parameters.audience,
               roles: authConfig.parameters.roles,

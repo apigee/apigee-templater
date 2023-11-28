@@ -25,10 +25,10 @@ export class AssignMessageConfig {
   ignoreUnresolvedVariables: boolean = false;
   assignTo: string = "";
   assignVariables: AssignVariableConfig[] = [];
-  add: AssignBlockConfig[] = [];
-  copy: AssignBlockConfig[] = [];
-  remove: AssignBlockConfig[] = [];
-  set: AssignBlockConfig[] = [];
+  add?: AssignContentConfig;
+  copy?: AssignContentConfig;
+  remove?: AssignContentConfig;
+  set?: AssignSetContentConfig;
 }
 
 export class AssignVariableConfig {
@@ -36,11 +36,12 @@ export class AssignVariableConfig {
   propertySetRef: string = "";
   ref: string = "";
   resourceURL: string = "";
-  template: string = "";
+  templateVariable: string = "";
+  templateMessage: string = "";
   value: string = "";
 }
 
-export class AssignBlockConfig {
+export class AssignContentConfig {
   formParams: AssignElementConfig[] = [];
   headers: AssignElementConfig[] = [];
   queryParams: AssignElementConfig[] = [];
@@ -49,6 +50,17 @@ export class AssignBlockConfig {
   statusCode: boolean = false;
   verb: boolean = false;
   version: boolean = false;
+}
+
+export class AssignSetContentConfig {
+  formParams: AssignElementConfig[] = [];
+  headers: AssignElementConfig[] = [];
+  queryParams: AssignElementConfig[] = [];
+  path?: string;
+  payload?: {contentType: string, variablePrefix: string, variableSuffix: string, newPayload: string};
+  statusCode?: string;
+  verb?: string;
+  version?: string;
 }
 
 export class AssignElementConfig {
@@ -71,20 +83,163 @@ export class AssignMessagePlugin implements ApigeeTemplatePlugin {
 <AssignMessage continueOnError="false" enabled="true" name="AM-{{name}}">
   <DisplayName>AM-{{name}}</DisplayName>
 
+  {{#if ignoreUnresolvedVariables}}
+  <IgnoreUnresolvedVariables>{{ignoreUnresolvedVariables}}</IgnoreUnresolvedVariables>
+  {{/if}}
+
+  {{#each assignVariables}}
+  <AssignVariable>
+    <Name>{{this.name}}</Name>
+    <PropertySetRef>{{this.propertySetRef}}</PropertySetRef>
+    <Ref>{{this.ref}}</Ref>
+    <ResourceURL>{{this.resourceURL}}</ResourceURL>
+    {{#if this.templateMessage}}
+    <Template>{{this.templateMessage}}</Template>
+    {{/if}}
+    {{#if this.templateVariable}}
+    <Template ref="{{this.templateVariable}}"></Template>
+    {{/if}}
+    <Value>{{this.value}}</Value>
+  </AssignVariable>
+  {{/each}}
+
+  {{#if add}}
   <Add>
-    {{#each add}}
+    {{#if add.formParams}}
     <FormParams>
-      {{#each this.formParmas}}
+      {{#each add.formParmas}}
       <FormParam name="{{this.name}}">{{this.value}}</FormParam>
       {{/each}}
     </FormParams>
-    {{/each}}
-  </Add>  
+    {{/if}}
+    {{#if add.headers}}
+    <Headers>
+      {{#each add.headers}}
+      <Header name="{{this.name}}">{{this.value}}</Header>
+      {{/each}}
+    </Headers>
+    {{/if}}
+    {{#if add.queryParams}}
+    <QueryParams>
+      {{#each add.queryParams}}
+        <QueryParam name="{{this.name}}">{{this.value}}</QueryParam>
+      {{/each}}
+    </QueryParams>
+    {{/if}}
+  </Add>
+  {{/if}}
 
-  <Source clearPayload="false">message</Source>
-  <VariablePrefix>{{prefix}}</VariablePrefix>
-  <IgnoreUnresolvedVariables>{{ignoreUnresolved}}</IgnoreUnresolvedVariables>
-</ExtractVariables>`;
+  {{#if copy}}
+  <Copy>
+    {{#if copy.formParams}}
+    <FormParams>
+      {{#each copy.formParams}}
+      <FormParam name="{{this.name}}">{{this.value}}</FormParam>
+      {{/each}}
+    </FormParams>
+    {{/if}}
+    {{#if copy.headers}}
+    <Headers>
+      {{#each copy.headers}}
+      <Header name="{{this.name}}">{{this.value}}</Header>
+      {{/each}}
+    </Headers>
+    {{/if}}
+    {{#if copy.queryParams}}
+    <QueryParams>
+      {{#each copy.queryParams}}
+        <QueryParam name="{{this.name}}">{{this.value}}</QueryParam>
+      {{/each}}
+    </QueryParams>
+    {{/if}}
+    {{#if copy.path}}
+    <Path>{{copy.path}}</Path>
+    {{/if}}
+    {{#if copy.payload}}
+    <Payload>{{copy.payload}}</Payload>
+    {{/if}}
+    {{#if copy.statusCode}}
+    <StatusCode>{{copy.statusCode}}</StatusCode>
+    {{/if}}
+    {{#if copy.verb}}
+    <Verb>{{copy.verb}}</Verb>
+    {{/if}}
+    {{#if copy.version}}
+    <Version>{{copy.version}}</Version>
+    {{/if}}
+  </Copy>
+  {{/if}}
+
+  {{#if remove}}
+  <Remove>
+    {{#if remove.formParams}}
+    <FormParams>
+      {{#each remove.formParams}}
+      <FormParam name="{{this.name}}">{{this.value}}</FormParam>
+      {{/each}}
+    </FormParams>
+    {{/if}}
+    {{#if remove.headers}}
+    <Headers>
+      {{#each remove.headers}}
+      <Header name="{{this.name}}">{{this.value}}</Header>
+      {{/each}}
+    </Headers>
+    {{/if}}
+    {{#if remove.queryParams}}
+    <QueryParams>
+      {{#each remove.queryParams}}
+        <QueryParam name="{{this.name}}">{{this.value}}</QueryParam>
+      {{/each}}
+    </QueryParams>
+    {{/if}}
+    {{#if remove.payload}}
+    <Payload>{{remove.payload}}</Payload>
+    {{/if}}
+  </Remove>
+  {{/if}}
+
+  {{#if set}}
+  <Set>
+    {{#if set.formParams}}
+    <FormParams>
+      {{#each set.formParmas}}
+      <FormParam name="{{this.name}}">{{this.value}}</FormParam>
+      {{/each}}
+    </FormParams>
+    {{/if}}
+    {{#if set.headers}}
+    <Headers>
+      {{#each set.headers}}
+      <Header name="{{this.name}}">{{this.value}}</Header>
+      {{/each}}
+    </Headers>
+    {{/if}}
+    {{#if set.queryParams}}
+    <QueryParams>
+      {{#each set.queryParams}}
+        <QueryParam name="{{this.name}}">{{this.value}}</QueryParam>
+      {{/each}}
+    </QueryParams>
+    {{/if}}
+    {{#if set.path}}
+    <Path>{{set.path}}</Path>
+    {{/if}}
+    {{#if set.payload}}
+    <Payload contentType="{{set.payload.contentType}}" variablePrefix="{{set.payload.variablePrefix}}" variableSuffix="{{set.payload.variableSuffix}}>{{set.payload.newPayload}}</Payload>
+    {{/if}}
+    {{#if set.statusCode}}
+    <StatusCode>{{set.statusCode}}</StatusCode>
+    {{/if}}
+    {{#if set.verb}}
+    <Verb>{{set.verb}}</Verb>
+    {{/if}}
+    {{#if set.version}}
+    <Version>{{set.version}}</Version>
+    {{/if}}
+  </Set>
+  {{/if}}
+</AssignMessage>`;
 
   template = Handlebars.compile(this.snippet);
 
@@ -101,7 +256,6 @@ export class AssignMessagePlugin implements ApigeeTemplatePlugin {
       const fileResult: PlugInResult = new PlugInResult(this.constructor.name)
 
       let config: AssignMessageConfig = additionalData;
-      console.log(JSON.stringify(config));
 
       fileResult.files.push({
         policyConfig: {

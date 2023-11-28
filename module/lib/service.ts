@@ -19,8 +19,8 @@ import fs from 'fs'
 import path from 'path'
 import { performance } from 'perf_hooks'
 import { ApigeeTemplateService, ApigeeTemplateInput, ApigeeTemplateProfile, PlugInResult, PlugInFile, ApigeeConverterPlugin, GenerateResult, proxyEndpoint } from './interfaces.js'
-import { ProxyPlugin } from './plugins/proxy.plugin.js'
-import { FlowPlugin } from './plugins/flow.plugin.js'
+import { ProxyPlugin } from './plugins/final.proxy.plugin.js'
+import { FlowPlugin } from './plugins/final.sharedflow.plugin.js'
 import { FlowCalloutPlugin } from './plugins/flow.callout.plugin.js'
 import { TargetsPlugin } from './plugins/targets.plugin.js'
 import { TargetsBigQueryPlugin } from './plugins/targets.bigquery.plugin.js'
@@ -32,17 +32,18 @@ import { Json1Converter } from './converters/json1.plugin.js'
 import { Json2Converter } from './converters/json2.plugin.js'
 import { OpenApiV3Converter } from './converters/openapiv3.yaml.plugin.js'
 import { ExtractVariablesPlugin } from './plugins/mediation.exvars.plugin.js'
+import { AssignMessagePlugin } from './plugins/mediation.assignm.plugin.js'
 
 /**
  * ApigeeGenerator runs the complete templating operation with all injected plugins
  * @date 2/14/2022 - 8:22:47 AM
  *
  * @export
- * @class ApigeeGenerator
- * @typedef {ApigeeGenerator}
+ * @class ApigeeTemplater
+ * @typedef {ApigeeTemplater}
  * @implements {ApigeeTemplateService}
  */
-export class ApigeeGenerator implements ApigeeTemplateService {
+export class ApigeeTemplater implements ApigeeTemplateService {
   converterPlugins: ApigeeConverterPlugin[] = [
     new Json1Converter(),
     new Json2Converter(),
@@ -55,37 +56,46 @@ export class ApigeeGenerator implements ApigeeTemplateService {
         new SpikeArrestPlugin(),
         new AuthApiKeyPlugin(),
         new AuthSfPlugin(),
-        new QuotaPlugin(),
-        new FlowCalloutPlugin(),
+        new QuotaPlugin()
+      ],
+      extensionPlugins: {
+        "ExtractVariables": new ExtractVariablesPlugin(),
+        "AssignMessage": new AssignMessagePlugin(),
+        "FlowCallout": new FlowCalloutPlugin()
+      },
+      finalizePlugins: [
         new TargetsPlugin(),
         new ProxyPlugin()
-      ],
-      flowPlugins: {
-        "ExtractVariables": new ExtractVariablesPlugin()
-      },
-      finalizePlugin: new ProxyPlugin()
+      ]
     },
     sharedflow: {
       plugins: [
         new SpikeArrestPlugin(),
         new AuthApiKeyPlugin(),
         new AuthSfPlugin(),
-        new QuotaPlugin(),
-        new TargetsPlugin()
+        new QuotaPlugin()
       ],
-      flowPlugins: {},
-      finalizePlugin: new FlowPlugin()
+      extensionPlugins: {        
+        "ExtractVariables": new ExtractVariablesPlugin(),
+        "AssignMessage": new AssignMessagePlugin()
+      },
+      finalizePlugins: [
+        new TargetsPlugin(), 
+        new FlowPlugin()
+      ]
     },
     bigquery: {
       plugins: [
         new SpikeArrestPlugin(),
         new AuthApiKeyPlugin(),
         new AuthSfPlugin(),
-        new QuotaPlugin(),
-        new TargetsBigQueryPlugin()
+        new QuotaPlugin()
       ],
-      flowPlugins: {},
-      finalizePlugin: new ProxyPlugin()
+      extensionPlugins: {},
+      finalizePlugins: [
+        new TargetsBigQueryPlugin(),
+        new ProxyPlugin()
+      ]
     }
   };
 
@@ -211,12 +221,13 @@ export class ApigeeGenerator implements ApigeeTemplateService {
             endpoint.fileResults = results;
 
             // Now call flow plugins
-            let extensionPromise = this.callFlowPlugins(genInput, endpoint, newOutputDir);
+            let extensionPromise = this.callExtensionPlugins(genInput, endpoint, newOutputDir);
             promises.push(extensionPromise);
-            extensionPromise.then((results) => {
-              endpoint.fileResults = endpoint.fileResults?.concat(results);
+            extensionPromise.then((extensionResults) => {
+              endpoint.fileResults = endpoint.fileResults?.concat(extensionResults);
+
               // And finally call finalizer plugin
-              let finalizerPromise = this.callFinalizerPlugin(genInput, endpoint, newOutputDir);
+              let finalizerPromise = this.callFinalizerPlugins(genInput, endpoint, newOutputDir);
               promises.push(finalizerPromise);
               finalizerPromise.then((finalizerResults) => {
                   endpoint.fileResults = endpoint.fileResults?.concat(finalizerResults);
@@ -234,12 +245,12 @@ export class ApigeeGenerator implements ApigeeTemplateService {
             genInput.sharedFlow.fileResults = results;
 
             // Now call flow plugins
-            let extensionPromise = this.callFlowPlugins(genInput, genInput.sharedFlow, newOutputDir);
+            let extensionPromise = this.callExtensionPlugins(genInput, genInput.sharedFlow, newOutputDir);
             promises.push(extensionPromise);
-            extensionPromise.then((results) => {
+            extensionPromise.then((extensionResults) => {
               if (genInput.sharedFlow) {
-                genInput.sharedFlow.fileResults = genInput.sharedFlow.fileResults?.concat(results);
-                let finalizerPromise = this.callFinalizerPlugin(genInput, genInput.sharedFlow, newOutputDir);
+                genInput.sharedFlow.fileResults = genInput.sharedFlow.fileResults?.concat(extensionResults);
+                let finalizerPromise = this.callFinalizerPlugins(genInput, genInput.sharedFlow, newOutputDir);
                 promises.push(finalizerPromise);
                 finalizerPromise.then((finalizerResults) => {
                   // Call finalizer plugin for flow
@@ -311,7 +322,37 @@ export class ApigeeGenerator implements ApigeeTemplateService {
     });
   }
 
-  callFlowPlugins(genInput: ApigeeTemplateInput, endpoint: proxyEndpoint, newOutputDir: string): Promise<PlugInResult[]> {
+  callFinalizerPlugins(genInput: ApigeeTemplateInput, endpoint: proxyEndpoint, newOutputDir: string): Promise<PlugInResult[]> {
+    return new Promise((resolve, reject) => {
+      if (process.env.PROJECT) {
+        if (!endpoint.parameters) endpoint.parameters = {};
+        endpoint.parameters.PROJECT = process.env.PROJECT;
+      }
+
+      if (Object.keys(this.profiles).includes(genInput.profile)) {
+        let promises: Promise<PlugInResult>[] = [];
+
+        for (const plugin of this.profiles[genInput.profile].finalizePlugins) {
+          promises.push(plugin.applyTemplate(endpoint));
+        }
+
+        Promise.all(promises).then((values) => {
+          for (let newResult of values) {
+            for (let file of newResult.files) {
+              fs.mkdirSync(path.dirname(newOutputDir + file.path), { recursive: true });
+              fs.writeFileSync(newOutputDir + file.path, file.contents);
+            }
+          }
+          resolve(values);
+        }).catch((error) => {
+          console.error("Error calling plugins, aborting.");
+          reject("Error calling plugins, aborting.");
+        });        
+      }
+    });
+  }
+
+  callExtensionPlugins(genInput: ApigeeTemplateInput, endpoint: proxyEndpoint, newOutputDir: string): Promise<PlugInResult[]> {
     return new Promise((resolve, reject) => {
       if (process.env.PROJECT) {
         endpoint.parameters.PROJECT = process.env.PROJECT;
@@ -323,9 +364,9 @@ export class ApigeeGenerator implements ApigeeTemplateService {
         if (endpoint.extensionSteps) {
           for (const step of endpoint.extensionSteps) {
             let stepDefinition: {type: string} = step;
-            if (this.profiles[genInput.profile].flowPlugins[stepDefinition.type]) {
+            if (this.profiles[genInput.profile].extensionPlugins[stepDefinition.type]) {
               // We have a plugin
-              promises.push(this.profiles[genInput.profile].flowPlugins[stepDefinition.type].applyTemplate(endpoint, step));
+              promises.push(this.profiles[genInput.profile].extensionPlugins[stepDefinition.type].applyTemplate(endpoint, step));
             }
           }
         }
@@ -346,28 +387,28 @@ export class ApigeeGenerator implements ApigeeTemplateService {
     });
   }
 
-  callFinalizerPlugin(genInput: ApigeeTemplateInput, endpoint: proxyEndpoint, newOutputDir: string): Promise<PlugInResult[]> {
-    return new Promise((resolve, reject) => {
-      if (process.env.PROJECT) {
-        if (!endpoint.parameters) endpoint.parameters = {};
-        endpoint.parameters.PROJECT = process.env.PROJECT;
-      }
+//   callFinalizerPlugins(genInput: ApigeeTemplateInput, endpoint: proxyEndpoint, newOutputDir: string): Promise<PlugInResult[]> {
+//     return new Promise((resolve, reject) => {
+//       if (process.env.PROJECT) {
+//         if (!endpoint.parameters) endpoint.parameters = {};
+//         endpoint.parameters.PROJECT = process.env.PROJECT;
+//       }
 
-      if (Object.keys(this.profiles).includes(genInput.profile)) {
-        let promises: Promise<PlugInResult>[] = [];
+//       if (Object.keys(this.profiles).includes(genInput.profile)) {
+//         let promises: Promise<PlugInResult>[] = [];
 
-        this.profiles[genInput.profile].finalizePlugin?.applyTemplate(endpoint).then((result: PlugInResult) => {
-          result.files.forEach((file: PlugInFile) => {
-            fs.mkdirSync(path.dirname(newOutputDir + file.path), { recursive: true })
-            fs.writeFileSync(newOutputDir + file.path, file.contents)
-          });
+//         this.profiles[genInput.profile].finalizePlugin?.applyTemplate(endpoint).then((result: PlugInResult) => {
+//           result.files.forEach((file: PlugInFile) => {
+//             fs.mkdirSync(path.dirname(newOutputDir + file.path), { recursive: true })
+//             fs.writeFileSync(newOutputDir + file.path, file.contents)
+//           });
 
-          resolve([result]);
-        }).catch((error) => {
-          console.error("Error calling plugins, aborting.");
-          reject("Error calling plugins, aborting.");
-        });
-      }
-    });
-  }
+//           resolve([result]);
+//         }).catch(() => {
+//           console.error("Error calling plugins, aborting.");
+//           reject("Error calling plugins, aborting.");
+//         });
+//       }
+//     });
+//   }
 }

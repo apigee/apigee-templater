@@ -58,45 +58,45 @@ export class ExtractVariablesPlugin implements ApigeeTemplatePlugin {
 <ExtractVariables continueOnError="false" enabled="true" name="EV-{{name}}">
   <DisplayName>EV-{{name}}</DisplayName>
   <URIPath>
-{{#each URIPaths}}
+  {{#each URIPaths}}
     <Pattern ignoreCase="{{this.ignoreCase}}">{{this.pattern}}</Pattern>
-{{/each}}
+  {{/each}}
   </URIPath>
-{{#each URIPaths}}
+  {{#each queryParams}}
   <QueryParam name="{{this.name}}">
     <Pattern ignoreCase="{{this.ignoreCase}}">{{this.pattern}}</Pattern>
   </QueryParam>  
-{{/each}}
-{{#each headers}}
+  {{/each}}
+  {{#each headers}}
   <Header name="{{this.name}}">
     <Pattern ignoreCase="{{this.ignoreCase}}">{{this.pattern}}</Pattern>
   </Header>  
-{{/each}}
-{{#each formParams}}
+  {{/each}}
+  {{#each formParams}}
   <FormParam name="{{this.name}}">
     <Pattern>{{this.pattern}}</Pattern>
   </FormParam>
-{{/each}}
-{{#each variables}}
+  {{/each}}
+  {{#each variables}}
   <Variable name="{{this.name}}">
     <Pattern>{{this.pattern}}</Pattern>
   </Variable>
-{{/each}}
-{{#each JSONPaths}}
+  {{/each}}
+  {{#each JSONPaths}}
   <JSONPayload>
     <Variable name="{{this.name}}">
       <JSONPath>{{this.path}}</JSONPath>
     </Variable>
   </JSONPayload>
-{{/each}}
-{{#each XMLPaths}}
+  {{/each}}
+  {{#each XMLPaths}}
   <XMLPayload stopPayloadProcessing="false">
     <Namespaces/>
     <Variable name="{{this.name}}" type="{{this.type}}">
       <XPath>{{this.path}}</XPath>
     </Variable>
   </XMLPayload>
-{{/each}}
+  {{/each}}
   <Source clearPayload="false">message</Source>
   <VariablePrefix>{{prefix}}</VariablePrefix>
   <IgnoreUnresolvedVariables>{{ignoreUnresolved}}</IgnoreUnresolvedVariables>
@@ -117,7 +117,6 @@ export class ExtractVariablesPlugin implements ApigeeTemplatePlugin {
       const fileResult: PlugInResult = new PlugInResult(this.constructor.name)
 
       let config: ExtractVariablesConfig = additionalData;
-      console.log(JSON.stringify(config));
 
       fileResult.files.push({
         policyConfig: {

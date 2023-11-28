@@ -28,8 +28,8 @@ import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, policyInsertPlaces }
  */
 export class SpikeArrestPlugin implements ApigeeTemplatePlugin {
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-  <SpikeArrest continueOnError="false" enabled="true" name="Spike-Arrest-1">
-      <DisplayName>Spike Arrest-1</DisplayName>
+  <SpikeArrest continueOnError="false" enabled="true" name="SA-SpikeArrest">
+      <DisplayName>SA-SpikeArrest</DisplayName>
       <Properties/>
       <Identifier ref="request.header.some-header-name"/>
       <MessageWeight ref="request.header.weight"/>
@@ -54,10 +54,10 @@ export class SpikeArrestPlugin implements ApigeeTemplatePlugin {
         fileResult.files = [
           {
             policyConfig: {
-              name: 'Spike-Arrest-1',
+              name: 'SA-SpikeArrest',
               triggers: [policyInsertPlaces.preRequest]
             },
-            path: '/policies/Spike-Arrest-1.xml',
+            path: '/policies/SA-SpikeArrest.xml',
             contents: this.template({
               rate: inputConfig.spikeArrest.rate
             })
