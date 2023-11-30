@@ -25,7 +25,11 @@ import { ApigeeService, ApiManagementInterface, EnvironmentGroup, EnvironmentGro
 import axios from 'axios';
 
 process.on('uncaughtException', function (e) {
-  console.error(`${chalk.redBright('! Error: An unexpected error occurred. ' + e.toString())}`)
+  if (e.message.includes("Unable to detect a Project Id in the current environment")) {
+    console.error(`${chalk.redBright('! Error: No project with Apigee enabled was found to deploy to, either set a default project using gcloud or pass the -p parameter with a valid project Id.')}`);
+  }
+  else
+    console.error(`${chalk.redBright('! Error: An unexpected error occurred. ' + e.message)}`);
 });
 
 /**
@@ -310,7 +314,6 @@ export class cli {
     }
 
     const _proxyDir = '.'
-
     if (options.project) {
       this.apigeeService.org = options.project;
       process.env.PROJECT = options.project;
@@ -318,9 +321,20 @@ export class cli {
     else if (process.env.PROJECT) {
       this.apigeeService.org = process.env.PROJECT;
     }
-    else {
-      process.env.PROJECT = (await this.apigeeService.getOrg()).toString();
-    }
+    // else {
+    //   if (options.deploy) {
+    //     console.error(`${chalk.redBright('! Error:')} No cloud project detected, set -p to a project with Apigee enabled if you want to deploy.`);      }
+    // }
+    // else {
+    //   try {
+    //     console.error("Trying to get project...");
+    //     process.env.PROJECT = (await this.apigeeService.getOrg()).toString();
+    //   } catch (error) {
+    //     console.error("Error determining project, depoyment will not work.");
+    //     if (options.verbose) this.logVerbose("Could not determine Google Cloud project, deploy to Apigee will not work.", "warning:")
+    //   }
+      
+    // }
 
     if (options.verbose) this.logVerbose(`Project set to ${process.env.PROJECT}`, 'project:')
 
@@ -365,8 +379,8 @@ export class cli {
                     }
                   }
                 }).catch((error) => {
-                  console.error(`${chalk.redBright('! Error:')} Error deploying flow revision.`)
-                  if (options.verbose) this.logVerbose(JSON.stringify(error), 'deploy error:')
+                  console.error(`${chalk.redBright('! Error:')} Error deploying flow revision, probably a basepath conflict with an existing proxy.`);
+                  if (options.verbose) this.logVerbose(JSON.stringify(error), 'deploy error:');
                 });
               }
               else {
@@ -399,7 +413,7 @@ export class cli {
                         }
 
                       }).catch((error) => {
-                        console.error(`${chalk.redBright('! Error:')} Error deploying proxy revision.`)
+                        console.error(`${chalk.redBright('! Error:')} Error deploying proxy revision, probably a basepath conflict with an existing proxy.`)
                         if (options.verbose) this.logVerbose(JSON.stringify(error), 'deploy error:')
                       })
                     }

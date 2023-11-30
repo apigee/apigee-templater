@@ -19,7 +19,7 @@
         }
       ],
       "spikeArrest": {
-        "rate": "20s"
+        "rate": "20ps"
       },
       "auth": [],
       "extensionSteps": [

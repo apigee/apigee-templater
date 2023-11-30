@@ -1,0 +1,185 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/apigee/apigee-templater",
+    "title": "User",
+    "description": "User",
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "Name of the proxy or shared flow, should be unique, will be used for the file and deployment name."
+        },
+        "profile": {
+            "anyOf": [
+                {
+                    "type": "string",
+                    "description": "The plugin profile to use to generate the Apigee output file.",
+                    "enum": [
+                        "default",
+                        "sharedflow",
+                        "bigquery"
+                    ]
+                },
+                {
+                    "description": "Custom profiles can be defined for additional use-cases.",
+                    "type": "string"
+                }
+            ]
+        },
+        "endpoints": {
+            "type": "array",
+            "description": "List of endpoints to generate.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "$ref": "#/$defs/endpoint"
+                }
+            }
+        },
+        "sharedFlow" : {
+            "type": "object",
+            "description": "Shared flow to generate.",
+            "properties": {
+                "$ref": "#/$defs/endpoint"
+            }
+        },
+        "$defs": {
+            "endpoint": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the endpoint."
+                    },
+                    "basePath": {
+                        "type": "string",
+                        "description": "The uniqe base path of the endpoint."
+                    },
+                    "target": {
+                        "type": "object",
+                        "description": "The target of the endpoint.",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "The name of the target."
+                            },
+                            "url": {
+                                "type": "string",
+                                "description": "The url of the target"
+                            },
+                            "headers": {
+                                "type": "object",
+                                "description": "Any header key-values that should be set when calling the target.",
+                                "properties": {},
+                                "additionalProperties": true
+                            }
+                        }
+                    },
+                    "quotas": {
+                        "type": "array",
+                        "description": "Any developer quotas for the endpoint.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "count": {
+                                    "type": "string",
+                                    "description": "How many calls are allowed in the quota per timeUnit."
+                                },
+                                "timeUnit": {
+                                    "type": "string",
+                                    "description": "The time unit for the quota.",
+                                    "enum": [
+                                        "second",
+                                        "minute",
+                                        "hour",
+                                        "day",
+                                        "week",
+                                        "month",
+                                        "year"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "spikeArrest": {
+                        "type": "object",
+                        "description": "A spike arrest for the endpoint, to throttle spikes in traffic.",
+                        "properties": {
+                            "rate": {
+                                "type": "string",
+                                "description": "The rate of the spike arrest.",
+                                "pattern": "^[0-9]+(ps|pm)$"
+                            }
+                        }
+                    },
+                    "auth": {
+                        "type": "array",
+                        "description": "Authentication for the endpoint.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "type": "string",
+                                "description": "The type of authentication.",
+                                "enum": [
+                                    "basic",
+                                    "oauth2",
+                                    "apikey"
+                                ]
+                            }
+                        }
+                    },
+                    "extensionSteps": {
+                        "type": "array",
+                        "description": "Any extension steps for the endpoint.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string",
+                                            "description": "The plugin name for the extension step.",
+                                            "enum": [
+                                                "ExtractVariables",
+                                                "AssignMessage",
+                                                "FlowCallout"
+                                            ]
+                                        },
+                                        {
+                                            "description": "Custom plugins can be added to the runtime and used here.",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "name": {
+                                    "type": "string",
+                                    "description": "The name of the extension step."
+                                },
+                                "triggers": {
+                                    "type": "array",
+                                    "description": "The triggers for the extension step.",
+                                    "items": {
+                                        "type": "string",
+                                        "description": "The trigger for the extension step.",
+                                        "enum": [
+                                            "preRequest",
+                                            "postRequest",
+                                            "preTarget",
+                                            "postTarget",
+                                            "preResponse",
+                                            "postResponse"
+                                        ]
+                                    }
+                                },
+                                "additionalProperties": true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+
+}
