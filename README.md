@@ -219,15 +219,8 @@ The above plugins are delivered in the **apigee-templater-module** package, but 
 
 When generating proxies, the plugins are called in the order given above, and proceed to create the proxy package for their particular task (spike arrest, key validation, etc..).
 
-### CLI script customization
-
-You can customize the CLI directly without changing the **ApigeeGenerator** object by adding a javascript script using the **-s** parameter when calling the **apigee-templater** CLI.  This script is evaluated before the templating is done, and can make changes to the **ApigeeGenerator** object as needed, by for example removing, replacing or adding plugins for both templating and input conversion (see [/samples/script.js](/samples/script.js) for an example).
-
-```bash
-# Create a proxy based on ./samples/httpbin.json using customization script ./samples/script.js,
-# which replaces the generic **QuotaPlugin** with a developer-specific **DevQuotaPlugin**
-apigee-templater -f ./samples/httpbin.json -s ./samples/script.js
-```
+### CLI customization
+You can customize the CLI by creating your own CLI class, and then settting / overriding with your own plugins. See [this repository](https://github.com/tyayers/apigee-templater-custom) for an example.
 
 ## Contributing
 
