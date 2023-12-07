@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint, authTypes, policyInsertPlaces } from '../interfaces.js'
+import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint, authTypes, RunPoint } from '../interfaces.js'
 
 /**
  * Plugin class for handling API Key template requests
@@ -65,7 +65,12 @@ export class AuthApiKeyPlugin implements ApigeeTemplatePlugin {
           {
             policyConfig: {
               name: 'VA-VerifyKey',
-              triggers: [policyInsertPlaces.preRequest]
+              flowRunPoints: [{
+                name: 'preRequest',
+                flowCondition: '',
+                stepCondition: '',
+                runPoints: [RunPoint.preRequest]
+              }]
             },
             path: '/policies/VA-VerifyKey.xml',
             contents: this.apikey_template({})
@@ -73,7 +78,12 @@ export class AuthApiKeyPlugin implements ApigeeTemplatePlugin {
           {
             policyConfig: {
               name: 'AM-RemoveApiKey',
-              triggers: [policyInsertPlaces.preRequest]
+              flowRunPoints: [{
+                name: 'default',
+                flowCondition: '',
+                stepCondition: '',
+                runPoints: [RunPoint.preRequest]
+              }]
             },            
             path: '/policies/AM-RemoveApiKey.xml',
             contents: this.removekey_template({})

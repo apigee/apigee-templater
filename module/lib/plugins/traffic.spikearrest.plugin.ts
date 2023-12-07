@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, policyInsertPlaces } from '../interfaces.js'
+import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, RunPoint } from '../interfaces.js'
 
 /**
  * Plugin for templating spike arrests
@@ -55,7 +55,14 @@ export class SpikeArrestPlugin implements ApigeeTemplatePlugin {
           {
             policyConfig: {
               name: 'SA-SpikeArrest',
-              triggers: [policyInsertPlaces.preRequest]
+              flowRunPoints: [
+                {
+                  name: "QuotaStart",
+                  flowCondition: '',
+                  stepCondition: '',
+                  runPoints: [RunPoint.preRequest]
+                }
+              ]
             },
             path: '/policies/SA-SpikeArrest.xml',
             contents: this.template({

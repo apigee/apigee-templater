@@ -15,12 +15,12 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, policyInsertPlaces } from '../interfaces.js'
+import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, FlowRunPoint } from '../interfaces.js'
 
 export class FlowCalloutConfig {
   flowName: string = "";
   continueOnError: boolean = true;
-  triggers: policyInsertPlaces[] = [];
+  flowRunPoints: FlowRunPoint[] = [];
 }
 
 /**
@@ -61,7 +61,7 @@ export class FlowCalloutPlugin implements ApigeeTemplatePlugin {
       fileResult.files.push({
         policyConfig: {
           name: "FC-" + config.flowName,
-          triggers: config.triggers
+          flowRunPoints: config.flowRunPoints
         },
         path: '/policies/FC-' + config.flowName + '.xml',
         contents: this.template(config)

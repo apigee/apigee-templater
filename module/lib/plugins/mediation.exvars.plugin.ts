@@ -15,12 +15,12 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, policyInsertPlaces } from '../interfaces.js'
+import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, FlowRunPoint } from '../interfaces.js'
 
 export class ExtractVariablesConfig {
   type: string = "";
   name: string = "";
-  triggers: policyInsertPlaces[] = [];
+  flowRunPoints: FlowRunPoint[] = [];
   ignoreUnresolvedVariables: boolean = true;
   URIPaths: PatternConfig[] = [];
   queryParams: PatternConfig[] = [];
@@ -121,7 +121,7 @@ export class ExtractVariablesPlugin implements ApigeeTemplatePlugin {
       fileResult.files.push({
         policyConfig: {
           name: "EV-" + config.name,
-          triggers: config.triggers
+          flowRunPoints: config.flowRunPoints
         },
         path: '/policies/EV-' + config.name + '.xml',
         contents: this.template(config)

@@ -15,7 +15,17 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, PlugInResult, policyInsertPlaces, proxyEndpoint } from '../interfaces.js'
+import { ApigeeTemplatePlugin, PlugInResult, FlowRunPoint, RunPoint, proxyEndpoint } from '../interfaces.js'
+
+class Step {
+  name: string = "";
+  condition: string = "";
+
+  constructor(name: string, condition: string) {
+    this.name = name;
+    this.condition = condition;
+  }
+}
 
 /**
  * Plugin for generating targets
@@ -33,12 +43,15 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
         <Request>
           {{#if preflow_request_assign}}
           <Step>
-            <Name>AM-SetTargetHeaders</Name>
+            <Name>AM-SetAutoTargetHeaders</Name>
           </Step>
           {{/if}}
           {{#each preTargetPolicies}}
           <Step>
-            <Name>{{this}}</Name>
+            <Name>{{this.name}}</Name>
+            {{#if this.condition}}
+            <Condition>{{this.condition}}</Condition>
+            {{/if}}
           </Step>
           {{/each}}          
         </Request>
@@ -51,7 +64,10 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
         <Response>
           {{#each postTargetPolicies}}
           <Step>
-            <Name>{{this}}</Name>
+            <Name>{{this.name}}</Name>
+            {{#if this.condition}}
+            <Condition>{{this.condition}}</Condition>
+            {{/if}}
           </Step>
           {{/each}}
         </Response>
@@ -62,8 +78,8 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
 </TargetEndpoint>`;
 
   preFlowAssignMessageSnippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<AssignMessage continueOnError="false" enabled="true" name="AM-SetTargetHeaders">
-  <DisplayName>AM-SetTargetHeaders</DisplayName>
+<AssignMessage continueOnError="false" enabled="true" name="AM-SetAutoTargetHeaders">
+  <DisplayName>AM-SetAutoTargetHeaders</DisplayName>
   <Properties/>
   <Set>
     <Headers>
@@ -94,19 +110,20 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
 
       if (inputConfig.target) {
 
-        const preTargetPolicies: string[] = [];
-        const postTargetPolicies: string[] = [];
+        const preTargetPolicies: Step[] = [];
+        const postTargetPolicies: Step[] = [];
     
         // Now collect all of our policies that should be triggered
         if (inputConfig.fileResults)
           for (let plugResult of inputConfig.fileResults) {
             for (let fileResult of plugResult.files) {
               if (fileResult.policyConfig) {
-                for (let policyTrigger of fileResult.policyConfig.triggers) {
-                  if (policyTrigger == policyInsertPlaces.preTarget)
-                    preTargetPolicies.push(fileResult.policyConfig.name);
-                  else if (policyTrigger == policyInsertPlaces.postTarget)
-                    postTargetPolicies.push(fileResult.policyConfig.name);
+                for (let flowRunPoint of fileResult.policyConfig.flowRunPoints) {
+                  for(let runPoint of flowRunPoint.runPoints)
+                    if (runPoint == RunPoint.preTarget)
+                      preTargetPolicies.push(new Step(fileResult.policyConfig.name, flowRunPoint.stepCondition));
+                    else if (runPoint == RunPoint.postTarget)
+                      postTargetPolicies.push(new Step(fileResult.policyConfig.name, flowRunPoint.stepCondition));
                 }
               }
             }
@@ -138,7 +155,7 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
           };
 
           fileResult.files.push({
-            path: "/policies/AM-SetTargetHeaders.xml",
+            path: "/policies/AM-SetAutoTargetHeaders.xml",
             contents: this.messageAssignTemplate(assignContext)
           });
         }

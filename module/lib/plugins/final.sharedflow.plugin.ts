@@ -15,7 +15,17 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, PlugInResult, policyInsertPlaces, proxyEndpoint } from '../interfaces.js'
+import { ApigeeTemplatePlugin, PlugInResult, RunPoint, proxyEndpoint } from '../interfaces.js'
+
+class Step {
+  name: string = "";
+  condition: string = "";
+
+  constructor(name: string, condition: string) {
+    this.name = name;
+    this.condition = condition;
+  }
+}
 
 /**
  * Creates shared flows for the template
@@ -30,24 +40,36 @@ export class FlowPlugin implements ApigeeTemplatePlugin {
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <SharedFlow name="default">
     {{#each preRequestPolicies}}
-      <Step>
-        <Name>{{this}}</Name>
-      </Step>
+    <Step>
+      <Name>{{this.name}}</Name>
+      {{#if this.condition}}
+      <Condition>{{this.condition}}</Condition>
+      {{/if}}
+    </Step>
     {{/each}}
     {{#each postRequestPolicies}}
-      <Step>
-        <Name>{{this}}</Name>
-      </Step>
+    <Step>
+      <Name>{{this.name}}</Name>
+      {{#if this.condition}}
+      <Condition>{{this.condition}}</Condition>
+      {{/if}}
+    </Step>
     {{/each}}
     {{#each preResponsePolicies}}
-      <Step>
-        <Name>{{this}}</Name>
-      </Step>
+    <Step>
+      <Name>{{this.name}}</Name>
+      {{#if this.condition}}
+      <Condition>{{this.condition}}</Condition>
+      {{/if}}
+    </Step>
     {{/each}}
     {{#each postResponsePolicies}}
-      <Step>
-        <Name>{{this}}</Name>
-      </Step>
+    <Step>
+      <Name>{{this.name}}</Name>
+      {{#if this.condition}}
+      <Condition>{{this.condition}}</Condition>
+      {{/if}}
+    </Step>
     {{/each}}        
   </SharedFlow>`;
 
@@ -65,25 +87,27 @@ export class FlowPlugin implements ApigeeTemplatePlugin {
     return new Promise((resolve) => {
       const fileResult: PlugInResult = new PlugInResult(this.constructor.name);
       
-      const preRequestPolicies: string[] = [];
-      const postRequestPolicies: string[] = [];
-      const preResponsePolicies: string[] = [];
-      const postResponsePolicies: string[] = [];
+      const preRequestPolicies: Step[] = [];
+      const postRequestPolicies: Step[] = [];
+      const preResponsePolicies: Step[] = [];
+      const postResponsePolicies: Step[] = [];
 
       // Now collect all of our policies that should be triggered
       if (inputConfig.fileResults)
         for (let plugResult of inputConfig.fileResults) {
           for (let fileResult of plugResult.files) {
             if (fileResult.policyConfig) {
-              for (let policyTrigger of fileResult.policyConfig.triggers) {
-                if (policyTrigger == policyInsertPlaces.preRequest)
-                  preRequestPolicies.push(fileResult.policyConfig.name);
-                else if (policyTrigger == policyInsertPlaces.postRequest)
-                  postRequestPolicies.push(fileResult.policyConfig.name);
-                else if (policyTrigger == policyInsertPlaces.preResponse)
-                  preResponsePolicies.push(fileResult.policyConfig.name);
-                else if (policyTrigger == policyInsertPlaces.postResponse)
-                  postResponsePolicies.push(fileResult.policyConfig.name);
+              for (let policyRunPoint of fileResult.policyConfig.flowRunPoints) {
+                for (let point of policyRunPoint.runPoints) {
+                  if (point == RunPoint.preRequest)
+                    preRequestPolicies.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                  else if (point == RunPoint.postRequest)
+                    postRequestPolicies.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                  else if (point == RunPoint.preResponse)
+                    preResponsePolicies.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                  else if (point == RunPoint.postResponse)
+                    postResponsePolicies.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                }
               }
             }
           }

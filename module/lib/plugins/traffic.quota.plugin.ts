@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, policyInsertPlaces } from '../interfaces.js'
+import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, RunPoint } from '../interfaces.js'
 
 /**
  * Plugin for traffic quota templating
@@ -64,7 +64,14 @@ export class QuotaPlugin implements ApigeeTemplatePlugin {
             fileResult.files.push({
               policyConfig: {
                 name: 'Q-Quota' + (Number(i) + 1).toString(),
-                triggers: [policyInsertPlaces.preRequest]
+                flowRunPoints: [
+                  {
+                    name: "QuotaStart",
+                    flowCondition: '',
+                    stepCondition: '',
+                    runPoints: [RunPoint.preRequest]
+                  }
+                ]
               },
               path: '/policies/Q-Quota' + (Number(i) + 1).toString() + '.xml',
               contents: this.template({

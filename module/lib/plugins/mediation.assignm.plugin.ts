@@ -15,12 +15,12 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, policyInsertPlaces } from '../interfaces.js'
+import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, FlowRunPoint } from '../interfaces.js'
 
 export class AssignMessageConfig {
   type: string = "";
   name: string = "";
-  triggers: policyInsertPlaces[] = [];
+  flowRunPoints: FlowRunPoint[] = [];
   continueOnError: boolean = false;
   ignoreUnresolvedVariables: boolean = false;
   assignTo: string = "";
@@ -90,16 +90,24 @@ export class AssignMessagePlugin implements ApigeeTemplatePlugin {
   {{#each assignVariables}}
   <AssignVariable>
     <Name>{{this.name}}</Name>
+    {{#if this.PropertySetRef}}
     <PropertySetRef>{{this.propertySetRef}}</PropertySetRef>
+    {{/if}}
+    {{#if this.ref}}
     <Ref>{{this.ref}}</Ref>
+    {{/if}}
+    {{#if this.resourceURL}}
     <ResourceURL>{{this.resourceURL}}</ResourceURL>
+    {{/if}}
     {{#if this.templateMessage}}
     <Template>{{this.templateMessage}}</Template>
     {{/if}}
     {{#if this.templateVariable}}
     <Template ref="{{this.templateVariable}}"></Template>
     {{/if}}
+    {{#if this.value}}
     <Value>{{this.value}}</Value>
+    {{/if}}
   </AssignVariable>
   {{/each}}
 
@@ -260,13 +268,13 @@ export class AssignMessagePlugin implements ApigeeTemplatePlugin {
       fileResult.files.push({
         policyConfig: {
           name: "AM-" + config.name,
-          triggers: config.triggers
+          flowRunPoints: config.flowRunPoints
         },
         path: '/policies/AM-' + config.name + '.xml',
         contents: this.template(config)
       });
 
-      resolve(fileResult)
+      resolve(fileResult);
     })
   }
 }

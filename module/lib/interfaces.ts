@@ -87,15 +87,6 @@ export enum authTypes {
   sharedflow = 'sharedflow'
 }
 
-export enum policyInsertPlaces {
-  preRequest = 'preRequest',
-  postRequest = 'postRequest',
-  preTarget = 'preTarget',
-  postTarget = 'postTarget',
-  preResponse = 'preResponse',
-  postResponse = 'postResponse'
-}
-
 export interface ApigeeTemplateService {
   convertStringToProxyInput(inputString: string): Promise<ApigeeTemplateInput>
   generateProxyFromString(inputString: string, outputDir: string): Promise<GenerateResult>
@@ -129,8 +120,24 @@ export class PlugInFile {
 }
 
 export class PlugInFilePolicyConfig {
+  name = 'default';
+  flowRunPoints: FlowRunPoint[] = [];
+}
+
+export class FlowRunPoint {
   name = '';
-  triggers: policyInsertPlaces[] = [];
+  flowCondition: string = "";
+  stepCondition: string = "";
+  runPoints: RunPoint[] = [];
+}
+
+export enum RunPoint {
+  preRequest = 'preRequest',
+  postRequest = 'postRequest',
+  preTarget = 'preTarget',
+  postTarget = 'postTarget',
+  preResponse = 'preResponse',
+  postResponse = 'postResponse'
 }
 
 /** Profile definition with plugins to be used for conversion */

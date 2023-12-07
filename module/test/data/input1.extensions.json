@@ -25,8 +25,11 @@
       "extensionSteps": [
         {
           "type": "ExtractVariables",
-          "name": "extractQueryParam1",
-          "triggers": ["preRequest"],
+          "name": "ExtractQueryParam1",
+          "flowRunPoints": [{
+            "name": "preRequest",
+            "runPoints": ["preRequest"]
+          }],
           "ignoreUnresolvedVariables": true,
           "prefix": "test",        
           "queryParams": [
@@ -39,8 +42,31 @@
         },
         {
           "type": "AssignMessage",
-          "name": "setTargetHeader",
-          "triggers": ["preTarget"],
+          "name": "AssignNewVariable",
+          "flowRunPoints": [{
+            "name": "preRequest",
+            "runPoints": ["preRequest"]
+          }],
+          "ignoreUnresolvedVariables": true,
+          "assignVariables": [
+            {
+              "name": "test.param2",
+              "value": "value2"
+            },
+            {
+              "name": "param3",
+              "ref": "test.param1"
+            }
+          ]
+        },        
+        {
+          "type": "AssignMessage",
+          "name": "SetTargetHeader",
+          "flowRunPoints": [{
+            "name": "preTarget",
+            "stepCondition": "(proxy.pathsuffix MatchesPath \"/get\") and (request.verb = \"GET\")",
+            "runPoints": ["preTarget"]
+          }],
           "continueOnError": true,
           "ignoreUnresolvedVariables": true,
           "set": {
@@ -55,7 +81,11 @@
         {
           "type": "AssignMessage",
           "name": "SetResponseHeader",
-          "triggers": ["postResponse"],
+          "flowRunPoints": [{
+            "name": "/get set header",
+            "flowCondition": "(proxy.pathsuffix MatchesPath \"/get\") and (request.verb = \"GET\")",                          
+            "runPoints": ["postResponse"]
+          }],
           "continueOnError": true,
           "assignTo": "response",
           "ignoreUnresolvedVariables": true,
@@ -63,7 +93,7 @@
             "headers": [
               {
                 "name": "testHeader2",
-                "value": "{test.param1}"
+                "value": "{test.param2}"
               }
             ]
           }
@@ -71,7 +101,10 @@
         {
           "type": "FlowCallout",
           "name": "CallSetHeaderFlow",
-          "triggers": ["postResponse"],
+          "flowRunPoints": [{
+            "name": "postResponse",
+            "runPoints": ["postResponse"]
+          }],
           "flowName": "AddTestHeaderFlow" 
         }
       ]

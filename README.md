@@ -6,20 +6,39 @@ Apigee proxies are ideal for templating since the bundles are composed of simple
 ## Prerequisites
 
 * [Node.js](https://nodejs.org/) installed
-* [gcloud CLI](https://cloud.google.com/sdk/gcloud) installed, and with the default project set to the Apigee X project (simply run **gcloud config set project PROJECT** to set, where **PROJECT** is your Google Cloud project).
-* [gcloud CLI](https://cloud.google.com/sdk/gcloud) authenticated with  [application-default](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) credentials (run **gcloud auth application-default login** to set in your shell, no action needed in GCP environments like Cloud Run).
-* [Apigee X](https://cloud.google.com/apigee/docs/api-platform/get-started/provisioning-intro) org and environment (either eval or production).  
+* If you want to deploy the generated proxies to Apigee directly from the CLI, then you will need:
+  * [Apigee X](https://cloud.google.com/apigee/docs/api-platform/get-started/provisioning-intro) org and environment (either eval or production).
+  * [gcloud CLI](https://cloud.google.com/sdk/gcloud) installed and set to your Apigee X project (`gcloud config set project PROJECT`) and authenticated with a default service account (`gcloud auth application-default login`)
 
-## Install
+## Install and run
 
-You can install the CLI to use globally on your system using npm. 
+You can use the CLI either by installing it globally on your system or with npx.
 
 ```sh
+# Install globally
 npm i -g apigee-templater
+
+# Run with npx
+npx apigee-templater
 ```
 You can try out the tool easily in Google Cloud Shell including a tutorial walk-through of the features by clicking here:
 
 [![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.png)](https://ssh.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/apigee/apigee-templater&cloudshell_git_branch=main&cloudshell_workspace=.&cloudshell_tutorial=docs/cloudshell-tutorial.md)
+
+## Apigee features covered
+| Feature | Supported | Issue |
+| --- | --- | --- |
+| API keys | Yes | |
+| Quotas | Yes | |
+| Spike Arrests | Yes | |
+| OAuth | Yes | |
+| AssignMessage | Yes | https://github.com/apigee/apigee-templater/issues/11 |
+| ExtractVariables | Yes | https://github.com/apigee/apigee-templater/issues/12 |
+| Shared flows | Yes | |
+| Conditional proxy flows | Yes | |
+| Conditional steps | Yes | |
+| Conditional target flows | No | |
+
 
 ## Example usage
 You can find examples of both proxy and shared flow generation in the `./module/tests` directory. The tests use both JSON and YAML to demonstrate configuration of proxies and shared flows.

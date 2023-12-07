@@ -15,7 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, proxyEndpoint, authTypes, PlugInResult, policyInsertPlaces } from '../interfaces.js'
+import { ApigeeTemplatePlugin, proxyEndpoint, authTypes, PlugInResult, RunPoint } from '../interfaces.js'
 
 /**
  * Template plugin to evaluate a sharedflow for authn
@@ -70,7 +70,12 @@ export class AuthSfPlugin implements ApigeeTemplatePlugin {
           {
             policyConfig: {
               name: 'FC-VerifyFlow',
-              triggers: [policyInsertPlaces.preRequest]
+              flowRunPoints: [{
+                name: 'preRequest',
+                flowCondition: '',
+                stepCondition: '',
+                runPoints: [RunPoint.preRequest]
+              }]
             },
             path: '/policies/FC-VerifyFlow.xml',
             contents: this.template({

@@ -7,7 +7,10 @@
       {
         "type": "AssignMessage",
         "name": "setResponseHeader",
-        "triggers": ["postResponse"],
+        "flowRunPoints": [{
+          "name": "postResponse",
+          "runPoints": ["postResponse"]
+        }],
         "continueOnError": true,
         "assignTo": "response",
         "ignoreUnresolvedVariables": true,
