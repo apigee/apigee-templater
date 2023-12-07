@@ -18,7 +18,7 @@ import archiver from 'archiver'
 import fs from 'fs'
 import path from 'path'
 import { performance } from 'perf_hooks'
-import { ApigeeTemplateService, ApigeeTemplateInput, ApigeeTemplateProfile, PlugInResult, PlugInFile, ApigeeConverterPlugin, GenerateResult, proxyEndpoint } from './interfaces.js'
+import { ApigeeTemplateService, ApigeeTemplateInput, ApigeeTemplateProfile, PlugInResult, PlugInFile, ApigeeConverterPlugin, GenerateResult, proxyEndpoint, ApigeeTemplatePlugin } from './interfaces.js'
 import { ProxyPlugin } from './plugins/final.proxy.plugin.js'
 import { FlowPlugin } from './plugins/final.sharedflow.plugin.js'
 import { FlowCalloutPlugin } from './plugins/flow.callout.plugin.js'
@@ -118,6 +118,50 @@ export class ApigeeTemplater implements ApigeeTemplateService {
     // Replace input converters if any passed in contructor
     if (customInputConverters) {
       this.converterPlugins = customInputConverters
+    }
+  }
+
+  /**
+   * Sets a complete profile
+   * @param profileName 
+   * @param profile 
+   */
+  setProfile(profileName: string, profile: ApigeeTemplateProfile): void {
+    this.profiles[profileName] = profile;
+  }
+
+  /**
+   * Sets a plugin in the profile
+   *
+   * @param profileName 
+   * @param plugin 
+   */
+  setPluginInProfile(profileName: string, plugin: ApigeeTemplatePlugin): void {
+    if (this.profiles[profileName]) {
+      // Replace normal plugins, if exists
+      let foundPlugin = false;
+      for (var i=0; i<this.profiles[profileName].plugins.length; i++) {
+        if (this.profiles[profileName].plugins[i].constructor.name == plugin.constructor.name) {
+          this.profiles[profileName].plugins[i] = plugin;
+          foundPlugin = true;
+          break;
+        }
+      }
+
+      if (!foundPlugin)
+        this.profiles[profileName].plugins.push(plugin);
+    }
+  }
+
+  /**
+   * Sets an extension plugin in the profile
+   *
+   * @param profileName 
+   * @param plugin 
+   */
+  setExtensionPluginInProfile(profileName: string, name: string, plugin: ApigeeTemplatePlugin): void {
+    if (this.profiles[profileName]) {
+      this.profiles[profileName].extensionPlugins[name] = plugin;
     }
   }
 

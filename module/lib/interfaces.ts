@@ -88,9 +88,12 @@ export enum authTypes {
 }
 
 export interface ApigeeTemplateService {
-  convertStringToProxyInput(inputString: string): Promise<ApigeeTemplateInput>
-  generateProxyFromString(inputString: string, outputDir: string): Promise<GenerateResult>
-  generateProxy(inputConfig: ApigeeTemplateInput, outputDir: string): Promise<GenerateResult>
+  setProfile(profileName: string, profile: ApigeeTemplateProfile): void;
+  setPluginInProfile(profileName: string, plugin: ApigeeTemplatePlugin): void;
+  setExtensionPluginInProfile(profileName: string, name: string, plugin: ApigeeTemplatePlugin): void;
+  convertStringToProxyInput(inputString: string): Promise<ApigeeTemplateInput>;
+  generateProxyFromString(inputString: string, outputDir: string): Promise<GenerateResult>;
+  generateProxy(inputConfig: ApigeeTemplateInput, outputDir: string): Promise<GenerateResult>;
 }
 
 /** The result of the template generation */
