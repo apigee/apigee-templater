@@ -359,6 +359,7 @@ export class ApigeeTemplater implements ApigeeTemplateService {
           }
           resolve(values);
         }).catch((error) => {
+          console.error(error);
           console.error("Error calling plugins, aborting.");
           reject("Error calling plugins, aborting.");
         });        
@@ -381,6 +382,7 @@ export class ApigeeTemplater implements ApigeeTemplateService {
         }
 
         Promise.all(promises).then((values) => {
+
           for (let newResult of values) {
             for (let file of newResult.files) {
               fs.mkdirSync(path.dirname(newOutputDir + file.path), { recursive: true });
@@ -389,9 +391,10 @@ export class ApigeeTemplater implements ApigeeTemplateService {
           }
           resolve(values);
         }).catch((error) => {
-          console.error("Error calling plugins, aborting.");
+          console.error(error);
+          console.error("Error calling finalizer plugins, aborting.");
           reject("Error calling plugins, aborting.");
-        });        
+        });
       }
     });
   }
@@ -424,35 +427,11 @@ export class ApigeeTemplater implements ApigeeTemplateService {
           }
           resolve(values);
         }).catch((error) => {
+          console.error(error);
           console.error("Error calling extension plugins, aborting.");
           reject("Error calling extension plugins, aborting.");
         });        
       }
     });
   }
-
-//   callFinalizerPlugins(genInput: ApigeeTemplateInput, endpoint: proxyEndpoint, newOutputDir: string): Promise<PlugInResult[]> {
-//     return new Promise((resolve, reject) => {
-//       if (process.env.PROJECT) {
-//         if (!endpoint.parameters) endpoint.parameters = {};
-//         endpoint.parameters.PROJECT = process.env.PROJECT;
-//       }
-
-//       if (Object.keys(this.profiles).includes(genInput.profile)) {
-//         let promises: Promise<PlugInResult>[] = [];
-
-//         this.profiles[genInput.profile].finalizePlugin?.applyTemplate(endpoint).then((result: PlugInResult) => {
-//           result.files.forEach((file: PlugInFile) => {
-//             fs.mkdirSync(path.dirname(newOutputDir + file.path), { recursive: true })
-//             fs.writeFileSync(newOutputDir + file.path, file.contents)
-//           });
-
-//           resolve([result]);
-//         }).catch(() => {
-//           console.error("Error calling plugins, aborting.");
-//           reject("Error calling plugins, aborting.");
-//         });
-//       }
-//     });
-//   }
 }

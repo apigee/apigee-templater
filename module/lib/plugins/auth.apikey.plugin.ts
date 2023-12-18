@@ -15,7 +15,14 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint, authTypes, RunPoint } from '../interfaces.js'
+import { ApigeeTemplatePlugin, PlugInResult, proxyEndpoint, authTypes, RunPoint, FlowRunPoint } from '../interfaces.js'
+
+export class APIKeyConfig {
+  type: string = "";
+  name: string = "";
+  flowRunPoints: FlowRunPoint[] = [];
+  continueOnError: boolean = false;
+}
 
 /**
  * Plugin class for handling API Key template requests
@@ -56,7 +63,7 @@ export class AuthApiKeyPlugin implements ApigeeTemplatePlugin {
    * @param {Map<string, any>} processingVars
    * @return {Promise<PlugInResult>} Result of the plugin templating
    */
-  applyTemplate (inputConfig: proxyEndpoint): Promise<PlugInResult> {
+  applyTemplate (inputConfig: proxyEndpoint, additionalData?: any): Promise<PlugInResult> {
     return new Promise((resolve) => {
       const fileResult: PlugInResult = new PlugInResult(this.constructor.name);
 

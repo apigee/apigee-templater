@@ -20,8 +20,15 @@ export class proxyTarget {
   url?= '';
   query?= '';
   table?= '';
-  authScopes?= [];
+  googleIdToken?: proxyTargetAuth;
+  googleAccessToken?: proxyTargetAuth;
   headers?: { [key: string]: string } = {};
+}
+
+export class proxyTargetAuth {
+  audience?: string='';
+  headerName: string='';
+  scopes?: string[]= [];
 }
 
 /** A proxy endpoint describes a basepath, targets and other proxy features */

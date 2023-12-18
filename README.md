@@ -122,12 +122,36 @@ The module & CLI can generate and deploy Apigee X proxies with these features ou
   * HTTP Urls
   * BigQuery Queries
   * BigQuery Tables
-  * Pre and post flow callouts
+  * Google Id and Access tokens
 * Auth with apikey or 3rd party OAuth token
 * Quotas
 * Spike Arrests
+* Extension plugins with conditions
+* Shared flows
 
 The templating engine uses the [Handlebars](https://handlebarsjs.com/) framework to build any type of proxy based on structured inputs.  And because the logic is contained in Javascript or Typescript plugins, logic can be added for any type of requirement.
+
+## Examples
+Here are example JSON input files to generate proxies with these different features, located in the `./module/test/data` directory.
+
+| Example | Features tested  |
+| --- | --- |
+| [input1.json](./module/test/data/input1.json) | Basic configuration example of a proxy to httpbin.org. |
+| [input2.json](./module/test/data/input2.json) | A different configuration format with some simple URL rewrites. |
+| [input3.sharedflow.json](./module/test/data/input3.sharedflow.json) | Generates a shared flow. |
+| [input4.extensions.json](./module/test/data/input4.extensions.json) | Generates a proxy with extensions, also with conditions. |
+| [input5.cloudrun.json](./module/test/data/input5.cloudrun.json) | Generates a proxy to Cloud Run with a Google Id token. |
+| [bigquery_query_input.json](./module/test/data/bigquery_query_input.json) | Generates a proxy to BigQuery data based on a query. |
+| [bigquery_table_input.json](./module/test/data/bigquery_table_input.json) | Generates a proxy to a BigQuery query. |
+
+You can easily test these input files by running the `apigee-templater-module` unit tests like this:
+
+```bash
+cd ./module
+npm install
+npm run test
+# The proxies are generated in the ./module/test/proxies directory
+```
 
 ## REST service and web client
 
@@ -197,30 +221,8 @@ apigeeGenerator.generateProxy(input, "./proxies").then((result) => {
 });
 
 ```
-### Customizing plugins
-
-You can change / write your own plugins (see /module/lib/plugins), and then inject them when instantiating the **ApigeeGenerator** service object.
-
-```typescript
-  // Pass an array of template and input converter plugins that are used at runtime.
-  apigeeGenerator: ApigeeTemplateService = new ApigeeGenerator(
-    {
-      "default": [
-        new SpikeArrestPlugin(),
-        new AuthApiKeyPlugin(),
-        new AuthSfPlugin(),
-        new QuotaPlugin(),
-        new TargetsPlugin(),
-        new ProxiesPlugin(),
-      ]
-    });
-```
-The above plugins are delivered in the **apigee-templater-module** package, but you can easily write your own by implementing the **ApigeeTemplatePlugin** interface (see /module/lib/plugins for examples). 
-
-When generating proxies, the plugins are called in the order given above, and proceed to create the proxy package for their particular task (spike arrest, key validation, etc..).
-
 ### CLI customization
-You can customize the CLI by creating your own CLI class, and then settting / overriding with your own plugins. See [this repository](https://github.com/tyayers/apigee-templater-custom) for an example.
+You can customize the CLI by creating your own CLI class, and then settting / overriding with your own plugins. See [this repository](https://github.com/tyayers/apigee-templater-custom) for a detailed example, complete with a customized plugin and unit tests to test the changes.
 
 ## Contributing
 

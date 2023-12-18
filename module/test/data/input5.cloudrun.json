@@ -1,0 +1,27 @@
+{
+  "name": "CoffeeProxyCloudRun",
+  "profile": "default",
+  "endpoints": [
+    {
+      "name": "default",
+      "basePath": "/coffeeservice",
+      "target": {
+        "name": "default",
+        "url": "https://coffee-service-jrpc3n5lta-ew.a.run.app",
+        "googleIdToken": {
+          "audience": "https://coffee-service-jrpc3n5lta-ew.a.run.app"
+        }
+      },
+      "quotas": [
+        {
+          "count": "200",
+          "timeUnit": "day"
+        }
+      ],
+      "spikeArrest": {
+        "rate": "20s"
+      },
+      "auth": []
+    }
+  ]
+}

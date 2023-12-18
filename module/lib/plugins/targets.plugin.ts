@@ -38,7 +38,7 @@ class Step {
  */
 export class TargetsPlugin implements ApigeeTemplatePlugin {
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<TargetEndpoint name="{{targetName}}">
+<TargetEndpoint name="{{target.name}}">
     <PreFlow name="PreFlow">
         <Request>
           {{#if preflow_request_assign}}
@@ -73,7 +73,28 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
         </Response>
     </PostFlow>
     <HTTPTargetConnection>
-        <URL>{{targetUrl}}</URL>
+        <URL>{{target.url}}</URL>
+        {{#if target.googleIdToken}}
+        <Authentication>
+          {{#if target.googleIdToken.headerName}}
+          <HeaderName>{{target.authentication.headerName}}</HeaderName>
+          {{/if}}
+          <GoogleIDToken>
+            <Audience>{{target.googleIdToken.audience}}</Audience>
+          </GoogleIDToken>
+        </Authentication>
+        {{/if}}
+        {{#if target.googleAccessToken}}
+        <Authentication>
+          <GoogleAccessToken>
+            <Scopes>
+              {{#each target.googleAccessToken.scopes}}
+              <Scope>{{this}}</Scope>
+              {{/each}}
+            </Scopes>
+          </GoogleAccessToken>
+        </Authentication>
+        {{/if}}
     </HTTPTargetConnection>
 </TargetEndpoint>`;
 
@@ -135,8 +156,7 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
         }
 
         let context: any = { 
-          targetName: inputConfig.target.name, 
-          targetUrl: inputConfig.target.url, 
+          target: inputConfig.target, 
           preflow_request_assign: (inputConfig.target.headers && Object.keys(inputConfig.target.headers).length > 0),
           preTargetPolicies: preTargetPolicies,
           postTargetPolicies: postTargetPolicies
@@ -148,7 +168,7 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
             contents: this.template(context)
           }
         ];
-
+        
         if (context.preflow_request_assign) {
           let assignContext: any = {
             headers: inputConfig.target.headers

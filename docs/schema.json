@@ -72,6 +72,33 @@
                                 "description": "Any header key-values that should be set when calling the target.",
                                 "properties": {},
                                 "additionalProperties": true
+                            },
+                            "googleIdToken": {
+                                "type": "object",
+                                "description": "The Google ID token to use when calling the target.",
+                                "properties": {
+                                    "audience": {
+                                        "type": "string",
+                                        "description": "The audience of the Google ID token."
+                                    },
+                                    "headerName": {
+                                        "type": "string",
+                                        "description": "The header name of the Google ID token."
+                                    }
+                                }
+                            },
+                            "googleAccessToken": {
+                                "type": "object",
+                                "description": "The Google access token to use when calling the target.",
+                                "properties": {
+                                    "scopes": {
+                                        "type": "array",
+                                        "description": "The scopes of the Google access token.",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
                             }
                         }
                     },
