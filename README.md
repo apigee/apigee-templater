@@ -25,7 +25,7 @@ You can try out the tool easily in Google Cloud Shell including a tutorial walk-
 
 [![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.png)](https://ssh.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/apigee/apigee-templater&cloudshell_git_branch=main&cloudshell_workspace=.&cloudshell_tutorial=docs/cloudshell-tutorial.md)
 
-## Apigee features covered
+## Supported features
 | Feature | Supported | Issue |
 | --- | --- | --- |
 | API keys | Yes | |
@@ -41,6 +41,8 @@ You can try out the tool easily in Google Cloud Shell including a tutorial walk-
 | Target Google authentication | Yes | https://github.com/apigee/apigee-templater/issues/14 |
 | Target load balancing | Yes | https://github.com/apigee/apigee-templater/issues/17 |
 | Target conditional flows | No | |
+
+The templating engine uses the [Handlebars](https://handlebarsjs.com/) framework to build any type of proxy based on structured inputs.  And because the logic is contained in Javascript or Typescript plugins, logic can be added for any type of requirement.
 
 ## Example usage
 You can find examples of both proxy and shared flow generation in the `./module/tests` directory. The tests use both JSON and YAML to demonstrate configuration of proxies and shared flows.
@@ -114,25 +116,6 @@ apigee-templater -f ./samples/httpbin.json -d -e test1
 
 All deployed proxies can then be viewed and managed in the [Apigee console](https://apigee.google.com), where you can check the status of the deployments, do tracing, and create API products based on these automated proxies.
 
-## Supported Features
-
-The module & CLI can generate and deploy Apigee X proxies with these features out-of-the-box, and can be extended with new features easily (see "Extending & Customizing" section below).
-
-* Proxy name
-* Base path
-* Targets
-  * HTTP Urls
-  * BigQuery Queries
-  * BigQuery Tables
-  * Google Id and Access tokens
-* Auth with apikey or 3rd party OAuth token
-* Quotas
-* Spike Arrests
-* Extension plugins with conditions
-* Shared flows
-
-The templating engine uses the [Handlebars](https://handlebarsjs.com/) framework to build any type of proxy based on structured inputs.  And because the logic is contained in Javascript or Typescript plugins, logic can be added for any type of requirement.
-
 ## Examples
 Here are example JSON input files to generate proxies with these different features, located in the `./module/test/data` directory.
 
@@ -175,10 +158,6 @@ Then you can open the service locally at [http://localhost:8080](http://localhos
 You can also build and deploy the service to [Cloud Run](https://cloud.google.com/run) by clicking here:
 
 [![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run)
-
-## Extending and usage in code
-
-The project is designed to be extensible. All templating and proxy generation is done in Typescript/Javascript plugins, which can be extended or replaced based on the templating requirements.
 
 ### Usage with Typescript/Javascript
 First install and import into your project.
@@ -223,8 +202,8 @@ apigeeGenerator.generateProxy(input, "./proxies").then((result) => {
 });
 
 ```
-### CLI customization
-You can customize the CLI by creating your own CLI class, and then settting / overriding with your own plugins. See [this repository](https://github.com/tyayers/apigee-templater-custom) for a detailed example, complete with a customized plugin and unit tests to test the changes.
+### Customization and extensions
+You can customize apigee-templater by creating your own CLI class, and then settting / overriding with your own plugins. See [this repository](https://github.com/tyayers/apigee-templater-custom) for a detailed example, complete with a customized plugin and unit tests to test the changes.
 
 ## Contributing
 
