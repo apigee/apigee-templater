@@ -21,6 +21,7 @@ export class FlowCalloutConfig {
   flowName: string = "";
   continueOnError: boolean = true;
   flowRunPoints: FlowRunPoint[] = [];
+  parameters: { [key: string]: string } = {};
 }
 
 /**
@@ -36,8 +37,13 @@ export class FlowCalloutPlugin implements ApigeeTemplatePlugin {
   
   sharedFlowSnippet = `
 <FlowCallout continueOnError="{{contiueOnError}}" enabled="true" name="FC-{{flowName}}">
-  <DisplayName>FC-{{flowName}}</DisplayName>
-  <SharedFlowBundle>{{flowName}}</SharedFlowBundle>
+    <DisplayName>FC-{{flowName}}</DisplayName>
+    <Parameters>
+        {{#each parameters}}
+        <Parameter name="{{@key}}">{{this}}</Parameter>
+        {{/each}}
+    </Parameters>
+    <SharedFlowBundle>{{flowName}}</SharedFlowBundle>
 </FlowCallout>
   `;
 

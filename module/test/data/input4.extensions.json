@@ -105,7 +105,10 @@
             "name": "postResponse",
             "runPoints": ["postResponse"]
           }],
-          "flowName": "AddTestHeaderFlow" 
+          "flowName": "AddTestHeaderFlow",
+          "parameters": {
+              "param1": "paramValue1"
+          }
         }
       ]
     }

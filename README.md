@@ -37,8 +37,10 @@ You can try out the tool easily in Google Cloud Shell including a tutorial walk-
 | Shared flows | Yes | |
 | Conditional proxy flows | Yes | |
 | Conditional steps | Yes | |
-| Conditional target flows | No | |
-
+| Fault handling in endpoints & targets | Yes | https://github.com/apigee/apigee-templater/issues/18 |
+| Target Google authentication | Yes | https://github.com/apigee/apigee-templater/issues/14 |
+| Target load balancing | Yes | https://github.com/apigee/apigee-templater/issues/17 |
+| Target conditional flows | No | |
 
 ## Example usage
 You can find examples of both proxy and shared flow generation in the `./module/tests` directory. The tests use both JSON and YAML to demonstrate configuration of proxies and shared flows.

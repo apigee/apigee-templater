@@ -67,6 +67,19 @@
                                 "type": "string",
                                 "description": "The url of the target"
                             },
+                            "servers" : {
+                                "type": "array",
+                                "description": "The servers of the target",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "properties" : {
+                                "type": "object",
+                                "description": "The properties of the target",
+                                "properties": {},
+                                "additionalProperties": true
+                            },
                             "headers": {
                                 "type": "object",
                                 "description": "Any header key-values that should be set when calling the target.",
@@ -182,20 +195,40 @@
                                     "type": "string",
                                     "description": "The name of the extension step."
                                 },
-                                "triggers": {
+                                "flowRunPoints": {
                                     "type": "array",
                                     "description": "The triggers for the extension step.",
                                     "items": {
-                                        "type": "string",
-                                        "description": "The trigger for the extension step.",
-                                        "enum": [
-                                            "preRequest",
-                                            "postRequest",
-                                            "preTarget",
-                                            "postTarget",
-                                            "preResponse",
-                                            "postResponse"
-                                        ]
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string",
+                                                "description": "The name of the flow run point."
+                                            },
+                                            "flowCondition" : {
+                                                "type": "string",
+                                                "description": "The condition for the flow run point."
+                                            },
+                                            "runPoints": {
+                                                "type": "array",
+                                                "description": "The run points for the flow run point.",
+                                                "items": {
+                                                    "type": "string",
+                                                    "description": "The run point to do the processing of the extension.",
+                                                    "enum": [
+                                                        "preRequest",
+                                                        "postRequest",
+                                                        "preTarget",
+                                                        "postTarget",
+                                                        "preResponse",
+                                                        "postResponse",
+                                                        "postClientResponse",
+                                                        "endpointFault",
+                                                        "targetFault"
+                                                    ]
+                                                }
+                                            }
+                                        }
                                     }
                                 },
                                 "additionalProperties": true

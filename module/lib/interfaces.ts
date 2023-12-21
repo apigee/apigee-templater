@@ -147,7 +147,30 @@ export enum RunPoint {
   preTarget = 'preTarget',
   postTarget = 'postTarget',
   preResponse = 'preResponse',
-  postResponse = 'postResponse'
+  postResponse = 'postResponse',
+  postClientResponse = 'postClientResponse',
+  endpointFault = 'endpointFault',
+  targetFault = 'targetFault'
+}
+
+export class ConditionalFlowSteps {
+  name: string = "";
+  requestSteps: FlowStep[] = [];
+  responseSteps: FlowStep[] = [];
+
+  constructor(name: string) {
+    this.name = name;
+  }
+}
+
+export class FlowStep {
+  name: string = "";
+  condition: string = "";
+
+  constructor(name: string, condition: string) {
+    this.name = name;
+    this.condition = condition;
+  }
 }
 
 /** Profile definition with plugins to be used for conversion */

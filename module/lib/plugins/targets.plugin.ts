@@ -15,17 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, PlugInResult, FlowRunPoint, RunPoint, proxyEndpoint } from '../interfaces.js'
-
-class Step {
-  name: string = "";
-  condition: string = "";
-
-  constructor(name: string, condition: string) {
-    this.name = name;
-    this.condition = condition;
-  }
-}
+import { ApigeeTemplatePlugin, PlugInResult, FlowRunPoint, RunPoint, FlowStep, proxyEndpoint } from '../interfaces.js'
 
 /**
  * Plugin for generating targets
@@ -39,21 +29,35 @@ class Step {
 export class TargetsPlugin implements ApigeeTemplatePlugin {
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <TargetEndpoint name="{{target.name}}">
-    <PreFlow name="PreFlow">
-        <Request>
-          {{#if preflow_request_assign}}
-          <Step>
-            <Name>AM-SetAutoTargetHeaders</Name>
-          </Step>
-          {{/if}}
-          {{#each preTargetPolicies}}
-          <Step>
-            <Name>{{this.name}}</Name>
+
+    <FaultRules>
+        {{#each faultRulePolicies}}
+        <FaultRule name="this.name">
+            <Step>
+                <Name>{{this.name}}</Name>
+            </Step>
             {{#if this.condition}}
             <Condition>{{this.condition}}</Condition>
             {{/if}}
-          </Step>
-          {{/each}}          
+        </FaultRule>
+        {{/each}}
+    </FaultRules>
+
+    <PreFlow name="PreFlow">
+        <Request>
+            {{#if preflow_request_assign}}
+            <Step>
+                <Name>AM-SetAutoTargetHeaders</Name>
+            </Step>
+            {{/if}}
+            {{#each preTargetPolicies}}
+            <Step>
+                <Name>{{this.name}}</Name>
+                {{#if this.condition}}
+                <Condition>{{this.condition}}</Condition>
+                {{/if}}
+            </Step>
+            {{/each}}          
         </Request>
         <Response />
     </PreFlow>
@@ -62,37 +66,51 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
         <Request>
         </Request>
         <Response>
-          {{#each postTargetPolicies}}
-          <Step>
-            <Name>{{this.name}}</Name>
-            {{#if this.condition}}
-            <Condition>{{this.condition}}</Condition>
-            {{/if}}
-          </Step>
-          {{/each}}
+            {{#each postTargetPolicies}}
+            <Step>
+                <Name>{{this.name}}</Name>
+                {{#if this.condition}}
+                <Condition>{{this.condition}}</Condition>
+                {{/if}}
+            </Step>
+            {{/each}}
         </Response>
     </PostFlow>
     <HTTPTargetConnection>
+        <Properties>
+            {{#each target.properties}}
+            <Property name="{{@key}}">{{this}}</Property>
+            {{/each}}
+        </Properties>
+        {{#if target.url}}
         <URL>{{target.url}}</URL>
+        {{/if}}
+        {{#if target.servers}}
+        <LoadBalancer>
+            {{#each target.servers}}
+            <Server name="{{this}}" />
+            {{/each}}
+        </LoadBalancer>
+        {{/if}}
         {{#if target.googleIdToken}}
         <Authentication>
-          {{#if target.googleIdToken.headerName}}
-          <HeaderName>{{target.authentication.headerName}}</HeaderName>
-          {{/if}}
-          <GoogleIDToken>
-            <Audience>{{target.googleIdToken.audience}}</Audience>
-          </GoogleIDToken>
+            {{#if target.googleIdToken.headerName}}
+            <HeaderName>{{target.authentication.headerName}}</HeaderName>
+            {{/if}}
+            <GoogleIDToken>
+                <Audience>{{target.googleIdToken.audience}}</Audience>
+            </GoogleIDToken>
         </Authentication>
         {{/if}}
         {{#if target.googleAccessToken}}
         <Authentication>
-          <GoogleAccessToken>
-            <Scopes>
-              {{#each target.googleAccessToken.scopes}}
-              <Scope>{{this}}</Scope>
-              {{/each}}
-            </Scopes>
-          </GoogleAccessToken>
+            <GoogleAccessToken>
+                <Scopes>
+                  {{#each target.googleAccessToken.scopes}}
+                  <Scope>{{this}}</Scope>
+                  {{/each}}
+                </Scopes>
+            </GoogleAccessToken>
         </Authentication>
         {{/if}}
     </HTTPTargetConnection>
@@ -100,17 +118,17 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
 
   preFlowAssignMessageSnippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <AssignMessage continueOnError="false" enabled="true" name="AM-SetAutoTargetHeaders">
-  <DisplayName>AM-SetAutoTargetHeaders</DisplayName>
-  <Properties/>
-  <Set>
-    <Headers>
-    {{#each headers}}
-      <Header name="{{@key}}">{{this}}</Header>
-    {{/each}}    
-    </Headers>
-  </Set>
-  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
-  <AssignTo createNew="false" transport="http" type="request"/>
+    <DisplayName>AM-SetAutoTargetHeaders</DisplayName>
+    <Properties/>
+    <Set>
+        <Headers>
+        {{#each headers}}
+            <Header name="{{@key}}">{{this}}</Header>
+        {{/each}}    
+        </Headers>
+    </Set>
+    <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+    <AssignTo createNew="false" transport="http" type="request"/>
 </AssignMessage>
 `;
 
@@ -131,9 +149,10 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
 
       if (inputConfig.target) {
 
-        const preTargetPolicies: Step[] = [];
-        const postTargetPolicies: Step[] = [];
-    
+        const preTargetPolicies: FlowStep[] = [];
+        const postTargetPolicies: FlowStep[] = [];
+        const faultRulePolicies: FlowStep[] = [];
+
         // Now collect all of our policies that should be triggered
         if (inputConfig.fileResults)
           for (let plugResult of inputConfig.fileResults) {
@@ -142,9 +161,11 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
                 for (let flowRunPoint of fileResult.policyConfig.flowRunPoints) {
                   for(let runPoint of flowRunPoint.runPoints)
                     if (runPoint == RunPoint.preTarget)
-                      preTargetPolicies.push(new Step(fileResult.policyConfig.name, flowRunPoint.stepCondition));
+                      preTargetPolicies.push(new FlowStep(fileResult.policyConfig.name, flowRunPoint.stepCondition));
                     else if (runPoint == RunPoint.postTarget)
-                      postTargetPolicies.push(new Step(fileResult.policyConfig.name, flowRunPoint.stepCondition));
+                      postTargetPolicies.push(new FlowStep(fileResult.policyConfig.name, flowRunPoint.stepCondition));
+                    else if (runPoint == RunPoint.targetFault)
+                      faultRulePolicies.push(new FlowStep(fileResult.policyConfig.name, flowRunPoint.stepCondition));
                 }
               }
             }
@@ -159,7 +180,8 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
           target: inputConfig.target, 
           preflow_request_assign: (inputConfig.target.headers && Object.keys(inputConfig.target.headers).length > 0),
           preTargetPolicies: preTargetPolicies,
-          postTargetPolicies: postTargetPolicies
+          postTargetPolicies: postTargetPolicies,
+          faultRules: faultRulePolicies
         };
 
         fileResult.files = [

@@ -141,15 +141,40 @@ export class ApigeeTemplater implements ApigeeTemplateService {
       // Replace normal plugins, if exists
       let foundPlugin = false;
       for (var i=0; i<this.profiles[profileName].plugins.length; i++) {
+        console.log("Checking plugin: " + this.profiles[profileName].plugins[i].constructor.name + " against " + plugin.constructor.name);
         if (this.profiles[profileName].plugins[i].constructor.name == plugin.constructor.name) {
+          console.log("Found plugin, replacing: " + plugin.constructor.name);
           this.profiles[profileName].plugins[i] = plugin;
           foundPlugin = true;
           break;
         }
       }
 
+      // If did not find in normal plugins, check finalize plugins
       if (!foundPlugin)
-        this.profiles[profileName].plugins.push(plugin);
+        for (var i=0; i<this.profiles[profileName].finalizePlugins.length; i++) {
+          console.log("Checking plugin: " + this.profiles[profileName].finalizePlugins[i].constructor.name + " against " + plugin.constructor.name);
+          if (this.profiles[profileName].finalizePlugins[i].constructor.name == plugin.constructor.name) {
+            console.log("Found plugin, replacing: " + plugin.constructor.name);
+            this.profiles[profileName].finalizePlugins[i] = plugin;
+            foundPlugin = true;
+            break;
+          }
+        }
+
+      // If did not find in normal plugins or finalize plugins, check extension plugins
+      if (!foundPlugin)
+        for (const [key, value] of Object.entries(this.profiles[profileName].extensionPlugins)) {
+          if (value.constructor.name == plugin.constructor.name) {
+            console.log("Found plugin, replacing: " + plugin.constructor.name);
+            this.profiles[profileName].extensionPlugins[key] = plugin;
+            foundPlugin = true;
+            break;
+          }          
+        }
+
+      if (!foundPlugin)
+        console.log("Could not find plugin to set: " + plugin.constructor.name);
     }
   }
 

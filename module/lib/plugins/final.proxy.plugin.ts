@@ -15,27 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, PlugInResult, RunPoint, proxyEndpoint } from '../interfaces.js'
-
-class ConditionalFlowSteps {
-  name: string = "";
-  requestSteps: Step[] = [];
-  responseSteps: Step[] = [];
-
-  constructor(name: string) {
-    this.name = name;
-  }
-}
-
-class Step {
-  name: string = "";
-  condition: string = "";
-
-  constructor(name: string, condition: string) {
-    this.name = name;
-    this.condition = condition;
-  }
-}
+import { ApigeeTemplatePlugin, PlugInResult, RunPoint, FlowStep, ConditionalFlowSteps, proxyEndpoint } from '../interfaces.js'
 
 /**
  * Creates proxy endpoints for the template
@@ -49,26 +29,40 @@ class Step {
 export class ProxyPlugin implements ApigeeTemplatePlugin {
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <ProxyEndpoint name="default">
+
+    <FaultRules>
+        {{#each faultRulePolicies}}
+        <FaultRule name="this.name">
+            <Step>
+                <Name>{{this.name}}</Name>
+            </Step>
+            {{#if this.condition}}
+            <Condition>{{this.condition}}</Condition>
+            {{/if}}
+        </FaultRule>
+        {{/each}}
+    </FaultRules>
+
     <PreFlow name="PreFlow">
         <Request>
-          {{#each preRequestPolicies}}
-          <Step>
-            <Name>{{this.name}}</Name>
-            {{#if this.condition}}
-            <Condition>{{this.condition}}</Condition>
-            {{/if}}
-          </Step>
-          {{/each}}
+            {{#each preRequestPolicies}}
+            <Step>
+              <Name>{{this.name}}</Name>
+              {{#if this.condition}}
+              <Condition>{{this.condition}}</Condition>
+              {{/if}}
+            </Step>
+            {{/each}}
         </Request>
         <Response>
-          {{#each postRequestPolicies}}
-          <Step>
-            <Name>{{this.name}}</Name>
-            {{#if this.condition}}
-            <Condition>{{this.condition}}</Condition>
-            {{/if}}
-          </Step>
-          {{/each}}
+            {{#each postRequestPolicies}}
+            <Step>
+              <Name>{{this.name}}</Name>
+              {{#if this.condition}}
+              <Condition>{{this.condition}}</Condition>
+              {{/if}}
+            </Step>
+            {{/each}}
         </Response>
     </PreFlow>
 
@@ -78,20 +72,20 @@ export class ProxyPlugin implements ApigeeTemplatePlugin {
         <Request>
           {{#each this.requestSteps}}
           <Step>
-            <Name>{{this.name}}</Name>
-            {{#if this.condition}}
-            <Condition>{{this.condition}}</Condition>
-            {{/if}}
+              <Name>{{this.name}}</Name>
+              {{#if this.condition}}
+              <Condition>{{this.condition}}</Condition>
+              {{/if}}
           </Step>
           {{/each}}
         </Request>
         <Response>
           {{#each this.responseSteps}}
           <Step>
-            <Name>{{this.name}}</Name>
-            {{#if this.condition}}
-            <Condition>{{this.condition}}</Condition>
-            {{/if}}
+              <Name>{{this.name}}</Name>
+              {{#if this.condition}}
+              <Condition>{{this.condition}}</Condition>
+              {{/if}}
           </Step>
           {{/each}}
         </Response>
@@ -102,26 +96,37 @@ export class ProxyPlugin implements ApigeeTemplatePlugin {
     
     <PostFlow name="PostFlow">
         <Request>
-          {{#each preResponsePolicies}}
-          <Step>
-            <Name>{{this.name}}</Name>
-            {{#if this.condition}}
-            <Condition>{{this.condition}}</Condition>
-            {{/if}}
-          </Step>
-          {{/each}}          
+            {{#each preResponsePolicies}}
+            <Step>
+                <Name>{{this.name}}</Name>
+                {{#if this.condition}}
+                <Condition>{{this.condition}}</Condition>
+                {{/if}}
+            </Step>
+            {{/each}}          
         </Request>
         <Response>
-          {{#each postResponsePolicies}}
-          <Step>
-            <Name>{{this.name}}</Name>
-            {{#if this.condition}}
-            <Condition>{{this.condition}}</Condition>
-            {{/if}}
-          </Step>
-          {{/each}}              
+            {{#each postResponsePolicies}}
+            <Step>
+                <Name>{{this.name}}</Name>
+                {{#if this.condition}}
+                <Condition>{{this.condition}}</Condition>
+                {{/if}}
+            </Step>
+            {{/each}}              
         </Response>
     </PostFlow>
+
+    <PostClientFlow name="PostClientFlow">
+        <Response>
+            {{#each postClientResponsePolicies}}
+            <Step>
+              <Name>{{this}}</Name>
+            </Step>
+            {{/each}}              
+        </Response>
+    </PostClientFlow>
+
     <HTTPProxyConnection>
         <BasePath>{{basePath}}</BasePath>
     </HTTPProxyConnection>
@@ -144,14 +149,14 @@ export class ProxyPlugin implements ApigeeTemplatePlugin {
     return new Promise((resolve) => {
       const fileResult: PlugInResult = new PlugInResult(this.constructor.name)
 
-      const preRequestPolicies: Step[] = [];
-      const postRequestPolicies: Step[] = [];
-  
+      const preRequestPolicies: FlowStep[] = [];
+      const postRequestPolicies: FlowStep[] = [];
+      const faultRulePolicies: FlowStep[] = [];
       const conditionalFlowPolicies: { [key: string]: ConditionalFlowSteps } = {};
-  
-      const preResponsePolicies: Step[] = [];
-      const postResponsePolicies: Step[] = [];
-      
+      const preResponsePolicies: FlowStep[] = [];
+      const postResponsePolicies: FlowStep[] = [];
+      const postClientResponsePolicies: FlowStep[] = [];
+
       let conditionalFlowCounter = 0;
       // Now collect all of our policies that should be triggered
       if (inputConfig.fileResults)
@@ -171,21 +176,25 @@ export class ProxyPlugin implements ApigeeTemplatePlugin {
                   
                   for (let point of policyRunPoint.runPoints) {
                     if (point == RunPoint.preRequest || point == RunPoint.preResponse)
-                      conditionalFlowPolicies[policyRunPoint.flowCondition].requestSteps.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                      conditionalFlowPolicies[policyRunPoint.flowCondition].requestSteps.push(new FlowStep(fileResult.policyConfig.name, policyRunPoint.stepCondition));
                     else if (point == RunPoint.postRequest || point == RunPoint.postResponse)
-                      conditionalFlowPolicies[policyRunPoint.flowCondition].responseSteps.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                      conditionalFlowPolicies[policyRunPoint.flowCondition].responseSteps.push(new FlowStep(fileResult.policyConfig.name, policyRunPoint.stepCondition));
                   }
                 }
                 else {
                   for (let point of policyRunPoint.runPoints) {
                     if (point == RunPoint.preRequest)
-                      preRequestPolicies.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                      preRequestPolicies.push(new FlowStep(fileResult.policyConfig.name, policyRunPoint.stepCondition));
                     else if (point == RunPoint.postRequest)
-                      postRequestPolicies.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                      postRequestPolicies.push(new FlowStep(fileResult.policyConfig.name, policyRunPoint.stepCondition));
                     else if (point == RunPoint.preResponse)
-                      preResponsePolicies.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                      preResponsePolicies.push(new FlowStep(fileResult.policyConfig.name, policyRunPoint.stepCondition));
                     else if (point == RunPoint.postResponse)
-                      postResponsePolicies.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                      postResponsePolicies.push(new FlowStep(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                    else if (point == RunPoint.postClientResponse)
+                      postClientResponsePolicies.push(new FlowStep(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                    else if (point == RunPoint.endpointFault)
+                      faultRulePolicies.push(new FlowStep(fileResult.policyConfig.name, policyRunPoint.stepCondition));
                   }
                 }
               }
@@ -205,6 +214,8 @@ export class ProxyPlugin implements ApigeeTemplatePlugin {
               preResponsePolicies: preResponsePolicies,
               postRequestPolicies: postRequestPolicies,
               postResponsePolicies: postResponsePolicies,
+              postClientResponsePolicies: postClientResponsePolicies,
+              faultRulePolicies: faultRulePolicies
             })
         }
       ]
