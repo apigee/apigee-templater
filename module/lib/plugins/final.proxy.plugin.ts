@@ -121,7 +121,7 @@ export class ProxyPlugin implements ApigeeTemplatePlugin {
         <Response>
             {{#each postClientResponsePolicies}}
             <Step>
-              <Name>{{this}}</Name>
+              <Name>{{this.name}}</Name>
             </Step>
             {{/each}}              
         </Response>

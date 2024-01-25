@@ -26,21 +26,22 @@ You can try out the tool easily in Google Cloud Shell including a tutorial walk-
 [![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.png)](https://ssh.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/apigee/apigee-templater&cloudshell_git_branch=main&cloudshell_workspace=.&cloudshell_tutorial=docs/cloudshell-tutorial.md)
 
 ## Supported features
-| Feature | Supported | Issue |
+| Feature | Supported | Example |
 | --- | --- | --- |
-| API keys | Yes | |
-| Quotas | Yes | |
-| Spike Arrests | Yes | |
-| OAuth | Yes | |
-| AssignMessage | Yes | https://github.com/apigee/apigee-templater/issues/11 |
-| ExtractVariables | Yes | https://github.com/apigee/apigee-templater/issues/12 |
-| Shared flows | Yes | |
-| Conditional proxy flows | Yes | |
-| Conditional steps | Yes | |
-| Fault handling in endpoints & targets | Yes | https://github.com/apigee/apigee-templater/issues/18 |
-| Target Google authentication | Yes | https://github.com/apigee/apigee-templater/issues/14 |
-| Target load balancing | Yes | https://github.com/apigee/apigee-templater/issues/17 |
-| Target conditional flows | No | |
+| API key | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input1.json), usage: `apigee-templater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input1.json` |
+| Quota | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input1.json), usage: `apigee-templater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input1.json` |
+| Spike Arrest | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input1.json), usage: `apigee-templater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input1.json` |
+| OAuth | Yes | Coming soon |
+| AssignMessage | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input4.extensions.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input4.extensions.json` |
+| MessageLogging | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input6.postclient.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input6.postclient.json` |
+| ExtractVariables | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input4.extensions.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input4.extensions.json` |
+| Shared flows | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input3.sharedflow.json), usage: `apigee-templater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input3.sharedflow.json` |
+| Conditional proxy flows | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input4.extensions.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input4.extensions.json`|
+| Conditional steps | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input4.extensions.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input4.extensions.json` |
+| Fault handling in endpoints & targets | Yes | Coming soon |
+| Target Google authentication | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input5.cloudrun.json), example usage: `https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input5.cloudrun.json` |
+| Target load balancing | Yes | Coming soon |
+| Target conditional flows | No | Coming soon |
 
 The templating engine uses the [Handlebars](https://handlebarsjs.com/) framework to build any type of proxy based on structured inputs.  And because the logic is contained in Javascript or Typescript plugins, logic can be added for any type of requirement.
 
@@ -72,7 +73,7 @@ Output:
 > Proxy BikeTrips-v1 version 1 deployed to environment eval in 3267 milliseconds.
 > Wait 2-3 minutes, then test here: https://eval-group.34-111-104-118.nip.io/trips
 ```
-After waiting a few minutes, you can run **curl https://eval-group.34-111-104-118.nip.io/trips?pageSize=1** and get bike trip data returned, with URL parameters **pageSize**, **filter**, **orderBy** and **pageToken**.
+After waiting a few minutes, you can run **curl https://BASE_PATH/trips?pageSize=1** and get bike trip data returned, with URL parameters **pageSize**, **filter**, **orderBy** and **pageToken**.
 
 ```sh
 {
@@ -110,8 +111,8 @@ apigee-templater
 apigee-templater -h
 ```
 ```sh
-#Generate a proxy based on httpbin.json and deploy it to environment test1 with credentials in key.json
-apigee-templater -f ./samples/httpbin.json -d -e test1
+#Generate a proxy based on input1.json and deploy it to environment test1 with credentials in key.json
+apigee-templater -f ./module/test/data/input1.json -d -e test1
 ```
 
 All deployed proxies can then be viewed and managed in the [Apigee console](https://apigee.google.com), where you can check the status of the deployments, do tracing, and create API products based on these automated proxies.
@@ -126,6 +127,7 @@ Here are example JSON input files to generate proxies with these different featu
 | [input3.sharedflow.json](./module/test/data/input3.sharedflow.json) | Generates a shared flow. |
 | [input4.extensions.json](./module/test/data/input4.extensions.json) | Generates a proxy with extensions, also with conditions. |
 | [input5.cloudrun.json](./module/test/data/input5.cloudrun.json) | Generates a proxy to Cloud Run with a Google Id token. |
+| [input6.postclient.json](./module/test/data/input6.postclient.json) | Generates a proxy to httpbin with a PostClientFlow to log a message to Cloud Logging in GCP
 | [bigquery_query_input.json](./module/test/data/bigquery_query_input.json) | Generates a proxy to BigQuery data based on a query. |
 | [bigquery_table_input.json](./module/test/data/bigquery_table_input.json) | Generates a proxy to a BigQuery query. |
 

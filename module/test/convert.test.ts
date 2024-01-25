@@ -77,6 +77,18 @@ describe('Generate JSON proxy to Cloud Run with authenticaion', () => {
   })
 });
 
+describe('Generate JSON proxy with PostClient message logging policy', () => {
+  return it('should produce a valid proxy bundle', () => {
+    const input = fs.readFileSync('./test/data/input6.postclient.json', 'utf-8')
+    return apigeeGenerator.generateProxyFromString(input, 'test/proxies').then((response) => {
+      expect(response.success).to.equal(true)
+      expect(response.duration).to.greaterThan(0)
+      expect(fs.existsSync(response.localPath)).to.equal(true)
+    })
+  })
+});
+
+
 describe('Generate BigQuery query proxy bundle', () => {
   return it('should produce a valid proxy bundle', () => {
     const input = fs.readFileSync('./test/data/bigquery_query_input.json', 'utf-8')

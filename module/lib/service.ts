@@ -33,6 +33,7 @@ import { Json2Converter } from './converters/json2.plugin.js'
 import { OpenApiV3Converter } from './converters/openapiv3.yaml.plugin.js'
 import { ExtractVariablesPlugin } from './plugins/mediation.exvars.plugin.js'
 import { AssignMessagePlugin } from './plugins/mediation.assignm.plugin.js'
+import { MessageLoggingPlugin } from './plugins/messagelogging.plugin.js'
 
 /**
  * ApigeeGenerator runs the complete templating operation with all injected plugins
@@ -61,7 +62,8 @@ export class ApigeeTemplater implements ApigeeTemplateService {
       extensionPlugins: {
         "ExtractVariables": new ExtractVariablesPlugin(),
         "AssignMessage": new AssignMessagePlugin(),
-        "FlowCallout": new FlowCalloutPlugin()
+        "FlowCallout": new FlowCalloutPlugin(),
+        "MessageLogging": new MessageLoggingPlugin()
       },
       finalizePlugins: [
         new TargetsPlugin(),
@@ -77,7 +79,8 @@ export class ApigeeTemplater implements ApigeeTemplateService {
       ],
       extensionPlugins: {        
         "ExtractVariables": new ExtractVariablesPlugin(),
-        "AssignMessage": new AssignMessagePlugin()
+        "AssignMessage": new AssignMessagePlugin(),
+        "MessageLogging": new MessageLoggingPlugin()
       },
       finalizePlugins: [
         new TargetsPlugin(), 

@@ -1,0 +1,40 @@
+{
+  "name": "postClientTestProxy",
+  "profile": "default",
+  "endpoints": [
+    {
+      "name": "default",
+      "basePath": "/httpbin",
+      "target": {
+        "name": "default",
+        "properties":{
+          "io.timeout.millis": "20000",
+          "connect.timeout.millis": "3000"
+        },        
+        "url": "https://httpbin.org",
+        "headers": {
+          "Accept-Encoding": "gzip,deflate"
+        }
+      },
+      "extensionSteps": [
+        {
+          "type": "MessageLogging",
+          "name": "CloudLogging",
+          "logLevel": "ERROR",
+          "flowRunPoints": [{
+            "name": "postClientResponse",
+            "runPoints": ["postClientResponse"]
+          }],
+          "cloudLoggingConfig": {
+            "logName": "projects/{organization.name}/logs/apigee-proxy",
+            "message": "{\"test\": \"test1\"}",
+            "messageContentType": "application/json",
+            "labels": {
+              "test": "test1"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
