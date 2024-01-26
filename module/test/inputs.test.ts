@@ -88,6 +88,16 @@ describe('Generate JSON proxy with PostClient message logging policy', () => {
   })
 });
 
+describe('Generate JSON proxy with TargetFault message logging policy', () => {
+  return it('should produce a valid proxy bundle', () => {
+    const input = fs.readFileSync('./test/data/input7.fault.json', 'utf-8')
+    return apigeeGenerator.generateProxyFromString(input, 'test/proxies').then((response) => {
+      expect(response.success).to.equal(true)
+      expect(response.duration).to.greaterThan(0)
+      expect(fs.existsSync(response.localPath)).to.equal(true)
+    })
+  })
+});
 
 describe('Generate BigQuery query proxy bundle', () => {
   return it('should produce a valid proxy bundle', () => {

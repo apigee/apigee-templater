@@ -60,7 +60,7 @@
   ],
   "product": {
     "apiTestBackendProduct": {
-      "productName": "apitest-supplier"
+      "productName": "CustomFormatTest"
     },
     "apiTestProductType": "backend",
     "deployTeamBackendProduct": {

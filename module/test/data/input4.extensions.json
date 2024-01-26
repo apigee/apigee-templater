@@ -1,5 +1,5 @@
 {
-  "name": "test-extensions-proxy",
+  "name": "TestExtensionsProxy",
   "profile": "default",
   "endpoints": [
     {

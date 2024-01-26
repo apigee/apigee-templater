@@ -181,7 +181,7 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
           preflow_request_assign: (inputConfig.target.headers && Object.keys(inputConfig.target.headers).length > 0),
           preTargetPolicies: preTargetPolicies,
           postTargetPolicies: postTargetPolicies,
-          faultRules: faultRulePolicies
+          faultRulePolicies: faultRulePolicies
         };
 
         fileResult.files = [
