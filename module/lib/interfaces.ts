@@ -136,12 +136,13 @@ export class PlugInFilePolicyConfig {
 
 export class FlowRunPoint {
   name = '';
-  flowCondition: string = "";
-  stepCondition: string = "";
+  flowCondition?: string = "";
+  stepCondition?: string = "";
   runPoints: RunPoint[] = [];
 }
 
 export enum RunPoint {
+  none = 'none',
   preRequest = 'preRequest',
   postRequest = 'postRequest',
   preTarget = 'preTarget',
