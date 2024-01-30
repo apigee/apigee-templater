@@ -1,6 +1,7 @@
 {
     "name": "JavascriptProxy",
     "profile": "default",
+    "description": "This input file gets 3 different javascript resource files from a local dir, a remote https address, and a string. Then 3 javascript policies are added to the preRequest flow for each file.",
     "endpoints": [
       {
         "name": "default",
@@ -22,11 +23,13 @@
             "name": "RS-JavascriptFiles",
             "flowRunPoints": [],
             "files": {
-              "jsc/helloWorld.js": "./test/data/input8.javascript.js"
+              "jsc/helloWorld1.js": "./test/data/input8.javascript.js",
+              "jsc/helloWorld2.js": "https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input8.javascript.js",
+              "jsc/helloWorld3.js": "print('hello world 3!');\nprint('hello world 3!');"
             }
           },
           {
-            "name": "JS-RunScript",
+            "name": "JS-RunScript-1",
             "flowRunPoints": [{
               "name": "preRequest",
               "runPoints": ["preRequest"]
@@ -34,11 +37,45 @@
             "properties": {
               "Javascript": {
                 "_attributes": {
-                  "name": "JS-RunScript"
+                  "name": "JS-RunScript-1"
                 },
-                "DisplayName": "JS-RunScript",
+                "DisplayName": "JS-RunScript-1",
                 "Properties": {},
-                "ResourceURL": "jsc://helloWorld.js"
+                "ResourceURL": "jsc://helloWorld1.js"
+              }
+            }
+          },
+          {
+            "name": "JS-RunScript-2",
+            "flowRunPoints": [{
+              "name": "preRequest",
+              "runPoints": ["preRequest"]
+            }],
+            "properties": {
+              "Javascript": {
+                "_attributes": {
+                  "name": "JS-RunScript-2"
+                },
+                "DisplayName": "JS-RunScript-2",
+                "Properties": {},
+                "ResourceURL": "jsc://helloWorld2.js"
+              }
+            }
+          },
+          {
+            "name": "JS-RunScript-3",
+            "flowRunPoints": [{
+              "name": "preRequest",
+              "runPoints": ["preRequest"]
+            }],
+            "properties": {
+              "Javascript": {
+                "_attributes": {
+                  "name": "JS-RunScript-3"
+                },
+                "DisplayName": "JS-RunScript-3",
+                "Properties": {},
+                "ResourceURL": "jsc://helloWorld3.js"
               }
             }
           }

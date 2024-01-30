@@ -15,7 +15,7 @@
  */
 
 import { ApigeeTemplatePlugin, proxyEndpoint, PlugInResult, FlowRunPoint, RunPoint } from '../interfaces.js';
-import fetch, { Response } from 'node-fetch';
+import request from 'sync-request';
 import fs from 'fs';
 
 export class ResourceFileConfig {
@@ -31,58 +31,44 @@ export class ResourceFilePlugin implements ApigeeTemplatePlugin {
       const fileResult: PlugInResult = new PlugInResult(this.constructor.name);
 
       let config: ResourceFileConfig = additionalData;
-      let allPromises: Promise<any>[] = []
-      //let fileContents: string = "";
 
       for (const [key, value] of Object.entries(config.files)) {
 
+        let fileContents: string = value;
+
         if (value.startsWith("https://")) {
           // The value is a remote file, so get it
-          let fetchPromise = fetch(value);
-          allPromises.push(fetchPromise);
-          
-          fetchPromise.then((value: Response) => {
-            let textPromise = value.text();
-            allPromises.push(textPromise);
-            textPromise.then((textValue: string) => {
-              fileResult.files.push({
-                policyConfig: {
-                    name: `RS-${config.name}`,
-                    flowRunPoints: [{
-                        name: "file",
-                        runPoints: [RunPoint.none]
-                    }]
-                },
-                path: '/resources/' + key,
-                contents: textValue
-              });
-            })
+          var res = request('GET', value, {
+            headers: {
+              'user-agent': 'example-user-agent',
+            },
           });
+
+          fileContents = res.getBody().toString();
         }
         else {
-          let fileContents: string = value;
+          
           if (fs.existsSync(fileContents)) {
             // The value is a file, so load the file.
-            fileContents = fs.readFileSync(fileContents, 'utf-8')
+            fileContents = fs.readFileSync(fileContents, 'utf-8');
           }
-
-          fileResult.files.push({
-            policyConfig: {
-                name: `RS-${config.name}`,
-                flowRunPoints: [{
-                    name: "file",
-                    runPoints: [RunPoint.none]
-                }]
-            },
-            path: '/resources/' + key,
-            contents: fileContents
-          });
         }
+
+        fileResult.files.push({
+          policyConfig: {
+              name: `RS-${config.name}`,
+              flowRunPoints: [{
+                  name: "file",
+                  runPoints: [RunPoint.none]
+              }]
+          },
+          path: '/resources/' + key,
+          contents: fileContents
+        });
+
       }
 
-      Promise.all(allPromises).then(() => {
-        resolve(fileResult);
-      });
+      resolve(fileResult);
     });
   }
 }

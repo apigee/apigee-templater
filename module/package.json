@@ -30,8 +30,8 @@
     "fs": "^0.0.1-security",
     "handlebars": "^4.7.7",
     "js-yaml": "^4.1.0",
-    "node-fetch": "^3.3.2",
     "performance": "^1.4.0",
+    "sync-request": "^6.1.0",
     "xml-js": "^1.6.11"
   },
   "devDependencies": {
