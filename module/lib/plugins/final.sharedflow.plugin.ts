@@ -15,17 +15,7 @@
  */
 
 import Handlebars from 'handlebars'
-import { ApigeeTemplatePlugin, PlugInResult, RunPoint, proxyEndpoint } from '../interfaces.js'
-
-class Step {
-  name: string = "";
-  condition: string = "";
-
-  constructor(name: string, condition: string) {
-    this.name = name;
-    this.condition = condition;
-  }
-}
+import { ApigeeTemplatePlugin, PlugInResult, RunPoint, FlowStep, proxyEndpoint } from '../interfaces.js'
 
 /**
  * Creates shared flows for the template
@@ -87,10 +77,10 @@ export class FlowPlugin implements ApigeeTemplatePlugin {
     return new Promise((resolve) => {
       const fileResult: PlugInResult = new PlugInResult(this.constructor.name);
       
-      const preRequestPolicies: Step[] = [];
-      const postRequestPolicies: Step[] = [];
-      const preResponsePolicies: Step[] = [];
-      const postResponsePolicies: Step[] = [];
+      const preRequestPolicies: FlowStep[] = [];
+      const postRequestPolicies: FlowStep[] = [];
+      const preResponsePolicies: FlowStep[] = [];
+      const postResponsePolicies: FlowStep[] = [];
 
       // Now collect all of our policies that should be triggered
       if (inputConfig.fileResults)
@@ -100,13 +90,13 @@ export class FlowPlugin implements ApigeeTemplatePlugin {
               for (let policyRunPoint of fileResult.policyConfig.flowRunPoints) {
                 for (let point of policyRunPoint.runPoints) {
                   if (point == RunPoint.preRequest)
-                    preRequestPolicies.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                    preRequestPolicies.push(new FlowStep(fileResult.policyConfig.name, policyRunPoint.stepCondition));
                   else if (point == RunPoint.postRequest)
-                    postRequestPolicies.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                    postRequestPolicies.push(new FlowStep(fileResult.policyConfig.name, policyRunPoint.stepCondition));
                   else if (point == RunPoint.preResponse)
-                    preResponsePolicies.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                    preResponsePolicies.push(new FlowStep(fileResult.policyConfig.name, policyRunPoint.stepCondition));
                   else if (point == RunPoint.postResponse)
-                    postResponsePolicies.push(new Step(fileResult.policyConfig.name, policyRunPoint.stepCondition));
+                    postResponsePolicies.push(new FlowStep(fileResult.policyConfig.name, policyRunPoint.stepCondition));
                 }
               }
             }

@@ -34,6 +34,8 @@ import { OpenApiV3Converter } from './converters/openapiv3.yaml.plugin.js'
 import { ExtractVariablesPlugin } from './plugins/mediation.exvars.plugin.js'
 import { AssignMessagePlugin } from './plugins/mediation.assignm.plugin.js'
 import { MessageLoggingPlugin } from './plugins/messagelogging.plugin.js'
+import { AnyPlugin } from './plugins/any.plugin.js'
+import { ResourceFilePlugin } from './plugins/resources.file.js'
 
 /**
  * ApigeeGenerator runs the complete templating operation with all injected plugins
@@ -63,7 +65,9 @@ export class ApigeeTemplater implements ApigeeTemplateService {
         "ExtractVariables": new ExtractVariablesPlugin(),
         "AssignMessage": new AssignMessagePlugin(),
         "FlowCallout": new FlowCalloutPlugin(),
-        "MessageLogging": new MessageLoggingPlugin()
+        "MessageLogging": new MessageLoggingPlugin(),
+        "resourceFiles": new ResourceFilePlugin(),
+        "": new AnyPlugin()
       },
       finalizePlugins: [
         new TargetsPlugin(),
@@ -80,7 +84,9 @@ export class ApigeeTemplater implements ApigeeTemplateService {
       extensionPlugins: {        
         "ExtractVariables": new ExtractVariablesPlugin(),
         "AssignMessage": new AssignMessagePlugin(),
-        "MessageLogging": new MessageLoggingPlugin()
+        "MessageLogging": new MessageLoggingPlugin(),
+        "resourceFiles": new ResourceFilePlugin(),
+        "": new AnyPlugin()
       },
       finalizePlugins: [
         new TargetsPlugin(), 
@@ -438,10 +444,15 @@ export class ApigeeTemplater implements ApigeeTemplateService {
 
         if (endpoint.extensionSteps) {
           for (const step of endpoint.extensionSteps) {
-            let stepDefinition: {type: string} = step;
-            if (this.profiles[genInput.profile].extensionPlugins[stepDefinition.type]) {
+            // Set the generic Any plugin that converts JSON to XML for any plugin where type is not set (default)
+            if (step.type == undefined) step.type = "";
+
+            if (this.profiles[genInput.profile].extensionPlugins[step.type]) {
               // We have a plugin
-              promises.push(this.profiles[genInput.profile].extensionPlugins[stepDefinition.type].applyTemplate(endpoint, step));
+              promises.push(this.profiles[genInput.profile].extensionPlugins[step.type].applyTemplate(endpoint, step));
+            }
+            else {
+              console.error(`Plugin ${step.type} not found in profile ${genInput.profile}`);
             }
           }
         }

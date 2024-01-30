@@ -99,6 +99,17 @@ describe('Generate JSON proxy with TargetFault message logging policy', () => {
   })
 });
 
+describe('Generate JSON proxy with a javascript policy using the AnyPolicy', () => {
+  return it('should produce a valid proxy bundle', () => {
+    const input = fs.readFileSync('./test/data/input8.javascript.json', 'utf-8')
+    return apigeeGenerator.generateProxyFromString(input, 'test/proxies').then((response) => {
+      expect(response.success).to.equal(true)
+      expect(response.duration).to.greaterThan(0)
+      expect(fs.existsSync(response.localPath)).to.equal(true)
+    })
+  })
+});
+
 describe('Generate BigQuery query proxy bundle', () => {
   return it('should produce a valid proxy bundle', () => {
     const input = fs.readFileSync('./test/data/bigquery_query_input.json', 'utf-8')

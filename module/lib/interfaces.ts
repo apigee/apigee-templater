@@ -43,8 +43,14 @@ export class proxyEndpoint {
   quotas?: quotaConfig[];
   spikeArrest?: spikeArrestConfig;
   parameters: {[key: string]: string} = {};
-  extensionSteps: any[] = [];
+  extensionSteps: step[] = [];
   fileResults?: PlugInResult[] = [];
+}
+
+export class step {
+  type: string = "";
+  name: string = "";
+  flowRunPoints: FlowRunPoint[] = [];
 }
 
 /** Describes a proxy to be templated */
@@ -168,9 +174,9 @@ export class FlowStep {
   name: string = "";
   condition: string = "";
 
-  constructor(name: string, condition: string) {
+  constructor(name: string, condition: string | undefined) {
     this.name = name;
-    this.condition = condition;
+    if (condition) this.condition = condition;
   }
 }
 

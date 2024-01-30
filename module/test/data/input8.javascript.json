@@ -1,0 +1,48 @@
+{
+    "name": "JavascriptProxy",
+    "profile": "default",
+    "endpoints": [
+      {
+        "name": "default",
+        "basePath": "/js",
+        "target": {
+          "name": "default",
+          "properties":{
+            "io.timeout.millis": "20000",
+            "connect.timeout.millis": "3000"
+          },        
+          "url": "https://httpbin.org",
+          "headers": {
+            "Accept-Encoding": "gzip,deflate"
+          }
+        },
+        "extensionSteps": [
+          {
+            "type": "resourceFiles",
+            "name": "RS-JavascriptFiles",
+            "flowRunPoints": [],
+            "files": {
+              "jsc/helloWorld.js": "./test/data/input8.javascript.js"
+            }
+          },
+          {
+            "name": "JS-RunScript",
+            "flowRunPoints": [{
+              "name": "preRequest",
+              "runPoints": ["preRequest"]
+            }],
+            "properties": {
+              "Javascript": {
+                "_attributes": {
+                  "name": "JS-RunScript"
+                },
+                "DisplayName": "JS-RunScript",
+                "Properties": {},
+                "ResourceURL": "jsc://helloWorld.js"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
