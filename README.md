@@ -213,7 +213,47 @@ apigeeGenerator.generateProxy(input, "./proxies").then((result) => {
 
 ```
 ### Customization and extensions
-You can customize apigee-templater by creating your own CLI class, and then settting / overriding with your own plugins. See [this repository](https://github.com/tyayers/apigee-templater-custom) for a detailed example, complete with a customized plugin and unit tests to test the changes.
+#### Simple customization
+Any Apigee policy XML snippet can be generated using the default JSON->XML transformation from extension input configuration. For example this [input configuration](https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input8.javascript.json) creates a Javascript policy with all `properties` mapped in the main node `Javascript` to an XML node in a file `JS-RunScript-1.xml` that will be triggered in the PreRequest proxy flow.
+
+```json
+  "extensionSteps": [
+    // This first step uses a plugin (type 'resourceFiles') to do logic to write the files to the proxy (in the case of the resourceFiles plugin).
+    {
+      "type": "resourceFiles",
+      "name": "RS-JavascriptFiles",
+      "flowRunPoints": [],
+      "files": {
+        "jsc/helloWorld1.js": "./test/data/input8.javascript.js",
+        "jsc/helloWorld2.js": "https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input8.javascript.js",
+        "jsc/helloWorld3.js": "print('hello world 3!');\nprint('hello world 3!');"
+      }
+    },
+    // This step doesn't have a type, and so the default JSON->XML is used which creates a file named JS-RunScript-1 and is called in the PreRequest proxy flow.
+    {
+      "name": "JS-RunScript-1",
+      "flowRunPoints": [{
+        "name": "preRequest",
+        "runPoints": ["preRequest"]
+      }],
+      "properties": {
+        "Javascript": {
+          "_attributes": {
+            "name": "JS-RunScript-1"
+          },
+          "DisplayName": "JS-RunScript-1",
+          "Properties": {},
+          "ResourceURL": "jsc://helloWorld1.js"
+        }
+      }
+    },
+    ...
+  ]
+```
+You can add as many `extensionSteps` as needed. If there is a `type` property, then that plugin is used to create the files, but if there is no `type` then the default JSON->XML mapping is used, meaning you can create any policy XML file needed.
+
+#### Advanced customization
+Advanced customization can be used to create your own plugins, which can do any special logic needed. The easiest way is to create your own CLI class, and then settting / overriding with your own plugins. See [this repository](https://github.com/tyayers/apigee-templater-custom) for a detailed example, complete with a customized plugin and unit tests to test the changes.
 
 ## Contributing
 
