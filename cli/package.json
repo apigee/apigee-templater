@@ -1,6 +1,6 @@
 {
   "name": "apigee-templater",
-  "version": "2.5.1",
+  "version": "2.5.3",
   "description": "A CLI to easily template and deploy Apigee proxies.",
   "homepage": "https://github.com/tyayers/apigee-templater",
   "bugs": "https://github.com/tyayers/apigee-templater/issues",
