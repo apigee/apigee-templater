@@ -21,37 +21,37 @@ npm i -g apigee-templater
 # Run with npx
 npx apigee-templater
 ```
-You can try out the tool easily in Google Cloud Shell including a tutorial walk-through of the features by clicking here:
-
-[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.png)](https://ssh.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/apigee/apigee-templater&cloudshell_git_branch=main&cloudshell_workspace=.&cloudshell_tutorial=docs/cloudshell-tutorial.md)
-
 ## Supported features
 | Feature | Supported | Example |
 | --- | --- | --- |
 | API key | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input1.json), usage: `apigee-templater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input1.json` |
 | Quota | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input1.json), usage: `apigee-templater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input1.json` |
 | Spike Arrest | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input1.json), usage: `apigee-templater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input1.json` |
-| OAuth | Yes | Coming soon |
+| OAuth | Yes | |
 | AssignMessage | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input4.extensions.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input4.extensions.json` |
 | MessageLogging | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input6.postclient.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input6.postclient.json` |
 | ExtractVariables | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input4.extensions.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input4.extensions.json` |
 | Shared flows | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input3.sharedflow.json), usage: `apigee-templater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input3.sharedflow.json` |
 | Conditional proxy flows | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input4.extensions.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input4.extensions.json`|
 | Conditional steps | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input4.extensions.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input4.extensions.json` |
-| Fault handling in endpoints & targets | Yes | Coming soon |
+| Fault handling in endpoints & targets | Yes |[Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input6.postclient.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input6.postclient.json` |
 | Target Google authentication | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input5.cloudrun.json), example usage: `https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input5.cloudrun.json` |
-| Target load balancing | Yes | Coming soon |
-| Target conditional flows | No | Coming soon |
+| Javascript policies & resource files | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input8.javascript.json), example usage: `https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input8.javascript.json` | 
+| Target load balancing | Yes | |
+| Target conditional flows | No | |
 
-The templating engine uses the [Handlebars](https://handlebarsjs.com/) framework to build any type of proxy based on structured inputs.  And because the logic is contained in Javascript or Typescript plugins, logic can be added for any type of requirement.
+The default templating engine used is the [Handlebars](https://handlebarsjs.com/) framework to build any type of proxy based on structured inputs.  And because the logic is contained in Javascript or Typescript plugins, logic can be added for any type of requirement.
+
+You can also just create any type of policy automatically using JSON-XML mapping, see the [javascript example](https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input8.javascript.json) to see how the JS policy is automatically mapped from the JSON input configuration to the XML policy (no plugin needed).
 
 ## Example usage
 You can find examples of both proxy and shared flow generation in the `./module/tests` directory. The tests use both JSON and YAML to demonstrate configuration of proxies and shared flows.
 
-Create an Apigee proxy to a web endpoint and deploy to the 'eval' environment
+### Basic CLI usage
+This example creates a simple proxy to httpbin.org and deploys it to the `eval` environment in project apigee-test99.
 
 ```sh
-apigee-templater -n HttpBinProxy -b /httpbin -t https://httpbin.org -d -e eval
+apigee-templater -n HttpBinProxy -b /httpbin -t https://httpbin.org -d -e eval -p apigee-test99
 ```
 Output:
 ```sh
@@ -60,10 +60,22 @@ Output:
 > Proxy HttpBinProxy version 1 deployed to environment eval in 2258 milliseconds.
 > Wait 2-3 minutes, then test here: https://eval-group.34-111-104-118.nip.io/httpbin
 ```
-Create and deploy a proxy to data in a BigQuery table
+### Use a local or remote JSON file as input
+```sh
+#Generate a proxy based on the local input1.json file and deploy it to environment eval in project apigee-test99
+apigee-templater -f ./module/test/data/input1.json -d -e eval -p apigee-test99
+```
+```sh
+#Generate a proxy from a remote JSON file and deploy it to environment eval in project apigee-test99
+apigee-templater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input1.json -d -e eval -p apigee-test99
+```
+
+### Create a proxy to a BigQuery table or query
+This example uses the `-q` flag to create a proxy to a BigQuery query and deploy it to the `eval` environment in GCP project `apigee-test99`. Here a service account must be specified with the `-s` parameter that has the rights to access BigQuery and read from the dataset.
+
 ```sh
 # Build and deploy a REST proxy to the BigQuery Austin bikesharing public dataset
-apigee-templater -n BikeTrips-v1 -b /trips -q bigquery-public-data.austin_bikeshare.bikeshare_trips -d -e eval -s serviceaccount@project.iam.gserviceaccount.com
+apigee-templater -n BikeTrips-v1 -b /trips -q bigquery-public-data.austin_bikeshare.bikeshare_trips -d -e eval -p apigee-test99 -s serviceaccount@project.iam.gserviceaccount.com
 ```
 
 Output:
@@ -97,7 +109,7 @@ After waiting a few minutes, you can run **curl https://BASE_PATH/trips?pageSize
 ### Use the CLI either in command or interactive mode
 
 ```sh
-#Use the CLI in interactive mode to collect inputs
+# Use the CLI in interactive mode to collect inputs
 apigee-templater
 > Welcome to apigee-template, use -h for more command line options. 
 ? What should the proxy be called? MyProxy
@@ -107,12 +119,8 @@ apigee-templater
 > Proxy MyProxy generated to ./MyProxy.zip in 60 milliseconds.
 ```
 ```sh
-#Show all commands
+# Show all commands
 apigee-templater -h
-```
-```sh
-#Generate a proxy based on input1.json and deploy it to environment test1 with credentials in key.json
-apigee-templater -f ./module/test/data/input1.json -d -e test1
 ```
 
 All deployed proxies can then be viewed and managed in the [Apigee console](https://apigee.google.com), where you can check the status of the deployments, do tracing, and create API products based on these automated proxies.

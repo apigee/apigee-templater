@@ -19,7 +19,7 @@ import fs from 'fs'
 import { performance } from 'perf_hooks'
 import inquirer from 'inquirer'
 import chalk from 'chalk'
-import { ApigeeTemplateInput, ApigeeTemplateService, ApigeeTemplater, GenerateResult } from 'apigee-templater-module'
+import { ApigeeTemplateInput, ApigeeTemplateService, ApigeeTemplater, GenerateResult, authTypes } from 'apigee-templater-module'
 import { ApigeeService, ApiManagementInterface, EnvironmentGroup, EnvironmentGroupAttachment, ProxyDeployment, ProxyRevision } from 'apigee-x-module'
 
 import axios from 'axios';
@@ -87,6 +87,7 @@ export class cli {
         '--filter': String,
         '--name': String,
         '--basePath': String,
+        '--apiKey': Boolean,
         '--targetUrl': String,
         '--targetBigQueryTable': String,
         '--verbose': Boolean,
@@ -101,6 +102,7 @@ export class cli {
         '-l': '--filter',
         '-n': '--name',
         '-b': '--basePath',
+        '-a': '--apiKey',
         '-t': '--targetUrl',
         '-q': '--targetBigQueryTable',
         '-v': '--verbose',
@@ -121,6 +123,7 @@ export class cli {
       filter: args['--filter'] || '',
       name: args['--name'] || '',
       basePath: args['--basePath'] || '',
+      apiKey: args['--apiKey'] || false,
       targetUrl: args['--targetUrl'] || '',
       targetBigQueryTable: args['--targetBigQueryTable'] || '',
       verbose: args['--verbose'] || false,
@@ -310,6 +313,15 @@ export class cli {
           ]
         });
 
+      if (options.apiKey) {
+        newInput.endpoints[0].auth = [
+          {
+            type: authTypes.apikey,
+            parameters: {}
+          }
+        ]
+      }
+
       options.input = JSON.stringify(newInput)
     }
 
@@ -333,7 +345,6 @@ export class cli {
     //     console.error("Error determining project, depoyment will not work.");
     //     if (options.verbose) this.logVerbose("Could not determine Google Cloud project, deploy to Apigee will not work.", "warning:")
     //   }
-      
     // }
 
     if (options.verbose) this.logVerbose(`Project set to ${process.env.PROJECT}`, 'project:')
@@ -474,6 +485,7 @@ class cliArgs {
   filter = '';
   name = '';
   basePath = '';
+  apiKey = false;
   targetUrl = '';
   targetBigQueryTable = '';
   verbose = false;
@@ -523,6 +535,10 @@ const helpCommands = [
   {
     name: '--basePath, -b',
     description: 'If no --file or --input parameters are specified, this can set the basePath directly.'
+  },
+  {
+    name: '--apiKey, -a',
+    description: 'If no --file or --input parameters are specified, this can apply an apiKey policy when set to true.'
   },
   {
     name: '--targetUrl, t',
