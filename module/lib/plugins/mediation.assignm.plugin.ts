@@ -80,8 +80,8 @@ export class AssignElementConfig {
 export class AssignMessagePlugin implements ApigeeTemplatePlugin {
     
   snippet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<AssignMessage continueOnError="false" enabled="true" name="AM-{{name}}">
-  <DisplayName>AM-{{name}}</DisplayName>
+<AssignMessage continueOnError="false" enabled="true" name="{{name}}">
+  <DisplayName>{{name}}</DisplayName>
 
   {{#if ignoreUnresolvedVariables}}
   <IgnoreUnresolvedVariables>{{ignoreUnresolvedVariables}}</IgnoreUnresolvedVariables>
@@ -252,7 +252,7 @@ export class AssignMessagePlugin implements ApigeeTemplatePlugin {
   template = Handlebars.compile(this.snippet);
 
   /**
-   * Applies the template logic for traffic quotas
+   * Applies the template logic for AssignMessage
    * @date 2/14/2022 - 8:18:32 AM
    *
    * @param {proxyEndpoint} inputConfig
@@ -267,10 +267,10 @@ export class AssignMessagePlugin implements ApigeeTemplatePlugin {
 
       fileResult.files.push({
         policyConfig: {
-          name: "AM-" + config.name,
+          name: config.name,
           flowRunPoints: config.flowRunPoints
         },
-        path: '/policies/AM-' + config.name + '.xml',
+        path: '/policies/' + config.name + '.xml',
         contents: this.template(config)
       });
 

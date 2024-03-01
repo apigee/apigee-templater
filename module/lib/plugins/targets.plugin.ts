@@ -176,6 +176,8 @@ export class TargetsPlugin implements ApigeeTemplatePlugin {
           inputConfig.target.url = "https://" + inputConfig.target.url;
         }
 
+        if (!inputConfig.target.name) inputConfig.target.name = "default";
+
         let context: any = { 
           target: inputConfig.target, 
           preflow_request_assign: (inputConfig.target.headers && Object.keys(inputConfig.target.headers).length > 0),

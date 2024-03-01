@@ -3,10 +3,10 @@
   "display": "Node 17",
   "compilerOptions": {
     "lib": [
-      "ES6"
+      "ESNext"
     ],
-    "module": "ES6",
-    "target": "ES6",
+    "module": "ESNext",
+    "target": "ESNext",
     "declaration": true,
     "strict": true,
     "esModuleInterop": true,

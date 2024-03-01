@@ -14,28 +14,29 @@
  * limitations under the License.
  */
 
-import archiver from 'archiver'
-import fs from 'fs'
-import path from 'path'
-import { performance } from 'perf_hooks'
-import { ApigeeTemplateService, ApigeeTemplateInput, ApigeeTemplateProfile, PlugInResult, PlugInFile, ApigeeConverterPlugin, GenerateResult, proxyEndpoint, ApigeeTemplatePlugin } from './interfaces.js'
-import { ProxyPlugin } from './plugins/final.proxy.plugin.js'
-import { FlowPlugin } from './plugins/final.sharedflow.plugin.js'
-import { FlowCalloutPlugin } from './plugins/flow.callout.plugin.js'
-import { TargetsPlugin } from './plugins/targets.plugin.js'
-import { TargetsBigQueryPlugin } from './plugins/targets.bigquery.plugin.js'
-import { AuthSfPlugin } from './plugins/auth.sf.plugin.js'
-import { AuthApiKeyPlugin } from './plugins/auth.apikey.plugin.js'
-import { QuotaPlugin } from './plugins/traffic.quota.plugin.js'
-import { SpikeArrestPlugin } from './plugins/traffic.spikearrest.plugin.js'
-import { Json1Converter } from './converters/json1.plugin.js'
-import { Json2Converter } from './converters/json2.plugin.js'
-import { OpenApiV3Converter } from './converters/openapiv3.yaml.plugin.js'
-import { ExtractVariablesPlugin } from './plugins/mediation.exvars.plugin.js'
-import { AssignMessagePlugin } from './plugins/mediation.assignm.plugin.js'
-import { MessageLoggingPlugin } from './plugins/messagelogging.plugin.js'
-import { AnyPlugin } from './plugins/any.plugin.js'
-import { ResourceFilePlugin } from './plugins/resources.file.js'
+import archiver from 'archiver';
+import fs from 'fs';
+import path from 'path';
+import { performance } from 'perf_hooks';
+import { ApigeeTemplateService, ApigeeTemplateInput, ApigeeTemplateProfile, PlugInResult, PlugInFile, ApigeeConverterPlugin, GenerateResult, proxyEndpoint, ApigeeTemplatePlugin } from './interfaces.js';
+import { ProxyPlugin } from './plugins/final.proxy.plugin.js';
+import { FlowPlugin } from './plugins/final.sharedflow.plugin.js';
+import { FlowCalloutPlugin } from './plugins/flow.callout.plugin.js';
+import { TargetsPlugin } from './plugins/targets.plugin.js';
+import { TargetsBigQueryPlugin } from './plugins/targets.bigquery.plugin.js';
+import { AuthSfPlugin } from './plugins/auth.sf.plugin.js';
+import { AuthApiKeyPlugin } from './plugins/auth.apikey.plugin.js';
+import { QuotaPlugin } from './plugins/traffic.quota.plugin.js';
+import { SpikeArrestPlugin } from './plugins/traffic.spikearrest.plugin.js';
+import { Json1Converter } from './converters/json1.plugin.js';
+import { Json2Converter } from './converters/json2.plugin.js';
+import { OpenApiV3Converter } from './converters/yaml.openapiv3.plugin.js';
+import { YamlConverter } from './converters/yaml.plugin.js';
+import { ExtractVariablesPlugin } from './plugins/mediation.exvars.plugin.js';
+import { AssignMessagePlugin } from './plugins/mediation.assignm.plugin.js';
+import { MessageLoggingPlugin } from './plugins/messagelogging.plugin.js';
+import { AnyPlugin } from './plugins/any.plugin.js';
+import { ResourceFilePlugin } from './plugins/resources.file.js';
 
 /**
  * ApigeeGenerator runs the complete templating operation with all injected plugins
@@ -50,6 +51,7 @@ export class ApigeeTemplater implements ApigeeTemplateService {
   converterPlugins: ApigeeConverterPlugin[] = [
     new Json1Converter(),
     new Json2Converter(),
+    new YamlConverter(),
     new OpenApiV3Converter()
   ];
 

@@ -96,6 +96,12 @@ for(var queryParam in request.queryParams){
     }
 }
 
+if (pageSize == ""){
+  // Set default pageSize to 10
+  pageSize = "LIMIT 10";
+  context.setVariable("bq.pageSize", pageSize);
+}
+
 var query = "{{query}}";
 var table = "{{table}}";
 
@@ -139,7 +145,9 @@ function ConvertBigQueryResponse(inputObject) {
         var newRow = {};
         for (var valueKey in row.f) {
             var value = row.f[valueKey];
-            newRow[inputObject.schema.fields[valueKey].name] = value.v;
+            var type = inputObject.schema.fields[valueKey].type;
+            if (type != "RECORD")            
+              newRow[inputObject.schema.fields[valueKey].name] = value.v;
         }
         result.push(newRow);
     }

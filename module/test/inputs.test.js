@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { ApigeeTemplateService, ApigeeTemplater } from '../src'
+import { ApigeeTemplater } from '../dist/src/index.js'
 import fs from 'fs'
 import { expect } from 'chai'
 import { describe } from 'mocha'
 
 console.log('starting')
-const apigeeGenerator: ApigeeTemplateService = new ApigeeTemplater()
+const apigeeGenerator = new ApigeeTemplater()
 
 describe('Generate simple normal JSON 1 proxy', () => {
   return it('should produce a valid proxy bundle', () => {
@@ -124,6 +124,17 @@ describe('Generate BigQuery query proxy bundle', () => {
 describe('Generate BigQuery table proxy bundle', () => {
   return it('should produce a valid proxy bundle', () => {
     const input = fs.readFileSync('./test/data/bigquery_table_input.json', 'utf-8')
+    return apigeeGenerator.generateProxyFromString(input, 'test/proxies').then((response) => {
+      expect(response.success).to.equal(true)
+      expect(response.duration).to.greaterThan(0)
+      expect(fs.existsSync(response.localPath)).to.equal(true)
+    })
+  })
+});
+
+describe('Generate BigQuery v2 proxy bundle', () => {
+  return it('should produce a valid proxy bundle', () => {
+    const input = fs.readFileSync('./test/data/bigquery_v2.json', 'utf-8')
     return apigeeGenerator.generateProxyFromString(input, 'test/proxies').then((response) => {
       expect(response.success).to.equal(true)
       expect(response.duration).to.greaterThan(0)
