@@ -19,10 +19,11 @@ import fs from 'fs'
 import { performance } from 'perf_hooks'
 import inquirer from 'inquirer'
 import chalk from 'chalk'
-import { ApigeeTemplateInput, ApigeeTemplateService, ApigeeTemplater, GenerateResult, authTypes } from 'apigee-templater-module'
+import { ApigeeTemplateInput, ApigeeTemplateService, ApigeeTemplater, GenerateResult, SpecType, authTypes } from 'apigee-templater-module'
 import { ApigeeService, ApiManagementInterface, EnvironmentGroup, EnvironmentGroupAttachment, ProxyDeployment, ProxyRevision } from 'apigee-x-module'
 
 import axios from 'axios';
+import { stdin } from 'process'
 
 process.on('uncaughtException', function (e) {
   if (e.message.includes("Unable to detect a Project Id in the current environment")) {
@@ -226,6 +227,20 @@ export class cli {
     }
   }
 
+  processDataSpec(): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      let receivedData = '';
+      stdin.on('data', (data) => {
+        receivedData += data;
+      });
+      stdin.on('end', () => {
+        // Input will have a \n appended
+        // receivedData = receivedData.slice(0, -1);
+        resolve(receivedData);
+      });
+    });
+  }
+
   /**
    * Process the user inputs and generates / deploys the proxy
    * @date 1/31/2022 - 8:42:28 AM
@@ -234,6 +249,34 @@ export class cli {
    * @param {cliArgs} args The user input args to the process
    */
   async process(args: string[]) {
+
+    if (!stdin.setRawMode) {
+      // We have received raw data piped in, so do our spec generation
+      let payloadInput = await this.processDataSpec();
+
+      console.log(args);
+      console.log(payloadInput);
+      let servers: string[] = [];
+      let addExamples = false;
+      let addDescriptions = false;
+      let auth = authTypes.none;
+      for (let argIndex=0; argIndex<args.length; argIndex++) {
+        if (args[argIndex] === "-s" && argIndex < (args.length - 1))
+          servers.push(args[argIndex + 1]);
+        else if (args[argIndex] === "-ad")
+          addDescriptions = true;
+        else if (args[argIndex] === "-ae")
+          addExamples = true;
+        else if (args[argIndex] === "-a")
+          auth = authTypes.apiKey;
+      }
+
+      let specResult = await this.apigeeTemplater.generateSpec(payloadInput, SpecType.Data, servers, auth, addExamples, addDescriptions);
+      console.log(specResult);
+      
+      return;
+    }
+
     let options: cliArgs = this.parseArgumentsIntoOptions(args);
     if (options.verbose && fs.existsSync("apigee-templater-log.txt")) {
       // Delete old log file, if it exists
@@ -247,8 +290,8 @@ export class cli {
     if (options.verbose) this.logVerbose(JSON.stringify(options, null, 2), 'start:');
 
     if (options.help) {
-      this.printHelp()
-      return
+      this.printHelp();
+      return;
     }
 
     if (options.file) {
@@ -316,7 +359,7 @@ export class cli {
       if (options.apiKey) {
         newInput.endpoints[0].auth = [
           {
-            type: authTypes.apikey,
+            type: authTypes.apiKey,
             parameters: {}
           }
         ]
@@ -552,6 +595,10 @@ const helpCommands = [
     name: '--verbose, -v',
     description: 'If extra logging information should be printed during the conversion and deployment.'
   },
+  {
+    name: '--datSpec, -ds',
+    description: 'Generates an OpenAPI spec for a data payload that is piped to the command (only GET).'
+  },  
   {
     name: '--keyPath, -k',
     description: 'If no GOOGLE_APPLICATION_CREDENTIALS are set to authorize the proxy deployment, this can point to a GCP service account JSON key file to use for authorization.'

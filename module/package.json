@@ -1,12 +1,12 @@
 {
   "name": "apigee-templater-module",
-  "version": "2.5.4",
+  "version": "2.6.3",
   "description": "This library provides templating services for Apigee X proxies.",
   "homepage": "https://github.com/tyayers/apigee-templater",
   "bugs": "https://github.com/tyayers/apigee-templater/issues",
   "scripts": {
     "build": "rm -rf dist/** && tsc",
-    "test": "rm -rf test/proxies && npm run build && mocha",
+    "test": "rm -rf test/output && npm run build && mocha",
     "deploy": "npm run build && npm publish"
   },
   "keywords": [

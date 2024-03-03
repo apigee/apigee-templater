@@ -1,0 +1,61 @@
+{
+  "investment-trades" : [
+     {
+        "CFICode" : "MMMXXX",
+        "LastPx" : "2953.125",
+        "MaturityDate" : "1.589822666393E9",
+        "OrderID" : "d8eefa63-6f10-4566-8f15-81460448f2ac",
+        "Quantity" : "1",
+        "SenderCompID" : "MDOC",
+        "SendingTime" : "1.589822606E9",
+        "Sides" : [
+           {
+              "OrderID" : "d8eefa63-6f10-4566-8f15-81460448f2ac",
+              "PartyIDs" : [
+                 {
+                    "PartyID" : "MOMOES",
+                    "PartyIDSource" : "PROP CODE",
+                    "PartyRole" : "INITIATING TRADER"
+                 }
+              ],
+              "Side" : "LONG"
+           }
+        ],
+        "StrikePrice" : "2953.125",
+        "Symbol" : "ESM0",
+        "TargetCompID" : "MOMOES-COMPID",
+        "TradeDate" : "2020-05-18",
+        "TradeReportID" : "d8eefa63-6f10-4566-8f15-81460448f2ac-0",
+        "TransactTime" : "1.589822606393E9"
+     },
+     {
+        "CFICode" : "MMMXXX",
+        "LastPx" : "2952.375",
+        "MaturityDate" : "1.589822819485E9",
+        "OrderID" : "7fa78bef-912c-41cb-b381-4c03b5a7c508",
+        "Quantity" : "1",
+        "SenderCompID" : "MDOC",
+        "SendingTime" : "1.589822759E9",
+        "Sides" : [
+           {
+              "OrderID" : "7fa78bef-912c-41cb-b381-4c03b5a7c508",
+              "PartyIDs" : [
+                 {
+                    "PartyID" : "MOMOES",
+                    "PartyIDSource" : "PROP CODE",
+                    "PartyRole" : "INITIATING TRADER"
+                 }
+              ],
+              "Side" : "LONG"
+           }
+        ],
+        "StrikePrice" : "2952.375",
+        "Symbol" : "ESM0",
+        "TargetCompID" : "MOMOES-COMPID",
+        "TradeDate" : "2020-05-18",
+        "TradeReportID" : "7fa78bef-912c-41cb-b381-4c03b5a7c508-0",
+        "TransactTime" : "1.589822759485E9"
+     }
+  ],
+  "next_page_token" : 2
+}

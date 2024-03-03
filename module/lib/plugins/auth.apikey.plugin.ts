@@ -67,7 +67,7 @@ export class AuthApiKeyPlugin implements ApigeeTemplatePlugin {
     return new Promise((resolve) => {
       const fileResult: PlugInResult = new PlugInResult(this.constructor.name);
 
-      if (inputConfig.auth && inputConfig.auth.filter(e => e.type === authTypes.apikey).length > 0) {
+      if (inputConfig.auth && inputConfig.auth.filter(e => e.type === authTypes.apiKey).length > 0) {
         fileResult.files = [
           {
             policyConfig: {

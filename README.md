@@ -199,7 +199,7 @@ let input: ApigeeTemplateInput = {
       ],
       auth: [
         {
-          type: authTypes.apikey
+          type: authTypes.apiKey
         }
       ]
     }

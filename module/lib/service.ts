@@ -18,7 +18,12 @@ import archiver from 'archiver';
 import fs from 'fs';
 import path from 'path';
 import { performance } from 'perf_hooks';
-import { ApigeeTemplateService, ApigeeTemplateInput, ApigeeTemplateProfile, PlugInResult, PlugInFile, ApigeeConverterPlugin, GenerateResult, proxyEndpoint, ApigeeTemplatePlugin } from './interfaces.js';
+import { ApigeeTemplateService, ApigeeTemplateInput, ApigeeTemplateProfile, PlugInResult, PlugInFile, ApigeeConverterPlugin, GenerateResult, proxyEndpoint, ApigeeTemplatePlugin, SpecType, authTypes } from './interfaces.js';
+import { Json1Converter } from './converters/json1.converter.js';
+import { Json2Converter } from './converters/json2.converter.js';
+import { OpenApiV3Converter } from './converters/yaml.openapiv3.converter.js';
+import { YamlConverter } from './converters/yaml.converter.js';
+import { OpenAPIDataConverter } from './converters/openAPI.data.converter.js';
 import { ProxyPlugin } from './plugins/final.proxy.plugin.js';
 import { FlowPlugin } from './plugins/final.sharedflow.plugin.js';
 import { FlowCalloutPlugin } from './plugins/flow.callout.plugin.js';
@@ -28,10 +33,6 @@ import { AuthSfPlugin } from './plugins/auth.sf.plugin.js';
 import { AuthApiKeyPlugin } from './plugins/auth.apikey.plugin.js';
 import { QuotaPlugin } from './plugins/traffic.quota.plugin.js';
 import { SpikeArrestPlugin } from './plugins/traffic.spikearrest.plugin.js';
-import { Json1Converter } from './converters/json1.plugin.js';
-import { Json2Converter } from './converters/json2.plugin.js';
-import { OpenApiV3Converter } from './converters/yaml.openapiv3.plugin.js';
-import { YamlConverter } from './converters/yaml.plugin.js';
 import { ExtractVariablesPlugin } from './plugins/mediation.exvars.plugin.js';
 import { AssignMessagePlugin } from './plugins/mediation.assignm.plugin.js';
 import { MessageLoggingPlugin } from './plugins/messagelogging.plugin.js';
@@ -130,6 +131,21 @@ export class ApigeeTemplater implements ApigeeTemplateService {
     if (customInputConverters) {
       this.converterPlugins = customInputConverters
     }
+  }
+
+  /**
+   * Generates an OpenAPI spec for the input payload of the specified type
+   * @param payloadInput input payload text
+   * @param type 0=Data, 1=CRUD
+   */
+  generateSpec(payloadInput: string, type: SpecType, servers: string[], authType: authTypes, addDataExamples: boolean, addDataDescriptions: boolean, additionalData?: any): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      let converter: OpenAPIDataConverter = new OpenAPIDataConverter();
+
+      converter.convertInput(payloadInput, servers, authType, addDataExamples, addDataDescriptions, additionalData).then((result) => {
+        resolve(result);
+      });
+    });
   }
 
   /**

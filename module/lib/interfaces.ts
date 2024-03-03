@@ -75,7 +75,7 @@ export class ApigeeTemplateInput {
 
 /** Authorization config for an endpoint */
 export class authConfig {
-  type: authTypes = authTypes.apikey;
+  type: authTypes = authTypes.apiKey;
   parameters: { [key: string]: string } = {};
 }
 
@@ -93,20 +93,13 @@ export class spikeArrestConfig {
 
 export enum authTypes {
   // eslint-disable-next-line no-unused-vars
-  apikey = 'apikey',
-  // eslint-disable-next-line no-unused-vars
-  jwt = 'jwt',
-  // eslint-disable-next-line no-unused-vars
+  none = 'none',
+  basic = 'basic',
+  bearer = 'bearer',
+  apiKey = 'apiKey',
+  oauth2 = 'oauth2',
+  openIdConnect = 'openIdConnect',
   sharedflow = 'sharedflow'
-}
-
-export interface ApigeeTemplateService {
-  setProfile(profileName: string, profile: ApigeeTemplateProfile): void;
-  setPluginInProfile(profileName: string, plugin: ApigeeTemplatePlugin): void;
-  setExtensionPluginInProfile(profileName: string, name: string, plugin: ApigeeTemplatePlugin): void;
-  convertStringToProxyInput(inputString: string): Promise<ApigeeTemplateInput>;
-  generateProxyFromString(inputString: string, outputDir: string): Promise<GenerateResult>;
-  generateProxy(inputConfig: ApigeeTemplateInput, outputDir: string): Promise<GenerateResult>;
 }
 
 /** The result of the template generation */
@@ -193,4 +186,23 @@ export interface ApigeeTemplatePlugin {
 
 export interface ApigeeConverterPlugin {
   convertInput(input: string): Promise<ApigeeTemplateInput>
+}
+
+export interface OpenAPIConverterPlugin {
+  convertInput(input: string, servers: string[], authType: authTypes, addDataExamples: boolean, addDataDescriptions: boolean): Promise<string>
+}
+
+export enum SpecType {
+  Data,
+  CRUD
+}
+
+export interface ApigeeTemplateService {
+  setProfile(profileName: string, profile: ApigeeTemplateProfile): void;
+  setPluginInProfile(profileName: string, plugin: ApigeeTemplatePlugin): void;
+  setExtensionPluginInProfile(profileName: string, name: string, plugin: ApigeeTemplatePlugin): void;
+  convertStringToProxyInput(inputString: string): Promise<ApigeeTemplateInput>;
+  generateProxyFromString(inputString: string, outputDir: string): Promise<GenerateResult>;
+  generateProxy(inputConfig: ApigeeTemplateInput, outputDir: string): Promise<GenerateResult>;
+  generateSpec(input: string, type: SpecType, servers: string[], authType: authTypes, addDataExamples: boolean, addDataDescriptions: boolean, additionalData?: any): Promise<string>;
 }
