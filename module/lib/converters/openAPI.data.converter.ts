@@ -32,7 +32,7 @@ paths:
         schema:
           type: string
         description: A filter for the data query.
-        example: Symbol='ESMO'
+        example: Symbol='ESM0'
       - in: query
         name: orderBy
         schema:
@@ -50,8 +50,7 @@ paths:
         name: pageToken
         schema:
           type: integer
-        description: The next page token to return (returned in previous page result).
-        example: 2
+        description: The next page token to return (returned in property 'next_page_token' of previous page result).
       responses:
         '200':
           description: 'Success'
