@@ -254,8 +254,6 @@ export class cli {
       // We have received raw data piped in, so do our spec generation
       let payloadInput = await this.processDataSpec();
 
-      console.log(args);
-      console.log(payloadInput);
       let servers: string[] = [];
       let addExamples = false;
       let addDescriptions = false;

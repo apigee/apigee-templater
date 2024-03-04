@@ -26,6 +26,32 @@ security:
 paths:
   /${entityName}:
     get:
+      parameters:
+      - in: query
+        name: filter
+        schema:
+          type: string
+        description: A filter for the data query.
+        example: Symbol='ESMO'
+      - in: query
+        name: orderBy
+        schema:
+          type: string
+        description: A column and direction to order the results by
+        example: Quantity ASC
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          default: 10
+        description: How many records to return per page.
+        example: 100
+      - in: query
+        name: pageToken
+        schema:
+          type: integer
+        description: The next page token to return (returned in previous page result).
+        example: 2
       responses:
         '200':
           description: 'Success'

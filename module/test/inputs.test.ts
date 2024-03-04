@@ -156,7 +156,7 @@ describe('Generate OpenAPI v3 proxy', () => {
 describe('Generate OpenAPI v3 spec from data payload', () => {
   return it('should produce a valid OpenAPI spec', () => {
     const input = fs.readFileSync('./test/data/data_payload1.json', 'utf-8')
-    return apigeeGenerator.generateSpec(input, SpecType.Data, ["https://example.com"], authTypes.apiKey, true, true).then((result) => {
+    return apigeeGenerator.generateSpec(input, SpecType.Data, ["https://api.34-110-134-67.nip.io/v1/data"], authTypes.apiKey, true, true).then((result) => {
       fs.writeFileSync('test/output/data_spec.yaml', result);
       expect(result).to.not.equal("");
     })
