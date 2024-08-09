@@ -374,19 +374,6 @@ export class cli {
     else if (process.env.PROJECT) {
       this.apigeeService.org = process.env.PROJECT;
     }
-    // else {
-    //   if (options.deploy) {
-    //     console.error(`${chalk.redBright('! Error:')} No cloud project detected, set -p to a project with Apigee enabled if you want to deploy.`);      }
-    // }
-    // else {
-    //   try {
-    //     console.error("Trying to get project...");
-    //     process.env.PROJECT = (await this.apigeeService.getOrg()).toString();
-    //   } catch (error) {
-    //     console.error("Error determining project, depoyment will not work.");
-    //     if (options.verbose) this.logVerbose("Could not determine Google Cloud project, deploy to Apigee will not work.", "warning:")
-    //   }
-    // }
 
     if (options.verbose) this.logVerbose(`Project set to ${process.env.PROJECT}`, 'project:')
 

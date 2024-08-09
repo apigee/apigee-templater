@@ -40,7 +40,7 @@ import { AnyPlugin } from './plugins/any.plugin.js';
 import { ResourceFilePlugin } from './plugins/resources.file.js';
 
 /**
- * ApigeeGenerator runs the complete templating operation with all injected plugins
+ * ApigeeTemlater runs the complete templating
  * @date 2/14/2022 - 8:22:47 AM
  *
  * @export
