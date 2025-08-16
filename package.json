@@ -1,0 +1,34 @@
+{
+  "name": "apigee-templater",
+  "version": "1.0.0",
+  "description": "Provides tooling for the templating and automation of Apigee proxies using simplified inputs, for example through a JSON/YAML input file, a REST call, or a CLI.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apigee/apigee-templater.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/apigee/apigee-templater/issues"
+  },
+  "homepage": "https://github.com/apigee/apigee-templater#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "xml-js": "^1.6.11",
+    "yauzl": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/yauzl": "^2.10.3"
+  }
+}
