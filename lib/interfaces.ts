@@ -2,6 +2,7 @@ export class Proxy {
   endpoints: Endpoint[] = [];
   targets: Target[] = [];
   policies: Policy[] = [];
+  resources: Resource[] = [];
 }
 
 export class Endpoint {
@@ -28,7 +29,12 @@ export class Route {
 export class Flow {
   name: string;
   condition: string;
-  steps: Step[];
+  steps: Step[] = [];
+
+  constructor(name: string, condition: string = "") {
+    this.name = name;
+    this.condition = condition;
+  }
 }
 
 export class Step {
@@ -50,6 +56,12 @@ export class Target {
 }
 
 export class Policy {
+  name: string = "";
+  type: string = "";
+  content: string = "";
+}
+
+export class Resource {
   name: string = "";
   type: string = "";
   content: string = "";

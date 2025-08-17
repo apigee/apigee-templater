@@ -2,7 +2,15 @@ import * as xmljs from "xml-js";
 import yauzl from "yauzl";
 import path from "path";
 import fs from "fs";
-import { Proxy, Endpoint, Route } from "./interfaces.ts";
+import {
+  Proxy,
+  Endpoint,
+  Route,
+  Flow,
+  Step,
+  Policy,
+  Target,
+} from "./interfaces.ts";
 
 export class ApigeeConverter {
   public async apigeeToOapi(
@@ -34,6 +42,7 @@ export class ApigeeConverter {
           }
         });
         zipfile.on("close", () => {
+          // proxies
           let proxies: string[] = fs.readdirSync(
             tempOutputDir + "/apiproxy/proxies",
           );
@@ -58,6 +67,7 @@ export class ApigeeConverter {
                 "_text"
               ];
 
+            // routes
             if (proxyJson["ProxyEndpoint"]["RouteRule"].length > 0) {
               for (let routeRule of proxyJson["ProxyEndpoint"]["RouteRule"]) {
                 let newRoute = new Route();
@@ -85,7 +95,105 @@ export class ApigeeConverter {
               newEndpoint.routes.push(newRoute);
             }
 
+            // pre-flow
+            if (
+              proxyJson["ProxyEndpoint"]["PreFlow"]["Request"]["Step"] &&
+              proxyJson["ProxyEndpoint"]["PreFlow"]["Request"]["Step"].length >
+                0
+            ) {
+              newEndpoint.requestPreFlow = new Flow("PreFlow");
+              for (let step of proxyJson["ProxyEndpoint"]["PreFlow"]["Request"][
+                "Step"
+              ]) {
+                let newStep = new Step();
+                newStep.name = step["Name"]["_text"];
+                if (step["Condition"]) {
+                  newStep.condition = step["Condition"]["_text"];
+                }
+
+                // load policy
+                let policyContents = fs.readFileSync(
+                  tempOutputDir + "/apiproxy/policies/" + newStep.name + ".xml",
+                  "utf8",
+                );
+                let policyJsonString = xmljs.xml2json(policyContents, {
+                  compact: true,
+                  spaces: 2,
+                });
+                let policyJson = JSON.parse(policyJsonString);
+                console.log(policyJsonString);
+                let newPolicy = new Policy();
+                newPolicy.name = newStep.name;
+                newPolicy.type = Object.keys(policyJson)[1];
+                newPolicy.content = policyJsonString;
+                newProxy.policies.push(newPolicy);
+                newEndpoint.requestPreFlow.steps.push(newStep);
+              }
+            } else if (
+              proxyJson["ProxyEndpoint"]["PreFlow"]["Request"]["Step"]
+            ) {
+              newEndpoint.requestPreFlow = new Flow("PreFlow");
+              let newStep = new Step();
+              newStep.name =
+                proxyJson["ProxyEndpoint"]["PreFlow"]["Request"]["Step"][
+                  "Name"
+                ]["_text"];
+              if (
+                proxyJson["ProxyEndpoint"]["PreFlow"]["Request"]["Step"][
+                  "Condition"
+                ]
+              ) {
+                newStep.condition =
+                  proxyJson["ProxyEndpoint"]["PreFlow"]["Request"]["Step"][
+                    "Condition"
+                  ]["_text"];
+              }
+              // load policy
+              let policyContents = fs.readFileSync(
+                tempOutputDir + "/apiproxy/policies/" + newStep.name + ".xml",
+                "utf8",
+              );
+              let policyJsonString = xmljs.xml2json(policyContents, {
+                compact: true,
+                spaces: 2,
+              });
+              let policyJson = JSON.parse(policyJsonString);
+              console.log(policyJsonString);
+              let newPolicy = new Policy();
+              newPolicy.name = newStep.name;
+              newPolicy.type = Object.keys(policyJson)[1];
+              newPolicy.content = policyJsonString;
+              newProxy.policies.push(newPolicy);
+              newEndpoint.requestPreFlow.steps.push(newStep);
+            }
+
             newProxy.endpoints.push(newEndpoint);
+
+            // targets
+            let targets: string[] = fs.readdirSync(
+              tempOutputDir + "/apiproxy/targets",
+            );
+            for (let target of targets) {
+              let newTarget = new Target();
+              let targetContent = fs.readFileSync(
+                tempOutputDir + "/apiproxy/targets/" + target,
+                "utf8",
+              );
+
+              let targetJsonString = xmljs.xml2json(targetContent, {
+                compact: true,
+                spaces: 2,
+              });
+              let targetJson = JSON.parse(targetJsonString);
+              console.log(targetJsonString);
+              newTarget.name =
+                targetJson["TargetEndpoint"]["_attributes"]["name"];
+              newTarget.url =
+                targetJson["TargetEndpoint"]["HTTPTargetConnection"]["URL"][
+                  "_text"
+                ];
+              newProxy.targets.push(newTarget);
+            }
           }
 
           fs.rmSync(tempOutputDir, { recursive: true });
