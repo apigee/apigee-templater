@@ -72,23 +72,24 @@ app.post("/oapi-to-apigee", (req, res) => {
         _attributes: {
           name: "PreFlow",
         },
+        Request: {},
       };
       if (endpoint["requestPreFlow"]["steps"].length > 1) {
-        endpointXml["ProxyEndpoint"]["PreFlow"]["Request"] = [];
+        endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"] = [];
         for (let step of endpoint["requestPreFlow"]["steps"]) {
           let newStep = {
-            Step: {
-              Name: {
-                _text: step["name"],
-              },
+            Name: {
+              _text: step["name"],
             },
           };
           if (step["condition"]) {
-            newStep["Step"]["Condition"] = {
+            newStep["Condition"] = {
               _text: step["condition"],
             };
           }
-          endpointXml["ProxyEndpoint"]["PreFlow"]["Request"].push(newStep);
+          endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"].push(
+            newStep,
+          );
         }
       } else {
         endpointXml["ProxyEndpoint"]["PreFlow"]["Request"] = {
@@ -191,7 +192,7 @@ app.post("/oapi-to-apigee", (req, res) => {
   // policies
   for (let policy of req.body["policies"]) {
     fs.mkdirSync(tempFilePath + "/apiproxy/policies", { recursive: true });
-    let xmlString = xmljs.json2xml(policy["content"], {
+    let xmlString = xmljs.json2xml(JSON.stringify(policy["content"]), {
       compact: true,
       spaces: 2,
     });
