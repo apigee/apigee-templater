@@ -1,5 +1,6 @@
 import * as xmljs from "xml-js";
 import yauzl from "yauzl";
+import yazl from "yazl";
 import path from "path";
 import fs from "fs";
 import {
@@ -13,10 +14,7 @@ import {
 } from "./interfaces.ts";
 
 export class ApigeeConverter {
-  public async apigeeToOapi(
-    name: string,
-    inputFilePath: string,
-  ): Promise<string> {
+  public async zipToJson(name: string, inputFilePath: string): Promise<string> {
     return new Promise((resolve, reject) => {
       let tempOutputDir = "./data/" + name;
       yauzl.open(inputFilePath, { lazyEntries: true }, (err, zipfile) => {
@@ -58,7 +56,7 @@ export class ApigeeConverter {
             });
             let proxyJson = JSON.parse(proxyJsonString);
 
-            console.log(proxyJsonString);
+            // console.log(proxyJsonString);
 
             newEndpoint.name =
               proxyJson["ProxyEndpoint"]["_attributes"]["name"];
@@ -157,7 +155,7 @@ export class ApigeeConverter {
                 spaces: 2,
               });
               let policyJson = JSON.parse(policyJsonString);
-              console.log(policyJsonString);
+              // console.log(policyJsonString);
               let newPolicy = new Policy();
               newPolicy.name = newStep.name;
               newPolicy.type = Object.keys(policyJson)[1];
@@ -184,7 +182,7 @@ export class ApigeeConverter {
                 spaces: 2,
               });
               let targetJson = JSON.parse(targetJsonString);
-              console.log(targetJsonString);
+              // console.log(targetJsonString);
               newTarget.name =
                 targetJson["TargetEndpoint"]["_attributes"]["name"];
               newTarget.url =
@@ -199,6 +197,177 @@ export class ApigeeConverter {
           resolve(JSON.stringify(newProxy, null, 2));
         });
       });
+    });
+  }
+
+  public async jsonToZip(name: string, input: any): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      var zipfile = new yazl.ZipFile();
+      let tempFilePath = "./data/" + name;
+      fs.mkdirSync(tempFilePath, { recursive: true });
+
+      // endpoints
+      for (let endpoint of input["endpoints"]) {
+        let endpointXml = {
+          ProxyEndpoint: {
+            _attributes: {
+              name: endpoint["name"],
+            },
+            HTTPProxyConnection: {
+              BasePath: {
+                _text: endpoint["path"],
+              },
+            },
+          },
+        };
+
+        // request preflow
+        if (endpoint["requestPreFlow"]) {
+          endpointXml["ProxyEndpoint"]["PreFlow"] = {
+            _attributes: {
+              name: "PreFlow",
+            },
+            Request: {},
+          };
+          if (endpoint["requestPreFlow"]["steps"].length > 1) {
+            endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"] = [];
+            for (let step of endpoint["requestPreFlow"]["steps"]) {
+              let newStep = {
+                Name: {
+                  _text: step["name"],
+                },
+              };
+              if (step["condition"]) {
+                newStep["Condition"] = {
+                  _text: step["condition"],
+                };
+              }
+              endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"].push(
+                newStep,
+              );
+            }
+          } else {
+            endpointXml["ProxyEndpoint"]["PreFlow"]["Request"] = {
+              Step: {
+                Name: {
+                  _text: endpoint["requestPreFlow"]["steps"][0]["name"],
+                },
+              },
+            };
+            if (endpoint["requestPreFlow"]["steps"][0]["condition"]) {
+              endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"][
+                "Condition"
+              ] = {
+                _text: endpoint["requestPreFlow"]["steps"][0]["condition"],
+              };
+            }
+          }
+        }
+
+        // routes
+        if (endpoint["routes"].length) {
+          endpointXml["ProxyEndpoint"]["RouteRule"] = [];
+          for (let route of endpoint["routes"]) {
+            let newRouteRule = {
+              _attributes: {
+                name: route["name"],
+              },
+              TargetEndpoint: {
+                _text: route["target"],
+              },
+            };
+            if (route["condition"]) {
+              newRouteRule["Condition"] = {
+                _text: route["condition"],
+              };
+            }
+            endpointXml["ProxyEndpoint"]["RouteRule"].push(newRouteRule);
+          }
+        } else {
+          endpointXml["ProxyEndpoint"]["RouteRule"] = {
+            _attributes: {
+              name: endpoint["routes"][0]["name"],
+            },
+            TargetEndpoint: {
+              _text: endpoint["routes"][0]["target"],
+            },
+          };
+          if (endpoint["routes"][0]["condition"]) {
+            endpointXml["ProxyEndpoint"]["RouteRule"]["Condition"] = {
+              _text: endpoint["routes"][0]["condition"],
+            };
+          }
+        }
+
+        fs.mkdirSync(tempFilePath + "/apiproxy/proxies", { recursive: true });
+        let xmlString = xmljs.json2xml(JSON.stringify(endpointXml), {
+          compact: true,
+          spaces: 2,
+        });
+        fs.writeFileSync(
+          tempFilePath + "/apiproxy/proxies/" + endpoint["name"] + ".xml",
+          xmlString,
+        );
+        zipfile.addFile(
+          tempFilePath + "/apiproxy/proxies/" + endpoint["name"] + ".xml",
+          "apiproxy/proxies/" + endpoint["name"] + ".xml",
+        );
+      }
+
+      // targets
+      for (let target of input["targets"]) {
+        let targetXml = {
+          TargetEndpoint: {
+            _attributes: {
+              name: target["name"],
+            },
+            HTTPTargetConnection: {
+              URL: {
+                _text: target["url"],
+              },
+            },
+          },
+        };
+
+        fs.mkdirSync(tempFilePath + "/apiproxy/targets", { recursive: true });
+        let xmlString = xmljs.json2xml(JSON.stringify(targetXml), {
+          compact: true,
+          spaces: 2,
+        });
+        fs.writeFileSync(
+          tempFilePath + "/apiproxy/targets/" + target["name"] + ".xml",
+          xmlString,
+        );
+        zipfile.addFile(
+          tempFilePath + "/apiproxy/targets/" + target["name"] + ".xml",
+          "apiproxy/targets/" + target["name"] + ".xml",
+        );
+      }
+
+      // policies
+      for (let policy of input["policies"]) {
+        fs.mkdirSync(tempFilePath + "/apiproxy/policies", { recursive: true });
+        let xmlString = xmljs.json2xml(JSON.stringify(policy["content"]), {
+          compact: true,
+          spaces: 2,
+        });
+        fs.writeFileSync(
+          tempFilePath + "/apiproxy/policies/" + policy["name"] + ".xml",
+          xmlString,
+        );
+        zipfile.addFile(
+          tempFilePath + "/apiproxy/policies/" + policy["name"] + ".xml",
+          "apiproxy/policies/" + policy["name"] + ".xml",
+        );
+      }
+
+      zipfile.outputStream
+        .pipe(fs.createWriteStream(tempFilePath + ".zip"))
+        .on("close", function () {
+          // console.log("zip file done: " + tempFilePath + ".zip");
+          resolve(tempFilePath + ".zip");
+        });
+      zipfile.end();
     });
   }
 }
