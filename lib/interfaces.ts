@@ -58,7 +58,7 @@ export class Target {
 export class Policy {
   name: string = "";
   type: string = "";
-  content: string = "";
+  content: any;
 }
 
 export class Resource {

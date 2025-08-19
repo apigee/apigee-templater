@@ -121,11 +121,10 @@ export class ApigeeConverter {
                   spaces: 2,
                 });
                 let policyJson = JSON.parse(policyJsonString);
-                console.log(policyJsonString);
                 let newPolicy = new Policy();
                 newPolicy.name = newStep.name;
                 newPolicy.type = Object.keys(policyJson)[1];
-                newPolicy.content = policyJsonString;
+                newPolicy.content = policyJson;
                 newProxy.policies.push(newPolicy);
                 newEndpoint.requestPreFlow.steps.push(newStep);
               }

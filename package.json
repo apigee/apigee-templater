@@ -25,10 +25,12 @@
   "dependencies": {
     "express": "^5.1.0",
     "xml-js": "^1.6.11",
-    "yauzl": "^3.2.0"
+    "yauzl": "^3.2.0",
+    "yazl": "^3.3.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
-    "@types/yauzl": "^2.10.3"
+    "@types/yauzl": "^2.10.3",
+    "@types/yazl": "^3.3.0"
   }
 }
