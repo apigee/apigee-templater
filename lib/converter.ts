@@ -11,10 +11,11 @@ import {
   Step,
   Policy,
   Target,
+  Resource,
 } from "./interfaces.ts";
 
 export class ApigeeConverter {
-  public async zipToJson(name: string, inputFilePath: string): Promise<string> {
+  public async zipToJson(name: string, inputFilePath: string): Promise<any> {
     return new Promise((resolve, reject) => {
       let tempOutputDir = "./data/" + name;
       yauzl.open(inputFilePath, { lazyEntries: true }, (err, zipfile) => {
@@ -56,8 +57,6 @@ export class ApigeeConverter {
             });
             let proxyJson = JSON.parse(proxyJsonString);
 
-            // console.log(proxyJsonString);
-
             newEndpoint.name =
               proxyJson["ProxyEndpoint"]["_attributes"]["name"];
             newEndpoint.path =
@@ -93,61 +92,27 @@ export class ApigeeConverter {
               newEndpoint.routes.push(newRoute);
             }
 
-            // pre-flow
-            if (
-              proxyJson["ProxyEndpoint"]["PreFlow"]["Request"]["Step"] &&
-              proxyJson["ProxyEndpoint"]["PreFlow"]["Request"]["Step"].length >
-                0
-            ) {
-              newEndpoint.requestPreFlow = new Flow("PreFlow");
-              for (let step of proxyJson["ProxyEndpoint"]["PreFlow"]["Request"][
-                "Step"
-              ]) {
-                let newStep = new Step();
-                newStep.name = step["Name"]["_text"];
-                if (step["Condition"]) {
-                  newStep.condition = step["Condition"]["_text"];
-                }
+            // pre-flow request and response
+            newEndpoint.requestPreFlow = this.flowXmlToJson(
+              "PreFlow",
+              "Request",
+              proxyJson["ProxyEndpoint"],
+            );
+            newEndpoint.responsePreFlow = this.flowXmlToJson(
+              "PreFlow",
+              "Response",
+              proxyJson["ProxyEndpoint"],
+            );
 
-                // load policy
-                let policyContents = fs.readFileSync(
-                  tempOutputDir + "/apiproxy/policies/" + newStep.name + ".xml",
-                  "utf8",
-                );
-                let policyJsonString = xmljs.xml2json(policyContents, {
-                  compact: true,
-                  spaces: 2,
-                });
-                let policyJson = JSON.parse(policyJsonString);
-                let newPolicy = new Policy();
-                newPolicy.name = newStep.name;
-                newPolicy.type = Object.keys(policyJson)[1];
-                newPolicy.content = policyJson;
-                newProxy.policies.push(newPolicy);
-                newEndpoint.requestPreFlow.steps.push(newStep);
-              }
-            } else if (
-              proxyJson["ProxyEndpoint"]["PreFlow"]["Request"]["Step"]
-            ) {
-              newEndpoint.requestPreFlow = new Flow("PreFlow");
-              let newStep = new Step();
-              newStep.name =
-                proxyJson["ProxyEndpoint"]["PreFlow"]["Request"]["Step"][
-                  "Name"
-                ]["_text"];
-              if (
-                proxyJson["ProxyEndpoint"]["PreFlow"]["Request"]["Step"][
-                  "Condition"
-                ]
-              ) {
-                newStep.condition =
-                  proxyJson["ProxyEndpoint"]["PreFlow"]["Request"]["Step"][
-                    "Condition"
-                  ]["_text"];
-              }
-              // load policy
+            newProxy.endpoints.push(newEndpoint);
+
+            // policies
+            let policies: string[] = fs.readdirSync(
+              tempOutputDir + "/apiproxy/policies",
+            );
+            for (let policy of policies) {
               let policyContents = fs.readFileSync(
-                tempOutputDir + "/apiproxy/policies/" + newStep.name + ".xml",
+                tempOutputDir + "/apiproxy/policies/" + policy,
                 "utf8",
               );
               let policyJsonString = xmljs.xml2json(policyContents, {
@@ -155,16 +120,13 @@ export class ApigeeConverter {
                 spaces: 2,
               });
               let policyJson = JSON.parse(policyJsonString);
-              // console.log(policyJsonString);
               let newPolicy = new Policy();
-              newPolicy.name = newStep.name;
               newPolicy.type = Object.keys(policyJson)[1];
-              newPolicy.content = policyJsonString;
+              newPolicy.name =
+                policyJson[newPolicy.type]["_attributes"]["name"];
+              newPolicy.content = policyJson;
               newProxy.policies.push(newPolicy);
-              newEndpoint.requestPreFlow.steps.push(newStep);
             }
-
-            newProxy.endpoints.push(newEndpoint);
 
             // targets
             let targets: string[] = fs.readdirSync(
@@ -191,10 +153,36 @@ export class ApigeeConverter {
                 ];
               newProxy.targets.push(newTarget);
             }
+
+            // resources
+            let resTypes: string[] = fs.readdirSync(
+              tempOutputDir + "/apiproxy/resources",
+            );
+            for (let resType of resTypes) {
+              let resFiles: string[] = fs.readdirSync(
+                tempOutputDir + "/apiproxy/resources/" + resType,
+              );
+
+              for (let resFile of resFiles) {
+                let newFile = new Resource();
+                newFile.name = resFile;
+                newFile.type = resType;
+                console.log("/apiproxy/resources/" + resType + "/" + resFile);
+                newFile.content = fs.readFileSync(
+                  tempOutputDir +
+                    "/apiproxy/resources/" +
+                    resType +
+                    "/" +
+                    resFile,
+                  "utf8",
+                );
+                newProxy.resources.push(newFile);
+              }
+            }
           }
 
           fs.rmSync(tempOutputDir, { recursive: true });
-          resolve(JSON.stringify(newProxy, null, 2));
+          resolve(newProxy);
         });
       });
     });
@@ -222,47 +210,74 @@ export class ApigeeConverter {
         };
 
         // request preflow
-        if (endpoint["requestPreFlow"]) {
-          endpointXml["ProxyEndpoint"]["PreFlow"] = {
-            _attributes: {
-              name: "PreFlow",
-            },
-            Request: {},
-          };
-          if (endpoint["requestPreFlow"]["steps"].length > 1) {
-            endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"] = [];
-            for (let step of endpoint["requestPreFlow"]["steps"]) {
-              let newStep = {
-                Name: {
-                  _text: step["name"],
-                },
-              };
-              if (step["condition"]) {
-                newStep["Condition"] = {
-                  _text: step["condition"],
-                };
-              }
-              endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"].push(
-                newStep,
-              );
-            }
-          } else {
-            endpointXml["ProxyEndpoint"]["PreFlow"]["Request"] = {
-              Step: {
-                Name: {
-                  _text: endpoint["requestPreFlow"]["steps"][0]["name"],
-                },
-              },
-            };
-            if (endpoint["requestPreFlow"]["steps"][0]["condition"]) {
-              endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"][
-                "Condition"
-              ] = {
-                _text: endpoint["requestPreFlow"]["steps"][0]["condition"],
-              };
-            }
-          }
-        }
+        endpointXml["ProxyEndpoint"]["PreFlow"] = {
+          _attributes: {
+            name: "PreFlow",
+          },
+          Request: {},
+          Response: {},
+        };
+        endpointXml["ProxyEndpoint"]["PostFlow"] = {
+          _attributes: {
+            name: "PostFlow",
+          },
+          Request: {},
+          Response: {},
+        };
+        if (endpoint["requestPreFlow"])
+          endpointXml["ProxyEndpoint"]["PreFlow"]["Request"] =
+            this.flowJsonToXml("PreFlow", endpoint["requestPreFlow"]);
+        if (endpoint["responsePreFlow"])
+          endpointXml["ProxyEndpoint"]["PreFlow"]["Response"] =
+            this.flowJsonToXml("PreFlow", endpoint["responsePreFlow"]);
+        if (endpoint["requestPostFlow"])
+          endpointXml["ProxyEndpoint"]["PostFlow"]["Request"] =
+            this.flowJsonToXml("PostFlow", endpoint["requestPostFlow"]);
+        if (endpoint["responsePostFlow"])
+          endpointXml["ProxyEndpoint"]["PostFlow"]["Response"] =
+            this.flowJsonToXml("PostFlow", endpoint["responsePostFlow"]);
+        // if (endpoint["requestPreFlow"]) {
+        //   endpointXml["ProxyEndpoint"]["PreFlow"] = {
+        //     _attributes: {
+        //       name: "PreFlow",
+        //     },
+        //     Request: {},
+        //     Response: {},
+        //   };
+        //   if (endpoint["requestPreFlow"]["steps"].length > 1) {
+        //     endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"] = [];
+        //     for (let step of endpoint["requestPreFlow"]["steps"]) {
+        //       let newStep = {
+        //         Name: {
+        //           _text: step["name"],
+        //         },
+        //       };
+        //       if (step["condition"]) {
+        //         newStep["Condition"] = {
+        //           _text: step["condition"],
+        //         };
+        //       }
+        //       endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"].push(
+        //         newStep,
+        //       );
+        //     }
+        //   } else {
+        //     endpointXml["ProxyEndpoint"]["PreFlow"]["Request"] = {
+        //       Step: {
+        //         Name: {
+        //           _text: endpoint["requestPreFlow"]["steps"][0]["name"],
+        //         },
+        //       },
+        //     };
+        //     if (endpoint["requestPreFlow"]["steps"][0]["condition"]) {
+        //       endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"][
+        //         "Condition"
+        //       ] = {
+        //         _text: endpoint["requestPreFlow"]["steps"][0]["condition"],
+        //       };
+        //     }
+        //   }
+        // }
 
         // routes
         if (endpoint["routes"].length) {
@@ -361,13 +376,96 @@ export class ApigeeConverter {
         );
       }
 
+      // resources
+      for (let resource of input["resources"]) {
+        fs.mkdirSync(tempFilePath + "/apiproxy/resources/" + resource["type"], {
+          recursive: true,
+        });
+        fs.writeFileSync(
+          tempFilePath +
+            "/apiproxy/resources/" +
+            resource["type"] +
+            "/" +
+            resource["name"],
+          resource["content"],
+        );
+        zipfile.addFile(
+          tempFilePath +
+            "/apiproxy/resources/" +
+            "/" +
+            resource["type"] +
+            "/" +
+            resource["name"],
+          "apiproxy/resources/" + resource["type"] + "/" + resource["name"],
+        );
+      }
+
       zipfile.outputStream
         .pipe(fs.createWriteStream(tempFilePath + ".zip"))
         .on("close", function () {
-          // console.log("zip file done: " + tempFilePath + ".zip");
           resolve(tempFilePath + ".zip");
         });
       zipfile.end();
     });
+  }
+
+  public flowXmlToJson(type: string, subType: string, sourceDoc: any): Flow {
+    let resultFlow: Flow = new Flow(type);
+    if (
+      sourceDoc[type][subType]["Step"] &&
+      sourceDoc[type][subType]["Step"].length > 0
+    ) {
+      for (let step of sourceDoc[type][subType]["Step"]) {
+        let newStep = new Step();
+        newStep.name = step["Name"]["_text"];
+        if (step["Condition"]) {
+          newStep.condition = step["Condition"]["_text"];
+        }
+
+        resultFlow.steps.push(newStep);
+      }
+    } else if (sourceDoc[type][subType]["Step"]) {
+      let newStep = new Step();
+      newStep.name = sourceDoc[type][subType]["Step"]["Name"]["_text"];
+      if (sourceDoc[type][subType]["Step"]["Condition"]) {
+        newStep.condition =
+          sourceDoc[type][subType]["Step"]["Condition"]["_text"];
+      }
+      resultFlow.steps.push(newStep);
+    }
+
+    return resultFlow;
+  }
+
+  public flowJsonToXml(type: string, sourceDoc: any): any {
+    let result: any = {};
+    if (sourceDoc["steps"].length > 1) {
+      result["Step"] = [];
+      for (let step of sourceDoc["steps"]) {
+        let newStep = {
+          Name: {
+            _text: step["name"],
+          },
+        };
+        if (step["condition"]) {
+          newStep["Condition"] = {
+            _text: step["condition"],
+          };
+        }
+        result["Step"].push(newStep);
+      }
+    } else if (sourceDoc["steps"]) {
+      result["Step"] = {
+        Name: {
+          _text: sourceDoc["steps"][0]["name"],
+        },
+      };
+      if (sourceDoc["steps"][0]["condition"]) {
+        result["Step"]["Condition"] = {
+          _text: sourceDoc["steps"][0]["condition"],
+        };
+      }
+    }
+    return result;
   }
 }

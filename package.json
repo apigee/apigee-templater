@@ -25,6 +25,7 @@
   "dependencies": {
     "express": "^5.1.0",
     "xml-js": "^1.6.11",
+    "yaml": "^2.8.1",
     "yauzl": "^3.2.0",
     "yazl": "^3.3.1"
   },

@@ -1,7 +1,6 @@
 import express from "express";
-import * as xmljs from "xml-js";
 import fs from "fs";
-import path from "path";
+import { stringify } from "yaml";
 import { ApigeeConverter } from "./lib/converter.ts";
 
 const converter = new ApigeeConverter();
@@ -26,6 +25,7 @@ app.post("/apigee-templater/convert", (req, res) => {
   switch (requestType) {
     case "application/octet-stream":
       // Apigee proxy zip input, json output
+      fs.mkdirSync("./data", { recursive: true });
       let tempFilePath = "./data/" + tempFileName + ".zip";
       fs.writeFileSync(tempFilePath, req.body);
 
@@ -33,8 +33,12 @@ app.post("/apigee-templater/convert", (req, res) => {
         .zipToJson(tempFileName, tempFilePath)
         .then((result) => {
           fs.rmSync(tempFilePath);
-          res.setHeader("Content-Type", "application/json");
-          res.send(result);
+          if (responseType == "application/yaml") {
+            res.send(stringify(result));
+          } else {
+            res.setHeader("Content-Type", "application/json");
+            res.send(JSON.stringify(result, null, 2));
+          }
         })
         .catch((error) => {
           res.status(500).send(error.message);
