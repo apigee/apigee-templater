@@ -12,6 +12,7 @@ import {
   Policy,
   Target,
   Resource,
+  ProxyFeature,
 } from "./interfaces.ts";
 
 export class ApigeeConverter {
@@ -496,5 +497,84 @@ export class ApigeeConverter {
       }
     }
     return result;
+  }
+
+  public async jsonApplyFeature(
+    proxy: Proxy,
+    feature: ProxyFeature,
+  ): Promise<Proxy> {
+    return new Promise<any>((resolve, reject) => {
+      for (let endpoint of proxy.endpoints) {
+        if (
+          feature.endpointRequestPreFlowSteps &&
+          feature.endpointRequestPreFlowSteps.length > 0
+        )
+          endpoint.requestPreFlow.steps = endpoint.requestPreFlow.steps.concat(
+            feature.endpointRequestPreFlowSteps,
+          );
+        if (
+          feature.endpointRequestPostFlowSteps &&
+          feature.endpointRequestPostFlowSteps.length > 0
+        )
+          endpoint.requestPostFlow.steps =
+            endpoint.requestPostFlow.steps.concat(
+              feature.endpointRequestPostFlowSteps,
+            );
+        if (
+          feature.endpointResponsePreFlowSteps &&
+          feature.endpointResponsePreFlowSteps.length > 0
+        )
+          endpoint.responsePreFlow.steps =
+            endpoint.responsePreFlow.steps.concat(
+              feature.endpointResponsePreFlowSteps,
+            );
+        if (
+          feature.endpointResponsePostFlowSteps &&
+          feature.endpointResponsePostFlowSteps.length > 0
+        )
+          endpoint.requestPostFlow.steps =
+            endpoint.requestPostFlow.steps.concat(
+              feature.endpointResponsePostFlowSteps,
+            );
+      }
+
+      for (let target of proxy.targets) {
+        if (
+          feature.targetRequestPreFlowSteps &&
+          feature.targetRequestPreFlowSteps.length > 0
+        )
+          target.requestPreFlow.steps = target.requestPreFlow.steps.concat(
+            feature.targetRequestPreFlowSteps,
+          );
+        if (
+          feature.targetRequestPostFlowSteps &&
+          feature.targetRequestPostFlowSteps.length > 0
+        )
+          target.requestPostFlow.steps = target.requestPostFlow.steps.concat(
+            feature.targetRequestPostFlowSteps,
+          );
+        if (
+          feature.targetResponsePreFlowSteps &&
+          feature.targetResponsePreFlowSteps.length > 0
+        )
+          target.responsePreFlow.steps = target.responsePreFlow.steps.concat(
+            feature.targetResponsePreFlowSteps,
+          );
+        if (
+          feature.targetResponsePostFlowSteps &&
+          feature.targetResponsePostFlowSteps.length > 0
+        )
+          target.requestPostFlow.steps = target.requestPostFlow.steps.concat(
+            feature.targetResponsePostFlowSteps,
+          );
+      }
+
+      if (feature.policies && feature.policies.length > 0)
+        proxy.policies = proxy.policies.concat(feature.policies);
+      if (feature.resources && feature.resources.length > 0)
+        proxy.resources = proxy.resources.concat(feature.resources);
+
+      resolve(proxy);
+    });
   }
 }

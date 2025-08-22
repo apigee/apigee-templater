@@ -1,7 +1,8 @@
-import express from "express";
+import express, { response } from "express";
 import fs from "fs";
 import * as YAML from "yaml";
 import { ApigeeConverter } from "./lib/converter.ts";
+import { Proxy, ProxyFeature } from "./lib/interfaces.ts";
 
 const converter = new ApigeeConverter();
 const app = express();
@@ -75,16 +76,40 @@ app.post("/apigee-templater/convert", (req, res) => {
         res.setHeader("Content-Type", "application/json");
         res.json(YAML.parse(req.body));
       } else {
-        let yamlObj = YAML.parse(req.body);
-        converter.jsonToZip(tempFileName, yamlObj).then((result) => {
-          let zipOutputFile = fs.readFileSync(result);
-          res.setHeader("Content-Type", "application/octet-stream");
-          res.send(zipOutputFile);
-        });
+        converter
+          .jsonToZip(tempFileName, YAML.parse(req.body))
+          .then((result) => {
+            let zipOutputFile = fs.readFileSync(result);
+            res.setHeader("Content-Type", "application/octet-stream");
+            res.send(zipOutputFile);
+          });
       }
       break;
   }
 });
+
+app.post("/apigee-templater/apply-feature", async (req, res) => {
+  if (!req.body) {
+    return res.status(400).send("No data received.");
+  }
+
+  let requestType = req.header("Content-Type");
+  let responseType = req.header("Accept");
+
+  if (
+    (requestType == "*/*" || requestType == "application/json") &&
+    (responseType == "*/*" || responseType == "application/json")
+  ) {
+    let proxy: Proxy = req.body["proxy"];
+    let feature: ProxyFeature = req.body["feature"];
+    proxy = await converter.jsonApplyFeature(proxy, feature);
+    res.json(proxy);
+  } else {
+    res.status(501).send("Not yet implemented");
+  }
+});
+
+app.post("/apigee-templater/remove-feature", (req, res) => {});
 
 app.listen("8080", () => {
   console.log(`apigee-templater listening on port 8080`);

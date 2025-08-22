@@ -1,0 +1,86 @@
+{
+  "name": "api-key-authentication",
+  "endpointRequestPreFlowSteps": [
+    {
+      "name": "VA-VerifyKey",
+      "condition": "proxy.pathsuffix = \"/get\""
+    },
+    {
+      "name": "AM-RemoveKey"
+    }
+  ],
+  "policies": [
+    {
+      "name": "VA-VerifyKey",
+      "type": "VerifyAPIKey",
+      "content": {
+        "_declaration": {
+          "_attributes": {
+            "version": "1.0",
+            "encoding": "UTF-8",
+            "standalone": "yes"
+          }
+        },
+        "VerifyAPIKey": {
+          "_attributes": {
+            "continueOnError": "false",
+            "enabled": "true",
+            "name": "VA-VerifyKey"
+          },
+          "DisplayName": {
+            "_text": "VA-VerifyKey"
+          },
+          "Properties": {},
+          "APIKey": {
+            "_attributes": {
+              "ref": "request.header.x-api-key"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "AM-RemoveKey",
+      "type": "AssignMessage",
+      "content": {
+        "_declaration": {
+          "_attributes": {
+            "version": "1.0",
+            "encoding": "UTF-8",
+            "standalone": "yes"
+          }
+        },
+        "AssignMessage": {
+          "_attributes": {
+            "continueOnError": "false",
+            "enabled": "true",
+            "name": "AM-RemoveKey"
+          },
+          "DisplayName": {
+            "_text": "AM-RemoveKey"
+          },
+          "Properties": {},
+          "Remove": {
+            "Headers": {
+              "Header": {
+                "_attributes": {
+                  "name": "x-api-key"
+                }
+              }
+            }
+          },
+          "IgnoreUnresolvedVariables": {
+            "_text": "true"
+          },
+          "AssignTo": {
+            "_attributes": {
+              "createNew": "false",
+              "transport": "http",
+              "type": "request"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -66,3 +66,17 @@ export class Resource {
   type: string = "";
   content: string = "";
 }
+
+export class ProxyFeature {
+  name: string = "";
+  endpointRequestPreFlowSteps: Step[] = [];
+  endpointRequestPostFlowSteps: Step[] = [];
+  endpointResponsePreFlowSteps: Step[] = [];
+  endpointResponsePostFlowSteps: Step[] = [];
+  targetRequestPreFlowSteps: Step[] = [];
+  targetRequestPostFlowSteps: Step[] = [];
+  targetResponsePreFlowSteps: Step[] = [];
+  targetResponsePostFlowSteps: Step[] = [];
+  policies: Policy[] = [];
+  resources: Resource[] = [];
+}
