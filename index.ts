@@ -1,15 +1,26 @@
 import express from "express";
 import fs from "fs";
-import { stringify } from "yaml";
+import * as YAML from "yaml";
 import { ApigeeConverter } from "./lib/converter.ts";
 
 const converter = new ApigeeConverter();
 const app = express();
-app.use(express.json());
+app.use(
+  express.json({
+    type: "application/json",
+    limit: "2mb",
+  }),
+);
 app.use(
   express.raw({
     type: "application/octet-stream",
-    limit: "10mb",
+    limit: "20mb",
+  }),
+);
+app.use(
+  express.text({
+    type: "application/yaml",
+    limit: "2mb",
   }),
 );
 
@@ -34,7 +45,8 @@ app.post("/apigee-templater/convert", (req, res) => {
         .then((result) => {
           fs.rmSync(tempFilePath);
           if (responseType == "application/yaml") {
-            res.send(stringify(result));
+            res.setHeader("Content-Type", "application/yaml");
+            res.send(YAML.stringify(result));
           } else {
             res.setHeader("Content-Type", "application/json");
             res.send(JSON.stringify(result, null, 2));
@@ -45,12 +57,31 @@ app.post("/apigee-templater/convert", (req, res) => {
         });
       break;
     case "application/json":
-      // Apigee proxy json input, zip output
-      converter.jsonToZip(tempFileName, req.body).then((result) => {
-        let zipOutputFile = fs.readFileSync(result);
-        res.setHeader("Content-Type", "application/octet-stream");
-        res.send(zipOutputFile);
-      });
+      // Apigee proxy json input, yaml or zip output
+      if (responseType == "application/yaml") {
+        res.setHeader("Content-Type", "application/yaml");
+        res.send(YAML.stringify(req.body));
+      } else {
+        converter.jsonToZip(tempFileName, req.body).then((result) => {
+          let zipOutputFile = fs.readFileSync(result);
+          res.setHeader("Content-Type", "application/octet-stream");
+          res.send(zipOutputFile);
+        });
+      }
+      break;
+    case "application/yaml":
+      // Apigee proxy yaml input, json or zip output
+      if (responseType == "application/json") {
+        res.setHeader("Content-Type", "application/json");
+        res.json(YAML.parse(req.body));
+      } else {
+        let yamlObj = YAML.parse(req.body);
+        converter.jsonToZip(tempFileName, yamlObj).then((result) => {
+          let zipOutputFile = fs.readFileSync(result);
+          res.setHeader("Content-Type", "application/octet-stream");
+          res.send(zipOutputFile);
+        });
+      }
       break;
   }
 });

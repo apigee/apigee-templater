@@ -103,7 +103,16 @@ export class ApigeeConverter {
               "Response",
               proxyJson["ProxyEndpoint"],
             );
-
+            newEndpoint.requestPostFlow = this.flowXmlToJson(
+              "PostFlow",
+              "Request",
+              proxyJson["ProxyEndpoint"],
+            );
+            newEndpoint.responsePostFlow = this.flowXmlToJson(
+              "PostFlow",
+              "Response",
+              proxyJson["ProxyEndpoint"],
+            );
             newProxy.endpoints.push(newEndpoint);
 
             // policies
@@ -151,32 +160,55 @@ export class ApigeeConverter {
                 targetJson["TargetEndpoint"]["HTTPTargetConnection"]["URL"][
                   "_text"
                 ];
+
+              newTarget.requestPreFlow = this.flowXmlToJson(
+                "PreFlow",
+                "Request",
+                proxyJson["TargetEndpoint"],
+              );
+              newTarget.responsePreFlow = this.flowXmlToJson(
+                "PreFlow",
+                "Response",
+                proxyJson["TargetEndpoint"],
+              );
+              newTarget.requestPostFlow = this.flowXmlToJson(
+                "PostFlow",
+                "Request",
+                proxyJson["TargetEndpoint"],
+              );
+              newTarget.responsePostFlow = this.flowXmlToJson(
+                "PostFlow",
+                "Response",
+                proxyJson["TargetEndpoint"],
+              );
+
               newProxy.targets.push(newTarget);
             }
 
             // resources
-            let resTypes: string[] = fs.readdirSync(
-              tempOutputDir + "/apiproxy/resources",
-            );
-            for (let resType of resTypes) {
-              let resFiles: string[] = fs.readdirSync(
-                tempOutputDir + "/apiproxy/resources/" + resType,
+            if (fs.existsSync(tempOutputDir + "/apiproxy/resources")) {
+              let resTypes: string[] = fs.readdirSync(
+                tempOutputDir + "/apiproxy/resources",
               );
-
-              for (let resFile of resFiles) {
-                let newFile = new Resource();
-                newFile.name = resFile;
-                newFile.type = resType;
-                console.log("/apiproxy/resources/" + resType + "/" + resFile);
-                newFile.content = fs.readFileSync(
-                  tempOutputDir +
-                    "/apiproxy/resources/" +
-                    resType +
-                    "/" +
-                    resFile,
-                  "utf8",
+              for (let resType of resTypes) {
+                let resFiles: string[] = fs.readdirSync(
+                  tempOutputDir + "/apiproxy/resources/" + resType,
                 );
-                newProxy.resources.push(newFile);
+
+                for (let resFile of resFiles) {
+                  let newFile = new Resource();
+                  newFile.name = resFile;
+                  newFile.type = resType;
+                  newFile.content = fs.readFileSync(
+                    tempOutputDir +
+                      "/apiproxy/resources/" +
+                      resType +
+                      "/" +
+                      resFile,
+                    "utf8",
+                  );
+                  newProxy.resources.push(newFile);
+                }
               }
             }
           }
@@ -224,60 +256,16 @@ export class ApigeeConverter {
           Request: {},
           Response: {},
         };
-        if (endpoint["requestPreFlow"])
-          endpointXml["ProxyEndpoint"]["PreFlow"]["Request"] =
-            this.flowJsonToXml("PreFlow", endpoint["requestPreFlow"]);
-        if (endpoint["responsePreFlow"])
-          endpointXml["ProxyEndpoint"]["PreFlow"]["Response"] =
-            this.flowJsonToXml("PreFlow", endpoint["responsePreFlow"]);
-        if (endpoint["requestPostFlow"])
-          endpointXml["ProxyEndpoint"]["PostFlow"]["Request"] =
-            this.flowJsonToXml("PostFlow", endpoint["requestPostFlow"]);
-        if (endpoint["responsePostFlow"])
-          endpointXml["ProxyEndpoint"]["PostFlow"]["Response"] =
-            this.flowJsonToXml("PostFlow", endpoint["responsePostFlow"]);
-        // if (endpoint["requestPreFlow"]) {
-        //   endpointXml["ProxyEndpoint"]["PreFlow"] = {
-        //     _attributes: {
-        //       name: "PreFlow",
-        //     },
-        //     Request: {},
-        //     Response: {},
-        //   };
-        //   if (endpoint["requestPreFlow"]["steps"].length > 1) {
-        //     endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"] = [];
-        //     for (let step of endpoint["requestPreFlow"]["steps"]) {
-        //       let newStep = {
-        //         Name: {
-        //           _text: step["name"],
-        //         },
-        //       };
-        //       if (step["condition"]) {
-        //         newStep["Condition"] = {
-        //           _text: step["condition"],
-        //         };
-        //       }
-        //       endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"].push(
-        //         newStep,
-        //       );
-        //     }
-        //   } else {
-        //     endpointXml["ProxyEndpoint"]["PreFlow"]["Request"] = {
-        //       Step: {
-        //         Name: {
-        //           _text: endpoint["requestPreFlow"]["steps"][0]["name"],
-        //         },
-        //       },
-        //     };
-        //     if (endpoint["requestPreFlow"]["steps"][0]["condition"]) {
-        //       endpointXml["ProxyEndpoint"]["PreFlow"]["Request"]["Step"][
-        //         "Condition"
-        //       ] = {
-        //         _text: endpoint["requestPreFlow"]["steps"][0]["condition"],
-        //       };
-        //     }
-        //   }
-        // }
+        endpointXml["ProxyEndpoint"]["PreFlow"]["Request"] = this.flowJsonToXml(
+          "PreFlow",
+          endpoint["requestPreFlow"],
+        );
+        endpointXml["ProxyEndpoint"]["PreFlow"]["Response"] =
+          this.flowJsonToXml("PreFlow", endpoint["responsePreFlow"]);
+        endpointXml["ProxyEndpoint"]["PostFlow"]["Request"] =
+          this.flowJsonToXml("PostFlow", endpoint["requestPostFlow"]);
+        endpointXml["ProxyEndpoint"]["PostFlow"]["Response"] =
+          this.flowJsonToXml("PostFlow", endpoint["responsePostFlow"]);
 
         // routes
         if (endpoint["routes"].length) {
@@ -343,6 +331,35 @@ export class ApigeeConverter {
             },
           },
         };
+
+        targetXml["TargetEndpoint"]["PreFlow"] = {
+          _attributes: {
+            name: "PreFlow",
+          },
+          Request: {},
+          Response: {},
+        };
+        targetXml["TargetEndpoint"]["PostFlow"] = {
+          _attributes: {
+            name: "PostFlow",
+          },
+          Request: {},
+          Response: {},
+        };
+        targetXml["TargetEndpoint"]["PreFlow"]["Request"] = this.flowJsonToXml(
+          "PreFlow",
+          target["requestPreFlow"],
+        );
+        targetXml["TargetEndpoint"]["PreFlow"]["Response"] = this.flowJsonToXml(
+          "PreFlow",
+          target["responsePreFlow"],
+        );
+        targetXml["TargetEndpoint"]["PostFlow"]["Request"] = this.flowJsonToXml(
+          "PostFlow",
+          target["requestPostFlow"],
+        );
+        targetXml["TargetEndpoint"]["PostFlow"]["Response"] =
+          this.flowJsonToXml("PostFlow", target["responsePostFlow"]);
 
         fs.mkdirSync(tempFilePath + "/apiproxy/targets", { recursive: true });
         let xmlString = xmljs.json2xml(JSON.stringify(targetXml), {
@@ -412,6 +429,9 @@ export class ApigeeConverter {
   public flowXmlToJson(type: string, subType: string, sourceDoc: any): Flow {
     let resultFlow: Flow = new Flow(type);
     if (
+      sourceDoc &&
+      sourceDoc[type] &&
+      sourceDoc[type][subType] &&
       sourceDoc[type][subType]["Step"] &&
       sourceDoc[type][subType]["Step"].length > 0
     ) {
@@ -424,7 +444,12 @@ export class ApigeeConverter {
 
         resultFlow.steps.push(newStep);
       }
-    } else if (sourceDoc[type][subType]["Step"]) {
+    } else if (
+      sourceDoc &&
+      sourceDoc[type] &&
+      sourceDoc[type][subType] &&
+      sourceDoc[type][subType]["Step"]
+    ) {
       let newStep = new Step();
       newStep.name = sourceDoc[type][subType]["Step"]["Name"]["_text"];
       if (sourceDoc[type][subType]["Step"]["Condition"]) {
@@ -439,7 +464,7 @@ export class ApigeeConverter {
 
   public flowJsonToXml(type: string, sourceDoc: any): any {
     let result: any = {};
-    if (sourceDoc["steps"].length > 1) {
+    if (sourceDoc && sourceDoc["steps"] && sourceDoc["steps"].length > 1) {
       result["Step"] = [];
       for (let step of sourceDoc["steps"]) {
         let newStep = {
@@ -454,7 +479,11 @@ export class ApigeeConverter {
         }
         result["Step"].push(newStep);
       }
-    } else if (sourceDoc["steps"]) {
+    } else if (
+      sourceDoc &&
+      sourceDoc["steps"] &&
+      sourceDoc["steps"].length == 1
+    ) {
       result["Step"] = {
         Name: {
           _text: sourceDoc["steps"][0]["name"],
