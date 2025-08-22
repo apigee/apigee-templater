@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/apigee/apigee-templater#readme",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.3",
     "express": "^5.1.0",
     "xml-js": "^1.6.11",
     "yaml": "^2.8.1",
