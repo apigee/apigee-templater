@@ -16,7 +16,7 @@
     "postcss": "^8.4.13",
     "tailwindcss": "^3.0.24",
     "typescript": "^4.6.3",
-    "vite": "^2.8.6",
+    "vite": "^5.4.7",
     "vite-plugin-solid": "^2.2.6"
   },
   "dependencies": {
