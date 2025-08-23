@@ -21,7 +21,7 @@
   "dependencies": {
     "@types/express": "^4.17.13",
     "apigee-templater-module": "^0.6.4",
-    "apigee-x-module": "^0.5.14",
+    "apigee-x-module": "^2.0.0",
     "archiver": "^5.3.0",
     "cors": "^2.8.5",
     "express": "^4.17.2",
