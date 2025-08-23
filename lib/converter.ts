@@ -502,6 +502,7 @@ export class ApigeeConverter {
   public async jsonApplyFeature(
     proxy: Proxy,
     feature: ProxyFeature,
+    parameters: { [key: string]: string } = {},
   ): Promise<Proxy> {
     return new Promise<any>((resolve, reject) => {
       for (let endpoint of proxy.endpoints) {
@@ -570,11 +571,31 @@ export class ApigeeConverter {
       }
 
       if (feature.policies && feature.policies.length > 0)
-        proxy.policies = proxy.policies.concat(feature.policies);
+        proxy.policies = proxy.policies.concat(
+          this.featureReplaceParameters(feature.policies, feature, parameters),
+        );
       if (feature.resources && feature.resources.length > 0)
-        proxy.resources = proxy.resources.concat(feature.resources);
+        proxy.resources = proxy.resources.concat(
+          this.featureReplaceParameters(feature.resources, feature, parameters),
+        );
 
       resolve(proxy);
     });
+  }
+
+  public featureReplaceParameters(
+    input: any,
+    feature: ProxyFeature,
+    parameters: { [key: string]: string } = {},
+  ): any {
+    let inputString = JSON.stringify(input);
+
+    for (let parameter of feature.parameters) {
+      let paramValue = parameter.default;
+      if (parameters[parameter.name]) paramValue = parameters[parameter.name];
+      inputString = inputString.replaceAll(parameter.name, paramValue);
+    }
+
+    return JSON.parse(inputString);
   }
 }

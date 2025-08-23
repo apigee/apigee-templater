@@ -113,8 +113,19 @@ app.post("/apigee-templater/apply-feature", async (req, res) => {
     (responseType == "*/*" || responseType == "application/json")
   ) {
     let proxy: Proxy = req.body["proxy"];
-    let feature: ProxyFeature = req.body["feature"];
-    proxy = await converter.jsonApplyFeature(proxy, feature);
+    let feature: ProxyFeature;
+    if (typeof req.body["feature"] == "string") {
+      feature = JSON.parse(
+        fs.readFileSync("./features/" + req.body["feature"] + ".json", "utf8"),
+      );
+    } else {
+      feature = req.body["feature"];
+    }
+    let parameters: { [key: string]: string } = req.body["parameters"]
+      ? req.body["parameters"]
+      : {};
+    proxy = await converter.jsonApplyFeature(proxy, feature, parameters);
+
     res.json(proxy);
   } else {
     res.status(501).send("Not yet implemented.");
@@ -123,8 +134,7 @@ app.post("/apigee-templater/apply-feature", async (req, res) => {
 
 app.post("/apigee-templater/remove-feature", (req, res) => {});
 
-// mcp
-// Handle POST requests for client-to-server communication
+// MCP
 app.post("/mcp", async (req, res) => {
   // Check for existing session ID
   const sessionId = req.headers["mcp-session-id"] as string | undefined;

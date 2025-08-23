@@ -1,0 +1,71 @@
+{
+  "name": "api-quota",
+  "description": "Adds simple quota controls to the API flow.",
+  "endpointRequestPreFlowSteps": [
+    {
+      "name": "Q-CheckQuota"
+    }
+  ],
+  "policies": [
+    {
+      "name": "Q-CheckQuota",
+      "type": "Quota",
+      "content": {
+        "_declaration": {
+          "_attributes": {
+            "version": "1.0",
+            "encoding": "UTF-8",
+            "standalone": "yes"
+          }
+        },
+        "Quota": {
+          "_attributes": {
+            "continueOnError": "false",
+            "enabled": "true",
+            "name": "Q-CheckQuota",
+            "type": "calendar"
+          },
+          "DisplayName": {
+            "_text": "Q-CheckQuota"
+          },
+          "Properties": {},
+          "Allow": {
+            "_attributes": {
+              "count": "2000",
+              "countRef": "request.header.allowed_quota"
+            }
+          },
+          "Interval": {
+            "_attributes": {
+              "ref": "request.header.quota_count"
+            },
+            "_text": "1"
+          },
+          "Distributed": {
+            "_text": "false"
+          },
+          "Synchronous": {
+            "_text": "false"
+          },
+          "TimeUnit": {
+            "_attributes": {
+              "ref": "request.header.quota_timeout"
+            },
+            "_text": "month"
+          },
+          "StartTime": {
+            "_text": "2013-08-21 10:00:00"
+          },
+          "AsynchronousConfiguration": {
+            "SyncIntervalInSeconds": {
+              "_text": "20"
+            },
+            "SyncMessageCount": {
+              "_text": "5"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

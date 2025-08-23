@@ -1,9 +1,17 @@
 {
-  "name": "api-key-authentication",
+  "name": "auth-apikey-header",
+  "description": "Adds simple API key authentication from a header in the proxy pre-flow.",
+  "parameters": [
+    {
+      "name": "API_KEY_HEADER_NAME",
+      "description": "The header name to use for the API key",
+      "examples": ["x-api-key", "x-apikey"],
+      "default": "x-api-key"
+    }
+  ],
   "endpointRequestPreFlowSteps": [
     {
-      "name": "VA-VerifyKey",
-      "condition": "proxy.pathsuffix = \"/get\""
+      "name": "VA-VerifyKey"
     },
     {
       "name": "AM-RemoveKey"
@@ -33,7 +41,7 @@
           "Properties": {},
           "APIKey": {
             "_attributes": {
-              "ref": "request.header.x-api-key"
+              "ref": "request.header.API_KEY_HEADER_NAME"
             }
           }
         }
@@ -64,7 +72,7 @@
             "Headers": {
               "Header": {
                 "_attributes": {
-                  "name": "x-api-key"
+                  "name": "API_KEY_HEADER_NAME"
                 }
               }
             }

@@ -69,6 +69,8 @@ export class Resource {
 
 export class ProxyFeature {
   name: string = "";
+  description: string = "";
+  parameters: FeatureParameter[] = [];
   endpointRequestPreFlowSteps: Step[] = [];
   endpointRequestPostFlowSteps: Step[] = [];
   endpointResponsePreFlowSteps: Step[] = [];
@@ -79,4 +81,11 @@ export class ProxyFeature {
   targetResponsePostFlowSteps: Step[] = [];
   policies: Policy[] = [];
   resources: Resource[] = [];
+}
+
+export class FeatureParameter {
+  name: string = "";
+  description: string = "";
+  examples: string[] = [];
+  default: string = "";
 }
