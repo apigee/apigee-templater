@@ -2,21 +2,20 @@ import express, { response } from "express";
 import { randomUUID } from "node:crypto";
 import fs from "fs";
 import * as YAML from "yaml";
-import {
-  McpServer,
-  ResourceTemplate,
-} from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { ApigeeConverter } from "./lib/converter.ts";
 import { Proxy, ProxyFeature } from "./lib/interfaces.ts";
+import { ApigeeTemplaterService } from "./lib/service.ts";
 
 // Map to store transports by session ID
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 
 const converter = new ApigeeConverter();
+const apigeeService = new ApigeeTemplaterService();
 const app = express();
 app.use(
   express.json({
@@ -49,8 +48,8 @@ app.post("/apigee-templater/convert", (req, res) => {
   switch (requestType) {
     case "application/octet-stream":
       // Apigee proxy zip input, json output
-      fs.mkdirSync("./data", { recursive: true });
-      let tempFilePath = "./data/" + tempFileName + ".zip";
+      fs.mkdirSync("./data/temp", { recursive: true });
+      let tempFilePath = "./data/temp/" + tempFileName + ".zip";
       fs.writeFileSync(tempFilePath, req.body);
 
       converter
@@ -168,36 +167,113 @@ app.post("/mcp", async (req, res) => {
       version: "0.0.1",
     });
 
-    // ... set up server resources, tools, and prompts ...
-    // Add an addition tool
-    server.registerTool(
-      "add",
+    server.registerResource(
+      "proxies",
+      "proxies://main",
       {
-        title: "Addition Tool",
-        description: "Add two numbers",
-        inputSchema: { a: z.number(), b: z.number() },
+        title: "Proxies",
+        description: "All proxies.",
       },
-      async ({ a, b }) => ({
-        content: [{ type: "text", text: String(a + b) }],
-      }),
+      async (uri) => {
+        // load all proxies
+        return apigeeService.proxiesList(uri);
+      },
     );
 
-    // Add a dynamic greeting resource
     server.registerResource(
-      "greeting",
-      new ResourceTemplate("greeting://{name}", { list: undefined }),
+      "features",
+      "features://main",
       {
-        title: "Greeting Resource", // Display name for UI
-        description: "Dynamic greeting generator",
+        title: "Features",
+        description: "All features.",
       },
-      async (uri, { name }) => ({
-        contents: [
-          {
-            uri: uri.href,
-            text: `Hello, ${name}!`,
-          },
-        ],
-      }),
+      async (uri) => {
+        // load all features
+        return apigeeService.featuresList(uri);
+      },
+    );
+
+    // ... set up server resources, tools, and prompts ...
+    server.registerTool(
+      "proxyCreate",
+      {
+        title: "Proxy Create Tool",
+        description:
+          "Create an empty API proxy with an optional target service URL.",
+        inputSchema: {
+          proxyName: z.string(),
+          basePath: z.string(),
+          targetUrl: z.string().optional(),
+        },
+      },
+      async ({ proxyName, basePath, targetUrl }) => {
+        return apigeeService.proxyCreate(
+          proxyName,
+          basePath,
+          targetUrl,
+          converter,
+        );
+      },
+    );
+
+    server.registerTool(
+      "proxyAddEndpoint",
+      {
+        title: "Proxy Add Endpoint",
+        description: "Add a proxy endpoint that can receive API traffic.",
+        inputSchema: {
+          proxyName: z.string(),
+          endpointName: z.string(),
+          basePath: z.string(),
+          targetName: z.string(),
+          targetUrl: z.string(),
+          targetRouteRule: z
+            .string()
+            .describe("An optional target route rule to apply.")
+            .optional(),
+        },
+      },
+      async ({
+        proxyName,
+        endpointName,
+        basePath,
+        targetName,
+        targetUrl,
+        targetRouteRule,
+      }) => {
+        return apigeeService.proxyAddEndpoint(
+          proxyName,
+          endpointName,
+          basePath,
+          targetName,
+          targetUrl,
+          targetRouteRule,
+          converter,
+        );
+      },
+    );
+
+    server.registerTool(
+      "proxyAddTarget",
+      {
+        title: "Proxy Add Target Tool",
+        description: "Add a backend target to a proxy.",
+        inputSchema: {
+          proxyName: z.string(),
+          targetName: z.string(),
+          targetUrl: z.string(),
+          targetRouteRule: z.string(),
+        },
+      },
+      async ({ proxyName, targetName, targetUrl, targetRouteRule }) => {
+        return apigeeService.proxyAddTarget(
+          proxyName,
+          targetName,
+          targetUrl,
+          targetRouteRule,
+          converter,
+        );
+      },
     );
 
     // Connect to the MCP server

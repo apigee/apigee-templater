@@ -1,4 +1,7 @@
 export class Proxy {
+  name: string = "";
+  displayName?: string = "";
+  description?: string = "";
   endpoints: Endpoint[] = [];
   targets: Target[] = [];
   policies: Policy[] = [];
@@ -8,22 +11,22 @@ export class Proxy {
 export class Endpoint {
   name: string;
   path: string;
-  requestPreFlow: Flow;
-  requestConditionalFlows: Flow[] = [];
-  requestPostFlow: Flow;
-  responsePreFlow: Flow;
-  responseConditionalFlows: Flow[] = [];
-  responsePostFlow: Flow;
-  postClientFlow: Flow;
-  faultRules: Flow[] = [];
-  defaultFaultRule: Flow;
+  requestPreFlow?: Flow;
+  requestConditionalFlows?: Flow[] = [];
+  requestPostFlow?: Flow;
+  responsePreFlow?: Flow;
+  responseConditionalFlows?: Flow[] = [];
+  responsePostFlow?: Flow;
+  postClientFlow?: Flow;
+  faultRules?: Flow[] = [];
+  defaultFaultRule?: Flow;
   routes: Route[] = [];
 }
 
 export class Route {
   name: string;
-  condition: string;
-  target: string;
+  condition?: string;
+  target?: string;
 }
 
 export class Flow {
@@ -44,14 +47,14 @@ export class Step {
 
 export class Target {
   name: string;
-  requestPreFlow: Flow;
-  requestConditionalFlows: Flow[] = [];
-  requestPostFlow: Flow;
-  responsePreFlow: Flow;
-  responseConditionalFlows: Flow[] = [];
-  responsePostFlow: Flow;
-  faultRules: Flow[] = [];
-  defaultFaultRule: Flow;
+  requestPreFlow?: Flow;
+  requestConditionalFlows?: Flow[] = [];
+  requestPostFlow?: Flow;
+  responsePreFlow?: Flow;
+  responseConditionalFlows?: Flow[] = [];
+  responsePostFlow?: Flow;
+  faultRules?: Flow[] = [];
+  defaultFaultRule?: Flow;
   url: string;
 }
 

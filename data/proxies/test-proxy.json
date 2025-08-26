@@ -1,0 +1,40 @@
+{
+  "name": "test-proxy",
+  "displayName": "test proxy",
+  "description": "A proxy for traffic to https://httpbin.org",
+  "endpoints": [
+    {
+      "name": "default",
+      "path": "/test-proxy",
+      "routes": [
+        {
+          "name": "default",
+          "target": "default"
+        }
+      ]
+    },
+    {
+      "name": "google",
+      "path": "/google",
+      "routes": [
+        {
+          "name": "google",
+          "target": "google",
+          "condition": ""
+        }
+      ]
+    }
+  ],
+  "targets": [
+    {
+      "name": "default",
+      "url": "https://httpbin.org"
+    },
+    {
+      "name": "google",
+      "url": "https://www.google.com"
+    }
+  ],
+  "policies": [],
+  "resources": []
+}

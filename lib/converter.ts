@@ -18,7 +18,7 @@ import {
 export class ApigeeConverter {
   public async zipToJson(name: string, inputFilePath: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      let tempOutputDir = "./data/" + name;
+      let tempOutputDir = "./data/temp/" + name;
       yauzl.open(inputFilePath, { lazyEntries: true }, (err, zipfile) => {
         if (err) throw err;
         zipfile.readEntry();
@@ -93,27 +93,50 @@ export class ApigeeConverter {
               newEndpoint.routes.push(newRoute);
             }
 
-            // pre-flow request and response
-            newEndpoint.requestPreFlow = this.flowXmlToJson(
-              "PreFlow",
-              "Request",
-              proxyJson["ProxyEndpoint"],
-            );
-            newEndpoint.responsePreFlow = this.flowXmlToJson(
-              "PreFlow",
-              "Response",
-              proxyJson["ProxyEndpoint"],
-            );
-            newEndpoint.requestPostFlow = this.flowXmlToJson(
-              "PostFlow",
-              "Request",
-              proxyJson["ProxyEndpoint"],
-            );
-            newEndpoint.responsePostFlow = this.flowXmlToJson(
-              "PostFlow",
-              "Response",
-              proxyJson["ProxyEndpoint"],
-            );
+            if (
+              this.testXmlFlow("PreFlow", "Request", proxyJson["ProxyEndpoint"])
+            )
+              newEndpoint.requestPreFlow = this.flowXmlToJson(
+                "PreFlow",
+                "Request",
+                proxyJson["ProxyEndpoint"],
+              );
+            if (
+              this.testXmlFlow(
+                "PreFlow",
+                "Response",
+                proxyJson["ProxyEndpoint"],
+              )
+            )
+              newEndpoint.responsePreFlow = this.flowXmlToJson(
+                "PreFlow",
+                "Response",
+                proxyJson["ProxyEndpoint"],
+              );
+            if (
+              this.testXmlFlow(
+                "PostFlow",
+                "Request",
+                proxyJson["ProxyEndpoint"],
+              )
+            )
+              newEndpoint.requestPostFlow = this.flowXmlToJson(
+                "PostFlow",
+                "Request",
+                proxyJson["ProxyEndpoint"],
+              );
+            if (
+              this.testXmlFlow(
+                "PostFlow",
+                "Response",
+                proxyJson["ProxyEndpoint"],
+              )
+            )
+              newEndpoint.responsePostFlow = this.flowXmlToJson(
+                "PostFlow",
+                "Response",
+                proxyJson["ProxyEndpoint"],
+              );
             newProxy.endpoints.push(newEndpoint);
 
             // policies
@@ -162,26 +185,54 @@ export class ApigeeConverter {
                   "_text"
                 ];
 
-              newTarget.requestPreFlow = this.flowXmlToJson(
-                "PreFlow",
-                "Request",
-                proxyJson["TargetEndpoint"],
-              );
-              newTarget.responsePreFlow = this.flowXmlToJson(
-                "PreFlow",
-                "Response",
-                proxyJson["TargetEndpoint"],
-              );
-              newTarget.requestPostFlow = this.flowXmlToJson(
-                "PostFlow",
-                "Request",
-                proxyJson["TargetEndpoint"],
-              );
-              newTarget.responsePostFlow = this.flowXmlToJson(
-                "PostFlow",
-                "Response",
-                proxyJson["TargetEndpoint"],
-              );
+              if (
+                this.testXmlFlow(
+                  "PreFlow",
+                  "Request",
+                  targetJson["TargetEndpoint"],
+                )
+              )
+                newTarget.requestPreFlow = this.flowXmlToJson(
+                  "PreFlow",
+                  "Request",
+                  targetJson["TargetEndpoint"],
+                );
+              if (
+                this.testXmlFlow(
+                  "PreFlow",
+                  "Response",
+                  targetJson["TargetEndpoint"],
+                )
+              )
+                newTarget.responsePreFlow = this.flowXmlToJson(
+                  "PreFlow",
+                  "Response",
+                  targetJson["TargetEndpoint"],
+                );
+              if (
+                this.testXmlFlow(
+                  "PostFlow",
+                  "Request",
+                  targetJson["TargetEndpoint"],
+                )
+              )
+                newTarget.requestPostFlow = this.flowXmlToJson(
+                  "PostFlow",
+                  "Request",
+                  targetJson["TargetEndpoint"],
+                );
+              if (
+                this.testXmlFlow(
+                  "PostFlow",
+                  "Response",
+                  targetJson["TargetEndpoint"],
+                )
+              )
+                newTarget.responsePostFlow = this.flowXmlToJson(
+                  "PostFlow",
+                  "Response",
+                  targetJson["TargetEndpoint"],
+                );
 
               newProxy.targets.push(newTarget);
             }
@@ -224,7 +275,7 @@ export class ApigeeConverter {
   public async jsonToZip(name: string, input: any): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       var zipfile = new yazl.ZipFile();
-      let tempFilePath = "./data/" + name;
+      let tempFilePath = "./data/temp/" + name;
       fs.mkdirSync(tempFilePath, { recursive: true });
 
       // endpoints
@@ -269,17 +320,19 @@ export class ApigeeConverter {
           this.flowJsonToXml("PostFlow", endpoint["responsePostFlow"]);
 
         // routes
-        if (endpoint["routes"].length) {
+        if (endpoint["routes"].length > 1) {
           endpointXml["ProxyEndpoint"]["RouteRule"] = [];
           for (let route of endpoint["routes"]) {
             let newRouteRule = {
               _attributes: {
                 name: route["name"],
               },
-              TargetEndpoint: {
-                _text: route["target"],
-              },
             };
+            if (route["target"]) {
+              newRouteRule["TargetEndpoint"] = {
+                _text: route["target"],
+              };
+            }
             if (route["condition"]) {
               newRouteRule["Condition"] = {
                 _text: route["condition"],
@@ -287,15 +340,17 @@ export class ApigeeConverter {
             }
             endpointXml["ProxyEndpoint"]["RouteRule"].push(newRouteRule);
           }
-        } else {
+        } else if (endpoint["routes"].length === 1) {
           endpointXml["ProxyEndpoint"]["RouteRule"] = {
             _attributes: {
               name: endpoint["routes"][0]["name"],
             },
-            TargetEndpoint: {
-              _text: endpoint["routes"][0]["target"],
-            },
           };
+          if (endpoint["routes"][0]["target"]) {
+            endpointXml["ProxyEndpoint"]["RouteRule"]["Target"] = {
+              _text: endpoint["routes"][0]["target"],
+            };
+          }
           if (endpoint["routes"][0]["condition"]) {
             endpointXml["ProxyEndpoint"]["RouteRule"]["Condition"] = {
               _text: endpoint["routes"][0]["condition"],
@@ -427,6 +482,19 @@ export class ApigeeConverter {
     });
   }
 
+  public testXmlFlow(type: string, subType: string, sourceDoc: any): boolean {
+    let result = false;
+    if (
+      sourceDoc &&
+      sourceDoc["PreFlow"] &&
+      sourceDoc["PreFlow"]["Request"] &&
+      sourceDoc["PreFlow"]["Request"]["Step"]
+    ) {
+      result = true;
+    }
+    return result;
+  }
+
   public flowXmlToJson(type: string, subType: string, sourceDoc: any): Flow {
     let resultFlow: Flow = new Flow(type);
     if (
@@ -509,65 +577,89 @@ export class ApigeeConverter {
         if (
           feature.endpointRequestPreFlowSteps &&
           feature.endpointRequestPreFlowSteps.length > 0
-        )
+        ) {
+          if (!endpoint.requestPreFlow)
+            endpoint.requestPreFlow = new Flow("PreFlow");
           endpoint.requestPreFlow.steps = endpoint.requestPreFlow.steps.concat(
             feature.endpointRequestPreFlowSteps,
           );
+        }
         if (
           feature.endpointRequestPostFlowSteps &&
           feature.endpointRequestPostFlowSteps.length > 0
-        )
+        ) {
+          if (!endpoint.requestPostFlow)
+            endpoint.requestPostFlow = new Flow("PostFlow");
           endpoint.requestPostFlow.steps =
             endpoint.requestPostFlow.steps.concat(
               feature.endpointRequestPostFlowSteps,
             );
+        }
         if (
           feature.endpointResponsePreFlowSteps &&
           feature.endpointResponsePreFlowSteps.length > 0
-        )
+        ) {
+          if (!endpoint.responsePreFlow)
+            endpoint.responsePreFlow = new Flow("PreFlow");
           endpoint.responsePreFlow.steps =
             endpoint.responsePreFlow.steps.concat(
               feature.endpointResponsePreFlowSteps,
             );
+        }
         if (
           feature.endpointResponsePostFlowSteps &&
           feature.endpointResponsePostFlowSteps.length > 0
-        )
+        ) {
+          if (!endpoint.requestPostFlow)
+            endpoint.requestPostFlow = new Flow("PostFlow");
           endpoint.requestPostFlow.steps =
             endpoint.requestPostFlow.steps.concat(
               feature.endpointResponsePostFlowSteps,
             );
+        }
       }
 
       for (let target of proxy.targets) {
         if (
           feature.targetRequestPreFlowSteps &&
           feature.targetRequestPreFlowSteps.length > 0
-        )
+        ) {
+          if (!target.requestPreFlow)
+            target.requestPreFlow = new Flow("PreFlow");
           target.requestPreFlow.steps = target.requestPreFlow.steps.concat(
             feature.targetRequestPreFlowSteps,
           );
+        }
         if (
           feature.targetRequestPostFlowSteps &&
           feature.targetRequestPostFlowSteps.length > 0
-        )
+        ) {
+          if (!target.requestPostFlow)
+            target.requestPostFlow = new Flow("PostFlow");
           target.requestPostFlow.steps = target.requestPostFlow.steps.concat(
             feature.targetRequestPostFlowSteps,
           );
+        }
         if (
           feature.targetResponsePreFlowSteps &&
           feature.targetResponsePreFlowSteps.length > 0
-        )
+        ) {
+          if (!target.responsePreFlow)
+            target.responsePreFlow = new Flow("PreFlow");
           target.responsePreFlow.steps = target.responsePreFlow.steps.concat(
             feature.targetResponsePreFlowSteps,
           );
+        }
         if (
           feature.targetResponsePostFlowSteps &&
           feature.targetResponsePostFlowSteps.length > 0
-        )
+        ) {
+          if (!target.requestPostFlow)
+            target.requestPostFlow = new Flow("PostFlow");
           target.requestPostFlow.steps = target.requestPostFlow.steps.concat(
             feature.targetResponsePostFlowSteps,
           );
+        }
       }
 
       if (feature.policies && feature.policies.length > 0)
@@ -597,5 +689,21 @@ export class ApigeeConverter {
     }
 
     return JSON.parse(inputString);
+  }
+
+  public proxyToString(proxy: Proxy): string {
+    let result = `Proxy ${proxy.name} has these endpoints:\n`;
+    if (!proxy.name) result = `Proxy has these endpoints:\n`;
+
+    for (let endpoint of proxy.endpoints) {
+      result += ` - ${endpoint.path}\n`;
+    }
+    result += `To these targets:\n`;
+
+    for (let target of proxy.targets) {
+      result += ` - ${target.name} - ${target.url}\n`;
+    }
+
+    return result;
   }
 }
