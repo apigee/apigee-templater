@@ -17,6 +17,7 @@ const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 const converter = new ApigeeConverter();
 const apigeeService = new ApigeeTemplaterService();
 const app = express();
+app.use(express.static("public"));
 app.use(
   express.json({
     type: "application/json",
@@ -36,30 +37,40 @@ app.use(
   }),
 );
 
-app.post("/apigee-templater/convert", (req, res) => {
+app.post("/apigee-templater/proxies", (req, res) => {
   if (!req.body) {
     return res.status(400).send("No data received.");
   }
 
+  let name = req.params["name"];
+  if (!name) name = Math.random().toString(36).slice(2);
   let requestType = req.header("Content-Type");
   let responseType = req.header("Accept");
 
-  let tempFileName = Math.random().toString(36).slice(2);
+  // let tempFileName = Math.random().toString(36).slice(2);
   switch (requestType) {
     case "application/octet-stream":
       // Apigee proxy zip input, json output
-      fs.mkdirSync("./data/temp", { recursive: true });
-      let tempFilePath = "./data/temp/" + tempFileName + ".zip";
+      fs.mkdirSync("./data/proxies", { recursive: true });
+      let tempFilePath = "./data/proxies/" + name + ".zip";
       fs.writeFileSync(tempFilePath, req.body);
 
       converter
-        .zipToJson(tempFileName, tempFilePath)
+        .zipToJson(name, tempFilePath)
         .then((result) => {
-          fs.rmSync(tempFilePath);
+          // fs.rmSync(tempFilePath);
           if (responseType == "application/yaml") {
+            fs.writeFileSync(
+              "./data/proxies/" + name + ".json",
+              JSON.stringify(result, null, 2),
+            );
             res.setHeader("Content-Type", "application/yaml");
             res.send(YAML.stringify(result));
           } else {
+            fs.writeFileSync(
+              "./data/proxies/" + name + ".json",
+              JSON.stringify(result, null, 2),
+            );
             res.setHeader("Content-Type", "application/json");
             res.send(JSON.stringify(result, null, 2));
           }
@@ -69,12 +80,17 @@ app.post("/apigee-templater/convert", (req, res) => {
         });
       break;
     case "application/json":
+      name = req.body["name"];
+      fs.writeFileSync(
+        "./data/proxies/" + name + ".json",
+        JSON.stringify(req.body, null, 2),
+      );
       // Apigee proxy json input, yaml or zip output
       if (responseType == "application/yaml") {
         res.setHeader("Content-Type", "application/yaml");
         res.send(YAML.stringify(req.body));
       } else {
-        converter.jsonToZip(tempFileName, req.body).then((result) => {
+        converter.jsonToZip(name, req.body).then((result) => {
           let zipOutputFile = fs.readFileSync(result);
           res.setHeader("Content-Type", "application/octet-stream");
           res.send(zipOutputFile);
@@ -84,19 +100,32 @@ app.post("/apigee-templater/convert", (req, res) => {
     case "application/yaml":
       // Apigee proxy yaml input, json or zip output
       if (responseType == "application/json") {
+        fs.writeFileSync(
+          "./data/proxies/" + name + ".json",
+          JSON.stringify(YAML.parse(req.body), null, 2),
+        );
         res.setHeader("Content-Type", "application/json");
         res.json(YAML.parse(req.body));
       } else {
-        converter
-          .jsonToZip(tempFileName, YAML.parse(req.body))
-          .then((result) => {
-            let zipOutputFile = fs.readFileSync(result);
-            res.setHeader("Content-Type", "application/octet-stream");
-            res.send(zipOutputFile);
-          });
+        converter.jsonToZip(name, YAML.parse(req.body)).then((result) => {
+          let zipOutputFile = fs.readFileSync(result);
+          res.setHeader("Content-Type", "application/octet-stream");
+          res.send(zipOutputFile);
+        });
       }
       break;
   }
+});
+
+app.post("/apigee-templater/features", (req, res) => {
+  if (!req.body) {
+    return res.status(400).send("No data received.");
+  }
+
+  fs.writeFileSync(
+    "./data/features/" + req.body["name"] + ".json",
+    JSON.stringify(req.body, null, 2),
+  );
 });
 
 app.post("/apigee-templater/apply-feature", async (req, res) => {
@@ -213,6 +242,28 @@ app.post("/mcp", async (req, res) => {
           targetUrl,
           converter,
         );
+      },
+    );
+
+    server.registerTool(
+      "proxyImport",
+      {
+        title: "Proxy import file tool",
+        description: "Import a proxy file.",
+        inputSchema: {
+          proxyFile: z.string(),
+        },
+      },
+      async ({ proxyFile }) => {
+        console.log(proxyFile);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Thank you for uploading the proxy file.`,
+            },
+          ],
+        };
       },
     );
 

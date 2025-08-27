@@ -275,7 +275,7 @@ export class ApigeeConverter {
   public async jsonToZip(name: string, input: any): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       var zipfile = new yazl.ZipFile();
-      let tempFilePath = "./data/temp/" + name;
+      let tempFilePath = "./data/proxies/" + name;
       fs.mkdirSync(tempFilePath, { recursive: true });
 
       // endpoints
@@ -476,6 +476,7 @@ export class ApigeeConverter {
       zipfile.outputStream
         .pipe(fs.createWriteStream(tempFilePath + ".zip"))
         .on("close", function () {
+          fs.rmSync(tempFilePath, { recursive: true });
           resolve(tempFilePath + ".zip");
         });
       zipfile.end();

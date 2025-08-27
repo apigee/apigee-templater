@@ -59,6 +59,7 @@ export class ApigeeTemplaterService {
       name: tempProxyName,
       displayName: name,
       description: "A proxy for traffic to " + targetUrl,
+      features: [],
       endpoints: [
         {
           name: "default",
@@ -225,6 +226,6 @@ export class ApigeeTemplaterService {
       };
     }
   }
-  
-  public proxyApplyFeature
+
+  public proxyApplyFeature;
 }

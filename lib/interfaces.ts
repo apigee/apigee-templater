@@ -2,6 +2,7 @@ export class Proxy {
   name: string = "";
   displayName?: string = "";
   description?: string = "";
+  features: string[] = [];
   endpoints: Endpoint[] = [];
   targets: Target[] = [];
   policies: Policy[] = [];
