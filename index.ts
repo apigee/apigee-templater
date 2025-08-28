@@ -174,9 +174,61 @@ app.post("/apigee-templater/features", (req, res) => {
     return res.status(400).send("No data received.");
   }
 
-  let feature = apigeeService.featureCreate(req.body);
+  let name: string = req.query["name"] ? req.query["name"].toString() : "";
+  if (!name) name = Math.random().toString(36).slice(2);
+  let requestType = req.header("Content-Type");
+  let responseType = req.header("Accept");
 
-  res.status(201).json(feature);
+  let newFeature: Feature | undefined = undefined;
+
+  switch (requestType) {
+    case "application/octet-stream":
+      // Apigee proxy zip input, convert to feature
+      fs.mkdirSync("./data/temp", { recursive: true });
+      let tempFilePath = "./data/temp/" + name + ".zip";
+      fs.writeFileSync(tempFilePath, req.body);
+
+      converter
+        .zipToJson(name.toString(), tempFilePath)
+        .then((result) => {
+          newFeature = converter.jsonToFeature(result);
+          if (responseType == "application/yaml") {
+            apigeeService.featureCreate(newFeature);
+            res.setHeader("Content-Type", "application/yaml");
+            res.status(201).send(YAML.stringify(newFeature));
+          } else {
+            apigeeService.featureCreate(newFeature);
+            res.setHeader("Content-Type", "application/json");
+            res.status(201).send(JSON.stringify(newFeature, null, 2));
+          }
+        })
+        .catch((error) => {
+          res.status(500).send(error.message);
+        });
+      break;
+    case "application/json":
+      name = req.body["name"] ? req.body["name"] : name;
+      newFeature = apigeeService.featureCreate(req.body);
+      if (responseType == "application/yaml") {
+        res.setHeader("Content-Type", "application/yaml");
+        res.status(201).send(YAML.stringify(newFeature));
+      } else {
+        res.status(201).send(JSON.stringify(newFeature, null, 2));
+      }
+      break;
+    case "application/yaml":
+      newFeature = apigeeService.featureCreate(YAML.parse(req.body));
+      if (responseType == "application/yaml") {
+        res.setHeader("Content-Type", "application/yaml");
+        res.status(201).send(YAML.stringify(newFeature));
+      } else {
+        res.setHeader("Content-Type", "application/json");
+        res.status(201).send(JSON.stringify(newFeature, null, 2));
+      }
+      break;
+  }
+
+  if (!newFeature) res.status(500).send("Could not create feature.");
 });
 
 // MCP

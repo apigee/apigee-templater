@@ -16,7 +16,7 @@ import {
 } from "./interfaces.ts";
 
 export class ApigeeConverter {
-  public async zipToJson(name: string, inputFilePath: string): Promise<any> {
+  public async zipToJson(name: string, inputFilePath: string): Promise<Proxy> {
     return new Promise((resolve, reject) => {
       let tempOutputDir = "./data/temp/" + name;
       yauzl.open(inputFilePath, { lazyEntries: true }, (err, zipfile) => {
@@ -687,6 +687,20 @@ export class ApigeeConverter {
     }
 
     return JSON.parse(inputString);
+  }
+
+  public jsonToFeature(input: Proxy): Feature {
+    let newFeature = new Feature();
+    newFeature.name = input.name;
+    if (input.endpoints.length > 0)
+      newFeature.endpointFlows = input.endpoints[0].flows;
+    if (input.targets.length > 0)
+      newFeature.targetFlows = input.targets[0].flows;
+
+    newFeature.policies = input.policies;
+    newFeature.resources = input.resources;
+
+    return newFeature;
   }
 
   public proxyToString(proxy: Proxy): string {
