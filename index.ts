@@ -8,7 +8,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { ApigeeConverter } from "./lib/converter.ts";
-import { Proxy, ProxyFeature } from "./lib/interfaces.ts";
+import { Proxy, Feature } from "./lib/interfaces.ts";
 import { ApigeeTemplaterService } from "./lib/service.ts";
 
 // Map to store transports by session ID
@@ -42,7 +42,7 @@ app.post("/apigee-templater/proxies", (req, res) => {
     return res.status(400).send("No data received.");
   }
 
-  let name = req.params["name"];
+  let name: string = req.query["name"] ? req.query["name"].toString() : "";
   if (!name) name = Math.random().toString(36).slice(2);
   let requestType = req.header("Content-Type");
   let responseType = req.header("Accept");
@@ -56,7 +56,7 @@ app.post("/apigee-templater/proxies", (req, res) => {
       fs.writeFileSync(tempFilePath, req.body);
 
       converter
-        .zipToJson(name, tempFilePath)
+        .zipToJson(name.toString(), tempFilePath)
         .then((result) => {
           // fs.rmSync(tempFilePath);
           if (responseType == "application/yaml") {
@@ -65,14 +65,14 @@ app.post("/apigee-templater/proxies", (req, res) => {
               JSON.stringify(result, null, 2),
             );
             res.setHeader("Content-Type", "application/yaml");
-            res.send(YAML.stringify(result));
+            res.status(201).send(YAML.stringify(result));
           } else {
             fs.writeFileSync(
               "./data/proxies/" + name + ".json",
               JSON.stringify(result, null, 2),
             );
             res.setHeader("Content-Type", "application/json");
-            res.send(JSON.stringify(result, null, 2));
+            res.status(201).send(JSON.stringify(result, null, 2));
           }
         })
         .catch((error) => {
@@ -80,7 +80,7 @@ app.post("/apigee-templater/proxies", (req, res) => {
         });
       break;
     case "application/json":
-      name = req.body["name"];
+      name = req.body["name"] ? req.body["name"] : name;
       fs.writeFileSync(
         "./data/proxies/" + name + ".json",
         JSON.stringify(req.body, null, 2),
@@ -88,12 +88,12 @@ app.post("/apigee-templater/proxies", (req, res) => {
       // Apigee proxy json input, yaml or zip output
       if (responseType == "application/yaml") {
         res.setHeader("Content-Type", "application/yaml");
-        res.send(YAML.stringify(req.body));
+        res.status(201).send(YAML.stringify(req.body));
       } else {
         converter.jsonToZip(name, req.body).then((result) => {
           let zipOutputFile = fs.readFileSync(result);
           res.setHeader("Content-Type", "application/octet-stream");
-          res.send(zipOutputFile);
+          res.status(201).send(zipOutputFile);
         });
       }
       break;
@@ -105,15 +105,67 @@ app.post("/apigee-templater/proxies", (req, res) => {
           JSON.stringify(YAML.parse(req.body), null, 2),
         );
         res.setHeader("Content-Type", "application/json");
-        res.json(YAML.parse(req.body));
+        res.status(201).json(YAML.parse(req.body));
       } else {
         converter.jsonToZip(name, YAML.parse(req.body)).then((result) => {
           let zipOutputFile = fs.readFileSync(result);
           res.setHeader("Content-Type", "application/octet-stream");
-          res.send(zipOutputFile);
+          res.status(201).send(zipOutputFile);
         });
       }
       break;
+  }
+});
+
+app.post(
+  "/apigee-templater/proxies/:proxy/features/:feature",
+  async (req, res) => {
+    let proxyName = req.params.proxy;
+    let featureName = req.params.feature;
+
+    let parameters = {};
+    if (req.body && req.body["parameters"]) {
+      parameters = req.body["parameters"];
+    }
+
+    let proxy: Proxy | undefined = apigeeService.proxyApplyFeature(
+      proxyName,
+      featureName,
+      parameters,
+      converter,
+    );
+
+    if (!proxy) {
+      return res
+        .status(500)
+        .send(
+          "Error applying feature to proxy, maybe either the proxy or feature doesn't exist?",
+        );
+    } else {
+      res.setHeader("Content-Type", "application/json");
+      res.status(200).send(JSON.stringify(proxy, null, 2));
+    }
+  },
+);
+
+app.delete("/apigee-templater/proxies/:proxy/features/:feature", (req, res) => {
+  let proxyName = req.params.proxy;
+  let featureName = req.params.feature;
+
+  let proxy: Proxy | undefined = apigeeService.proxyRemoveFeature(
+    proxyName,
+    featureName,
+    converter,
+  );
+
+  if (!proxy) {
+    return res
+      .status(500)
+      .send(
+        "Error removing feature from proxy, maybe either the proxy or feature doesn't exist?",
+      );
+  } else {
+    res.json(proxy);
   }
 });
 
@@ -122,45 +174,10 @@ app.post("/apigee-templater/features", (req, res) => {
     return res.status(400).send("No data received.");
   }
 
-  fs.writeFileSync(
-    "./data/features/" + req.body["name"] + ".json",
-    JSON.stringify(req.body, null, 2),
-  );
+  let feature = apigeeService.featureCreate(req.body);
+
+  res.status(201).json(feature);
 });
-
-app.post("/apigee-templater/apply-feature", async (req, res) => {
-  if (!req.body) {
-    return res.status(400).send("No data received.");
-  }
-
-  let requestType = req.header("Content-Type");
-  let responseType = req.header("Accept");
-
-  if (
-    (requestType == "*/*" || requestType == "application/json") &&
-    (responseType == "*/*" || responseType == "application/json")
-  ) {
-    let proxy: Proxy = req.body["proxy"];
-    let feature: ProxyFeature;
-    if (typeof req.body["feature"] == "string") {
-      feature = JSON.parse(
-        fs.readFileSync("./features/" + req.body["feature"] + ".json", "utf8"),
-      );
-    } else {
-      feature = req.body["feature"];
-    }
-    let parameters: { [key: string]: string } = req.body["parameters"]
-      ? req.body["parameters"]
-      : {};
-    proxy = await converter.jsonApplyFeature(proxy, feature, parameters);
-
-    res.json(proxy);
-  } else {
-    res.status(501).send("Not yet implemented.");
-  }
-});
-
-app.post("/apigee-templater/remove-feature", (req, res) => {});
 
 // MCP
 app.post("/mcp", async (req, res) => {
@@ -327,6 +344,83 @@ app.post("/mcp", async (req, res) => {
       },
     );
 
+    server.registerTool(
+      "proxyAddFeature",
+      {
+        title: "Proxy Add Feature",
+        description: "Add a feature to a proxy.",
+        inputSchema: {
+          proxyName: z.string(),
+          featureName: z.string(),
+        },
+      },
+      async ({ proxyName, featureName }) => {
+        let proxy: Proxy | undefined = apigeeService.proxyApplyFeature(
+          proxyName,
+          featureName,
+          {},
+          converter,
+        );
+        if (proxy) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The feature ${featureName} has been added to proxy ${proxyName}.`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The feature ${featureName} could not be added to proxy ${proxyName}, are you sure the names are correct?`,
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "proxyRemoveFeature",
+      {
+        title: "Proxy Remove Feature",
+        description: "Remove a feature to a proxy.",
+        inputSchema: {
+          proxyName: z.string(),
+          featureName: z.string(),
+        },
+      },
+      async ({ proxyName, featureName }) => {
+        let proxy: Proxy | undefined = apigeeService.proxyRemoveFeature(
+          proxyName,
+          featureName,
+          converter,
+        );
+        if (proxy) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The feature ${featureName} has been removed from proxy ${proxyName}.`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The feature ${featureName} could not be removed from proxy ${proxyName}, are you sure the names are correct?`,
+              },
+            ],
+          };
+        }
+      },
+    );
+
     // Connect to the MCP server
     await server.connect(transport);
   } else {
@@ -339,6 +433,7 @@ app.post("/mcp", async (req, res) => {
       },
       id: null,
     });
+
     return;
   }
 

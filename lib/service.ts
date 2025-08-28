@@ -1,5 +1,5 @@
 import { ApigeeConverter } from "./converter.ts";
-import { Proxy, ProxyFeature } from "./interfaces.ts";
+import { Proxy, Feature } from "./interfaces.ts";
 import fs from "fs";
 
 export class ApigeeTemplaterService {
@@ -48,6 +48,104 @@ export class ApigeeTemplaterService {
     };
   }
 
+  public getProxy(name: string): Proxy | undefined {
+    let result: Proxy | undefined = undefined;
+    let proxyString = fs.readFileSync(
+      "./data/proxies/" + name + ".json",
+      "utf8",
+    );
+
+    if (!proxyString) {
+      console.log(`Could not load proxy ${name}, not found.`);
+      return result;
+    }
+    {
+      result = JSON.parse(proxyString);
+    }
+    return result;
+  }
+
+  public getFeature(name: string): Feature | undefined {
+    let result: Feature | undefined = undefined;
+    let featureString = fs.readFileSync(
+      "./data/features/" + name + ".json",
+      "utf8",
+    );
+
+    if (!featureString) {
+      console.log(`Could not load feature ${name}, not found.`);
+      return result;
+    }
+    {
+      result = JSON.parse(featureString);
+    }
+    return result;
+  }
+
+  public proxyApplyFeature(
+    proxyName: string,
+    featureName: string,
+    parameters: { [key: string]: string },
+    converter: ApigeeConverter,
+  ): Proxy | undefined {
+    let proxy: Proxy | undefined = undefined;
+
+    proxy = this.getProxy(proxyName);
+    let feature = this.getFeature(featureName);
+
+    if (!proxy || !feature) {
+      console.log(
+        `proxyApplyFeature error: either ${proxyName} or ${featureName} could not be loaded.`,
+      );
+      return undefined;
+    } else if (proxy.features.includes(feature.name)) {
+      console.log(
+        `proxyApplyFeature error: proxy ${proxyName} already uses feature ${featureName}.`,
+      );
+      return undefined;
+    } else {
+      proxy = converter.jsonApplyFeature(proxy, feature, parameters);
+    }
+
+    fs.writeFileSync(
+      "./data/proxies/" + proxyName + ".json",
+      JSON.stringify(proxy, null, 2),
+    );
+
+    return proxy;
+  }
+
+  public proxyRemoveFeature(
+    proxyName: string,
+    featureName: string,
+    converter: ApigeeConverter,
+  ): Proxy | undefined {
+    let proxy: Proxy | undefined = undefined;
+    proxy = this.getProxy(proxyName);
+    let feature = this.getFeature(featureName);
+
+    if (!proxy || !feature) {
+      console.log(
+        `proxyApplyFeature error: either ${proxyName} or ${featureName} could not be loaded.`,
+      );
+      return undefined;
+    } else if (!proxy.features.includes(feature.name)) {
+      console.log(
+        `proxyRemoveFeature error: proxy ${proxyName} doesn't use feature ${featureName}.`,
+      );
+      return undefined;
+    } else {
+      proxy = converter.jsonRemoveFeature(proxy, feature);
+    }
+
+    fs.writeFileSync(
+      "./data/proxies/" + proxyName + ".json",
+      JSON.stringify(proxy, null, 2),
+    );
+
+    return proxy;
+  }
+
   public proxyCreate(
     name: string,
     basePath: string,
@@ -64,6 +162,7 @@ export class ApigeeTemplaterService {
         {
           name: "default",
           path: basePath,
+          flows: [],
           routes: [
             {
               name: "default",
@@ -80,6 +179,7 @@ export class ApigeeTemplaterService {
       newProxy.targets.push({
         name: "default",
         url: targetUrl,
+        flows: [],
       });
 
       newProxy.endpoints[0].routes[0].target = "default";
@@ -98,6 +198,15 @@ export class ApigeeTemplaterService {
         },
       ],
     };
+  }
+
+  public featureCreate(feature: Feature): Feature {
+    fs.writeFileSync(
+      "./data/features/" + feature.name + ".json",
+      JSON.stringify(feature, null, 2),
+    );
+
+    return feature;
   }
 
   public proxyAddEndpoint(
@@ -129,6 +238,7 @@ export class ApigeeTemplaterService {
       proxy.endpoints.push({
         name: endpointName,
         path: basePath,
+        flows: [],
         routes: [
           {
             name: targetName,
@@ -143,6 +253,7 @@ export class ApigeeTemplaterService {
         proxy.targets.push({
           name: targetName,
           url: targetUrl,
+          flows: [],
         });
       }
 
@@ -191,6 +302,7 @@ export class ApigeeTemplaterService {
       proxy.targets.push({
         name: targetName,
         url: targetUrl,
+        flows: [],
       });
       if (routeRule) {
         for (let endpoint of proxy.endpoints) {
@@ -226,6 +338,4 @@ export class ApigeeTemplaterService {
       };
     }
   }
-
-  public proxyApplyFeature;
 }

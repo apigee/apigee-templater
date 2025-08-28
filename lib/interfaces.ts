@@ -12,12 +12,7 @@ export class Proxy {
 export class Endpoint {
   name: string;
   path: string;
-  requestPreFlow?: Flow;
-  requestConditionalFlows?: Flow[] = [];
-  requestPostFlow?: Flow;
-  responsePreFlow?: Flow;
-  responseConditionalFlows?: Flow[] = [];
-  responsePostFlow?: Flow;
+  flows: Flow[] = [];
   postClientFlow?: Flow;
   faultRules?: Flow[] = [];
   defaultFaultRule?: Flow;
@@ -32,11 +27,13 @@ export class Route {
 
 export class Flow {
   name: string;
-  condition: string;
+  mode?: string;
+  condition?: string;
   steps: Step[] = [];
 
-  constructor(name: string, condition: string = "") {
+  constructor(name: string, mode: string = "", condition: string = "") {
     this.name = name;
+    this.mode = mode;
     this.condition = condition;
   }
 }
@@ -48,12 +45,7 @@ export class Step {
 
 export class Target {
   name: string;
-  requestPreFlow?: Flow;
-  requestConditionalFlows?: Flow[] = [];
-  requestPostFlow?: Flow;
-  responsePreFlow?: Flow;
-  responseConditionalFlows?: Flow[] = [];
-  responsePostFlow?: Flow;
+  flows: Flow[] = [];
   faultRules?: Flow[] = [];
   defaultFaultRule?: Flow;
   url: string;
@@ -71,23 +63,17 @@ export class Resource {
   content: string = "";
 }
 
-export class ProxyFeature {
+export class Feature {
   name: string = "";
   description: string = "";
-  parameters: FeatureParameter[] = [];
-  endpointRequestPreFlowSteps: Step[] = [];
-  endpointRequestPostFlowSteps: Step[] = [];
-  endpointResponsePreFlowSteps: Step[] = [];
-  endpointResponsePostFlowSteps: Step[] = [];
-  targetRequestPreFlowSteps: Step[] = [];
-  targetRequestPostFlowSteps: Step[] = [];
-  targetResponsePreFlowSteps: Step[] = [];
-  targetResponsePostFlowSteps: Step[] = [];
+  parameters: Parameter[] = [];
+  endpointFlows: Flow[] = [];
+  targetFlows: Flow[] = [];
   policies: Policy[] = [];
   resources: Resource[] = [];
 }
 
-export class FeatureParameter {
+export class Parameter {
   name: string = "";
   description: string = "";
   examples: string[] = [];

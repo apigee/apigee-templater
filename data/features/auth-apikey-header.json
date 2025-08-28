@@ -9,14 +9,22 @@
       "default": "x-api-key"
     }
   ],
-  "endpointRequestPreFlowSteps": [
+  "endpointFlows": [
     {
-      "name": "VA-VerifyKey"
-    },
-    {
-      "name": "AM-RemoveKey"
+      "name": "PreFlow",
+      "mode": "Request",
+      "condition": "",
+      "steps": [
+        {
+          "name": "VA-VerifyKey"
+        },
+        {
+          "name": "AM-RemoveKey"
+        }
+      ]
     }
   ],
+  "targetFlows": [],
   "policies": [
     {
       "name": "VA-VerifyKey",

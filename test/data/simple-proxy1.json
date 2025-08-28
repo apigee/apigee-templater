@@ -1,30 +1,28 @@
 {
+  "name": "javascript-proxy",
+  "displayName": "",
+  "description": "",
+  "features": [],
   "endpoints": [
     {
       "name": "default",
       "path": "/test-proxy",
-      "requestPreFlow": {
-        "name": "PreFlow",
-        "condition": "",
-        "steps": []
-      },
-      "requestConditionalFlows": [],
-      "requestPostFlow": {
-        "name": "PostFlow",
-        "condition": "",
-        "steps": []
-      },
-      "responsePreFlow": {
-        "name": "PreFlow",
-        "condition": "",
-        "steps": []
-      },
-      "responseConditionalFlows": [],
-      "responsePostFlow": {
-        "name": "PostFlow",
-        "condition": "",
-        "steps": []
-      },
+      "flows": [
+        {
+          "name": "PreFlow",
+          "mode": "Request",
+          "condition": "",
+          "steps": [
+            {
+              "name": "VA-VerifyKey",
+              "condition": "proxy.pathsuffix = \"/get\""
+            },
+            {
+              "name": "AM-RemoveKey"
+            }
+          ]
+        }
+      ],
       "faultRules": [],
       "routes": [
         {
@@ -42,59 +40,90 @@
   "targets": [
     {
       "name": "default",
-      "requestPreFlow": {
-        "name": "PreFlow",
-        "condition": "",
-        "steps": []
-      },
-      "requestConditionalFlows": [],
-      "requestPostFlow": {
-        "name": "PostFlow",
-        "condition": "",
-        "steps": []
-      },
-      "responsePreFlow": {
-        "name": "PreFlow",
-        "condition": "",
-        "steps": []
-      },
-      "responseConditionalFlows": [],
-      "responsePostFlow": {
-        "name": "PostFlow",
-        "condition": "",
-        "steps": []
-      },
+      "flows": [],
       "faultRules": [],
       "url": "https://mocktarget.apigee.net"
     },
     {
       "name": "target2",
-      "requestPreFlow": {
-        "name": "PreFlow",
-        "condition": "",
-        "steps": []
-      },
-      "requestConditionalFlows": [],
-      "requestPostFlow": {
-        "name": "PostFlow",
-        "condition": "",
-        "steps": []
-      },
-      "responsePreFlow": {
-        "name": "PreFlow",
-        "condition": "",
-        "steps": []
-      },
-      "responseConditionalFlows": [],
-      "responsePostFlow": {
-        "name": "PostFlow",
-        "condition": "",
-        "steps": []
-      },
+      "flows": [],
       "faultRules": [],
       "url": "https://httpbin.org"
     }
   ],
-  "policies": [],
+  "policies": [
+    {
+      "name": "AM-RemoveKey",
+      "type": "AssignMessage",
+      "content": {
+        "_declaration": {
+          "_attributes": {
+            "version": "1.0",
+            "encoding": "UTF-8",
+            "standalone": "yes"
+          }
+        },
+        "AssignMessage": {
+          "_attributes": {
+            "continueOnError": "false",
+            "enabled": "true",
+            "name": "AM-RemoveKey"
+          },
+          "DisplayName": {
+            "_text": "AM-RemoveKey"
+          },
+          "Properties": {},
+          "Remove": {
+            "Headers": {
+              "Header": {
+                "_attributes": {
+                  "name": "x-api-key"
+                }
+              }
+            }
+          },
+          "IgnoreUnresolvedVariables": {
+            "_text": "true"
+          },
+          "AssignTo": {
+            "_attributes": {
+              "createNew": "false",
+              "transport": "http",
+              "type": "request"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "VA-VerifyKey",
+      "type": "VerifyAPIKey",
+      "content": {
+        "_declaration": {
+          "_attributes": {
+            "version": "1.0",
+            "encoding": "UTF-8",
+            "standalone": "yes"
+          }
+        },
+        "VerifyAPIKey": {
+          "_attributes": {
+            "continueOnError": "false",
+            "enabled": "true",
+            "name": "VA-VerifyKey"
+          },
+          "DisplayName": {
+            "_text": "VA-VerifyKey"
+          },
+          "Properties": {},
+          "APIKey": {
+            "_attributes": {
+              "ref": "request.header.x-api-key"
+            }
+          }
+        }
+      }
+    }
+  ],
   "resources": []
 }
