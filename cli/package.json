@@ -1,7 +1,7 @@
 {
   "name": "apigee-templater",
-  "version": "2.6.5",
-  "description": "A CLI to easily template and deploy Apigee proxies.",
+  "version": "3.0.0",
+  "description": "A CLI to template and convert apigee proxies between ZIP, JSON and YAML formats.",
   "homepage": "https://github.com/tyayers/apigee-templater",
   "bugs": "https://github.com/tyayers/apigee-templater/issues",
   "exports": "./dist/cli.js",
@@ -28,10 +28,7 @@
   "author": "tayers",
   "license": "ISC",
   "dependencies": {
-    "apigee-templater-module": "^2.6.5",
-    "apigee-x-module": "^1.0.1",
     "arg": "^5.0.1",
-    "axios": "^1.6.2",
     "chalk": "^5.3.0",
     "esm": "^3.2.25",
     "inquirer": "^8.2.0"

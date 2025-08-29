@@ -5,7 +5,7 @@ from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StreamableHTTPConn
 
 root_agent = Agent(
     name="apigee_agent",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description=(
         "Agent to help users create and manage Apigee API proxies."
     ),

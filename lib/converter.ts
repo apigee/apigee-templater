@@ -169,10 +169,20 @@ export class ApigeeConverter {
               // console.log(targetJsonString);
               newTarget.name =
                 targetJson["TargetEndpoint"]["_attributes"]["name"];
-              newTarget.url =
-                targetJson["TargetEndpoint"]["HTTPTargetConnection"]["URL"][
-                  "_text"
-                ];
+              if (
+                targetJson["TargetEndpoint"]["HTTPTargetConnection"] &&
+                targetJson["TargetEndpoint"]["HTTPTargetConnection"]["URL"]
+              )
+                newTarget.url =
+                  targetJson["TargetEndpoint"]["HTTPTargetConnection"]["URL"][
+                    "_text"
+                  ];
+              if (targetJson["TargetEndpoint"]["HTTPTargetConnection"]) {
+                newTarget.httpTargetConnection =
+                  targetJson["TargetEndpoint"]["HTTPTargetConnection"];
+              } else if (targetJson["TargetEndpoint"]["LocalTargetConnection"])
+                newTarget.localTargetConnection =
+                  targetJson["TargetEndpoint"]["LocalTargetConnection"];
 
               let requestPreFlow = this.flowXmlToJson(
                 "PreFlow",
@@ -202,7 +212,12 @@ export class ApigeeConverter {
               );
               if (responsePostFlow.steps.length > 0)
                 newTarget.flows.push(responsePostFlow);
-
+              let eventFlow = this.flowXmlToJson(
+                "EventFlow",
+                "Response",
+                targetJson["TargetEndpoint"],
+              );
+              if (eventFlow.steps.length > 0) newTarget.flows.push(eventFlow);
               newProxy.targets.push(newTarget);
             }
 
@@ -340,19 +355,25 @@ export class ApigeeConverter {
       }
 
       // targets
-      for (let target of input["targets"]) {
+      for (let target of input.targets) {
         let targetXml = {
           TargetEndpoint: {
             _attributes: {
               name: target["name"],
             },
-            HTTPTargetConnection: {
-              URL: {
-                _text: target["url"],
-              },
-            },
           },
         };
+
+        if (target.httpTargetConnection) {
+          targetXml["HTTPTargetConnection"] = target.httpTargetConnection;
+        } else if (target.localTargetConnection) {
+          targetXml["LocalTargetConnection"] = target.localTargetConnection;
+        }
+
+        if (target.url) {
+          targetXml["TargetEndpoint"]["HTTPTargetConnection"]["URL"]["_text"] =
+            target.url;
+        }
 
         targetXml["TargetEndpoint"]["PreFlow"] = {
           _attributes: {
@@ -704,16 +725,117 @@ export class ApigeeConverter {
   }
 
   public proxyToString(proxy: Proxy): string {
-    let result = `Proxy ${proxy.name} has these endpoints:\n`;
-    if (!proxy.name) result = `Proxy has these endpoints:\n`;
+    let result = "";
+    if (proxy.name) result = `Name: ${proxy.name}\n`;
+    if (proxy.description) result += `Description: ${proxy.description}\n`;
+    result += "\n";
 
-    for (let endpoint of proxy.endpoints) {
-      result += ` - ${endpoint.path}\n`;
+    if (proxy.features && proxy.features.length > 0) {
+      result += `\nFeatures:\n`;
+      for (let feature of proxy.features) {
+        result += ` - ${feature}\n`;
+      }
+    } else {
+      result += `\nFeatures: none\n`;
     }
-    result += `To these targets:\n`;
 
-    for (let target of proxy.targets) {
-      result += ` - ${target.name} - ${target.url}\n`;
+    if (proxy.endpoints && proxy.endpoints.length > 0) {
+      result += `\nEndpoints:\n`;
+      for (let endpoint of proxy.endpoints) {
+        result += ` - ${endpoint.path}\n`;
+      }
+    } else {
+      result += `\nEndpoints: none\n`;
+    }
+
+    if (proxy.targets && proxy.targets.length > 0) {
+      result += `\nTargets:\n`;
+      for (let target of proxy.targets) {
+        result += ` - ${target.name} - ${target.url}\n`;
+      }
+    } else {
+      result += `\nTargets: none\n`;
+    }
+
+    if (proxy.policies && proxy.policies.length > 0) {
+      result += `\nPolicies:\n`;
+      for (let policy of proxy.policies) {
+        result += ` - ${policy.name} - ${policy.type}\n`;
+      }
+    } else {
+      result += `\nPolicies: none\n`;
+    }
+
+    if (proxy.resources && proxy.resources.length > 0) {
+      result += `\nResources:\n`;
+      for (let resource of proxy.resources) {
+        result += ` - ${resource.name} - ${resource.type}\n`;
+      }
+    } else {
+      result += `\nResources: none\n`;
+    }
+
+    return result;
+  }
+
+  public featureToString(feature: Feature): string {
+    let result = "";
+    if (feature.name) result = `Name: ${feature.name}\n`;
+    if (feature.description) result += `Description: ${feature.description}\n`;
+    result += "\n";
+
+    if (feature.parameters && feature.parameters.length > 0) {
+      result += `\nParameters:\n`;
+      for (let parameter of feature.parameters) {
+        result += ` - ${parameter.name} - ${parameter.description}\n`;
+        if (parameter.default) result += ` - Default: ${parameter.default}\n`;
+        if (parameter.examples && parameter.examples.length > 0)
+          result += ` - Examples: ${parameter.examples.toString()}\n`;
+      }
+    } else {
+      result += `\nEndpoints flows: none\n`;
+    }
+
+    if (feature.endpointFlows && feature.endpointFlows.length > 0) {
+      result += `\nEndpoint flows:\n`;
+      for (let flow of feature.endpointFlows) {
+        result += ` - ${flow.name} - ${flow.mode} - ${flow.condition}\n`;
+        for (let step of flow.steps) {
+          result += `  - ${step.name} - ${step.condition}\n`;
+        }
+      }
+    } else {
+      result += `\nEndpoints flows: none\n`;
+    }
+
+    if (feature.targetFlows && feature.targetFlows.length > 0) {
+      result += `\nTarget flows:\n`;
+      for (let flow of feature.targetFlows) {
+        result += ` - ${flow.name} - ${flow.mode} - ${flow.condition}\n`;
+        for (let step of flow.steps) {
+          result += `  - ${step.name} - ${step.condition}\n`;
+        }
+      }
+    } else {
+      result += `\nTarget flows: none\n`;
+    }
+
+    if (feature.policies && feature.policies.length > 0) {
+      result += `\nPolicies:\n`;
+      for (let policy of feature.policies) {
+        result += ` - ${policy.name} - ${policy.type}\n`;
+      }
+    } else {
+      result += `\nPolicies: none\n`;
+    }
+
+    if (feature.resources && feature.resources.length > 0) {
+      result += `\nResources:\n`;
+      for (let resource of feature.resources) {
+        result += ` - ${resource.name} - ${resource.type}\n`;
+      }
+    } else {
+      result += `\nResources: none\n`;
     }
 
     return result;

@@ -81,10 +81,7 @@ app.post("/apigee-templater/proxies", (req, res) => {
       break;
     case "application/json":
       name = req.body["name"] ? req.body["name"] : name;
-      fs.writeFileSync(
-        "./data/proxies/" + name + ".json",
-        JSON.stringify(req.body, null, 2),
-      );
+      apigeeService.proxyImport(req.body);
       // Apigee proxy json input, yaml or zip output
       if (responseType == "application/yaml") {
         res.setHeader("Content-Type", "application/yaml");
@@ -98,16 +95,13 @@ app.post("/apigee-templater/proxies", (req, res) => {
       }
       break;
     case "application/yaml":
-      // Apigee proxy yaml input, json or zip output
+      let proxy = YAML.parse(req.body);
+      apigeeService.proxyImport(proxy);
       if (responseType == "application/json") {
-        fs.writeFileSync(
-          "./data/proxies/" + name + ".json",
-          JSON.stringify(YAML.parse(req.body), null, 2),
-        );
         res.setHeader("Content-Type", "application/json");
-        res.status(201).json(YAML.parse(req.body));
+        res.status(201).json(YAML.parse(proxy));
       } else {
-        converter.jsonToZip(name, YAML.parse(req.body)).then((result) => {
+        converter.jsonToZip(name, proxy).then((result) => {
           let zipOutputFile = fs.readFileSync(result);
           res.setHeader("Content-Type", "application/octet-stream");
           res.status(201).send(zipOutputFile);
@@ -115,6 +109,28 @@ app.post("/apigee-templater/proxies", (req, res) => {
       }
       break;
   }
+});
+
+app.delete("/apigee-templater/proxies/:proxy", (req, res) => {
+  let proxyName = req.params.proxy;
+  let proxy = apigeeService.proxyGet(proxyName);
+  apigeeService.proxyDelete(proxyName);
+
+  if (proxy) {
+    res.setHeader("Content-Type", "application/json");
+    res.status(200).send(JSON.stringify(proxy, null, 2));
+  } else res.status(404).send("Proxy could not be found.");
+});
+
+app.delete("/apigee-templater/features/:feature", (req, res) => {
+  let featureName = req.params.feature;
+  let feature = apigeeService.featureGet(featureName);
+  apigeeService.featureDelete(featureName);
+
+  if (feature) {
+    res.setHeader("Content-Type", "application/json");
+    res.status(200).send(JSON.stringify(feature, null, 2));
+  } else res.status(404).send("Feature could not be found.");
 });
 
 app.post(
@@ -191,13 +207,14 @@ app.post("/apigee-templater/features", (req, res) => {
       converter
         .zipToJson(name.toString(), tempFilePath)
         .then((result) => {
+          fs.rmSync(tempFilePath);
           newFeature = converter.jsonToFeature(result);
           if (responseType == "application/yaml") {
-            apigeeService.featureCreate(newFeature);
+            apigeeService.featureImport(newFeature);
             res.setHeader("Content-Type", "application/yaml");
             res.status(201).send(YAML.stringify(newFeature));
           } else {
-            apigeeService.featureCreate(newFeature);
+            apigeeService.featureImport(newFeature);
             res.setHeader("Content-Type", "application/json");
             res.status(201).send(JSON.stringify(newFeature, null, 2));
           }
@@ -208,7 +225,7 @@ app.post("/apigee-templater/features", (req, res) => {
       break;
     case "application/json":
       name = req.body["name"] ? req.body["name"] : name;
-      newFeature = apigeeService.featureCreate(req.body);
+      newFeature = apigeeService.featureImport(req.body);
       if (responseType == "application/yaml") {
         res.setHeader("Content-Type", "application/yaml");
         res.status(201).send(YAML.stringify(newFeature));
@@ -217,7 +234,7 @@ app.post("/apigee-templater/features", (req, res) => {
       }
       break;
     case "application/yaml":
-      newFeature = apigeeService.featureCreate(YAML.parse(req.body));
+      newFeature = apigeeService.featureImport(YAML.parse(req.body));
       if (responseType == "application/yaml") {
         res.setHeader("Content-Type", "application/yaml");
         res.status(201).send(YAML.stringify(newFeature));
@@ -274,7 +291,14 @@ app.post("/mcp", async (req, res) => {
       },
       async (uri) => {
         // load all proxies
-        return apigeeService.proxiesList(uri);
+        return {
+          contents: [
+            {
+              uri: uri.href,
+              text: apigeeService.proxiesListText(),
+            },
+          ],
+        };
       },
     );
 
@@ -287,11 +311,153 @@ app.post("/mcp", async (req, res) => {
       },
       async (uri) => {
         // load all features
-        return apigeeService.featuresList(uri);
+        return {
+          contents: [
+            {
+              uri: uri.href,
+              text: apigeeService.featuresListText(),
+            },
+          ],
+        };
       },
     );
 
     // ... set up server resources, tools, and prompts ...
+    // proxyList
+    server.registerTool(
+      "proxyList",
+      {
+        title: "Proxy List Tool",
+        description: "Lists all API proxies.",
+        inputSchema: {},
+      },
+      async ({}) => {
+        let proxyText = apigeeService.proxiesListText();
+        if (proxyText) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Here is a list of all proxies:\n ${proxyText}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxies could not be created, maybe there is a conflicting base path?`,
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    // featureList
+    server.registerTool(
+      "featureList",
+      {
+        title: "Feature list tool",
+        description: "List all features that can be applied to proxies.",
+        inputSchema: {},
+      },
+      async () => {
+        let featureText = apigeeService.featuresListText();
+        if (featureText) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Here are all of the features:\n ${featureText}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `No features were found.`,
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    // proxyDescribe
+    server.registerTool(
+      "proxyDescribe",
+      {
+        title: "Proxy Describe Tool",
+        description: "Describes an API proxy.",
+        inputSchema: {
+          proxyName: z.string(),
+        },
+      },
+      async ({ proxyName }) => {
+        let proxy = apigeeService.proxyGet(proxyName);
+        if (proxy) {
+          let proxyText = converter.proxyToString(proxy);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `${proxyText}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxy could not be found, maybe the name is incorrect?`,
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    // featureDescribe
+    server.registerTool(
+      "featureDescribe",
+      {
+        title: "Feature Describe Tool",
+        description: "Describes an API proxy feature.",
+        inputSchema: {
+          featureName: z.string(),
+        },
+      },
+      async ({ featureName }) => {
+        let feature = apigeeService.featureGet(featureName);
+        if (feature) {
+          let featureText = converter.featureToString(feature);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `${featureText}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The feature could not be found, maybe the name is incorrect?`,
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    // proxyCreate
     server.registerTool(
       "proxyCreate",
       {
@@ -305,37 +471,110 @@ app.post("/mcp", async (req, res) => {
         },
       },
       async ({ proxyName, basePath, targetUrl }) => {
-        return apigeeService.proxyCreate(
+        let proxy = apigeeService.proxyCreate(
           proxyName,
           basePath,
           targetUrl,
           converter,
         );
+        if (proxy) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxy ${proxyName} was created. Here is the new proxy summary:\n ${converter.proxyToString(proxy)}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxy ${proxyName} could not be created, maybe there is a conflicting base path?`,
+              },
+            ],
+          };
+        }
       },
     );
 
+    // proxyImport
     server.registerTool(
       "proxyImport",
       {
         title: "Proxy import file tool",
-        description: "Import a proxy file.",
+        description:
+          "Import a proxy file either with JSON or a public URL to the file.",
         inputSchema: {
-          proxyFile: z.string(),
+          proxyString: z.string(),
         },
       },
-      async ({ proxyFile }) => {
-        console.log(proxyFile);
+      async ({ proxyString }) => {
+        let tempProxyString = proxyString;
+        if (proxyString.toLowerCase().startsWith("http")) {
+          let response = await fetch(proxyString);
+          tempProxyString = await response.text();
+        }
+        let proxy: Proxy = JSON.parse(tempProxyString);
+        if (!proxy) {
+          // try to parse YAML
+          proxy = YAML.parse(tempProxyString);
+        }
+        if (proxy) {
+          apigeeService.proxyImport(proxy);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxy ${proxy.name} has been imported.\n ${converter.proxyToString(proxy)}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxy could not be imported, was the sent data valid JSON or YAML?`,
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    // featureImport
+    server.registerTool(
+      "featureImport",
+      {
+        title: "Feature import file tool",
+        description:
+          "Import a feature file either with JSON or a public URL to a file.",
+        inputSchema: {
+          featureString: z.string(),
+        },
+      },
+      async ({ featureString }) => {
+        let tempFeatureString = featureString;
+        if (featureString.toLowerCase().startsWith("http")) {
+          let response = await fetch(featureString);
+          tempFeatureString = await response.text();
+        }
+        let feature: Feature = JSON.parse(tempFeatureString);
+        apigeeService.featureImport(feature);
         return {
           content: [
             {
               type: "text",
-              text: `Thank you for uploading the proxy file.`,
+              text: `The feature ${feature.name} has been imported.\n ${converter.featureToString(feature)}`,
             },
           ],
         };
       },
     );
 
+    // proxyAddEndpoint
     server.registerTool(
       "proxyAddEndpoint",
       {
@@ -361,7 +600,7 @@ app.post("/mcp", async (req, res) => {
         targetUrl,
         targetRouteRule,
       }) => {
-        return apigeeService.proxyAddEndpoint(
+        let proxy = apigeeService.proxyAddEndpoint(
           proxyName,
           endpointName,
           basePath,
@@ -370,9 +609,29 @@ app.post("/mcp", async (req, res) => {
           targetRouteRule,
           converter,
         );
+        if (proxy) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxy ${proxyName} was updated with the new endpoint ${endpointName}. Here is the new proxy summary:\n ${converter.proxyToString(proxy)}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxy ${proxyName} could not be updated with the endpoint ${endpointName}, maybe there is a conflicting base path?`,
+              },
+            ],
+          };
+        }
       },
     );
 
+    // proxyAddTarget
     server.registerTool(
       "proxyAddTarget",
       {
@@ -386,20 +645,40 @@ app.post("/mcp", async (req, res) => {
         },
       },
       async ({ proxyName, targetName, targetUrl, targetRouteRule }) => {
-        return apigeeService.proxyAddTarget(
+        let proxy = apigeeService.proxyAddTarget(
           proxyName,
           targetName,
           targetUrl,
           targetRouteRule,
           converter,
         );
+        if (proxy) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxy ${proxyName} was updated with the new target ${targetName}. Here is the new proxy summary:\n ${converter.proxyToString(proxy)}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxy ${proxyName} could not be updated with the target ${targetName}, maybe there is a target name conflict?`,
+              },
+            ],
+          };
+        }
       },
     );
 
+    // proxyEnableFeature
     server.registerTool(
-      "proxyAddFeature",
+      "proxyEnableFeature",
       {
-        title: "Proxy Add Feature",
+        title: "Proxy Enable Feature",
         description: "Add a feature to a proxy.",
         inputSchema: {
           proxyName: z.string(),
@@ -418,7 +697,7 @@ app.post("/mcp", async (req, res) => {
             content: [
               {
                 type: "text",
-                text: `The feature ${featureName} has been added to proxy ${proxyName}.`,
+                text: `The feature ${featureName} has been added to proxy ${proxyName}.\n Here is the new proxy summary: ${converter.proxyToString(proxy)}`,
               },
             ],
           };
@@ -435,11 +714,12 @@ app.post("/mcp", async (req, res) => {
       },
     );
 
+    // proxyDisableFeature
     server.registerTool(
-      "proxyRemoveFeature",
+      "proxyDisableFeature",
       {
-        title: "Proxy Remove Feature",
-        description: "Remove a feature to a proxy.",
+        title: "Proxy Disable Feature",
+        description: "Remove a feature from a proxy.",
         inputSchema: {
           proxyName: z.string(),
           featureName: z.string(),
@@ -456,7 +736,7 @@ app.post("/mcp", async (req, res) => {
             content: [
               {
                 type: "text",
-                text: `The feature ${featureName} has been removed from proxy ${proxyName}.`,
+                text: `The feature ${featureName} has been removed from proxy ${proxyName}. Here is the new proxy summary:\n ${converter.proxyToString(proxy)}`,
               },
             ],
           };
@@ -466,6 +746,76 @@ app.post("/mcp", async (req, res) => {
               {
                 type: "text",
                 text: `The feature ${featureName} could not be removed from proxy ${proxyName}, are you sure the names are correct?`,
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    // proxyDelete
+    server.registerTool(
+      "proxyDelete",
+      {
+        title: "Proxy delete file tool",
+        description: "Delete an API proxy.",
+        inputSchema: {
+          proxyName: z.string(),
+        },
+      },
+      async ({ proxyName }) => {
+        let proxy = apigeeService.proxyGet(proxyName);
+        if (proxy) {
+          apigeeService.proxyDelete(proxyName);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxy ${proxy.name} has been deleted.\n ${converter.proxyToString(proxy)}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxy ${proxyName} could not be found, maybe the name is incorrect?`,
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    // featureDelete
+    server.registerTool(
+      "featureDelete",
+      {
+        title: "Feature delete file tool",
+        description: "Delete an API feature.",
+        inputSchema: {
+          featureName: z.string(),
+        },
+      },
+      async ({ featureName }) => {
+        let feature = apigeeService.featureGet(featureName);
+        if (feature) {
+          apigeeService.featureDelete(featureName);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The feature ${feature.name} has been deleted.\n ${converter.featureToString(feature)}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The feature ${featureName} could not be found, maybe the name is incorrect?`,
               },
             ],
           };

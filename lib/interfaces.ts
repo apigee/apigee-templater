@@ -49,6 +49,8 @@ export class Target {
   faultRules?: Flow[] = [];
   defaultFaultRule?: Flow;
   url: string;
+  httpTargetConnection?: any;
+  localTargetConnection?: any;
 }
 
 export class Policy {

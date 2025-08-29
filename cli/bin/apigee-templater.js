@@ -15,12 +15,9 @@
  * limitations under the License.
  */
 
-import { ApigeeTemplater } from 'apigee-templater-module'
-import cli from "../dist/cli.js";
+import cli from "../cli.ts";
 
-process.removeAllListeners('warning');
+process.removeAllListeners("warning");
 
-let apigeeTemplater = new ApigeeTemplater();
-
-const myCli = new cli(apigeeTemplater);
+const myCli = new cli();
 myCli.process(process.argv);

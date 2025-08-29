@@ -1,15 +1,9 @@
 # Apigee Templater
-Provides tooling for the templating and automation of Apigee proxies using simplified inputs, for example through a JSON/YAML input file, a REST call, or a CLI.
-
-Apigee proxies are ideal for templating since the bundles are composed of simple files & directories, which can be easily automated, even for complex use-cases. This tool helps do exactly that.
+Apigee Templater v3 provides templating & feature management services between Apigee proxy XML zip, JSON & YAML formats.
 
 ## Prerequisites
 
 * [Node.js](https://nodejs.org/) installed
-* If you want to deploy the generated proxies to Apigee directly from the CLI, then you will need:
-  * [Apigee X](https://cloud.google.com/apigee/docs/api-platform/get-started/provisioning-intro) org and environment (either eval or production).
-  * [gcloud CLI](https://cloud.google.com/sdk/gcloud) installed and set to your Apigee X project (`gcloud config set project PROJECT`) and authenticated with a default service account (`gcloud auth application-default login`)
-
 ## Install and run
 
 You can use the CLI either by installing it globally on your system or with npx.
@@ -36,7 +30,7 @@ npx apigee-templater
 | Conditional steps | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input4.extensions.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input4.extensions.json` |
 | Fault handling in endpoints & targets | Yes |[Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input6.postclient.json), usage: `apigee-tempater -f https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input6.postclient.json` |
 | Target Google authentication | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input5.cloudrun.json), example usage: `https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input5.cloudrun.json` |
-| Javascript policies & resource files | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input8.javascript.json), example usage: `https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input8.javascript.json` | 
+| Javascript policies & resource files | Yes | [Example input](https://github.com/apigee/apigee-templater/blob/main/module/test/data/input8.javascript.json), example usage: `https://raw.githubusercontent.com/apigee/apigee-templater/main/module/test/data/input8.javascript.json` |
 | Target load balancing | Yes | |
 | Target conditional flows | No | |
 
@@ -111,7 +105,7 @@ After waiting a few minutes, you can run **curl https://BASE_PATH/trips?pageSize
 ```sh
 # Use the CLI in interactive mode to collect inputs
 apigee-templater
-> Welcome to apigee-template, use -h for more command line options. 
+> Welcome to apigee-template, use -h for more command line options.
 ? What should the proxy be called? MyProxy
 ? Which base path should be used? /test
 ? Which backend target should be called? https://test.com
@@ -157,7 +151,7 @@ A sample [REST service](/service) and [web client](/client) show how the Apigee 
 To build and run the service and web client locally:
 
 ```sh
-# Build and copy the client outputs to the service 
+# Build and copy the client outputs to the service
 ./build_service.sh
 # Run service
 cd service
@@ -268,4 +262,3 @@ Please see the [LICENSE](./LICENSE) file for more detailed terms and conditions.
 ## Disclaimer
 
 This repository and its contents are not an official Google product.
-

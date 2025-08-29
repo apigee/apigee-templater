@@ -1,7 +1,7 @@
 {
   "name": "apigee-templater",
-  "version": "1.0.0",
-  "description": "Provides tooling for the templating and automation of Apigee proxies using simplified inputs, for example through a JSON/YAML input file, a REST call, or a CLI.",
+  "version": "3.0.0",
+  "description": "Provides tooling for the templating and conversion of Apigee proxies between XML zip, JSON, and Yaml, and providing conversion services through REST, CLI and MCP.",
   "main": "index.js",
   "directories": {
     "doc": "docs",

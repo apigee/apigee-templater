@@ -3,52 +3,45 @@ import { Proxy, Feature } from "./interfaces.ts";
 import fs from "fs";
 
 export class ApigeeTemplaterService {
-  public proxiesList(uri: URL): any {
-    let proxyNames: string[] = [];
+  public proxiesListText(): string {
+    let proxyLines: string[] = [];
     let proxies: string[] = fs.readdirSync("./data/proxies");
 
     for (let proxyPath of proxies) {
       if (proxyPath.endsWith(".json")) {
-        proxyNames.push(
-          " - " + proxyPath.replace("./data/proxies", "").replace(".json", ""),
+        let proxy: Proxy = JSON.parse(
+          fs.readFileSync("./data/proxies/" + proxyPath, "utf8"),
         );
+        let proxyString = proxy.description
+          ? proxy.name + " - " + proxy.description
+          : proxy.name + " - No description.";
+        proxyLines.push(proxyString);
       }
     }
 
-    return {
-      contents: [
-        {
-          uri: uri.href,
-          text: "All proxies:\n" + proxyNames.join("\n"),
-        },
-      ],
-    };
+    return proxyLines.join("\n");
   }
 
-  public featuresList(uri: URL): any {
-    let featureNames: string[] = [];
+  public featuresListText(): string {
+    let featureLines: string[] = [];
     let features: string[] = fs.readdirSync("./data/features");
 
     for (let featurePath of features) {
       if (featurePath.endsWith(".json")) {
-        featureNames.push(
-          " - " +
-            featurePath.replace("./data/features", "").replace(".json", ""),
+        let feature: Feature = JSON.parse(
+          fs.readFileSync("./data/features/" + featurePath, "utf8"),
         );
+        let featureString = feature.description
+          ? feature.name + " - " + feature.description
+          : feature.name + " - No description.";
+        featureLines.push(featureString);
       }
     }
 
-    return {
-      contents: [
-        {
-          uri: uri.href,
-          text: "All features:\n" + featureNames.join("\n"),
-        },
-      ],
-    };
+    return featureLines.join("\n");
   }
 
-  public getProxy(name: string): Proxy | undefined {
+  public proxyGet(name: string): Proxy | undefined {
     let result: Proxy | undefined = undefined;
     let proxyString = fs.readFileSync(
       "./data/proxies/" + name + ".json",
@@ -58,14 +51,20 @@ export class ApigeeTemplaterService {
     if (!proxyString) {
       console.log(`Could not load proxy ${name}, not found.`);
       return result;
-    }
-    {
+    } else {
       result = JSON.parse(proxyString);
     }
     return result;
   }
 
-  public getFeature(name: string): Feature | undefined {
+  public proxyImport(proxy: Proxy) {
+    fs.writeFileSync(
+      "./data/proxies/" + proxy.name + ".json",
+      JSON.stringify(proxy, null, 2),
+    );
+  }
+
+  public featureGet(name: string): Feature | undefined {
     let result: Feature | undefined = undefined;
     let featureString = fs.readFileSync(
       "./data/features/" + name + ".json",
@@ -75,8 +74,7 @@ export class ApigeeTemplaterService {
     if (!featureString) {
       console.log(`Could not load feature ${name}, not found.`);
       return result;
-    }
-    {
+    } else {
       result = JSON.parse(featureString);
     }
     return result;
@@ -90,8 +88,8 @@ export class ApigeeTemplaterService {
   ): Proxy | undefined {
     let proxy: Proxy | undefined = undefined;
 
-    proxy = this.getProxy(proxyName);
-    let feature = this.getFeature(featureName);
+    proxy = this.proxyGet(proxyName);
+    let feature = this.featureGet(featureName);
 
     if (!proxy || !feature) {
       console.log(
@@ -121,8 +119,8 @@ export class ApigeeTemplaterService {
     converter: ApigeeConverter,
   ): Proxy | undefined {
     let proxy: Proxy | undefined = undefined;
-    proxy = this.getProxy(proxyName);
-    let feature = this.getFeature(featureName);
+    proxy = this.proxyGet(proxyName);
+    let feature = this.featureGet(featureName);
 
     if (!proxy || !feature) {
       console.log(
@@ -151,7 +149,7 @@ export class ApigeeTemplaterService {
     basePath: string,
     targetUrl: string | undefined,
     converter: ApigeeConverter,
-  ): any {
+  ): Proxy {
     let tempProxyName = name.replaceAll(" ", "-").toLowerCase();
     let newProxy: Proxy = {
       name: tempProxyName,
@@ -190,17 +188,10 @@ export class ApigeeTemplaterService {
       JSON.stringify(newProxy, null, 2),
     );
 
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Proxy ${name} created.\n` + converter.proxyToString(newProxy),
-        },
-      ],
-    };
+    return newProxy;
   }
 
-  public featureCreate(feature: Feature): Feature {
+  public featureImport(feature: Feature): Feature {
     fs.writeFileSync(
       "./data/features/" + feature.name + ".json",
       JSON.stringify(feature, null, 2),
@@ -217,7 +208,8 @@ export class ApigeeTemplaterService {
     targetUrl: string,
     targetRouteRule: string | undefined,
     converter: ApigeeConverter,
-  ): any {
+  ): Proxy | undefined {
+    let proxy: Proxy | undefined = undefined;
     let tempProxyName = proxyName.replaceAll(" ", "-").toLowerCase();
     let proxyString = fs.readFileSync(
       "./data/proxies/" + tempProxyName + ".json",
@@ -225,14 +217,7 @@ export class ApigeeTemplaterService {
     );
     let result = {};
     if (!proxyString) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `The proxy ${proxyName} could not be loaded, are you sure the name is correct?`,
-          },
-        ],
-      };
+      return proxy;
     } else {
       let proxy: Proxy = JSON.parse(proxyString);
       proxy.endpoints.push({
@@ -262,16 +247,25 @@ export class ApigeeTemplaterService {
         JSON.stringify(proxy, null, 2),
       );
 
-      return {
-        content: [
-          {
-            type: "text",
-            text:
-              `Proxy ${proxyName} updated with endpoint ${endpointName}.\n` +
-              converter.proxyToString(proxy),
-          },
-        ],
-      };
+      return proxy;
+    }
+  }
+
+  public proxyDelete(proxyName: string) {
+    if (fs.existsSync("./data/proxies/" + proxyName + ".json")) {
+      fs.rmSync("./data/proxies/" + proxyName + ".json");
+    }
+    if (fs.existsSync("./data/proxies/" + proxyName + ".yaml")) {
+      fs.rmSync("./data/proxies/" + proxyName + ".yaml");
+    }
+    if (fs.existsSync("./data/proxies/" + proxyName + ".zip")) {
+      fs.rmSync("./data/proxies/" + proxyName + ".zip");
+    }
+  }
+
+  public featureDelete(featureName: string) {
+    if (fs.existsSync("./data/features/" + featureName + ".json")) {
+      fs.rmSync("./data/features/" + featureName + ".json");
     }
   }
 
@@ -281,7 +275,8 @@ export class ApigeeTemplaterService {
     targetUrl: string,
     routeRule: string,
     converter: ApigeeConverter,
-  ): any {
+  ): Proxy | undefined {
+    let proxy: Proxy | undefined = undefined;
     let tempProxyName = proxyName.replaceAll(" ", "-").toLowerCase();
     let proxyString = fs.readFileSync(
       "./data/proxies/" + tempProxyName + ".json",
@@ -289,53 +284,39 @@ export class ApigeeTemplaterService {
     );
     let result = {};
     if (!proxyString) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `The proxy ${proxyName} could not be loaded, are you sure the name is correct?`,
-          },
-        ],
-      };
+      return undefined;
     } else {
-      let proxy: Proxy = JSON.parse(proxyString);
-      proxy.targets.push({
-        name: targetName,
-        url: targetUrl,
-        flows: [],
-      });
-      if (routeRule) {
-        for (let endpoint of proxy.endpoints) {
-          endpoint.routes.unshift({
-            name: targetName,
-            target: targetName,
-            condition: routeRule,
-          });
-        }
-      } else {
-        // check if this is a no-target proxy, and if so add default route rule.
-        for (let endpoint of proxy.endpoints) {
-          if (endpoint.routes.length === 1 && !endpoint.routes[0].target) {
-            endpoint.routes[0].target = targetName;
+      proxy = JSON.parse(proxyString);
+      if (proxy) {
+        proxy.targets.push({
+          name: targetName,
+          url: targetUrl,
+          flows: [],
+        });
+        if (routeRule) {
+          for (let endpoint of proxy.endpoints) {
+            endpoint.routes.unshift({
+              name: targetName,
+              target: targetName,
+              condition: routeRule,
+            });
+          }
+        } else {
+          // check if this is a no-target proxy, and if so add default route rule.
+          for (let endpoint of proxy.endpoints) {
+            if (endpoint.routes.length === 1 && !endpoint.routes[0].target) {
+              endpoint.routes[0].target = targetName;
+            }
           }
         }
+
+        fs.writeFileSync(
+          "./data/proxies/" + tempProxyName + ".json",
+          JSON.stringify(proxy, null, 2),
+        );
       }
 
-      fs.writeFileSync(
-        "./data/proxies/" + tempProxyName + ".json",
-        JSON.stringify(proxy, null, 2),
-      );
-
-      return {
-        content: [
-          {
-            type: "text",
-            text:
-              `Proxy ${proxyName} updated with target ${targetName}.\n` +
-              converter.proxyToString(proxy),
-          },
-        ],
-      };
+      return proxy;
     }
   }
 }

@@ -3,394 +3,439 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>API File Importer</title>
+        <title>API and Feature Manager</title>
+        <!-- Tailwind CSS for styling -->
         <script src="https://cdn.tailwindcss.com"></script>
+        <!-- js-yaml for YAML file handling -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+        <!-- jszip for ZIP file handling -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+        <!-- Font Awesome for icons -->
         <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
             rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         />
         <style>
-            body {
-                font-family: "Inter", sans-serif;
+            /* Custom scrollbar for a modern look */
+            ::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
             }
-            .drag-over {
-                border-color: #3b82f6;
-                background-color: #1e293b;
+            ::-webkit-scrollbar-track {
+                background: #1f2937; /* bg-gray-800 */
             }
-            .modal-backdrop {
-                background-color: rgba(0, 0, 0, 0.5);
+            ::-webkit-scrollbar-thumb {
+                background: #4b5563; /* bg-gray-600 */
+                border-radius: 4px;
             }
-            .file-item:hover .actions {
-                opacity: 1;
+            ::-webkit-scrollbar-thumb:hover {
+                background: #6b7280; /* bg-gray-500 */
+            }
+            /* Style for the file input button */
+            .file-input-button {
+                cursor: pointer;
+            }
+            /* Simple transition for UI elements */
+            .transition-all {
+                transition: all 0.3s ease-in-out;
             }
         </style>
     </head>
-    <body class="bg-slate-900 text-white antialiased">
-        <div class="min-h-screen flex flex-col items-center justify-center p-4">
-            <div class="w-full max-w-2xl mx-auto">
-                <!-- Header -->
-                <header class="text-center mb-8">
-                    <h1 class="text-3xl font-bold text-slate-100">
-                        Apigee Proxy Manager
-                    </h1>
-                    <p class="text-slate-400 mt-2">
-                        Upload JSON or ZIP files to import data.
-                    </p>
-                </header>
-
-                <!-- File Upload Area -->
-                <div
-                    id="drop-zone"
-                    class="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center cursor-pointer transition-all duration-300 hover:border-blue-500 hover:bg-slate-800"
+    <body class="bg-gray-900 text-gray-200 font-sans flex flex-col h-screen">
+        <!-- Main Header -->
+        <header
+            class="p-4 border-b border-gray-700 shadow-lg bg-gray-800/50 backdrop-blur-sm"
+        >
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-white">API Dashboard</h1>
+                <button
+                    id="manage-features-btn"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg transition-all shadow-md hover:shadow-lg"
                 >
-                    <input
-                        type="file"
-                        id="file-input"
-                        class="hidden"
-                        accept=".json,.zip"
-                        multiple
-                    />
-                    <div class="flex flex-col items-center">
-                        <svg
-                            class="w-12 h-12 text-slate-500 mb-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h2a4 4 0 014 4v1m-1 8l-2-2m2 2l2-2m-2 2v-2m5 2a4 4 0 004-4V7a4 4 0 00-4-4h-2a4 4 0 00-4 4v1m0 9h.01"
-                            ></path>
-                        </svg>
-                        <p class="text-slate-300 font-medium">
-                            Drag & drop your files here
-                        </p>
-                        <p class="text-slate-500 text-sm mt-1">
-                            or
-                            <span class="text-blue-400 font-semibold"
-                                >click to browse</span
-                            >
-                        </p>
-                        <p class="text-xs text-slate-600 mt-4">
-                            Supports: JSON, ZIP
-                        </p>
+                    <i class="fas fa-cogs mr-2"></i>Manage Features
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="container mx-auto p-4 flex-grow flex flex-col">
+            <!-- File Upload Section -->
+            <div class="mb-4">
+                <label
+                    for="api-file-upload"
+                    class="file-input-button w-full text-center bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center cursor-pointer"
+                >
+                    <i class="fas fa-upload mr-3"></i>
+                    <span>Upload API File (JSON, YAML, or ZIP)</span>
+                </label>
+                <input
+                    type="file"
+                    id="api-file-upload"
+                    class="hidden"
+                    accept=".json,.yaml,.yml,.zip"
+                />
+                <p
+                    id="upload-status"
+                    class="text-sm text-gray-400 mt-2 h-5"
+                ></p>
+            </div>
+
+            <!-- Tabs Section -->
+            <div
+                class="flex-grow flex flex-col bg-gray-800 rounded-lg shadow-inner overflow-hidden"
+            >
+                <!-- Tab Buttons -->
+                <div class="flex border-b border-gray-700">
+                    <button
+                        data-tab="zip"
+                        class="tab-btn flex-1 py-3 px-4 font-semibold text-gray-400 hover:bg-gray-700/50 transition-all"
+                    >
+                        <i class="fas fa-file-archive mr-2"></i>ZIP Contents
+                    </button>
+                    <button
+                        data-tab="json"
+                        class="tab-btn flex-1 py-3 px-4 font-semibold text-gray-400 hover:bg-gray-700/50 transition-all"
+                    >
+                        <i class="fas fa-code mr-2"></i>JSON View
+                    </button>
+                    <button
+                        data-tab="yaml"
+                        class="tab-btn flex-1 py-3 px-4 font-semibold text-gray-400 hover:bg-gray-700/50 transition-all"
+                    >
+                        <i class="fas fa-file-alt mr-2"></i>YAML View
+                    </button>
+                </div>
+                <!-- Tab Panels -->
+                <div class="flex-grow p-1 relative">
+                    <div id="zip-panel" class="tab-panel hidden h-full">
+                        <pre
+                            class="h-full overflow-auto p-4 text-sm"
+                        ><code id="zip-content">Upload a ZIP file to see its contents.</code></pre>
+                    </div>
+                    <div id="json-panel" class="tab-panel hidden h-full">
+                        <pre
+                            class="h-full overflow-auto p-4 text-sm"
+                        ><code id="json-content">Upload an API file to see the JSON representation.</code></pre>
+                    </div>
+                    <div id="yaml-panel" class="tab-panel hidden h-full">
+                        <pre
+                            class="h-full overflow-auto p-4 text-sm"
+                        ><code id="yaml-content">Upload an API file to see the YAML representation.</code></pre>
                     </div>
                 </div>
+            </div>
+        </main>
 
-                <!-- Uploaded Files List -->
-                <div id="file-list-container" class="mt-8">
-                    <h2 class="text-lg font-semibold text-slate-300 mb-4">
-                        Uploaded Files
-                    </h2>
-                    <ul id="file-list" class="space-y-3">
-                        <!-- File items will be dynamically inserted here -->
-                    </ul>
-                    <p id="empty-state" class="text-center text-slate-500 py-8">
-                        No files uploaded yet.
+        <!-- Features Modal -->
+        <div
+            id="features-modal"
+            class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden transition-opacity duration-300"
+        >
+            <div
+                class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col transform scale-95 transition-transform duration-300"
+            >
+                <!-- Modal Header -->
+                <div
+                    class="flex justify-between items-center p-4 border-b border-gray-700"
+                >
+                    <h2 class="text-xl font-bold">Feature Management</h2>
+                    <button
+                        id="close-modal-btn"
+                        class="text-gray-400 hover:text-white text-2xl"
+                    >
+                        &times;
+                    </button>
+                </div>
+                <!-- Modal Body -->
+                <div id="features-list" class="p-4 space-y-3 overflow-y-auto">
+                    <!-- Feature items will be injected here -->
+                    <p class="text-gray-400">
+                        No features added yet. Upload a feature JSON file to get
+                        started.
                     </p>
                 </div>
-            </div>
-        </div>
-
-        <!-- Delete Confirmation Modal -->
-        <div
-            id="delete-modal"
-            class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden"
-        >
-            <div class="bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-sm">
-                <h3 class="text-lg font-semibold text-white">
-                    Confirm Deletion
-                </h3>
-                <p class="text-slate-400 mt-2">
-                    Are you sure you want to delete
-                    <strong
-                        id="file-to-delete-name"
-                        class="font-medium text-slate-300"
-                    ></strong
-                    >? This action cannot be undone.
-                </p>
-                <div class="mt-6 flex justify-end space-x-3">
-                    <button
-                        id="cancel-delete-btn"
-                        class="px-4 py-2 rounded-md bg-slate-700 text-white font-medium hover:bg-slate-600 transition-colors"
+                <!-- Modal Footer -->
+                <div class="p-4 border-t border-gray-700 mt-auto">
+                    <label
+                        for="add-feature-upload"
+                        class="file-input-button w-full text-center bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center"
                     >
-                        Cancel
-                    </button>
-                    <button
-                        id="confirm-delete-btn"
-                        class="px-4 py-2 rounded-md bg-red-600 text-white font-medium hover:bg-red-500 transition-colors"
-                    >
-                        Delete
-                    </button>
+                        <i class="fas fa-plus mr-2"></i>Add Feature from JSON
+                    </label>
+                    <input
+                        type="file"
+                        id="add-feature-upload"
+                        class="hidden"
+                        accept=".json"
+                    />
                 </div>
             </div>
         </div>
 
         <script>
             document.addEventListener("DOMContentLoaded", () => {
-                const dropZone = document.getElementById("drop-zone");
-                const fileInput = document.getElementById("file-input");
-                const fileList = document.getElementById("file-list");
-                const emptyState = document.getElementById("empty-state");
-                const deleteModal = document.getElementById("delete-modal");
-                const fileToDeleteName = document.getElementById(
-                    "file-to-delete-name",
+                // --- State ---
+                let features = [];
+
+                // --- DOM Elements ---
+                const manageFeaturesBtn = document.getElementById(
+                    "manage-features-btn",
                 );
-                const cancelDeleteBtn =
-                    document.getElementById("cancel-delete-btn");
-                const confirmDeleteBtn =
-                    document.getElementById("confirm-delete-btn");
+                const featuresModal = document.getElementById("features-modal");
+                const closeModalBtn =
+                    document.getElementById("close-modal-btn");
+                const featuresList = document.getElementById("features-list");
+                const addFeatureUpload =
+                    document.getElementById("add-feature-upload");
+                const apiFileUpload =
+                    document.getElementById("api-file-upload");
+                const uploadStatus = document.getElementById("upload-status");
+                const tabButtons = document.querySelectorAll(".tab-btn");
+                const tabPanels = document.querySelectorAll(".tab-panel");
+                const zipContent = document.getElementById("zip-content");
+                const jsonContent = document.getElementById("json-content");
+                const yamlContent = document.getElementById("yaml-content");
 
-                let files = [];
-                let fileToDeleteId = null;
-                let fileIdCounter = 0;
+                // --- Feature Management ---
 
-                // Mock initial files
-                const initialFiles = [
-                    {
-                        name: "project_data.json",
-                        size: 128 * 1024,
-                        type: "application/json",
-                    },
-                    {
-                        name: "assets_v1.zip",
-                        size: 2.5 * 1024 * 1024,
-                        type: "application/zip",
-                    },
-                    {
-                        name: "user_profiles.json",
-                        size: 512 * 1024,
-                        type: "application/json",
-                    },
-                ];
-                initialFiles.forEach((file) => addFileToList(file));
-
-                // --- Event Listeners ---
-
-                dropZone.addEventListener("click", () => fileInput.click());
-                fileInput.addEventListener("change", (e) =>
-                    handleFiles(e.target.files),
-                );
-
-                ["dragenter", "dragover", "dragleave", "drop"].forEach(
-                    (eventName) => {
-                        dropZone.addEventListener(
-                            eventName,
-                            preventDefaults,
-                            false,
-                        );
-                    },
-                );
-
-                ["dragenter", "dragover"].forEach((eventName) => {
-                    dropZone.addEventListener(
-                        eventName,
-                        () => dropZone.classList.add("drag-over"),
-                        false,
-                    );
-                });
-
-                ["dragleave", "drop"].forEach((eventName) => {
-                    dropZone.addEventListener(
-                        eventName,
-                        () => dropZone.classList.remove("drag-over"),
-                        false,
-                    );
-                });
-
-                dropZone.addEventListener(
-                    "drop",
-                    (e) => handleFiles(e.dataTransfer.files),
-                    false,
-                );
-
-                cancelDeleteBtn.addEventListener("click", closeModal);
-                confirmDeleteBtn.addEventListener("click", () => {
-                    if (fileToDeleteId !== null) {
-                        deleteFile(fileToDeleteId);
+                /**
+                 * Renders the list of features in the modal.
+                 */
+                const renderFeatures = () => {
+                    featuresList.innerHTML = ""; // Clear current list
+                    if (features.length === 0) {
+                        featuresList.innerHTML =
+                            '<p class="text-gray-400">No features added yet. Upload a feature JSON file to get started.</p>';
+                        return;
                     }
-                    closeModal();
-                });
+                    features.forEach((feature, index) => {
+                        const featureElement = document.createElement("div");
+                        featureElement.className =
+                            "bg-gray-700 p-3 rounded-lg flex justify-between items-center animate-fade-in";
+                        featureElement.innerHTML = `
+                        <div>
+                            <p class="font-bold text-white">${feature.name || "Unnamed Feature"}</p>
+                            <p class="text-sm text-gray-400">${feature.description || "No description"}</p>
+                        </div>
+                        <button data-index="${index}" class="remove-feature-btn bg-red-600 hover:bg-red-500 text-white font-bold py-1 px-3 rounded-md transition-all">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                        featuresList.appendChild(featureElement);
+                    });
+                };
 
-                // --- Functions ---
-
-                function preventDefaults(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-
-                function handleFiles(uploadedFiles) {
-                    [...uploadedFiles].forEach(addFileToList);
-                }
-
-                function addFileToList(file) {
-                    const fileId = fileIdCounter++;
-                    const newFile = {
-                        id: fileId,
-                        name: file.name,
-                        size: file.size,
-                        type: file.type || getFileType(file.name),
-                        uploadDate: new Date(),
-                    };
-                    files.push(newFile);
-                    renderFileList();
-                }
-
-                function getFileType(fileName) {
-                    if (fileName.endsWith(".json")) return "application/json";
-                    if (fileName.endsWith(".zip")) return "application/zip";
-                    return "application/octet-stream";
-                }
-
-                function renderFileList() {
-                    fileList.innerHTML = "";
-                    if (files.length === 0) {
-                        emptyState.classList.remove("hidden");
-                    } else {
-                        emptyState.classList.add("hidden");
-                        // Sort by newest first
-                        files.sort((a, b) => b.uploadDate - a.uploadDate);
-                        files.forEach((file) => {
-                            const listItem = document.createElement("li");
-                            listItem.className =
-                                "file-item bg-slate-800 p-4 rounded-lg flex items-center justify-between transition-shadow hover:shadow-lg";
-                            listItem.dataset.fileId = file.id;
-
-                            const isJson = file.type === "application/json";
-                            const iconSvg = isJson
-                                ? `<svg class="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>`
-                                : `<svg class="w-8 h-8 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>`;
-
-                            listItem.innerHTML = `
-                            <div class="flex items-center space-x-4">
-                                ${iconSvg}
-                                <div class="flex-grow">
-                                    <p class="font-medium text-slate-200 file-name">${file.name}</p>
-                                    <p class="text-sm text-slate-400">
-                                        ${formatFileSize(file.size)} &bull; Uploaded on ${formatDate(file.uploadDate)}
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="actions opacity-0 transition-opacity flex items-center space-x-2">
-                                <button class="edit-btn p-2 text-slate-400 hover:text-blue-400" title="Edit">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"></path></svg>
-                                </button>
-                                <button class="delete-btn p-2 text-slate-400 hover:text-red-400" title="Delete">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                </button>
-                            </div>
-                        `;
-                            fileList.appendChild(listItem);
-                        });
-                        addListItemListeners();
-                    }
-                }
-
-                function addListItemListeners() {
-                    document.querySelectorAll(".delete-btn").forEach((btn) => {
-                        btn.addEventListener("click", (e) => {
-                            const listItem =
-                                e.currentTarget.closest(".file-item");
-                            const fileId = parseInt(listItem.dataset.fileId);
-                            const file = files.find((f) => f.id === fileId);
-                            if (file) {
-                                openModal(file.id, file.name);
+                /**
+                 * Handles the addition of a new feature from a JSON file.
+                 */
+                addFeatureUpload.addEventListener("change", (event) => {
+                    const file = event.target.files[0];
+                    if (file && file.type === "application/json") {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            try {
+                                const newFeature = JSON.parse(e.target.result);
+                                // Can be a single object or an array of objects
+                                if (Array.isArray(newFeature)) {
+                                    features.push(...newFeature);
+                                } else {
+                                    features.push(newFeature);
+                                }
+                                renderFeatures();
+                            } catch (error) {
+                                alert("Error: Invalid JSON file.");
+                                console.error("JSON parsing error:", error);
                             }
-                        });
-                    });
+                        };
+                        reader.readAsText(file);
+                    } else if (file) {
+                        alert("Please upload a valid JSON file.");
+                    }
+                    event.target.value = ""; // Reset file input
+                });
 
-                    document.querySelectorAll(".edit-btn").forEach((btn) => {
-                        btn.addEventListener("click", (e) => {
-                            const listItem =
-                                e.currentTarget.closest(".file-item");
-                            const fileId = parseInt(listItem.dataset.fileId);
-                            toggleEditState(listItem, fileId);
-                        });
-                    });
-                }
+                /**
+                 * Handles removing a feature using event delegation.
+                 */
+                featuresList.addEventListener("click", (event) => {
+                    if (event.target.closest(".remove-feature-btn")) {
+                        const button = event.target.closest(
+                            ".remove-feature-btn",
+                        );
+                        const indexToRemove = parseInt(
+                            button.dataset.index,
+                            10,
+                        );
+                        features.splice(indexToRemove, 1);
+                        renderFeatures();
+                    }
+                });
 
-                function toggleEditState(listItem, fileId) {
-                    const fileNameEl = listItem.querySelector(".file-name");
-                    const currentName = fileNameEl.textContent;
+                // --- Modal Logic ---
+                const openModal = () => {
+                    featuresModal.classList.remove("hidden");
+                    setTimeout(() => {
+                        featuresModal.classList.add("opacity-100");
+                        featuresModal
+                            .querySelector("div")
+                            .classList.remove("scale-95");
+                    }, 10);
+                };
 
-                    const input = document.createElement("input");
-                    input.type = "text";
-                    input.value = currentName;
-                    input.className =
-                        "bg-slate-700 text-slate-100 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+                const closeModal = () => {
+                    featuresModal.classList.remove("opacity-100");
+                    featuresModal
+                        .querySelector("div")
+                        .classList.add("scale-95");
+                    setTimeout(() => {
+                        featuresModal.classList.add("hidden");
+                    }, 300);
+                };
 
-                    fileNameEl.replaceWith(input);
-                    input.focus();
-                    input.select();
+                manageFeaturesBtn.addEventListener("click", openModal);
+                closeModalBtn.addEventListener("click", closeModal);
+                featuresModal.addEventListener("click", (event) => {
+                    if (event.target === featuresModal) {
+                        closeModal();
+                    }
+                });
 
-                    const save = () => {
-                        const newName = input.value.trim();
-                        if (newName && newName !== currentName) {
-                            updateFileName(fileId, newName);
+                // --- API File Handling & Tabs ---
+
+                /**
+                 * Sets the active tab and panel.
+                 * @param {string} tabName - The name of the tab to activate ('zip', 'json', 'yaml').
+                 */
+                const setActiveTab = (tabName) => {
+                    tabButtons.forEach((btn) => {
+                        if (btn.dataset.tab === tabName) {
+                            btn.classList.add("bg-gray-700", "text-white");
+                            btn.classList.remove("text-gray-400");
                         } else {
-                            renderFileList(); // Re-render to restore original name
+                            btn.classList.remove("bg-gray-700", "text-white");
+                            btn.classList.add("text-gray-400");
+                        }
+                    });
+                    tabPanels.forEach((panel) => {
+                        if (panel.id === `${tabName}-panel`) {
+                            panel.classList.remove("hidden");
+                        } else {
+                            panel.classList.add("hidden");
+                        }
+                    });
+                };
+
+                tabButtons.forEach((button) => {
+                    button.addEventListener("click", () => {
+                        setActiveTab(button.dataset.tab);
+                    });
+                });
+
+                /**
+                 * Handles the main API file upload and processing.
+                 */
+                apiFileUpload.addEventListener("change", (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    uploadStatus.textContent = `Processing "${file.name}"...`;
+                    resetContentViews();
+
+                    const extension = file.name.split(".").pop().toLowerCase();
+
+                    if (extension === "zip") {
+                        handleZipFile(file);
+                    } else if (extension === "json") {
+                        handleJsonFile(file);
+                    } else if (extension === "yaml" || extension === "yml") {
+                        handleYamlFile(file);
+                    } else {
+                        uploadStatus.textContent = `Error: Unsupported file type ".${extension}".`;
+                    }
+                    event.target.value = ""; // Reset file input
+                });
+
+                const resetContentViews = () => {
+                    zipContent.textContent = "Processing...";
+                    jsonContent.textContent = "Processing...";
+                    yamlContent.textContent = "Processing...";
+                };
+
+                const handleZipFile = (file) => {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const zip = await JSZip.loadAsync(e.target.result);
+                            let fileTree = `Contents of ${file.name}:\n\n`;
+                            zip.forEach((relativePath, zipEntry) => {
+                                fileTree += `${zipEntry.dir ? "📁" : "📄"} ${relativePath}\n`;
+                            });
+                            zipContent.textContent = fileTree;
+                            jsonContent.textContent =
+                                "N/A for ZIP file view. Unpack to view contents.";
+                            yamlContent.textContent =
+                                "N/A for ZIP file view. Unpack to view contents.";
+                            uploadStatus.textContent = `Successfully processed "${file.name}".`;
+                            setActiveTab("zip");
+                        } catch (error) {
+                            uploadStatus.textContent = `Error processing ZIP file.`;
+                            console.error(error);
                         }
                     };
+                    reader.readAsArrayBuffer(file);
+                };
 
-                    input.addEventListener("blur", save);
-                    input.addEventListener("keydown", (e) => {
-                        if (e.key === "Enter") {
-                            save();
-                        } else if (e.key === "Escape") {
-                            renderFileList(); // Re-render to cancel
+                const handleJsonFile = (file) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const parsedJson = JSON.parse(e.target.result);
+                            jsonContent.textContent = JSON.stringify(
+                                parsedJson,
+                                null,
+                                2,
+                            );
+                            // Convert JSON to YAML for the other tab
+                            yamlContent.textContent = jsyaml.dump(parsedJson);
+                            zipContent.textContent = "N/A for JSON file.";
+                            uploadStatus.textContent = `Successfully processed "${file.name}".`;
+                            setActiveTab("json");
+                        } catch (error) {
+                            uploadStatus.textContent = `Error: Invalid JSON file.`;
+                            jsonContent.textContent = `Error parsing JSON:\n\n${error.message}`;
+                            console.error(error);
                         }
-                    });
-                }
+                    };
+                    reader.readAsText(file);
+                };
 
-                function updateFileName(fileId, newName) {
-                    const file = files.find((f) => f.id === fileId);
-                    if (file) {
-                        file.name = newName;
-                    }
-                    renderFileList();
-                }
+                const handleYamlFile = (file) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const parsedYaml = jsyaml.load(e.target.result);
+                            yamlContent.textContent = e.target.result;
+                            // Convert YAML to JSON for the other tab
+                            jsonContent.textContent = JSON.stringify(
+                                parsedYaml,
+                                null,
+                                2,
+                            );
+                            zipContent.textContent = "N/A for YAML file.";
+                            uploadStatus.textContent = `Successfully processed "${file.name}".`;
+                            setActiveTab("yaml");
+                        } catch (error) {
+                            uploadStatus.textContent = `Error: Invalid YAML file.`;
+                            yamlContent.textContent = `Error parsing YAML:\n\n${error.message}`;
+                            console.error(error);
+                        }
+                    };
+                    reader.readAsText(file);
+                };
 
-                function deleteFile(fileId) {
-                    files = files.filter((f) => f.id !== fileId);
-                    renderFileList();
-                }
-
-                function openModal(fileId, fileName) {
-                    fileToDeleteId = fileId;
-                    fileToDeleteName.textContent = fileName;
-                    deleteModal.classList.remove("hidden");
-                }
-
-                function closeModal() {
-                    fileToDeleteId = null;
-                    deleteModal.classList.add("hidden");
-                }
-
-                function formatFileSize(bytes) {
-                    if (bytes === 0) return "0 Bytes";
-                    const k = 1024;
-                    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-                    const i = Math.floor(Math.log(bytes) / Math.log(k));
-                    return (
-                        parseFloat((bytes / Math.pow(k, i)).toFixed(2)) +
-                        " " +
-                        sizes[i]
-                    );
-                }
-
-                function formatDate(date) {
-                    return date.toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                    });
-                }
-
-                // Initial Render
-                renderFileList();
+                // --- Initial Setup ---
+                renderFeatures();
+                setActiveTab("json"); // Set a default active tab on load
             });
         </script>
     </body>
