@@ -1,6 +1,6 @@
 {
   "name": "apigee-templater",
-  "version": "3.0.0",
+  "version": "3.0.5",
   "description": "Provides tooling for the templating and conversion of Apigee proxies between XML zip, JSON, and Yaml, and providing conversion services through REST, CLI and MCP.",
   "main": "index.js",
   "directories": {
@@ -8,13 +8,22 @@
     "example": "examples"
   },
   "scripts": {
-    "start": "node index.ts"
+    "build": "npx tsc",
+    "start": "node build/index.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/apigee/apigee-templater.git"
   },
-  "keywords": [],
+  "files": [
+    "dist/"
+  ],
+  "bin": {
+    "apigee-templater": "./dist/bin/apigee-templater.js"
+  },
+  "keywords": [
+    "apigee"
+  ],
   "author": "",
   "license": "ISC",
   "type": "module",
@@ -24,7 +33,10 @@
   "homepage": "https://github.com/apigee/apigee-templater#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.3",
+    "arg": "^5.0.2",
+    "chalk": "^5.6.0",
     "express": "^5.1.0",
+    "inquirer": "^12.9.4",
     "xml-js": "^1.6.11",
     "yaml": "^2.8.1",
     "yauzl": "^3.2.0",
@@ -32,8 +44,10 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
+    "@types/node": "^24.3.0",
     "@types/yauzl": "^2.10.3",
     "@types/yazl": "^3.3.0",
+    "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }
 }

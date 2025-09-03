@@ -1,8 +1,22 @@
-import { ApigeeConverter } from "./converter.ts";
-import { Proxy, Feature } from "./interfaces.ts";
+import { ApigeeConverter } from "./converter.js";
+import { Proxy, Feature } from "./interfaces.js";
 import fs from "fs";
 
 export class ApigeeTemplaterService {
+  tempPath: string = "./data/temp/";
+  proxiesPath: string = "./data/proxies/";
+  featuresPath: string = "./data/features/";
+
+  constructor(
+    tempPath: string = "",
+    proxiesPath: string = "",
+    featuresPath: string = "",
+  ) {
+    if (tempPath) this.tempPath = tempPath;
+    if (proxiesPath) this.proxiesPath = proxiesPath;
+    if (featuresPath) this.featuresPath = featuresPath;
+  }
+
   public proxiesListText(): string {
     let proxyLines: string[] = [];
     let proxies: string[] = fs.readdirSync("./data/proxies");
@@ -154,7 +168,7 @@ export class ApigeeTemplaterService {
     let newProxy: Proxy = {
       name: tempProxyName,
       displayName: name,
-      description: "A proxy for traffic to " + targetUrl,
+      description: "API proxy " + name,
       features: [],
       endpoints: [
         {
@@ -180,11 +194,12 @@ export class ApigeeTemplaterService {
         flows: [],
       });
 
-      newProxy.endpoints[0].routes[0].target = "default";
+      if (newProxy.endpoints[0] && newProxy.endpoints[0].routes[0])
+        newProxy.endpoints[0].routes[0].target = "default";
     }
 
     fs.writeFileSync(
-      "./data/proxies/" + tempProxyName + ".json",
+      this.proxiesPath + tempProxyName + ".json",
       JSON.stringify(newProxy, null, 2),
     );
 
@@ -193,7 +208,7 @@ export class ApigeeTemplaterService {
 
   public featureImport(feature: Feature): Feature {
     fs.writeFileSync(
-      "./data/features/" + feature.name + ".json",
+      this.featuresPath + feature.name + ".json",
       JSON.stringify(feature, null, 2),
     );
 
@@ -228,7 +243,7 @@ export class ApigeeTemplaterService {
           {
             name: targetName,
             target: targetName,
-            condition: targetRouteRule,
+            condition: targetRouteRule ?? "",
           },
         ],
       });
@@ -304,7 +319,11 @@ export class ApigeeTemplaterService {
         } else {
           // check if this is a no-target proxy, and if so add default route rule.
           for (let endpoint of proxy.endpoints) {
-            if (endpoint.routes.length === 1 && !endpoint.routes[0].target) {
+            if (
+              endpoint.routes.length === 1 &&
+              endpoint.routes[0] &&
+              !endpoint.routes[0].target
+            ) {
               endpoint.routes[0].target = targetName;
             }
           }

@@ -13,12 +13,25 @@ import {
   Target,
   Resource,
   Feature,
-} from "./interfaces.ts";
+} from "./interfaces.js";
 
 export class ApigeeConverter {
+  tempPath: string = "./data/temp/";
+  proxiesPath: string = "./data/proxies/";
+  featuresPath: string = "./data/features/";
+  constructor(
+    tempPath: string = "",
+    proxiesPath: string = "",
+    featuresPath: string = "",
+  ) {
+    if (tempPath) this.tempPath = tempPath;
+    if (proxiesPath) this.proxiesPath = proxiesPath;
+    if (featuresPath) this.featuresPath = featuresPath;
+  }
+
   public async zipToJson(name: string, inputFilePath: string): Promise<Proxy> {
     return new Promise((resolve, reject) => {
-      let tempOutputDir = "./data/temp/" + name;
+      let tempOutputDir = this.tempPath + name;
       yauzl.open(inputFilePath, { lazyEntries: true }, (err, zipfile) => {
         if (err) throw err;
         zipfile.readEntry();
@@ -143,9 +156,11 @@ export class ApigeeConverter {
               });
               let policyJson = JSON.parse(policyJsonString);
               let newPolicy = new Policy();
-              newPolicy.type = Object.keys(policyJson)[1];
+              newPolicy.type = Object.keys(policyJson)[1] ?? "";
               newPolicy.name =
                 policyJson[newPolicy.type]["_attributes"]["name"];
+              if (policyJson["_declaration"]) delete policyJson["_declaration"];
+              // policyJson = this.cleanXmlJson(policyJson);
               newPolicy.content = policyJson;
               newProxy.policies.push(newPolicy);
             }
@@ -259,12 +274,12 @@ export class ApigeeConverter {
   public async jsonToZip(name: string, input: Proxy): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       var zipfile = new yazl.ZipFile();
-      let tempFilePath = "./data/proxies/" + name;
+      let tempFilePath = this.proxiesPath + name;
       fs.mkdirSync(tempFilePath, { recursive: true });
 
       // endpoints
       for (let endpoint of input.endpoints) {
-        let endpointXml = {
+        let endpointXml: any = {
           ProxyEndpoint: {
             _attributes: {
               name: endpoint["name"],
@@ -304,7 +319,7 @@ export class ApigeeConverter {
         if (endpoint["routes"].length > 1) {
           endpointXml["ProxyEndpoint"]["RouteRule"] = [];
           for (let route of endpoint["routes"]) {
-            let newRouteRule = {
+            let newRouteRule: any = {
               _attributes: {
                 name: route["name"],
               },
@@ -321,7 +336,11 @@ export class ApigeeConverter {
             }
             endpointXml["ProxyEndpoint"]["RouteRule"].push(newRouteRule);
           }
-        } else if (endpoint["routes"].length === 1) {
+        } else if (
+          endpoint["routes"] &&
+          endpoint["routes"].length === 1 &&
+          endpoint["routes"][0]
+        ) {
           endpointXml["ProxyEndpoint"]["RouteRule"] = {
             _attributes: {
               name: endpoint["routes"][0]["name"],
@@ -356,7 +375,7 @@ export class ApigeeConverter {
 
       // targets
       for (let target of input.targets) {
-        let targetXml = {
+        let targetXml: any = {
           TargetEndpoint: {
             _attributes: {
               name: target["name"],
@@ -371,8 +390,11 @@ export class ApigeeConverter {
         }
 
         if (target.url) {
-          targetXml["TargetEndpoint"]["HTTPTargetConnection"]["URL"]["_text"] =
-            target.url;
+          targetXml["TargetEndpoint"]["HTTPTargetConnection"] = {
+            URL: {
+              _text: target.url,
+            },
+          };
         }
 
         targetXml["TargetEndpoint"]["PreFlow"] = {
@@ -415,7 +437,9 @@ export class ApigeeConverter {
       // policies
       for (let policy of input["policies"]) {
         fs.mkdirSync(tempFilePath + "/apiproxy/policies", { recursive: true });
-        let xmlString = xmljs.json2xml(JSON.stringify(policy["content"]), {
+        //policy["content"] = this.cleanJsonXml(policy["content"]);
+        let policyContent = JSON.stringify(policy["content"]);
+        let xmlString = xmljs.json2xml(policyContent, {
           compact: true,
           spaces: 2,
         });
@@ -503,7 +527,7 @@ export class ApigeeConverter {
     if (sourceDoc && sourceDoc["steps"] && sourceDoc["steps"].length > 1) {
       result["Step"] = [];
       for (let step of sourceDoc["steps"]) {
-        let newStep = {
+        let newStep: any = {
           Name: {
             _text: step["name"],
           },
@@ -703,7 +727,8 @@ export class ApigeeConverter {
 
     for (let parameter of feature.parameters) {
       let paramValue = parameter.default;
-      if (parameters[parameter.name]) paramValue = parameters[parameter.name];
+      if (parameters[parameter.name])
+        paramValue = parameters[parameter.name] ?? "";
       inputString = inputString.replaceAll(parameter.name, paramValue);
     }
 
@@ -713,9 +738,9 @@ export class ApigeeConverter {
   public jsonToFeature(input: Proxy): Feature {
     let newFeature = new Feature();
     newFeature.name = input.name;
-    if (input.endpoints.length > 0)
+    if (input.endpoints.length > 0 && input.endpoints[0])
       newFeature.endpointFlows = input.endpoints[0].flows;
-    if (input.targets.length > 0)
+    if (input.targets.length > 0 && input.targets[0])
       newFeature.targetFlows = input.targets[0].flows;
 
     newFeature.policies = input.policies;
@@ -839,5 +864,94 @@ export class ApigeeConverter {
     }
 
     return result;
+  }
+
+  public cleanXmlJson(input: any): any {
+    if (input["_declaration"]) delete input["_declaration"];
+    let result = this.removeXml(input);
+    return result;
+  }
+
+  public removeXml(obj: any): any {
+    // Check if the input is a valid object or array.
+    if (obj === null || typeof obj !== "object") {
+      return obj;
+    }
+
+    // Rule 2: If the object has a "_text" property, return its value directly.
+    if (obj.hasOwnProperty("_text") && Object.keys(obj).length === 1) {
+      return obj._text;
+    }
+
+    // Handle arrays by recursively transforming each element.
+    if (Array.isArray(obj)) {
+      return obj.map((item) => this.removeXml(item));
+    }
+
+    // Handle objects by creating a new object and applying the rules.
+    const newObj: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        let newKey = key;
+
+        // Rule 1: Rename the "_attributes" key to "Config".
+        if (key === "_attributes") {
+          newKey = "config";
+        }
+
+        // Recursively transform the value and assign it to the new key.
+        newObj[newKey] = this.removeXml(obj[key]);
+      }
+    }
+
+    return newObj;
+  }
+
+  public cleanJsonXml(input: any): any {
+    input = this.addXml(input);
+    let newInput: any = {
+      _declaration: {
+        _attributes: {
+          version: "1.0",
+          encoding: "UTF-8",
+          standalone: "yes",
+        },
+      },
+    };
+    for (const key in input) newInput[key] = input[key];
+
+    return newInput;
+  }
+
+  public addXml(inputObject: any): any {
+    if (typeof inputObject !== "object" || inputObject === null) {
+      return inputObject;
+    }
+    if (Array.isArray(inputObject)) {
+      return inputObject.map((item) => this.addXml(item));
+    }
+
+    const newObject: any = {};
+
+    for (const key in inputObject) {
+      if (Object.prototype.hasOwnProperty.call(inputObject, key)) {
+        const value = inputObject[key];
+
+        // Rule 1: Rename "Config" key to "_attributes".
+        if (key === "config") {
+          newObject["_attributes"] = value;
+        } else if (typeof value === "string") {
+          newObject[key] = {
+            _text: value,
+          };
+        } else if (typeof value === "object" && value !== null) {
+          newObject[key] = this.addXml(value);
+        } else {
+          newObject[key] = value;
+        }
+      }
+    }
+
+    return newObject;
   }
 }

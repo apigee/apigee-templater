@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<APIProxy revision="2" name="SimpleProxy-v1">
+  <DisplayName/>
+  <Description/>
+  <CreatedAt>1756911155936</CreatedAt>
+  <LastModifiedAt>1756911155936</LastModifiedAt>
+  <BasePaths>/v1/simple-proxy</BasePaths>
+  <Policies>
+    <Policy>JS-SetResponse</Policy>
+  </Policies>
+  <ProxyEndpoints>
+    <ProxyEndpoint>default</ProxyEndpoint>
+  </ProxyEndpoints>
+  <Resources>
+    <Resource>jsc://set-response.js</Resource>
+  </Resources>
+  <TargetEndpoints>
+    <TargetEndpoint>default</TargetEndpoint>
+    <TargetEndpoint>httpbin</TargetEndpoint>
+  </TargetEndpoints>
+</APIProxy>

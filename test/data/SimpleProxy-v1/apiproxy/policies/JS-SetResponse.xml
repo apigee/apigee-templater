@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Javascript continueOnError="false" enabled="true" timeLimit="200" name="JS-SetResponse">
+  <DisplayName>JS-SetResponse</DisplayName>
+  <Properties/>
+  <ResourceURL>jsc://set-response.js</ResourceURL>
+</Javascript>

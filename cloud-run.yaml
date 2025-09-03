@@ -1,0 +1,25 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: asset-service
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containers:
+        - image: IMAGE_PATH
+          volumeMounts:
+            - name: templatefs
+              mountPath: /data
+          env:
+            - name: DEPLOY_DATE
+              value: DEPLOY_DATE_
+      volumes:
+        - name: templatefs
+          csi:
+            driver: gcsfuse.run.googleapis.com
+            readOnly: False
+            volumeAttributes:
+              bucketName: BUCKET_NAME

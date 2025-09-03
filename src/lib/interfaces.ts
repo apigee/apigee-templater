@@ -10,8 +10,8 @@ export class Proxy {
 }
 
 export class Endpoint {
-  name: string;
-  path: string;
+  name: string = "";
+  path: string = "";
   flows: Flow[] = [];
   postClientFlow?: Flow;
   faultRules?: Flow[] = [];
@@ -20,7 +20,7 @@ export class Endpoint {
 }
 
 export class Route {
-  name: string;
+  name: string = "";
   condition?: string;
   target?: string;
 }
@@ -39,16 +39,16 @@ export class Flow {
 }
 
 export class Step {
-  name: string;
-  condition: string;
+  name: string = "";
+  condition?: string;
 }
 
 export class Target {
-  name: string;
+  name: string = "";
   flows: Flow[] = [];
   faultRules?: Flow[] = [];
   defaultFaultRule?: Flow;
-  url: string;
+  url?: string;
   httpTargetConnection?: any;
   localTargetConnection?: any;
 }

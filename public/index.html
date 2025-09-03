@@ -3,439 +3,734 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>API and Feature Manager</title>
-        <!-- Tailwind CSS for styling -->
+        <title>ApigeeTemplater</title>
+
+        <!-- Tailwind CSS for modern styling -->
         <script src="https://cdn.tailwindcss.com"></script>
-        <!-- js-yaml for YAML file handling -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
-        <!-- jszip for ZIP file handling -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-        <!-- Font Awesome for icons -->
+
+        <!-- Google Fonts: Inter for a clean, modern look -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
             rel="stylesheet"
-            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         />
+
+        <!-- Lucide Icons for crisp, modern icons -->
+        <script src="https://unpkg.com/lucide@latest"></script>
+
         <style>
-            /* Custom scrollbar for a modern look */
+            /* Custom styles for a more polished look */
+            body {
+                font-family: "Inter", sans-serif;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+            }
+
+            /* Custom scrollbar for a modern feel */
             ::-webkit-scrollbar {
                 width: 8px;
-                height: 8px;
             }
             ::-webkit-scrollbar-track {
-                background: #1f2937; /* bg-gray-800 */
+                background: #1f2937; /* gray-800 */
             }
             ::-webkit-scrollbar-thumb {
-                background: #4b5563; /* bg-gray-600 */
+                background: #4b5563; /* gray-600 */
                 border-radius: 4px;
             }
             ::-webkit-scrollbar-thumb:hover {
-                background: #6b7280; /* bg-gray-500 */
+                background: #6b7280; /* gray-500 */
             }
-            /* Style for the file input button */
-            .file-input-button {
-                cursor: pointer;
+
+            /* Modal animation */
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: scale(0.95);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
             }
-            /* Simple transition for UI elements */
-            .transition-all {
-                transition: all 0.3s ease-in-out;
+            .modal-content {
+                animation: fadeIn 0.2s ease-out forwards;
+            }
+
+            /* Custom toggle switch styling */
+            .toggle-checkbox:checked {
+                right: 0;
+                border-color: #3b82f6; /* blue-500 */
+            }
+            .toggle-checkbox:checked + .toggle-label {
+                background-color: #3b82f6; /* blue-500 */
             }
         </style>
     </head>
-    <body class="bg-gray-900 text-gray-200 font-sans flex flex-col h-screen">
-        <!-- Main Header -->
-        <header
-            class="p-4 border-b border-gray-700 shadow-lg bg-gray-800/50 backdrop-blur-sm"
+    <body class="bg-gray-900 text-gray-200">
+        <div
+            class="container mx-auto px-4 md:px-8 py-8 min-h-screen flex flex-col"
         >
-            <div class="container mx-auto flex justify-between items-center">
-                <h1 class="text-2xl font-bold text-white">API Dashboard</h1>
+            <!-- Header -->
+            <header
+                class="flex justify-between items-center pb-6 border-b border-gray-700"
+            >
+                <h1
+                    class="text-2xl md:text-3xl font-bold text-white tracking-tight"
+                >
+                    Apigee<span class="text-blue-500">Templater</span>
+                </h1>
                 <button
                     id="manage-features-btn"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg transition-all shadow-md hover:shadow-lg"
+                    class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-200 flex items-center gap-2"
                 >
-                    <i class="fas fa-cogs mr-2"></i>Manage Features
+                    <i data-lucide="settings-2" class="w-5 h-5"></i>
+                    Manage Features
                 </button>
-            </div>
-        </header>
+            </header>
 
-        <!-- Main Content Area -->
-        <main class="container mx-auto p-4 flex-grow flex flex-col">
-            <!-- File Upload Section -->
-            <div class="mb-4">
-                <label
-                    for="api-file-upload"
-                    class="file-input-button w-full text-center bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center cursor-pointer"
-                >
-                    <i class="fas fa-upload mr-3"></i>
-                    <span>Upload API File (JSON, YAML, or ZIP)</span>
-                </label>
-                <input
-                    type="file"
-                    id="api-file-upload"
-                    class="hidden"
-                    accept=".json,.yaml,.yml,.zip"
-                />
-                <p
-                    id="upload-status"
-                    class="text-sm text-gray-400 mt-2 h-5"
-                ></p>
-            </div>
-
-            <!-- Tabs Section -->
-            <div
-                class="flex-grow flex flex-col bg-gray-800 rounded-lg shadow-inner overflow-hidden"
-            >
-                <!-- Tab Buttons -->
-                <div class="flex border-b border-gray-700">
-                    <button
-                        data-tab="zip"
-                        class="tab-btn flex-1 py-3 px-4 font-semibold text-gray-400 hover:bg-gray-700/50 transition-all"
-                    >
-                        <i class="fas fa-file-archive mr-2"></i>ZIP Contents
-                    </button>
-                    <button
-                        data-tab="json"
-                        class="tab-btn flex-1 py-3 px-4 font-semibold text-gray-400 hover:bg-gray-700/50 transition-all"
-                    >
-                        <i class="fas fa-code mr-2"></i>JSON View
-                    </button>
-                    <button
-                        data-tab="yaml"
-                        class="tab-btn flex-1 py-3 px-4 font-semibold text-gray-400 hover:bg-gray-700/50 transition-all"
-                    >
-                        <i class="fas fa-file-alt mr-2"></i>YAML View
-                    </button>
-                </div>
-                <!-- Tab Panels -->
-                <div class="flex-grow p-1 relative">
-                    <div id="zip-panel" class="tab-panel hidden h-full">
-                        <pre
-                            class="h-full overflow-auto p-4 text-sm"
-                        ><code id="zip-content">Upload a ZIP file to see its contents.</code></pre>
-                    </div>
-                    <div id="json-panel" class="tab-panel hidden h-full">
-                        <pre
-                            class="h-full overflow-auto p-4 text-sm"
-                        ><code id="json-content">Upload an API file to see the JSON representation.</code></pre>
-                    </div>
-                    <div id="yaml-panel" class="tab-panel hidden h-full">
-                        <pre
-                            class="h-full overflow-auto p-4 text-sm"
-                        ><code id="yaml-content">Upload an API file to see the YAML representation.</code></pre>
+            <main class="flex-grow pt-8">
+                <!-- Initial View: Prompt to create or upload -->
+                <div id="initial-view" class="text-center py-16">
+                    <div class="max-w-2xl mx-auto">
+                        <div
+                            class="bg-gray-800/50 p-4 rounded-full inline-block mb-6 border border-gray-700"
+                        >
+                            <i
+                                data-lucide="blocks"
+                                class="w-10 h-10 text-blue-500"
+                            ></i>
+                        </div>
+                        <h2 class="text-4xl font-bold text-white mb-4">
+                            API Proxy Management, Simplified
+                        </h2>
+                        <p class="text-gray-400 text-lg mb-8">
+                            Start by creating a new API proxy from scratch or
+                            upload an existing configuration to begin.
+                        </p>
+                        <div class="flex justify-center gap-4">
+                            <button
+                                id="create-new-api-btn"
+                                class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2"
+                            >
+                                <i
+                                    data-lucide="plus-circle"
+                                    class="w-5 h-5"
+                                ></i>
+                                Create New API
+                            </button>
+                            <button
+                                id="upload-api-btn"
+                                class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2"
+                            >
+                                <i data-lucide="upload" class="w-5 h-5"></i>
+                                Upload an API
+                            </button>
+                            <input
+                                type="file"
+                                id="api-upload-input"
+                                class="hidden"
+                                accept=".zip,.json,.yaml,.yml"
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
-        </main>
 
-        <!-- Features Modal -->
+                <!-- API Details View: Shown after creating or uploading -->
+                <div id="api-details-view" class="hidden space-y-8">
+                    <!-- API Info & Features -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- API Details Section -->
+                        <div
+                            class="lg:col-span-2 bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-lg"
+                        >
+                            <h2
+                                id="api-name"
+                                class="text-2xl font-bold text-white mb-2"
+                            ></h2>
+                            <p
+                                id="api-description"
+                                class="text-gray-400 mb-6"
+                            ></p>
+
+                            <!-- Endpoints -->
+                            <div class="mb-6">
+                                <h3
+                                    class="text-lg font-semibold text-white mb-3 flex items-center gap-2"
+                                >
+                                    <i
+                                        data-lucide="link"
+                                        class="w-5 h-5 text-blue-400"
+                                    ></i
+                                    >Endpoints
+                                </h3>
+                                <div id="api-endpoints" class="space-y-3 pl-2">
+                                    <!-- Endpoints will be dynamically inserted here -->
+                                </div>
+                            </div>
+
+                            <!-- Targets -->
+                            <div>
+                                <h3
+                                    class="text-lg font-semibold text-white mb-3 flex items-center gap-2"
+                                >
+                                    <i
+                                        data-lucide="arrow-right-circle"
+                                        class="w-5 h-5 text-blue-400"
+                                    ></i
+                                    >Target URLs
+                                </h3>
+                                <div id="api-targets" class="space-y-2 pl-2">
+                                    <!-- Targets will be dynamically inserted here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Features Management Section -->
+                        <div
+                            class="bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-lg"
+                        >
+                            <h3
+                                class="text-lg font-semibold text-white mb-4 flex items-center gap-2"
+                            >
+                                <i
+                                    data-lucide="toggle-right"
+                                    class="w-5 h-5 text-blue-400"
+                                ></i>
+                                Enable Features
+                            </h3>
+                            <div id="api-features-list" class="space-y-4">
+                                <!-- Feature toggles will be dynamically inserted here -->
+                                <p class="text-gray-500 text-sm">
+                                    No features available. Add features via
+                                    'Manage Features'.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Export Section -->
+                    <div
+                        class="bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-lg"
+                    >
+                        <h3 class="text-lg font-semibold text-white mb-4">
+                            Export API Proxy
+                        </h3>
+                        <div class="flex flex-wrap gap-4">
+                            <button
+                                class="export-btn bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center gap-2"
+                            >
+                                <i data-lucide="file-zip" class="w-5 h-5"></i>
+                                Export as APIGEE ZIP
+                            </button>
+                            <button
+                                class="export-btn bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center gap-2"
+                            >
+                                <i
+                                    data-lucide="file-json-2"
+                                    class="w-5 h-5"
+                                ></i>
+                                Export as JSON
+                            </button>
+                            <button
+                                class="export-btn bg-yellow-600 hover:bg-yellow-500 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center gap-2"
+                            >
+                                <i data-lucide="file-text" class="w-5 h-5"></i>
+                                Export as YAML
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Footer -->
+            <footer class="text-center pt-8 mt-auto border-t border-gray-700">
+                <p class="text-gray-500">
+                    &copy; 2024 Your Company Inc. All rights reserved.
+                </p>
+                <p class="text-gray-600 text-sm">
+                    ApigeeTemplater - Streamlining API Proxy Development
+                </p>
+            </footer>
+        </div>
+
+        <!-- Modals -->
+
+        <!-- Manage Features Modal -->
         <div
             id="features-modal"
-            class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden transition-opacity duration-300"
+            class="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
         >
             <div
-                class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col transform scale-95 transition-transform duration-300"
+                class="modal-content bg-gray-800 w-full max-w-2xl rounded-xl shadow-2xl border border-gray-700"
             >
                 <!-- Modal Header -->
                 <div
-                    class="flex justify-between items-center p-4 border-b border-gray-700"
+                    class="flex justify-between items-center p-5 border-b border-gray-700"
                 >
-                    <h2 class="text-xl font-bold">Feature Management</h2>
+                    <h3 class="text-xl font-semibold text-white">
+                        Manage Features
+                    </h3>
                     <button
-                        id="close-modal-btn"
-                        class="text-gray-400 hover:text-white text-2xl"
+                        class="close-modal-btn text-gray-400 hover:text-white transition-colors"
                     >
-                        &times;
+                        <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
                 </div>
                 <!-- Modal Body -->
-                <div id="features-list" class="p-4 space-y-3 overflow-y-auto">
-                    <!-- Feature items will be injected here -->
-                    <p class="text-gray-400">
-                        No features added yet. Upload a feature JSON file to get
-                        started.
-                    </p>
+                <div class="p-6 max-h-[60vh] overflow-y-auto">
+                    <div id="features-list" class="space-y-4">
+                        <!-- Feature items will be dynamically inserted here -->
+                    </div>
                 </div>
                 <!-- Modal Footer -->
-                <div class="p-4 border-t border-gray-700 mt-auto">
-                    <label
-                        for="add-feature-upload"
-                        class="file-input-button w-full text-center bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center"
+                <div class="flex justify-end p-5 border-t border-gray-700">
+                    <button
+                        id="upload-feature-btn"
+                        class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center gap-2"
                     >
-                        <i class="fas fa-plus mr-2"></i>Add Feature from JSON
-                    </label>
+                        <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+                        Upload New Feature
+                    </button>
                     <input
                         type="file"
-                        id="add-feature-upload"
+                        id="feature-upload-input"
                         class="hidden"
-                        accept=".json"
                     />
                 </div>
             </div>
         </div>
 
+        <!-- Create New API Modal -->
+        <div
+            id="create-api-modal"
+            class="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
+        >
+            <div
+                class="modal-content bg-gray-800 w-full max-w-lg rounded-xl shadow-2xl border border-gray-700"
+            >
+                <form id="create-api-form">
+                    <!-- Modal Header -->
+                    <div
+                        class="flex justify-between items-center p-5 border-b border-gray-700"
+                    >
+                        <h3 class="text-xl font-semibold text-white">
+                            Create New API Proxy
+                        </h3>
+                        <button
+                            type="button"
+                            class="close-modal-btn text-gray-400 hover:text-white transition-colors"
+                        >
+                            <i data-lucide="x" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                    <!-- Modal Body -->
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label
+                                for="new-api-name"
+                                class="block text-sm font-medium text-gray-300 mb-1"
+                                >API Name</label
+                            >
+                            <input
+                                type="text"
+                                id="new-api-name"
+                                required
+                                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                placeholder="e.g., My Weather API"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                for="new-api-desc"
+                                class="block text-sm font-medium text-gray-300 mb-1"
+                                >Description</label
+                            >
+                            <textarea
+                                id="new-api-desc"
+                                rows="3"
+                                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                placeholder="A short description of your API."
+                            ></textarea>
+                        </div>
+                        <div>
+                            <label
+                                for="new-api-basepath"
+                                class="block text-sm font-medium text-gray-300 mb-1"
+                                >Base Path</label
+                            >
+                            <input
+                                type="text"
+                                id="new-api-basepath"
+                                required
+                                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                placeholder="/v1/weather"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                for="new-api-target"
+                                class="block text-sm font-medium text-gray-300 mb-1"
+                                >Target URL</label
+                            >
+                            <input
+                                type="url"
+                                id="new-api-target"
+                                required
+                                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                placeholder="https://api.weatherprovider.com"
+                            />
+                        </div>
+                    </div>
+                    <!-- Modal Footer -->
+                    <div
+                        class="flex justify-end gap-3 p-5 border-t border-gray-700"
+                    >
+                        <button
+                            type="button"
+                            class="close-modal-btn bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg transition-all"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg transition-all"
+                        >
+                            Create API
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <script>
             document.addEventListener("DOMContentLoaded", () => {
-                // --- State ---
-                let features = [];
+                // --- STATE MANAGEMENT ---
+                const state = {
+                    features: [
+                        {
+                            id: 1,
+                            name: "OAuth v2.0",
+                            description: "Secures API with OAuth 2.0 protocol.",
+                            tags: ["security", "oauth"],
+                        },
+                        {
+                            id: 2,
+                            name: "Spike Arrest",
+                            description: "Protects against traffic surges.",
+                            tags: ["traffic-management", "security"],
+                        },
+                        {
+                            id: 3,
+                            name: "JSON to XML",
+                            description: "Converts JSON request body to XML.",
+                            tags: ["mediation", "transformation"],
+                        },
+                        {
+                            id: 4,
+                            name: "Response Cache",
+                            description:
+                                "Caches responses for faster delivery.",
+                            tags: ["performance", "caching"],
+                        },
+                    ],
+                    currentAPI: null,
+                };
 
-                // --- DOM Elements ---
+                // --- DOM SELECTORS ---
                 const manageFeaturesBtn = document.getElementById(
                     "manage-features-btn",
                 );
                 const featuresModal = document.getElementById("features-modal");
-                const closeModalBtn =
-                    document.getElementById("close-modal-btn");
-                const featuresList = document.getElementById("features-list");
-                const addFeatureUpload =
-                    document.getElementById("add-feature-upload");
-                const apiFileUpload =
-                    document.getElementById("api-file-upload");
-                const uploadStatus = document.getElementById("upload-status");
-                const tabButtons = document.querySelectorAll(".tab-btn");
-                const tabPanels = document.querySelectorAll(".tab-panel");
-                const zipContent = document.getElementById("zip-content");
-                const jsonContent = document.getElementById("json-content");
-                const yamlContent = document.getElementById("yaml-content");
+                const createApiModal =
+                    document.getElementById("create-api-modal");
+                const closeModalBtns =
+                    document.querySelectorAll(".close-modal-btn");
 
-                // --- Feature Management ---
+                const createNewApiBtn =
+                    document.getElementById("create-new-api-btn");
+                const uploadApiBtn = document.getElementById("upload-api-btn");
+                const apiUploadInput =
+                    document.getElementById("api-upload-input");
 
-                /**
-                 * Renders the list of features in the modal.
-                 */
-                const renderFeatures = () => {
-                    featuresList.innerHTML = ""; // Clear current list
-                    if (features.length === 0) {
-                        featuresList.innerHTML =
-                            '<p class="text-gray-400">No features added yet. Upload a feature JSON file to get started.</p>';
+                const initialView = document.getElementById("initial-view");
+                const apiDetailsView =
+                    document.getElementById("api-details-view");
+
+                const createApiForm =
+                    document.getElementById("create-api-form");
+                const featuresListContainer =
+                    document.getElementById("features-list");
+                const uploadFeatureBtn =
+                    document.getElementById("upload-feature-btn");
+                const featureUploadInput = document.getElementById(
+                    "feature-upload-input",
+                );
+
+                // --- RENDER FUNCTIONS ---
+
+                const renderFeaturesList = () => {
+                    featuresListContainer.innerHTML = "";
+                    if (state.features.length === 0) {
+                        featuresListContainer.innerHTML =
+                            '<p class="text-gray-500">No features have been added yet.</p>';
                         return;
                     }
-                    features.forEach((feature, index) => {
+
+                    state.features.forEach((feature) => {
+                        const featureTags = feature.tags
+                            .map(
+                                (tag) =>
+                                    `<span class="bg-gray-600 text-blue-300 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">${tag}</span>`,
+                            )
+                            .join("");
                         const featureElement = document.createElement("div");
                         featureElement.className =
-                            "bg-gray-700 p-3 rounded-lg flex justify-between items-center animate-fade-in";
+                            "bg-gray-700 p-4 rounded-lg flex justify-between items-start";
                         featureElement.innerHTML = `
                         <div>
-                            <p class="font-bold text-white">${feature.name || "Unnamed Feature"}</p>
-                            <p class="text-sm text-gray-400">${feature.description || "No description"}</p>
+                            <h4 class="font-semibold text-white">${feature.name}</h4>
+                            <p class="text-sm text-gray-400 mb-2">${feature.description}</p>
+                            <div>${featureTags}</div>
                         </div>
-                        <button data-index="${index}" class="remove-feature-btn bg-red-600 hover:bg-red-500 text-white font-bold py-1 px-3 rounded-md transition-all">
-                            <i class="fas fa-trash"></i>
+                        <button class="delete-feature-btn text-gray-500 hover:text-red-500 transition-colors p-1" data-id="${feature.id}">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i>
                         </button>
                     `;
-                        featuresList.appendChild(featureElement);
+                        featuresListContainer.appendChild(featureElement);
                     });
+                    lucide.createIcons();
                 };
 
-                /**
-                 * Handles the addition of a new feature from a JSON file.
-                 */
-                addFeatureUpload.addEventListener("change", (event) => {
-                    const file = event.target.files[0];
-                    if (file && file.type === "application/json") {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            try {
-                                const newFeature = JSON.parse(e.target.result);
-                                // Can be a single object or an array of objects
-                                if (Array.isArray(newFeature)) {
-                                    features.push(...newFeature);
-                                } else {
-                                    features.push(newFeature);
-                                }
-                                renderFeatures();
-                            } catch (error) {
-                                alert("Error: Invalid JSON file.");
-                                console.error("JSON parsing error:", error);
-                            }
-                        };
-                        reader.readAsText(file);
-                    } else if (file) {
-                        alert("Please upload a valid JSON file.");
+                const renderApiDetails = () => {
+                    if (!state.currentAPI) return;
+
+                    document.getElementById("api-name").textContent =
+                        state.currentAPI.name;
+                    document.getElementById("api-description").textContent =
+                        state.currentAPI.description;
+
+                    const endpointsContainer =
+                        document.getElementById("api-endpoints");
+                    endpointsContainer.innerHTML = "";
+                    state.currentAPI.endpoints.forEach((endpoint) => {
+                        const el = document.createElement("div");
+                        el.className =
+                            "bg-gray-700/50 p-3 rounded-md flex items-center gap-4";
+                        el.innerHTML = `
+                        <span class="font-mono text-sm bg-blue-900/50 text-blue-300 px-2 py-1 rounded">${endpoint.basePath}</span>
+                        <span class="text-gray-400 text-sm">${endpoint.routeRule}</span>
+                    `;
+                        endpointsContainer.appendChild(el);
+                    });
+
+                    const targetsContainer =
+                        document.getElementById("api-targets");
+                    targetsContainer.innerHTML = "";
+                    state.currentAPI.targets.forEach((target) => {
+                        const el = document.createElement("div");
+                        el.className =
+                            "bg-gray-700/50 p-3 rounded-md flex items-center gap-2";
+                        el.innerHTML = `
+                        <i data-lucide="target" class="w-4 h-4 text-gray-400"></i>
+                        <span class="font-mono text-sm text-gray-300">${target}</span>
+                    `;
+                        targetsContainer.appendChild(el);
+                    });
+
+                    renderApiFeaturesList();
+                    lucide.createIcons();
+                };
+
+                const renderApiFeaturesList = () => {
+                    const container =
+                        document.getElementById("api-features-list");
+                    container.innerHTML = "";
+
+                    if (state.features.length === 0) {
+                        container.innerHTML = `<p class="text-gray-500 text-sm">No features available. Add features via 'Manage Features'.</p>`;
+                        return;
                     }
-                    event.target.value = ""; // Reset file input
-                });
 
-                /**
-                 * Handles removing a feature using event delegation.
-                 */
-                featuresList.addEventListener("click", (event) => {
-                    if (event.target.closest(".remove-feature-btn")) {
-                        const button = event.target.closest(
-                            ".remove-feature-btn",
-                        );
-                        const indexToRemove = parseInt(
-                            button.dataset.index,
-                            10,
-                        );
-                        features.splice(indexToRemove, 1);
-                        renderFeatures();
-                    }
-                });
-
-                // --- Modal Logic ---
-                const openModal = () => {
-                    featuresModal.classList.remove("hidden");
-                    setTimeout(() => {
-                        featuresModal.classList.add("opacity-100");
-                        featuresModal
-                            .querySelector("div")
-                            .classList.remove("scale-95");
-                    }, 10);
-                };
-
-                const closeModal = () => {
-                    featuresModal.classList.remove("opacity-100");
-                    featuresModal
-                        .querySelector("div")
-                        .classList.add("scale-95");
-                    setTimeout(() => {
-                        featuresModal.classList.add("hidden");
-                    }, 300);
-                };
-
-                manageFeaturesBtn.addEventListener("click", openModal);
-                closeModalBtn.addEventListener("click", closeModal);
-                featuresModal.addEventListener("click", (event) => {
-                    if (event.target === featuresModal) {
-                        closeModal();
-                    }
-                });
-
-                // --- API File Handling & Tabs ---
-
-                /**
-                 * Sets the active tab and panel.
-                 * @param {string} tabName - The name of the tab to activate ('zip', 'json', 'yaml').
-                 */
-                const setActiveTab = (tabName) => {
-                    tabButtons.forEach((btn) => {
-                        if (btn.dataset.tab === tabName) {
-                            btn.classList.add("bg-gray-700", "text-white");
-                            btn.classList.remove("text-gray-400");
-                        } else {
-                            btn.classList.remove("bg-gray-700", "text-white");
-                            btn.classList.add("text-gray-400");
-                        }
-                    });
-                    tabPanels.forEach((panel) => {
-                        if (panel.id === `${tabName}-panel`) {
-                            panel.classList.remove("hidden");
-                        } else {
-                            panel.classList.add("hidden");
-                        }
+                    state.features.forEach((feature) => {
+                        const isEnabled =
+                            state.currentAPI.enabledFeatures.includes(
+                                feature.id,
+                            );
+                        const toggleElement = document.createElement("div");
+                        toggleElement.className =
+                            "flex items-center justify-between";
+                        toggleElement.innerHTML = `
+                        <div>
+                            <span class="font-medium text-white">${feature.name}</span>
+                            <p class="text-sm text-gray-400">${feature.description}</p>
+                        </div>
+                        <label class="flex items-center cursor-pointer">
+                            <div class="relative">
+                                <input type="checkbox" class="sr-only toggle-feature-checkbox" data-id="${feature.id}" ${isEnabled ? "checked" : ""}>
+                                <div class="w-10 h-4 bg-gray-600 rounded-full shadow-inner"></div>
+                                <div class="toggle-checkbox absolute w-6 h-6 bg-white rounded-full shadow -left-1 -top-1 border-2 border-gray-600 transition"></div>
+                            </div>
+                        </label>
+                    `;
+                        container.appendChild(toggleElement);
                     });
                 };
 
-                tabButtons.forEach((button) => {
-                    button.addEventListener("click", () => {
-                        setActiveTab(button.dataset.tab);
-                    });
-                });
-
-                /**
-                 * Handles the main API file upload and processing.
-                 */
-                apiFileUpload.addEventListener("change", (event) => {
-                    const file = event.target.files[0];
-                    if (!file) return;
-
-                    uploadStatus.textContent = `Processing "${file.name}"...`;
-                    resetContentViews();
-
-                    const extension = file.name.split(".").pop().toLowerCase();
-
-                    if (extension === "zip") {
-                        handleZipFile(file);
-                    } else if (extension === "json") {
-                        handleJsonFile(file);
-                    } else if (extension === "yaml" || extension === "yml") {
-                        handleYamlFile(file);
+                const updateView = () => {
+                    if (state.currentAPI) {
+                        initialView.classList.add("hidden");
+                        apiDetailsView.classList.remove("hidden");
+                        renderApiDetails();
                     } else {
-                        uploadStatus.textContent = `Error: Unsupported file type ".${extension}".`;
+                        initialView.classList.remove("hidden");
+                        apiDetailsView.classList.add("hidden");
                     }
-                    event.target.value = ""; // Reset file input
+                };
+
+                // --- MODAL HANDLING ---
+                const openModal = (modal) => modal.classList.remove("hidden");
+                const closeModal = (modal) => modal.classList.add("hidden");
+
+                manageFeaturesBtn.addEventListener("click", () => {
+                    renderFeaturesList();
+                    openModal(featuresModal);
                 });
 
-                const resetContentViews = () => {
-                    zipContent.textContent = "Processing...";
-                    jsonContent.textContent = "Processing...";
-                    yamlContent.textContent = "Processing...";
-                };
+                createNewApiBtn.addEventListener("click", () =>
+                    openModal(createApiModal),
+                );
 
-                const handleZipFile = (file) => {
-                    const reader = new FileReader();
-                    reader.onload = async (e) => {
-                        try {
-                            const zip = await JSZip.loadAsync(e.target.result);
-                            let fileTree = `Contents of ${file.name}:\n\n`;
-                            zip.forEach((relativePath, zipEntry) => {
-                                fileTree += `${zipEntry.dir ? "📁" : "📄"} ${relativePath}\n`;
-                            });
-                            zipContent.textContent = fileTree;
-                            jsonContent.textContent =
-                                "N/A for ZIP file view. Unpack to view contents.";
-                            yamlContent.textContent =
-                                "N/A for ZIP file view. Unpack to view contents.";
-                            uploadStatus.textContent = `Successfully processed "${file.name}".`;
-                            setActiveTab("zip");
-                        } catch (error) {
-                            uploadStatus.textContent = `Error processing ZIP file.`;
-                            console.error(error);
-                        }
+                closeModalBtns.forEach((btn) => {
+                    btn.addEventListener("click", () => {
+                        closeModal(featuresModal);
+                        closeModal(createApiModal);
+                    });
+                });
+
+                // --- EVENT LISTENERS ---
+
+                // Create API Form Submission
+                createApiForm.addEventListener("submit", (e) => {
+                    e.preventDefault();
+                    state.currentAPI = {
+                        name: document.getElementById("new-api-name").value,
+                        description:
+                            document.getElementById("new-api-desc").value,
+                        endpoints: [
+                            {
+                                basePath:
+                                    document.getElementById("new-api-basepath")
+                                        .value,
+                                routeRule: "No Route Rule",
+                            },
+                        ],
+                        targets: [
+                            document.getElementById("new-api-target").value,
+                        ],
+                        enabledFeatures: [],
                     };
-                    reader.readAsArrayBuffer(file);
-                };
+                    createApiForm.reset();
+                    closeModal(createApiModal);
+                    updateView();
+                });
 
-                const handleJsonFile = (file) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const parsedJson = JSON.parse(e.target.result);
-                            jsonContent.textContent = JSON.stringify(
-                                parsedJson,
-                                null,
-                                2,
-                            );
-                            // Convert JSON to YAML for the other tab
-                            yamlContent.textContent = jsyaml.dump(parsedJson);
-                            zipContent.textContent = "N/A for JSON file.";
-                            uploadStatus.textContent = `Successfully processed "${file.name}".`;
-                            setActiveTab("json");
-                        } catch (error) {
-                            uploadStatus.textContent = `Error: Invalid JSON file.`;
-                            jsonContent.textContent = `Error parsing JSON:\n\n${error.message}`;
-                            console.error(error);
+                // Upload API button triggers hidden file input
+                uploadApiBtn.addEventListener("click", () =>
+                    apiUploadInput.click(),
+                );
+                apiUploadInput.addEventListener("change", (e) => {
+                    if (e.target.files.length > 0) {
+                        const fileName = e.target.files[0].name;
+                        // Mock API data from upload
+                        state.currentAPI = {
+                            name: fileName.split(".").slice(0, -1).join("."),
+                            description: `API proxy loaded from ${fileName}.`,
+                            endpoints: [
+                                {
+                                    basePath: "/v1/uploaded",
+                                    routeRule: "(no condition)",
+                                },
+                                {
+                                    basePath: "/v1/products",
+                                    routeRule:
+                                        '(proxy.pathsuffix MatchesPath "/products")',
+                                },
+                            ],
+                            targets: ["https://mock.backend.api/"],
+                            enabledFeatures: [2, 4], // Pre-enable some features for demo
+                        };
+                        updateView();
+                    }
+                });
+
+                // Delete a feature
+                featuresListContainer.addEventListener("click", (e) => {
+                    const deleteBtn = e.target.closest(".delete-feature-btn");
+                    if (deleteBtn) {
+                        const featureId = parseInt(deleteBtn.dataset.id, 10);
+                        state.features = state.features.filter(
+                            (f) => f.id !== featureId,
+                        );
+                        renderFeaturesList();
+                        // Also update the API feature list if an API is loaded
+                        if (state.currentAPI) renderApiFeaturesList();
+                    }
+                });
+
+                // Toggle a feature for the current API
+                document
+                    .getElementById("api-features-list")
+                    .addEventListener("change", (e) => {
+                        if (
+                            e.target.classList.contains(
+                                "toggle-feature-checkbox",
+                            )
+                        ) {
+                            const featureId = parseInt(e.target.dataset.id, 10);
+                            if (e.target.checked) {
+                                state.currentAPI.enabledFeatures.push(
+                                    featureId,
+                                );
+                            } else {
+                                state.currentAPI.enabledFeatures =
+                                    state.currentAPI.enabledFeatures.filter(
+                                        (id) => id !== featureId,
+                                    );
+                            }
                         }
-                    };
-                    reader.readAsText(file);
-                };
+                    });
 
-                const handleYamlFile = (file) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const parsedYaml = jsyaml.load(e.target.result);
-                            yamlContent.textContent = e.target.result;
-                            // Convert YAML to JSON for the other tab
-                            jsonContent.textContent = JSON.stringify(
-                                parsedYaml,
-                                null,
-                                2,
-                            );
-                            zipContent.textContent = "N/A for YAML file.";
-                            uploadStatus.textContent = `Successfully processed "${file.name}".`;
-                            setActiveTab("yaml");
-                        } catch (error) {
-                            uploadStatus.textContent = `Error: Invalid YAML file.`;
-                            yamlContent.textContent = `Error parsing YAML:\n\n${error.message}`;
-                            console.error(error);
-                        }
-                    };
-                    reader.readAsText(file);
-                };
+                // Upload new feature
+                uploadFeatureBtn.addEventListener("click", () =>
+                    featureUploadInput.click(),
+                );
+                featureUploadInput.addEventListener("change", (e) => {
+                    if (e.target.files.length > 0) {
+                        const newFeature = {
+                            id: Date.now(), // simple unique id
+                            name: "New Uploaded Feature",
+                            description: "A feature from a file.",
+                            tags: ["custom", "uploaded"],
+                        };
+                        state.features.push(newFeature);
+                        renderFeaturesList();
+                        if (state.currentAPI) renderApiFeaturesList();
+                    }
+                });
 
-                // --- Initial Setup ---
-                renderFeatures();
-                setActiveTab("json"); // Set a default active tab on load
+                // Export buttons (dummy functionality)
+                document.querySelectorAll(".export-btn").forEach((btn) => {
+                    btn.addEventListener("click", (e) => {
+                        alert(
+                            `Exporting API proxy as ${e.target.innerText.replace("Export as ", "")}...`,
+                        );
+                    });
+                });
+
+                // --- INITIALIZATION ---
+                lucide.createIcons();
+                updateView();
             });
         </script>
     </body>

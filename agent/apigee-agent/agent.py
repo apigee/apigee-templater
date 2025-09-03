@@ -14,8 +14,7 @@ root_agent = Agent(
     ),
     tools=[MCPToolset(
         connection_params=StreamableHTTPConnectionParams(
-            url="http://localhost:8080/mcp",
-            headers={"Authorization": "Bearer test_token"}
+            url="https://apigee-templater-609874082793.europe-west1.run.app/mcp"
         )
     )],
 )

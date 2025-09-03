@@ -7,9 +7,9 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { ApigeeConverter } from "./lib/converter.ts";
-import { Proxy, Feature } from "./lib/interfaces.ts";
-import { ApigeeTemplaterService } from "./lib/service.ts";
+import { ApigeeConverter } from "./lib/converter.js";
+import { Proxy, Feature } from "./lib/interfaces.js";
+import { ApigeeTemplaterService } from "./lib/service.js";
 
 // Map to store transports by session ID
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
@@ -37,6 +37,16 @@ app.use(
   }),
 );
 
+// create default directories
+fs.mkdirSync("./data/proxies", { recursive: true });
+fs.mkdirSync("./data/features", { recursive: true });
+fs.mkdirSync("./data/temp", { recursive: true });
+
+app.get("/apigee-templater/proxies", (req, res) => {
+  // apigeeService.
+});
+
+// upload proxy in either zip, json or yaml format
 app.post("/apigee-templater/proxies", (req, res) => {
   if (!req.body) {
     return res.status(400).send("No data received.");
@@ -51,7 +61,6 @@ app.post("/apigee-templater/proxies", (req, res) => {
   switch (requestType) {
     case "application/octet-stream":
       // Apigee proxy zip input, json output
-      fs.mkdirSync("./data/proxies", { recursive: true });
       let tempFilePath = "./data/proxies/" + name + ".zip";
       fs.writeFileSync(tempFilePath, req.body);
 
@@ -86,31 +95,60 @@ app.post("/apigee-templater/proxies", (req, res) => {
       if (responseType == "application/yaml") {
         res.setHeader("Content-Type", "application/yaml");
         res.status(201).send(YAML.stringify(req.body));
-      } else {
+      } else if (responseType == "application/octet-stream") {
         converter.jsonToZip(name, req.body).then((result) => {
           let zipOutputFile = fs.readFileSync(result);
           res.setHeader("Content-Type", "application/octet-stream");
           res.status(201).send(zipOutputFile);
         });
+      } else {
+        res.setHeader("Content-Type", "application/json");
+        res.status(201).send(JSON.stringify(req.body, null, 2));
       }
       break;
     case "application/yaml":
       let proxy = YAML.parse(req.body);
       apigeeService.proxyImport(proxy);
-      if (responseType == "application/json") {
-        res.setHeader("Content-Type", "application/json");
-        res.status(201).json(YAML.parse(proxy));
-      } else {
+      if (responseType == "application/yaml") {
+        res.setHeader("Content-Type", "application/yaml");
+        res.status(201).send(YAML.stringify(proxy));
+      } else if (responseType == "application/octet-stream") {
         converter.jsonToZip(name, proxy).then((result) => {
           let zipOutputFile = fs.readFileSync(result);
           res.setHeader("Content-Type", "application/octet-stream");
           res.status(201).send(zipOutputFile);
         });
+      } else {
+        res.setHeader("Content-Type", "application/json");
+        res.status(201).json(JSON.stringify(proxy, null, 2));
       }
       break;
   }
 });
 
+app.get("/apigee-templater/proxies/:proxy", (req, res) => {
+  let proxyName = req.params.proxy;
+  let proxy = apigeeService.proxyGet(proxyName);
+  let responseType = req.header("Accept");
+
+  if (proxy) {
+    if (responseType == "application/yaml") {
+      res.setHeader("Content-Type", "application/yaml");
+      res.status(201).send(YAML.stringify(proxy));
+    } else if (responseType == "application/octet-stream") {
+      converter.jsonToZip(proxyName, proxy).then((result) => {
+        let zipOutputFile = fs.readFileSync(result);
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.status(201).send(zipOutputFile);
+      });
+    } else {
+      res.setHeader("Content-Type", "application/json");
+      res.status(201).json(JSON.stringify(proxy, null, 2));
+    }
+  } else res.status(404).send("Proxy could not be found.");
+});
+
+// delete proxy
 app.delete("/apigee-templater/proxies/:proxy", (req, res) => {
   let proxyName = req.params.proxy;
   let proxy = apigeeService.proxyGet(proxyName);
@@ -122,6 +160,24 @@ app.delete("/apigee-templater/proxies/:proxy", (req, res) => {
   } else res.status(404).send("Proxy could not be found.");
 });
 
+// get feature
+app.get("/apigee-templater/features/:feature", (req, res) => {
+  let featureName = req.params.feature;
+  let feature = apigeeService.featureGet(featureName);
+  let responseType = req.header("Accept");
+
+  if (feature) {
+    if (responseType == "application/yaml") {
+      res.setHeader("Content-Type", "application/yaml");
+      res.status(201).send(YAML.stringify(feature));
+    } else {
+      res.setHeader("Content-Type", "application/json");
+      res.status(201).json(JSON.stringify(feature, null, 2));
+    }
+  } else res.status(404).send("Feature could not be found.");
+});
+
+// delete feature
 app.delete("/apigee-templater/features/:feature", (req, res) => {
   let featureName = req.params.feature;
   let feature = apigeeService.featureGet(featureName);
@@ -133,6 +189,7 @@ app.delete("/apigee-templater/features/:feature", (req, res) => {
   } else res.status(404).send("Feature could not be found.");
 });
 
+// apply feature to proxy
 app.post(
   "/apigee-templater/proxies/:proxy/features/:feature",
   async (req, res) => {
@@ -164,6 +221,7 @@ app.post(
   },
 );
 
+// remove feature from API proxy
 app.delete("/apigee-templater/proxies/:proxy/features/:feature", (req, res) => {
   let proxyName = req.params.proxy;
   let featureName = req.params.feature;
@@ -185,6 +243,7 @@ app.delete("/apigee-templater/proxies/:proxy/features/:feature", (req, res) => {
   }
 });
 
+// create a new feature
 app.post("/apigee-templater/features", (req, res) => {
   if (!req.body) {
     return res.status(400).send("No data received.");
@@ -267,8 +326,8 @@ app.post("/mcp", async (req, res) => {
       },
       // DNS rebinding protection is disabled by default for backwards compatibility. If you are running this server
       // locally, make sure to set:
-      enableDnsRebindingProtection: true,
-      allowedHosts: ["127.0.0.1", "localhost", "localhost:8080"],
+      enableDnsRebindingProtection: false,
+      allowedHosts: ["127.0.0.1", "localhost:8080", "*"],
     });
 
     // Clean up transport when closed
@@ -347,7 +406,7 @@ app.post("/mcp", async (req, res) => {
             content: [
               {
                 type: "text",
-                text: `The proxies could not be created, maybe there is a conflicting base path?`,
+                text: `No proxies found.`,
               },
             ],
           };
@@ -379,7 +438,7 @@ app.post("/mcp", async (req, res) => {
             content: [
               {
                 type: "text",
-                text: `No features were found.`,
+                text: `No features found.`,
               },
             ],
           };

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-import cli from "../cli.ts";
+import cli from "../lib/cli.js";
 
 process.removeAllListeners("warning");
 
