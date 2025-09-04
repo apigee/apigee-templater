@@ -229,7 +229,6 @@ export class cli {
         this.converter,
       );
     } else {
-      // We have a file input, let's check if local or remote..
       if (fs.existsSync(options.file)) {
         proxy = await this.loadFile(options.name, options.file);
       } else {

@@ -1,19 +1,24 @@
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: asset-service
+  name: apigee-templater
 spec:
   template:
     metadata:
       annotations:
         run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/startup-cpu-boost: true
     spec:
       containers:
         - image: IMAGE_PATH
           volumeMounts:
             - name: templatefs
-              mountPath: /data
+              mountPath: /mnt/data
           env:
+            - name: STORAGE_DIR
+              value: /mnt/data/
+            - name: SERVICE_URL
+              value: SERVICE_URL_
             - name: DEPLOY_DATE
               value: DEPLOY_DATE_
       volumes:

@@ -14,8 +14,19 @@ import { ApigeeTemplaterService } from "./lib/service.js";
 // Map to store transports by session ID
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 
-const converter = new ApigeeConverter();
-const apigeeService = new ApigeeTemplaterService();
+const rootStorageDir = process.env.STORAGE_DIR
+  ? process.env.STORAGE_DIR
+  : "./data/";
+const converter = new ApigeeConverter(
+  rootStorageDir + "temp/",
+  rootStorageDir + "proxies/",
+  rootStorageDir + "features/",
+);
+const apigeeService = new ApigeeTemplaterService(
+  rootStorageDir + "temp/",
+  rootStorageDir + "proxies/",
+  rootStorageDir + "features/",
+);
 const app = express();
 app.use(express.static("public"));
 app.use(
@@ -38,9 +49,9 @@ app.use(
 );
 
 // create default directories
-fs.mkdirSync("./data/proxies", { recursive: true });
-fs.mkdirSync("./data/features", { recursive: true });
-fs.mkdirSync("./data/temp", { recursive: true });
+fs.mkdirSync(rootStorageDir + "proxies", { recursive: true });
+fs.mkdirSync(rootStorageDir + "features", { recursive: true });
+fs.mkdirSync(rootStorageDir + "temp", { recursive: true });
 
 app.get("/apigee-templater/proxies", (req, res) => {
   // apigeeService.
@@ -61,7 +72,7 @@ app.post("/apigee-templater/proxies", (req, res) => {
   switch (requestType) {
     case "application/octet-stream":
       // Apigee proxy zip input, json output
-      let tempFilePath = "./data/proxies/" + name + ".zip";
+      let tempFilePath = rootStorageDir + "proxies/" + name + ".zip";
       fs.writeFileSync(tempFilePath, req.body);
 
       converter
@@ -70,14 +81,14 @@ app.post("/apigee-templater/proxies", (req, res) => {
           // fs.rmSync(tempFilePath);
           if (responseType == "application/yaml") {
             fs.writeFileSync(
-              "./data/proxies/" + name + ".json",
+              rootStorageDir + "proxies/" + name + ".json",
               JSON.stringify(result, null, 2),
             );
             res.setHeader("Content-Type", "application/yaml");
             res.status(201).send(YAML.stringify(result));
           } else {
             fs.writeFileSync(
-              "./data/proxies/" + name + ".json",
+              rootStorageDir + "proxies/" + name + ".json",
               JSON.stringify(result, null, 2),
             );
             res.setHeader("Content-Type", "application/json");
@@ -128,14 +139,26 @@ app.post("/apigee-templater/proxies", (req, res) => {
 
 app.get("/apigee-templater/proxies/:proxy", (req, res) => {
   let proxyName = req.params.proxy;
+  let format =
+    req.query.format && typeof req.query.format == "string"
+      ? req.query.format.toLowerCase()
+      : "";
   let proxy = apigeeService.proxyGet(proxyName);
   let responseType = req.header("Accept");
 
   if (proxy) {
-    if (responseType == "application/yaml") {
+    if (
+      responseType == "application/yaml" ||
+      format == "yaml" ||
+      format == "yml"
+    ) {
       res.setHeader("Content-Type", "application/yaml");
       res.status(201).send(YAML.stringify(proxy));
-    } else if (responseType == "application/octet-stream") {
+    } else if (
+      responseType == "application/octet-stream" ||
+      format == "zip" ||
+      format == "xml"
+    ) {
       converter.jsonToZip(proxyName, proxy).then((result) => {
         let zipOutputFile = fs.readFileSync(result);
         res.setHeader("Content-Type", "application/octet-stream");
@@ -259,8 +282,7 @@ app.post("/apigee-templater/features", (req, res) => {
   switch (requestType) {
     case "application/octet-stream":
       // Apigee proxy zip input, convert to feature
-      fs.mkdirSync("./data/temp", { recursive: true });
-      let tempFilePath = "./data/temp/" + name + ".zip";
+      let tempFilePath = rootStorageDir + "temp/" + name + ".zip";
       fs.writeFileSync(tempFilePath, req.body);
 
       converter
@@ -465,6 +487,57 @@ app.post("/mcp", async (req, res) => {
               {
                 type: "text",
                 text: `${proxyText}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The proxy could not be found, maybe the name is incorrect?`,
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    // proxyDownload
+    server.registerTool(
+      "proxyDownload",
+      {
+        title: "Proxy Download Link Tool",
+        description: "Get a link to download a proxy.",
+        inputSchema: {
+          proxyName: z.string(),
+          format: z
+            .string()
+            .describe(
+              "You can download the proxy either in json, yaml, or zip formats.",
+            )
+            .default("json"),
+        },
+      },
+      async ({ proxyName, format }) => {
+        let proxy = apigeeService.proxyGet(proxyName);
+        if (proxy) {
+          let link = process.env.SERVICE_URL
+            ? process.env.SERVICE_URL.replace("SERVICE_URL_", "") +
+              "/apigee-templater/proxies/" +
+              proxy.name +
+              "?format=" +
+              format
+            : "NOT_SUPPORTED";
+          return {
+            content: [
+              {
+                type: "text",
+                text:
+                  link === "NOT_SUPPORTED"
+                    ? "Link downloads are not supported on this server, however here is the proxy JSON:\n" +
+                      JSON.stringify(proxy, null, 2)
+                    : `Here is the download link of proxy ${proxyName} in ${format} format: ${link}`,
               },
             ],
           };

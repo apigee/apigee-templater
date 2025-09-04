@@ -4,5 +4,5 @@ output
 build
 *.local.*
 temp
-proxies
+data
 .env

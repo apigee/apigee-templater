@@ -19,16 +19,16 @@ export class ApigeeTemplaterService {
 
   public proxiesListText(): string {
     let proxyLines: string[] = [];
-    let proxies: string[] = fs.readdirSync("./data/proxies");
+    let proxies: string[] = fs.readdirSync(this.proxiesPath);
 
     for (let proxyPath of proxies) {
       if (proxyPath.endsWith(".json")) {
         let proxy: Proxy = JSON.parse(
-          fs.readFileSync("./data/proxies/" + proxyPath, "utf8"),
+          fs.readFileSync(this.proxiesPath + proxyPath, "utf8"),
         );
         let proxyString = proxy.description
-          ? proxy.name + " - " + proxy.description
-          : proxy.name + " - No description.";
+          ? " - " + proxy.name + " - " + proxy.description
+          : " - " + proxy.name + " - No description.";
         proxyLines.push(proxyString);
       }
     }
@@ -38,12 +38,12 @@ export class ApigeeTemplaterService {
 
   public featuresListText(): string {
     let featureLines: string[] = [];
-    let features: string[] = fs.readdirSync("./data/features");
+    let features: string[] = fs.readdirSync(this.featuresPath);
 
     for (let featurePath of features) {
       if (featurePath.endsWith(".json")) {
         let feature: Feature = JSON.parse(
-          fs.readFileSync("./data/features/" + featurePath, "utf8"),
+          fs.readFileSync(this.featuresPath + featurePath, "utf8"),
         );
         let featureString = feature.description
           ? feature.name + " - " + feature.description
@@ -57,8 +57,9 @@ export class ApigeeTemplaterService {
 
   public proxyGet(name: string): Proxy | undefined {
     let result: Proxy | undefined = undefined;
+    let tempName = name.replaceAll(" ", "-");
     let proxyString = fs.readFileSync(
-      "./data/proxies/" + name + ".json",
+      this.proxiesPath + tempName + ".json",
       "utf8",
     );
 
@@ -73,15 +74,16 @@ export class ApigeeTemplaterService {
 
   public proxyImport(proxy: Proxy) {
     fs.writeFileSync(
-      "./data/proxies/" + proxy.name + ".json",
+      this.proxiesPath + proxy.name + ".json",
       JSON.stringify(proxy, null, 2),
     );
   }
 
   public featureGet(name: string): Feature | undefined {
     let result: Feature | undefined = undefined;
+    let tempName = name.replaceAll(" ", "-");
     let featureString = fs.readFileSync(
-      "./data/features/" + name + ".json",
+      this.featuresPath + tempName + ".json",
       "utf8",
     );
 
@@ -120,7 +122,7 @@ export class ApigeeTemplaterService {
     }
 
     fs.writeFileSync(
-      "./data/proxies/" + proxyName + ".json",
+      this.proxiesPath + proxyName + ".json",
       JSON.stringify(proxy, null, 2),
     );
 
@@ -151,7 +153,7 @@ export class ApigeeTemplaterService {
     }
 
     fs.writeFileSync(
-      "./data/proxies/" + proxyName + ".json",
+      this.proxiesPath + proxyName + ".json",
       JSON.stringify(proxy, null, 2),
     );
 
@@ -164,7 +166,7 @@ export class ApigeeTemplaterService {
     targetUrl: string | undefined,
     converter: ApigeeConverter,
   ): Proxy {
-    let tempProxyName = name.replaceAll(" ", "-").toLowerCase();
+    let tempProxyName = name.replaceAll(" ", "-");
     let newProxy: Proxy = {
       name: tempProxyName,
       displayName: name,
@@ -198,6 +200,8 @@ export class ApigeeTemplaterService {
         newProxy.endpoints[0].routes[0].target = "default";
     }
 
+    console.log("Writing PROXY " + this.proxiesPath + tempProxyName + ".json");
+
     fs.writeFileSync(
       this.proxiesPath + tempProxyName + ".json",
       JSON.stringify(newProxy, null, 2),
@@ -227,7 +231,7 @@ export class ApigeeTemplaterService {
     let proxy: Proxy | undefined = undefined;
     let tempProxyName = proxyName.replaceAll(" ", "-").toLowerCase();
     let proxyString = fs.readFileSync(
-      "./data/proxies/" + tempProxyName + ".json",
+      this.proxiesPath + tempProxyName + ".json",
       "utf8",
     );
     let result = {};
@@ -258,7 +262,7 @@ export class ApigeeTemplaterService {
       }
 
       fs.writeFileSync(
-        "./data/proxies/" + tempProxyName + ".json",
+        this.proxiesPath + tempProxyName + ".json",
         JSON.stringify(proxy, null, 2),
       );
 
@@ -267,20 +271,20 @@ export class ApigeeTemplaterService {
   }
 
   public proxyDelete(proxyName: string) {
-    if (fs.existsSync("./data/proxies/" + proxyName + ".json")) {
-      fs.rmSync("./data/proxies/" + proxyName + ".json");
+    if (fs.existsSync(this.proxiesPath + proxyName + ".json")) {
+      fs.rmSync(this.proxiesPath + proxyName + ".json");
     }
-    if (fs.existsSync("./data/proxies/" + proxyName + ".yaml")) {
-      fs.rmSync("./data/proxies/" + proxyName + ".yaml");
+    if (fs.existsSync(this.proxiesPath + proxyName + ".yaml")) {
+      fs.rmSync(this.proxiesPath + proxyName + ".yaml");
     }
-    if (fs.existsSync("./data/proxies/" + proxyName + ".zip")) {
-      fs.rmSync("./data/proxies/" + proxyName + ".zip");
+    if (fs.existsSync(this.proxiesPath + proxyName + ".zip")) {
+      fs.rmSync(this.proxiesPath + proxyName + ".zip");
     }
   }
 
   public featureDelete(featureName: string) {
-    if (fs.existsSync("./data/features/" + featureName + ".json")) {
-      fs.rmSync("./data/features/" + featureName + ".json");
+    if (fs.existsSync(this.featuresPath + featureName + ".json")) {
+      fs.rmSync(this.featuresPath + featureName + ".json");
     }
   }
 
@@ -294,7 +298,7 @@ export class ApigeeTemplaterService {
     let proxy: Proxy | undefined = undefined;
     let tempProxyName = proxyName.replaceAll(" ", "-").toLowerCase();
     let proxyString = fs.readFileSync(
-      "./data/proxies/" + tempProxyName + ".json",
+      this.proxiesPath + tempProxyName + ".json",
       "utf8",
     );
     let result = {};
@@ -330,7 +334,7 @@ export class ApigeeTemplaterService {
         }
 
         fs.writeFileSync(
-          "./data/proxies/" + tempProxyName + ".json",
+          this.proxiesPath + tempProxyName + ".json",
           JSON.stringify(proxy, null, 2),
         );
       }
