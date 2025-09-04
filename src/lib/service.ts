@@ -46,8 +46,8 @@ export class ApigeeTemplaterService {
           fs.readFileSync(this.featuresPath + featurePath, "utf8"),
         );
         let featureString = feature.description
-          ? feature.name + " - " + feature.description
-          : feature.name + " - No description.";
+          ? " - " + feature.name + " - " + feature.description
+          : " - " + feature.name + " - No description.";
         featureLines.push(featureString);
       }
     }

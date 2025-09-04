@@ -7,7 +7,7 @@ spec:
     metadata:
       annotations:
         run.googleapis.com/execution-environment: gen2
-        run.googleapis.com/startup-cpu-boost: true
+        run.googleapis.com/startup-cpu-boost: "true"
     spec:
       containers:
         - image: IMAGE_PATH

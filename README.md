@@ -1,6 +1,6 @@
 # Apigee Templater
 Apigee Templater v3 provides templating & feature management for Apigee proxies in **XML**, **JSON** & **YAML** formats. It provides services through a **REST** and **MCP** server, and a local **CLI**.
-Apigee Templater v3 is currently in **beta** status, if you test and find bugs please report as issues here in the repo.
+Apigee Templater v3 is currently in **ALPHA** status, if you test and find bugs please report as [Issues](https://github.com/apigee/apigee-templater/issues).
 
 ### Prerequisites
 * [Node.js](https://nodejs.org/)
@@ -44,6 +44,13 @@ Currently these features are not yet supported:
 - Apigee proxy conditional endpoints are not yet supported.
 - Apigee fault rules and fault handling is not yet supported when converting between zip and json.
 - MCP and CLI inputs cannot yet process parameters when applying features, so currently only default values are used.
+- Since this in ALPHA status and only test data is being used, there is currently no auth to the REST and MCP server, as well as in the test agent.
+
+## Plans & ideas
+These are some future ideas for additions, feel free to suggest any changes under Issues or Discussions.
+- Add proxy conditional endpoints and fault rules, as documented under limitations above.
+- Allow features to also have targets and endpoints, this could be interesting to compose proxies from features (for example compose Gemini and Mistral features into an AI proxy).
+- Allow proxies to be synced directly to Apigee orgs using a user OAuth flow.
 
 ## Contributing
 
