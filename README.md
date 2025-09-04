@@ -44,6 +44,7 @@ Currently these features are not yet supported:
 - Apigee proxy conditional endpoints are not yet supported.
 - Apigee fault rules and fault handling is not yet supported when converting between zip and json.
 - MCP and CLI inputs cannot yet process parameters when applying features, so currently only default values are used.
+- Find out the best way to leverage **Shared Flows** - currently features can have Flow Callout policies as part of their feature logic, but maybe it would be useful to convert a shared flow to a feature, or something similar...
 - Since this in ALPHA status and only test data is being used, there is currently no auth to the REST and MCP server, as well as in the test agent.
 
 ## Plans & ideas
