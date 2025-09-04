@@ -12,14 +12,33 @@ Apigee Templater v3 is currently in **beta** status, if you test and find bugs p
 - Apply or remove feature definitions from JSON or YAML proxies. This can easily be done through chat using the MCP service, or through REST or CLI calls.
 
 ## Getting started
-- Check out the `SimpleProxy-v1` test data definition in ZIP, JSON and YAML format.
+- Check out the `SimpleProxy-v1` proxy [ZIP](https://github.com/apigee/apigee-templater/tree/main/test/proxies/SimpleProxy-v1/apiproxy), [JSON](https://github.com/apigee/apigee-templater/blob/main/test/proxies/SimpleProxy-v1.json) and [YAML](https://github.com/apigee/apigee-templater/blob/main/test/proxies/SimpleProxy-v1.yaml) formats. The proxy receives traffic at the `/v1/simple-proxy` base path, and directs traffic to two targets based on the path. A Javascript policy also adds "hello world" to the response.
+- Check out the feature `auth-apikey-header` [JSON](https://github.com/apigee/apigee-templater/blob/main/test/features/auth-apikey-header.json) definition.
+- Check out the `SimpleProxy-v2` [JSON definition](https://github.com/apigee/apigee-templater/blob/main/test/proxies/SimpleProxy-v2.json) after the feature `auth-apikey-header` has been applied, adding auth to the proxy.
+- Test an [ADK agent](https://google.github.io/adk-docs/) using the MCP server to create proxies and add / remove features here: https://apigee-templater-agent-609874082793.europe-west1.run.app.
+- Run the unit tests for the above flow after cloning the repository with `npm i && npm run test`.
+## CLI
+You can use the **apigee-templater** CLI CLI locally or run using npx. Currently the CLI can do conversions and apply / remove features to proxies.
 ```sh
 # Install globally
 npm i -g apigee-templater
 
 # Run with npx
 npx apigee-templater
+
+# Convert Apigee proxy ZIP to JSON
+npx apigee-templater -f SimpleProxy-v1.zip -n SimpleProxy-v1 -o json
 ```
+## REST & MCP server
+After cloning this repository you can start the REST & MCP server like this.
+```sh
+# install dependencies
+npm i
+# start server
+npm start
+```
+Sample REST calls can be found in the [wiki](https://github.com/apigee/apigee-templater/wiki).
+
 ## Limitations
 Currently these features are not yet supported:
 - Apigee proxy conditional endpoints are not yet supported.
