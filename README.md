@@ -1,35 +1,30 @@
 # Apigee Templater
 Apigee Templater is a [Node.js](https://nodejs.org/) tool written in [Typescript](https://www.typescriptlang.org/) providing assisted & streamlined Apigee proxy authoring through the use of **template** and **feature** definitions.
 
-- **Template** - a template is an opinionated, custom format in JSON or YAML is  used to generate Apigee proxies. Apigee Templater includes conversion and generation tools to create new templates from existing Apigee proxies.
+## Core concepts
 
-Example template for a no-target proxy:
-```json
-{
-  "name": "SimpleProxy-v1",
-  "features": [],
-  "endpoints": [
-    {
-      "name": "default",
-      "path": "/v1/simple-proxy",
-      "routes": [
-        {
-          "name": "default"
-        }
-      ]
-    }
-  ],
-  "targets": [],
-  "policies": [],
-  "resources": []
-}
+- **Template** - a template is an opinionated, custom JSON or YAML format that is  used to generate Apigee proxies. Apigee Templater includes conversion and generation tools to transform between Apigee proxies and templates.
+
+Example template in YAML for a no-target proxy:
+```yaml
+---
+name: SimpleProxy-v1
+features: []
+endpoints:
+- name: default
+  path: "/v1/simple-proxy"
+  routes:
+  - name: default
+targets: []
+policies: []
+resources: []
 ```
 A template JSON or YAML file can contain everything that an Apigee proxy contains, but just in one file.
-- **Feature** - a feature is similar to a template, but models a specific feature with policies and flows, defines input parameters, and can be applied to templates to add functionality like authentication or security validation policy configurations. Templates can use one or more features.
+- **Feature** - a feature is similar to a template, but models a specific feature with policies and flows, defines input parameters, and can be applied to templates to add functionality like authentication or security validation policies. Templates can use one or more features.
 
 [Example feature definition](https://github.com/apigee/apigee-templater/blob/main/test/features/auth-apikey-header.json) to add API key authentication to a template.
 
-Using **templates** and **features** it's possible to easily compose Apigee proxies from defined building blocks, without having to directly write or create the proxy definitions.
+Using **templates** and **features** it's possible to easily compose Apigee proxies from defined building blocks, without having to directly write or create Apigee proxy definitions.
 
 Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, manage & apply templates and features to create or modify Apigee proxies. Apigee Templater is currently in **ALPHA** status, if you test and find bugs or have feature requests please report as [Issues](https://github.com/apigee/apigee-templater/issues).
 
@@ -48,8 +43,9 @@ npm i -g apigee-templater
 # Run with npx
 npx apigee-templater
 
-# Convert Apigee proxy ZIP to JSON
-npx apigee-templater -f SimpleProxy-v1.zip -n SimpleProxy-v1 -o json
+# Convert Apigee proxy ZIP to a template in YAML format
+cd test/data/proxies
+npx apigee-templater -f SimpleProxy-v1.zip -n SimpleProxy-v1 -o yaml
 ```
 ## REST & MCP server
 After cloning this repository you can start the REST & MCP server like this.
@@ -64,16 +60,16 @@ Sample REST calls can be found in the [wiki](https://github.com/apigee/apigee-te
 ## Limitations
 Currently these features are not yet supported:
 - Apigee proxy conditional endpoints are not yet supported.
-- Apigee fault rules and fault handling is not yet supported when converting between zip and json.
+- Apigee fault rules and fault handling is not yet supported.
 - MCP and CLI inputs cannot yet process parameters when applying features, so currently only default values are used.
 - Find out the best way to leverage **Shared Flows** - currently features can have Flow Callout policies as part of their feature logic, but maybe it would be useful to convert a shared flow to a feature, or something similar...
-- Since this in ALPHA status and only test data is being used, there is currently no auth to the REST and MCP server, as well as in the test agent.
+- Since this in ALPHA status and only test data is being used, there is currently no auth to the REST and MCP server.
 
 ## Plans & ideas
 These are some future ideas for additions, feel free to suggest any changes under Issues or Discussions.
 - Add proxy conditional endpoints and fault rules, as documented under limitations above.
 - Allow features to also have targets and endpoints, this could be interesting to compose proxies from features (for example compose Gemini and Mistral features into an AI proxy).
-- Allow proxies to be synced directly to Apigee orgs using a user OAuth flow.
+- Allow templates to be applied directly to Apigee orgs using OAuth to authenticate to the Apigee API.
 
 ## Contributing
 
