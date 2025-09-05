@@ -44,7 +44,7 @@ npm i -g apigee-templater
 npx apigee-templater
 
 # Convert Apigee proxy ZIP to a template in YAML format
-cd test/data/proxies
+cd test/proxies
 npx apigee-templater -f SimpleProxy-v1.zip -n SimpleProxy-v1 -o yaml
 ```
 ## REST & MCP server
