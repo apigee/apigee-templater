@@ -1,9 +1,9 @@
-# Apigee Templater
+# Apigee Templater v3
 Apigee Templater is a [Node.js](https://nodejs.org/) tool written in [Typescript](https://www.typescriptlang.org/) providing assisted & streamlined Apigee proxy authoring through the use of **template** and **feature** definitions.
 
-## Core concepts
+## Concepts
 
-- **Template** - a template is an opinionated, custom JSON or YAML format that is  used to generate Apigee proxies. Apigee Templater includes conversion and generation tools to transform between Apigee proxies and templates.
+- **Template** - a template is an opinionated, custom JSON or YAML file that is  used to generate Apigee proxies. Apigee Templater includes conversion and generation tools to transform between Apigee proxies and templates.
 
 Example template in YAML for a no-target proxy:
 ```yaml
@@ -20,22 +20,20 @@ policies: []
 resources: []
 ```
 A template JSON or YAML file can contain everything that an Apigee proxy contains, but just in one file.
-- **Feature** - a feature is similar to a template, but models a specific feature with policies and flows, defines input parameters, and can be applied to templates to add functionality like authentication or security validation policies. Templates can use one or more features.
-
-[Example feature definition](https://github.com/apigee/apigee-templater/blob/main/test/features/auth-apikey-header.json) to add API key authentication to a template.
+- **Feature** - a feature is similar to a template, but models a specific feature with policies and flows, defines input parameters, and can be applied to templates to add functionality like authentication or security validation policies. Templates can use one or more features. Here is an [example feature definition](https://github.com/apigee/apigee-templater/blob/main/test/features/auth-apikey-header.json) that adds API key authentication polices.
 
 Using **templates** and **features** it's possible to easily compose Apigee proxies from defined building blocks, without having to directly write or create Apigee proxy definitions.
 
-Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, manage & apply templates and features to create or modify Apigee proxies. Apigee Templater is currently in **ALPHA** status, if you test and find bugs or have feature requests please report as [Issues](https://github.com/apigee/apigee-templater/issues).
+Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, manage & apply templates  to create or modify Apigee proxies. Apigee Templater is currently in **ALPHA** status, if you test and find bugs or have feature requests please report as [Issues](https://github.com/apigee/apigee-templater/issues).
 
 ## Getting started
 - Check out the `SimpleProxy-v1` proxy [ZIP](https://github.com/apigee/apigee-templater/tree/main/test/proxies/SimpleProxy-v1/apiproxy), [JSON](https://github.com/apigee/apigee-templater/blob/main/test/proxies/SimpleProxy-v1.json) and [YAML](https://github.com/apigee/apigee-templater/blob/main/test/proxies/SimpleProxy-v1.yaml) formats. The proxy receives traffic at the `/v1/simple-proxy` base path, and directs traffic to two targets based on the path. A Javascript policy also adds "hello world" to the response.
 - Check out the feature `auth-apikey-header` [JSON](https://github.com/apigee/apigee-templater/blob/main/test/features/auth-apikey-header.json) definition.
 - Check out the `SimpleProxy-v2` [JSON definition](https://github.com/apigee/apigee-templater/blob/main/test/proxies/SimpleProxy-v2.json) after the feature `auth-apikey-header` has been applied, adding auth to the proxy.
-- Test an [ADK agent](https://google.github.io/adk-docs/) using the MCP server to create proxies and add / remove features here: https://apigee-templater-agent-609874082793.europe-west1.run.app.
+- Test the [Apigee Templater Agent](https://apigee-templater-agent-609874082793.europe-west1.run.app) built with [ADK](https://google.github.io/adk-docs/) and using the Apigee Templater MCP server to create templates and add / remove features.
 - Run the unit tests for the above flow after cloning the repository with `npm i && npm run test`.
 ## CLI
-You can use the **apigee-templater** CLI CLI locally or run using npx. Currently the CLI can do conversions and apply / remove features to proxies.
+You can use the **apigee-templater** CLI locally or using npx. Currently the CLI can do conversions and apply / remove features to proxies.
 ```sh
 # Install globally
 npm i -g apigee-templater
