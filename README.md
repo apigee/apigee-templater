@@ -24,7 +24,7 @@ A template JSON or YAML file can contain everything that an Apigee proxy contain
 
 Using **templates** and **features** it's possible to easily compose Apigee proxies from defined building blocks, without having to directly write or create Apigee proxy definitions.
 
-Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, manage & apply templates  to create or modify Apigee proxies. Apigee Templater v3 is currently in **ALPHA** status, if you test and find bugs or have feature requests please report as [Issues](https://github.com/apigee/apigee-templater/issues).
+Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, manage & apply templates  to create or modify Apigee proxies. Apigee Templater v3 is currently in **ALPHA** status, if you test and find bugs or have feature requests please report them as [Issues](https://github.com/apigee/apigee-templater/issues).
 
 ## Getting started
 - Check out the `SimpleProxy-v1` proxy [ZIP](https://github.com/apigee/apigee-templater/tree/main/test/proxies/SimpleProxy-v1/apiproxy), [JSON](https://github.com/apigee/apigee-templater/blob/main/test/proxies/SimpleProxy-v1.json) and [YAML](https://github.com/apigee/apigee-templater/blob/main/test/proxies/SimpleProxy-v1.yaml) formats. The proxy receives traffic at the `/v1/simple-proxy` base path, and directs traffic to two targets based on the path. A Javascript policy also adds "hello world" to the response.
