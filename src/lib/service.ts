@@ -342,4 +342,28 @@ export class ApigeeTemplaterService {
       return proxy;
     }
   }
+
+  public async apigeeProxiesList(
+    apigeeOrg: string,
+    token: string,
+  ): Promise<any | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let response = await fetch(
+        `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/apis?includeRevisions=true&includeMetaData=true`,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        resolve(responseBody);
+      } else {
+        console.log("Got response " + response.status);
+        resolve(undefined);
+      }
+    });
+  }
 }

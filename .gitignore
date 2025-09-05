@@ -6,3 +6,4 @@ build
 temp
 data
 .env
+__pycache__
