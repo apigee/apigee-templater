@@ -1,6 +1,7 @@
 import { ApigeeConverter } from "./converter.js";
 import { Proxy, Feature } from "./interfaces.js";
 import fs from "fs";
+import { Readable } from "node:stream";
 
 export class ApigeeTemplaterService {
   tempPath: string = "./data/temp/";
@@ -360,6 +361,47 @@ export class ApigeeTemplaterService {
       if (response.status === 200) {
         let responseBody: any = await response.json();
         resolve(responseBody);
+      } else {
+        console.log("Got response " + response.status);
+        resolve(undefined);
+      }
+    });
+  }
+
+  public async apigeeProxyGet(
+    proxyName: string,
+    apigeeOrg: string,
+    token: string,
+  ): Promise<string | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let response = await fetch(
+        `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}`,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        let latestRevisionId = responseBody.latestRevisionId;
+        if (!latestRevisionId) resolve(undefined);
+
+        response = await fetch(
+          `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}/${latestRevisionId}?format=bundle`,
+          {
+            headers: {
+              Authorization: token,
+            },
+          },
+        );
+        let arrayBuffer = await response.arrayBuffer();
+        fs.writeFileSync(
+          this.proxiesPath + proxyName + ".zip",
+          Buffer.from(arrayBuffer),
+        );
+        resolve(this.proxiesPath + proxyName + ".zip");
       } else {
         console.log("Got response " + response.status);
         resolve(undefined);

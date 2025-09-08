@@ -190,6 +190,63 @@ export class McpService {
         },
       );
 
+      // apigeeProxyImport
+      server.registerTool(
+        "apigeeProxyImport",
+        {
+          title: "Apigee Proxy Import Tool",
+          description: "Imports an Apigee proxy from an org.",
+          inputSchema: {
+            proxyName: z.string(),
+            apigeeOrg: z.string(),
+          },
+        },
+        async ({ proxyName, apigeeOrg }, authInfo) => {
+          let token: string =
+            authInfo.requestInfo?.headers.authorization &&
+            typeof authInfo.requestInfo?.headers.authorization === "string"
+              ? authInfo.requestInfo?.headers.authorization
+              : "";
+          let proxiesObject: any | undefined;
+          if (token) {
+            let apigeeProxyPath = await this.apigeeService.apigeeProxyGet(
+              proxyName,
+              apigeeOrg,
+              token,
+            );
+
+            if (apigeeProxyPath) {
+              proxiesObject = await this.converter.zipToJson(
+                proxyName,
+                apigeeProxyPath,
+              );
+              if (proxiesObject) {
+                this.apigeeService.proxyImport(proxiesObject);
+              }
+            }
+          }
+          if (proxiesObject) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(proxiesObject),
+                },
+              ],
+            };
+          } else {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `No Apigee proxies found.`,
+                },
+              ],
+            };
+          }
+        },
+      );
+
       // featureList
       server.registerTool(
         "featuresList",
