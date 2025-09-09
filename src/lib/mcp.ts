@@ -190,12 +190,12 @@ export class McpService {
         },
       );
 
-      // apigeeProxyImport
+      // apigeeProxyConvertToTemplate
       server.registerTool(
-        "apigeeProxyImport",
+        "apigeeProxyConvertToTemplate",
         {
-          title: "Apigee Proxy Import Tool",
-          description: "Imports an Apigee proxy from an org.",
+          title: "Apigee Proxy Convert to Template Tool",
+          description: "Converts an Apigee proxy from an org into a template.",
           inputSchema: {
             proxyName: z.string(),
             apigeeOrg: z.string(),
@@ -240,6 +240,121 @@ export class McpService {
                 {
                   type: "text",
                   text: `No Apigee proxies found.`,
+                },
+              ],
+            };
+          }
+        },
+      );
+
+      // templateExportApigee
+      server.registerTool(
+        "templateExportApigee",
+        {
+          title: "Template to Apigee Proxy Export Tool",
+          description:
+            "Converts and exports a template to an Apigee proxy in an org.",
+          inputSchema: {
+            proxyName: z.string(),
+            apigeeOrg: z.string(),
+          },
+        },
+        async ({ proxyName, apigeeOrg }, authInfo) => {
+          let token: string =
+            authInfo.requestInfo?.headers.authorization &&
+            typeof authInfo.requestInfo?.headers.authorization === "string"
+              ? authInfo.requestInfo?.headers.authorization
+              : "";
+          let apigeeProxyRevision = "";
+          let proxy = this.apigeeService.proxyGet(proxyName);
+          if (proxy && token) {
+            let zipPath = await this.converter.jsonToZip(proxyName, proxy);
+
+            apigeeProxyRevision = await this.apigeeService.apigeeProxyImport(
+              proxyName,
+              zipPath,
+              apigeeOrg,
+              token,
+            );
+          }
+          if (apigeeProxyRevision) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Template ${proxyName} has been exported to Apigee org ${apigeeOrg} with revision id ${apigeeProxyRevision}.`,
+                },
+              ],
+            };
+          } else {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `The template ${proxyName} could not be exported to Apigee, maybe the name or org is incorrect?.`,
+                },
+              ],
+            };
+          }
+        },
+      );
+
+      // apigeeProxyDeploy
+      server.registerTool(
+        "apigeeProxyDeploy",
+        {
+          title: "Deploy Apigee Proxy Revision Tool",
+          description: "Deploys an Apigee revision to an org.",
+          inputSchema: {
+            proxyName: z.string(),
+            apigeeOrg: z.string(),
+            apigeeEnvironment: z.string(),
+            proxyRevision: z.string(),
+            serviceAccountEmail: z.string().default(""),
+          },
+        },
+        async (
+          {
+            proxyName,
+            apigeeOrg,
+            apigeeEnvironment,
+            proxyRevision,
+            serviceAccountEmail,
+          },
+          authInfo,
+        ) => {
+          let token: string =
+            authInfo.requestInfo?.headers.authorization &&
+            typeof authInfo.requestInfo?.headers.authorization === "string"
+              ? authInfo.requestInfo?.headers.authorization
+              : "";
+          let apigeeProxyRevision = "";
+          if (token) {
+            apigeeProxyRevision =
+              await this.apigeeService.apigeeProxyRevisionDeploy(
+                proxyName,
+                proxyRevision,
+                serviceAccountEmail,
+                apigeeEnvironment,
+                apigeeOrg,
+                token,
+              );
+          }
+          if (apigeeProxyRevision) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Apigee proxy ${proxyName} has been deployed to Apigee org ${apigeeOrg} and environment ${apigeeEnvironment} with revision id ${apigeeProxyRevision}.`,
+                },
+              ],
+            };
+          } else {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `The template ${proxyName} could not be deployed to Apigee, maybe the name or org is incorrect?.`,
                 },
               ],
             };
@@ -335,7 +450,7 @@ export class McpService {
           if (proxy) {
             let link = process.env.SERVICE_URL
               ? process.env.SERVICE_URL.replace("SERVICE_URL_", "") +
-                "/apigee-templater/proxies/" +
+                "/apigee-templater/templates/" +
                 proxy.name +
                 "?format=" +
                 format

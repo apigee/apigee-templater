@@ -1,11 +1,12 @@
 import { ApigeeConverter } from "./converter.js";
 import { Proxy, Feature } from "./interfaces.js";
 import fs from "fs";
+import { Blob } from "buffer";
 import { Readable } from "node:stream";
 
 export class ApigeeTemplaterService {
   tempPath: string = "./data/temp/";
-  proxiesPath: string = "./data/proxies/";
+  proxiesPath: string = "./data/templates/";
   featuresPath: string = "./data/features/";
 
   constructor(
@@ -59,14 +60,17 @@ export class ApigeeTemplaterService {
   public proxyGet(name: string): Proxy | undefined {
     let result: Proxy | undefined = undefined;
     let tempName = name.replaceAll(" ", "-");
-    let proxyString = fs.readFileSync(
-      this.proxiesPath + tempName + ".json",
-      "utf8",
-    );
+    let proxyString = "";
+
+    if (fs.existsSync(this.proxiesPath + tempName + ".json")) {
+      proxyString = fs.readFileSync(
+        this.proxiesPath + tempName + ".json",
+        "utf8",
+      );
+    }
 
     if (!proxyString) {
       console.log(`Could not load proxy ${name}, not found.`);
-      return result;
     } else {
       result = JSON.parse(proxyString);
     }
@@ -405,6 +409,70 @@ export class ApigeeTemplaterService {
       } else {
         console.log("Got response " + response.status);
         resolve(undefined);
+      }
+    });
+  }
+
+  public async apigeeProxyImport(
+    proxyName: string,
+    apigeeProxyPath: string,
+    apigeeOrg: string,
+    token: string,
+  ): Promise<string> {
+    return new Promise(async (resolve, reject) => {
+      const form = new FormData();
+      const data = fs.readFileSync(apigeeProxyPath);
+      form.set("file", new Blob([data]), `${proxyName + ".zip"}`);
+
+      let response = await fetch(
+        `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/apis?name=${proxyName}&action=import`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: token,
+          },
+          body: form,
+        },
+      );
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        let latestRevisionId = responseBody.revision;
+        if (!latestRevisionId) resolve("");
+        else resolve(latestRevisionId);
+      } else {
+        console.log("Got response " + response.status);
+        resolve("");
+      }
+    });
+  }
+
+  public async apigeeProxyRevisionDeploy(
+    proxyName: string,
+    proxyRevision: string,
+    serviceAccountEmail: string,
+    apigeeEnvironment: string,
+    apigeeOrg: string,
+    token: string,
+  ): Promise<string> {
+    return new Promise(async (resolve, reject) => {
+      let url = `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/environments/${apigeeEnvironment}/apis/${proxyName}/revisions/${proxyRevision}/deployments?override=true`;
+      if (serviceAccountEmail) url += `&serviceAccount=${serviceAccountEmail}`;
+      let response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: token,
+        },
+      });
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        let latestRevisionId = responseBody.revision;
+        if (!latestRevisionId) resolve("");
+        else resolve(latestRevisionId);
+      } else {
+        console.log("Got response " + response.status);
+        resolve("");
       }
     });
   }

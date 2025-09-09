@@ -17,7 +17,7 @@ import {
 
 export class ApigeeConverter {
   tempPath: string = "./data/temp/";
-  proxiesPath: string = "./data/proxies/";
+  proxiesPath: string = "./data/templates/";
   featuresPath: string = "./data/features/";
   constructor(
     tempPath: string = "",
@@ -384,12 +384,12 @@ export class ApigeeConverter {
         };
 
         if (target.httpTargetConnection) {
-          targetXml["HTTPTargetConnection"] = target.httpTargetConnection;
+          targetXml["TargetEndpoint"]["HTTPTargetConnection"] =
+            target.httpTargetConnection;
         } else if (target.localTargetConnection) {
-          targetXml["LocalTargetConnection"] = target.localTargetConnection;
-        }
-
-        if (target.url) {
+          targetXml["TargetEndpoint"]["LocalTargetConnection"] =
+            target.localTargetConnection;
+        } else if (target.url) {
           targetXml["TargetEndpoint"]["HTTPTargetConnection"] = {
             URL: {
               _text: target.url,

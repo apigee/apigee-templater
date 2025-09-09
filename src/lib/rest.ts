@@ -94,7 +94,7 @@ export class RestService {
   };
 
   public proxyGet = (req: express.Request, res: express.Response) => {
-    let proxyName = req.params.proxy;
+    let proxyName = req.params.template;
     if (!proxyName) {
       return res.status(400).send("No proxy name received.");
     }
@@ -132,7 +132,7 @@ export class RestService {
   };
 
   public proxyDelete = (req: express.Request, res: express.Response) => {
-    let proxyName = req.params.proxy;
+    let proxyName = req.params.template;
     if (!proxyName) {
       return res.status(400).send("No proxy name received.");
     }
@@ -185,7 +185,7 @@ export class RestService {
     req: express.Request,
     res: express.Response,
   ) => {
-    let proxyName = req.params.proxy;
+    let proxyName = req.params.template;
     if (!proxyName) {
       return res.status(400).send("No proxy name received.");
     }
@@ -219,7 +219,7 @@ export class RestService {
   };
 
   public proxyRemoveFeature = (req: express.Request, res: express.Response) => {
-    let proxyName = req.params.proxy;
+    let proxyName = req.params.template;
     if (!proxyName) {
       return res.status(400).send("No proxy name received.");
     }

@@ -11,12 +11,12 @@ const rootStorageDir = process.env.STORAGE_DIR
   : "./data/";
 const converter = new ApigeeConverter(
   rootStorageDir + "temp/",
-  rootStorageDir + "proxies/",
+  rootStorageDir + "templates/",
   rootStorageDir + "features/",
 );
 const apigeeService = new ApigeeTemplaterService(
   rootStorageDir + "temp/",
-  rootStorageDir + "proxies/",
+  rootStorageDir + "templates/",
   rootStorageDir + "features/",
 );
 const mcpService = new McpService(converter, apigeeService);
@@ -44,25 +44,22 @@ app.use(
 );
 
 // create default directories
-fs.mkdirSync(rootStorageDir + "proxies", { recursive: true });
+fs.mkdirSync(rootStorageDir + "templates", { recursive: true });
 fs.mkdirSync(rootStorageDir + "features", { recursive: true });
 fs.mkdirSync(rootStorageDir + "temp", { recursive: true });
 
 // REST
-app.get("/apigee-templater/proxies", (req, res) => {
-  // apigeeService.
-});
-app.post("/apigee-templater/proxies", restService.proxyPost);
-app.get("/apigee-templater/proxies/:proxy", restService.proxyGet);
-app.delete("/apigee-templater/proxies/:proxy", restService.proxyDelete);
+app.post("/apigee-templater/templates", restService.proxyPost);
+app.get("/apigee-templater/templates/:template", restService.proxyGet);
+app.delete("/apigee-templater/templates/:template", restService.proxyDelete);
 app.get("/apigee-templater/features/:feature", restService.featureGet);
 app.delete("/apigee-templater/features/:feature", restService.featureDelete);
 app.post(
-  "/apigee-templater/proxies/:proxy/features/:feature",
+  "/apigee-templater/templates/:template/features/:feature",
   restService.proxyApplyFeature,
 );
 app.delete(
-  "/apigee-templater/proxies/:proxy/features/:feature",
+  "/apigee-templater/templates/:template/features/:feature",
   restService.proxyRemoveFeature,
 );
 app.post("/apigee-templater/features", restService.featurePost);

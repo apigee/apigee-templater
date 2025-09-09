@@ -7,11 +7,11 @@ import { ApigeeTemplaterService } from "../dist/lib/service.js";
 const converter = new ApigeeConverter();
 const service = new ApigeeTemplaterService();
 
-// converts a proxy zip to json format
-test("convert proxy zip to json", async () => {
+// converts a proxy zip to template
+test("convert proxy zip to template json", async () => {
   let proxy: Proxy | undefined = await converter.zipToJson(
     "SimpleProxy-v1",
-    "./test/proxies/SimpleProxy-v1.zip",
+    "./test/templates/SimpleProxy-v1.zip",
   );
   expect(proxy).toBeDefined();
   expect(proxy.name).toBe("SimpleProxy-v1");
@@ -20,10 +20,10 @@ test("convert proxy zip to json", async () => {
   expect(proxy.targets[1].name).toBe("httpbin");
 });
 
-// applies a feature to a proxy
-test("apply feature to proxy", async () => {
+// applies a feature to a template
+test("apply feature to template", async () => {
   let proxyString = fs.readFileSync(
-    "./test/proxies/SimpleProxy-v1.json",
+    "./test/templates/SimpleProxy-v1.json",
     "utf8",
   );
   let featureString = fs.readFileSync(
@@ -45,15 +45,15 @@ test("apply feature to proxy", async () => {
   expect(proxy.policies.length).toBe(3);
   proxy.name = "SimpleProxy-v2";
   fs.writeFileSync(
-    "./test/proxies/SimpleProxy-v2.local.json",
+    "./test/templates/SimpleProxy-v2.local.json",
     JSON.stringify(proxy, null, 2),
   );
 });
 
-// removes a feature from a proxy
-test("remove feature from a proxy", async () => {
+// removes a feature from a template
+test("remove feature from a template", async () => {
   let proxyString = fs.readFileSync(
-    "./test/proxies/SimpleProxy-v2.json",
+    "./test/templates/SimpleProxy-v2.json",
     "utf8",
   );
   let featureString = fs.readFileSync(

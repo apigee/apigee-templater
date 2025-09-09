@@ -27,9 +27,9 @@ Using **templates** and **features** it's possible to easily compose Apigee prox
 Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, manage & apply templates  to create or modify Apigee proxies. Apigee Templater v3 is currently in **ALPHA** status, if you test and find bugs or have feature requests please report them as [Issues](https://github.com/apigee/apigee-templater/issues).
 
 ## Getting started
-- Check out the `SimpleProxy-v1` proxy [ZIP](https://github.com/apigee/apigee-templater/tree/main/test/proxies/SimpleProxy-v1/apiproxy), [JSON](https://github.com/apigee/apigee-templater/blob/main/test/proxies/SimpleProxy-v1.json) and [YAML](https://github.com/apigee/apigee-templater/blob/main/test/proxies/SimpleProxy-v1.yaml) formats. The proxy receives traffic at the `/v1/simple-proxy` base path, and directs traffic to two targets based on the path. A Javascript policy also adds "hello world" to the response.
+- Check out the `SimpleProxy-v1` proxy [ZIP](https://github.com/apigee/apigee-templater/tree/main/test/templates/SimpleProxy-v1/apiproxy), [JSON](https://github.com/apigee/apigee-templater/blob/main/test/templates/SimpleProxy-v1.json) and [YAML](https://github.com/apigee/apigee-templater/blob/main/test/templates/SimpleProxy-v1.yaml) formats. The proxy receives traffic at the `/v1/simple-proxy` base path, and directs traffic to two targets based on the path. A Javascript policy also adds "hello world" to the response.
 - Check out the feature `auth-apikey-header` [JSON](https://github.com/apigee/apigee-templater/blob/main/test/features/auth-apikey-header.json) definition.
-- Check out the `SimpleProxy-v2` [JSON definition](https://github.com/apigee/apigee-templater/blob/main/test/proxies/SimpleProxy-v2.json) after the feature `auth-apikey-header` has been applied, adding auth to the proxy.
+- Check out the `SimpleProxy-v2` [JSON definition](https://github.com/apigee/apigee-templater/blob/main/test/templates/SimpleProxy-v2.json) after the feature `auth-apikey-header` has been applied, adding auth to the proxy.
 - Test the [Apigee Templater Agent](https://apigee-templater-agent-609874082793.europe-west1.run.app) built with [ADK](https://google.github.io/adk-docs/) and using the Apigee Templater MCP server to create templates and add / remove features.
 - Run the unit tests for the above flow after cloning the repository with `npm i && npm run test`.
 ## CLI
@@ -42,7 +42,7 @@ npm i -g apigee-templater
 npx apigee-templater
 
 # Convert Apigee proxy ZIP to a template in YAML format
-cd test/proxies
+cd test/templates
 npx apigee-templater -f SimpleProxy-v1.zip -n SimpleProxy-v1 -o yaml
 ```
 ## REST & MCP server
