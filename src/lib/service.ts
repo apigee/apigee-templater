@@ -73,24 +73,39 @@ export class ApigeeTemplaterService {
     return featureLines.join("\n");
   }
 
-  public proxyGet(name: string): Proxy | undefined {
-    let result: Proxy | undefined = undefined;
-    let tempName = name.replaceAll(" ", "-");
-    let proxyString = "";
+  public async templateGet(name: string): Promise<Proxy | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let result: Proxy | undefined = undefined;
+      let tempName = name.replaceAll(" ", "-");
+      let proxyString = "";
 
-    if (fs.existsSync(this.proxiesPath + tempName + ".json")) {
-      proxyString = fs.readFileSync(
-        this.proxiesPath + tempName + ".json",
-        "utf8",
-      );
-    }
+      if (fs.existsSync(this.proxiesPath + tempName + ".json")) {
+        proxyString = fs.readFileSync(
+          this.proxiesPath + tempName + ".json",
+          "utf8",
+        );
+      } else {
+        console.log("Could not load " + name + ", trying github...");
+        // try to fetch remotely
+        let response = await fetch(
+          "https://raw.githubusercontent.com/apigee/apigee-templater/refs/heads/main/repository/templates/" +
+            tempName +
+            ".json",
+        );
 
-    if (!proxyString) {
-      console.log(`Could not load proxy ${name}, not found.`);
-    } else {
-      result = JSON.parse(proxyString);
-    }
-    return result;
+        if (response.status == 200) {
+          proxyString = await response.text();
+        }
+      }
+
+      if (!proxyString) {
+        console.log(`Could not load proxy ${name}, not found.`);
+      } else {
+        result = JSON.parse(proxyString);
+      }
+
+      resolve(result);
+    });
   }
 
   public proxyImport(proxy: Proxy) {
@@ -100,85 +115,103 @@ export class ApigeeTemplaterService {
     );
   }
 
-  public featureGet(name: string): Feature | undefined {
-    let result: Feature | undefined = undefined;
-    let tempName = name.replaceAll(" ", "-");
-    let featureString = fs.readFileSync(
-      this.featuresPath + tempName + ".json",
-      "utf8",
-    );
+  public async featureGet(name: string): Promise<Feature | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let result: Feature | undefined = undefined;
+      let tempName = name.replaceAll(" ", "-");
+      let featureString = fs.readFileSync(
+        this.featuresPath + tempName + ".json",
+        "utf8",
+      );
 
-    if (!featureString) {
-      console.log(`Could not load feature ${name}, not found.`);
-      return result;
-    } else {
-      result = JSON.parse(featureString);
-    }
-    return result;
+      // try to fetch remotely
+      let response = await fetch(
+        "https://raw.githubusercontent.com/apigee/apigee-templater/refs/heads/main/repository/features/" +
+          tempName +
+          ".json",
+      );
+
+      if (response.status == 200) {
+        featureString = await response.text();
+      }
+
+      if (!featureString) {
+        console.log(`Could not load feature ${name}, not found.`);
+        return result;
+      } else {
+        result = JSON.parse(featureString);
+      }
+
+      resolve(result);
+    });
   }
 
-  public proxyApplyFeature(
+  public async proxyApplyFeature(
     proxyName: string,
     featureName: string,
     parameters: { [key: string]: string },
     converter: ApigeeConverter,
-  ): Proxy | undefined {
-    let proxy: Proxy | undefined = undefined;
+  ): Promise<Proxy | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let proxy: Proxy | undefined = undefined;
 
-    proxy = this.proxyGet(proxyName);
-    let feature = this.featureGet(featureName);
+      proxy = await this.templateGet(proxyName);
+      let feature = await this.featureGet(featureName);
 
-    if (!proxy || !feature) {
-      console.log(
-        `proxyApplyFeature error: either ${proxyName} or ${featureName} could not be loaded.`,
+      if (!proxy || !feature) {
+        console.log(
+          `proxyApplyFeature error: either ${proxyName} or ${featureName} could not be loaded.`,
+        );
+        return undefined;
+      } else if (proxy.features.includes(feature.name)) {
+        console.log(
+          `proxyApplyFeature error: proxy ${proxyName} already uses feature ${featureName}.`,
+        );
+        return undefined;
+      } else {
+        proxy = converter.jsonApplyFeature(proxy, feature, parameters);
+      }
+
+      fs.writeFileSync(
+        this.proxiesPath + proxyName + ".json",
+        JSON.stringify(proxy, null, 2),
       );
-      return undefined;
-    } else if (proxy.features.includes(feature.name)) {
-      console.log(
-        `proxyApplyFeature error: proxy ${proxyName} already uses feature ${featureName}.`,
-      );
-      return undefined;
-    } else {
-      proxy = converter.jsonApplyFeature(proxy, feature, parameters);
-    }
 
-    fs.writeFileSync(
-      this.proxiesPath + proxyName + ".json",
-      JSON.stringify(proxy, null, 2),
-    );
-
-    return proxy;
+      resolve(proxy);
+    });
   }
 
-  public proxyRemoveFeature(
+  public async templateRemoveFeature(
     proxyName: string,
     featureName: string,
     converter: ApigeeConverter,
-  ): Proxy | undefined {
-    let proxy: Proxy | undefined = undefined;
-    proxy = this.proxyGet(proxyName);
-    let feature = this.featureGet(featureName);
+  ): Promise<Proxy | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let proxy: Proxy | undefined = undefined;
+      proxy = await this.templateGet(proxyName);
+      let feature = await this.featureGet(featureName);
 
-    if (!proxy || !feature) {
-      console.log(
-        `proxyApplyFeature error: either ${proxyName} or ${featureName} could not be loaded.`,
+      if (!proxy || !feature) {
+        console.log(
+          `proxyApplyFeature error: either ${proxyName} or ${featureName} could not be loaded.`,
+        );
+        return undefined;
+      } else if (!proxy.features.includes(feature.name)) {
+        console.log(
+          `proxyRemoveFeature error: proxy ${proxyName} doesn't use feature ${featureName}.`,
+        );
+        return undefined;
+      } else {
+        proxy = converter.jsonRemoveFeature(proxy, feature);
+      }
+
+      fs.writeFileSync(
+        this.proxiesPath + proxyName + ".json",
+        JSON.stringify(proxy, null, 2),
       );
-      return undefined;
-    } else if (!proxy.features.includes(feature.name)) {
-      console.log(
-        `proxyRemoveFeature error: proxy ${proxyName} doesn't use feature ${featureName}.`,
-      );
-      return undefined;
-    } else {
-      proxy = converter.jsonRemoveFeature(proxy, feature);
-    }
 
-    fs.writeFileSync(
-      this.proxiesPath + proxyName + ".json",
-      JSON.stringify(proxy, null, 2),
-    );
-
-    return proxy;
+      resolve(proxy);
+    });
   }
 
   public proxyCreate(

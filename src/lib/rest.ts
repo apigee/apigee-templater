@@ -98,7 +98,7 @@ export class RestService {
           });
         } else {
           res.setHeader("Content-Type", "application/json");
-          res.status(201).json(JSON.stringify(proxy, null, 2));
+          res.status(201).send(JSON.stringify(proxy, null, 2));
         }
         break;
       case "*/*":
@@ -164,7 +164,7 @@ export class RestService {
         .send("Either template name, apigee org, proxy or token missing.");
     } else {
       let apigeeProxyRevision = "";
-      let proxy = this.apigeeService.proxyGet(templateName);
+      let proxy = await this.apigeeService.templateGet(templateName);
       if (proxy && token) {
         let zipPath = await this.converter.jsonToZip(templateName, proxy);
 
@@ -204,7 +204,7 @@ export class RestService {
         .send("Either template name, apigee org, env or token missing.");
     } else {
       let apigeeProxyRevision = "";
-      let proxy = this.apigeeService.proxyGet(templateName);
+      let proxy = await this.apigeeService.templateGet(templateName);
       if (proxy && token) {
         let zipPath = await this.converter.jsonToZip(templateName, proxy);
 
@@ -236,7 +236,7 @@ export class RestService {
     }
   };
 
-  public templateGet = (req: express.Request, res: express.Response) => {
+  public templateGet = async (req: express.Request, res: express.Response) => {
     let proxyName = req.params.template;
     if (!proxyName) {
       return res.status(400).send("No proxy name received.");
@@ -246,7 +246,7 @@ export class RestService {
       req.query.format && typeof req.query.format == "string"
         ? req.query.format.toLowerCase()
         : "";
-    let proxy = this.apigeeService.proxyGet(proxyName);
+    let proxy = await this.apigeeService.templateGet(proxyName);
     let responseType = req.header("Accept");
 
     if (proxy) {
@@ -256,7 +256,7 @@ export class RestService {
         format == "yml"
       ) {
         res.setHeader("Content-Type", "application/yaml");
-        res.status(201).send(YAML.stringify(proxy));
+        res.status(200).send(YAML.stringify(proxy));
       } else if (
         responseType == "application/octet-stream" ||
         format == "zip" ||
@@ -265,11 +265,11 @@ export class RestService {
         this.converter.jsonToZip(proxyName, proxy).then((result) => {
           let zipOutputFile = fs.readFileSync(result);
           res.setHeader("Content-Type", "application/octet-stream");
-          res.status(201).send(zipOutputFile);
+          res.status(200).send(zipOutputFile);
         });
       } else {
         res.setHeader("Content-Type", "application/json");
-        res.status(201).json(JSON.stringify(proxy, null, 2));
+        res.status(200).send(JSON.stringify(proxy, null, 2));
       }
     } else res.status(404).send("Proxy could not be found.");
   };
@@ -280,7 +280,7 @@ export class RestService {
       return res.status(400).send("No proxy name received.");
     }
 
-    let proxy = this.apigeeService.proxyGet(proxyName);
+    let proxy = this.apigeeService.templateGet(proxyName);
     this.apigeeService.proxyDelete(proxyName);
 
     if (proxy) {
@@ -304,7 +304,7 @@ export class RestService {
         res.status(201).send(YAML.stringify(feature));
       } else {
         res.setHeader("Content-Type", "application/json");
-        res.status(201).json(JSON.stringify(feature, null, 2));
+        res.status(201).send(JSON.stringify(feature, null, 2));
       }
     } else res.status(404).send("Feature could not be found.");
   };
@@ -342,7 +342,7 @@ export class RestService {
       parameters = req.body["parameters"];
     }
 
-    let proxy: Proxy | undefined = this.apigeeService.proxyApplyFeature(
+    let proxy: Proxy | undefined = await this.apigeeService.proxyApplyFeature(
       proxyName,
       featureName,
       parameters,
@@ -361,7 +361,7 @@ export class RestService {
     }
   };
 
-  public templateRemoveFeature = (
+  public templateRemoveFeature = async (
     req: express.Request,
     res: express.Response,
   ) => {
@@ -374,11 +374,12 @@ export class RestService {
       return res.status(400).send("No feature name received.");
     }
 
-    let proxy: Proxy | undefined = this.apigeeService.proxyRemoveFeature(
-      proxyName,
-      featureName,
-      this.converter,
-    );
+    let proxy: Proxy | undefined =
+      await this.apigeeService.templateRemoveFeature(
+        proxyName,
+        featureName,
+        this.converter,
+      );
 
     if (!proxy) {
       return res
@@ -387,7 +388,8 @@ export class RestService {
           "Error removing feature from proxy, maybe either the proxy or feature doesn't exist?",
         );
     } else {
-      res.json(proxy);
+      res.setHeader("Content-Type", "application/json");
+      res.send(JSON.stringify(proxy, null, 2));
     }
   };
 

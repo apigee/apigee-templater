@@ -266,7 +266,7 @@ export class McpService {
               ? authInfo.requestInfo?.headers.authorization
               : "";
           let apigeeProxyRevision = "";
-          let proxy = this.apigeeService.proxyGet(proxyName);
+          let proxy = await this.apigeeService.templateGet(proxyName);
           if (proxy && token) {
             let zipPath = await this.converter.jsonToZip(proxyName, proxy);
 
@@ -324,7 +324,7 @@ export class McpService {
           let apigeeProxyRevision = "";
           if (token) {
             let apigeeProxyRevision = "";
-            let proxy = this.apigeeService.proxyGet(proxyName);
+            let proxy = await this.apigeeService.templateGet(proxyName);
 
             if (proxy) {
               let zipPath = await this.converter.jsonToZip(proxyName, proxy);
@@ -413,7 +413,7 @@ export class McpService {
           },
         },
         async ({ proxyName }) => {
-          let proxy = this.apigeeService.proxyGet(proxyName);
+          let proxy = await this.apigeeService.templateGet(proxyName);
           if (proxy) {
             let proxyText = this.converter.proxyToString(proxy);
             return {
@@ -454,7 +454,7 @@ export class McpService {
           },
         },
         async ({ proxyName, format }) => {
-          let proxy = this.apigeeService.proxyGet(proxyName);
+          let proxy = await this.apigeeService.templateGet(proxyName);
           if (proxy) {
             let link = process.env.SERVICE_URL
               ? process.env.SERVICE_URL.replace("SERVICE_URL_", "") +
@@ -499,7 +499,7 @@ export class McpService {
           },
         },
         async ({ featureName }) => {
-          let feature = this.apigeeService.featureGet(featureName);
+          let feature = await this.apigeeService.featureGet(featureName);
           if (feature) {
             let featureText = this.converter.featureToString(feature);
             return {
@@ -752,12 +752,13 @@ export class McpService {
           },
         },
         async ({ templateName, featureName }) => {
-          let proxy: Proxy | undefined = this.apigeeService.proxyApplyFeature(
-            templateName,
-            featureName,
-            {},
-            this.converter,
-          );
+          let proxy: Proxy | undefined =
+            await this.apigeeService.proxyApplyFeature(
+              templateName,
+              featureName,
+              {},
+              this.converter,
+            );
           if (proxy) {
             return {
               content: [
@@ -792,11 +793,12 @@ export class McpService {
           },
         },
         async ({ proxyName, featureName }) => {
-          let proxy: Proxy | undefined = this.apigeeService.proxyRemoveFeature(
-            proxyName,
-            featureName,
-            this.converter,
-          );
+          let proxy: Proxy | undefined =
+            await this.apigeeService.templateRemoveFeature(
+              proxyName,
+              featureName,
+              this.converter,
+            );
           if (proxy) {
             return {
               content: [
@@ -830,7 +832,7 @@ export class McpService {
           },
         },
         async ({ proxyName }) => {
-          let proxy = this.apigeeService.proxyGet(proxyName);
+          let proxy = await this.apigeeService.templateGet(proxyName);
           if (proxy) {
             this.apigeeService.proxyDelete(proxyName);
             return {
@@ -865,7 +867,7 @@ export class McpService {
           },
         },
         async ({ featureName }) => {
-          let feature = this.apigeeService.featureGet(featureName);
+          let feature = await this.apigeeService.featureGet(featureName);
           if (feature) {
             this.apigeeService.featureDelete(featureName);
             return {

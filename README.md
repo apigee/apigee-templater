@@ -22,7 +22,7 @@ resources: []
 A template JSON or YAML file can contain everything that an Apigee proxy contains, but just in one file.
 - **Feature** - a feature is similar to a template, but models a specific feature with policies and flows, defines input parameters, and can be applied to templates to add functionality like authentication or security validation policies. Templates can use one or more features. Here is an [example feature definition](https://github.com/apigee/apigee-templater/blob/main/test/features/auth-apikey-header.json) that adds API key authentication polices.
 
-Using **templates** and **features** it's possible to easily compose Apigee proxies from defined building blocks, without having to directly write or create Apigee proxy definitions.
+Using **templates** and **features** it's possible to easily compose Apigee proxies from defined building blocks, without having to directly write or create Apigee proxy definitions. If templates and features cannot be found locally, the `repository` directory here on Github is checked as a central repository. If you would like to add useful templates here to the repository, just open a pull request.
 
 Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, manage & apply templates  to create or modify Apigee proxies. Apigee Templater v3 is currently in **ALPHA** status, if you test and find bugs or have feature requests please report them as [Issues](https://github.com/apigee/apigee-templater/issues).
 
