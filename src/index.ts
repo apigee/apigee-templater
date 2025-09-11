@@ -51,27 +51,27 @@ fs.mkdirSync(rootStorageDir + "features", { recursive: true });
 fs.mkdirSync(rootStorageDir + "temp", { recursive: true });
 
 // REST
-app.post("/apigee-templater/templates", restService.templateCreate);
-app.get("/apigee-templater/templates", restService.templatesList);
-app.get("/apigee-templater/templates/:template", restService.templateGet);
+app.post("/templates", restService.templateCreate);
+app.get("/templates", restService.templatesList);
+app.get("/templates/:template", restService.templateGet);
 app.post(
-  "/apigee-templater/templates/:template/apigee-export",
+  "/templates/:template/apigee-export",
   restService.templateExportToApigee,
 );
 app.post(
-  "/apigee-templater/templates/:template/apigee-deploy",
+  "/templates/:template/apigee-deploy",
   restService.templateDeployToApigee,
 );
-app.delete("/apigee-templater/templates/:template", restService.templateDelete);
-app.post("/apigee-templater/features", restService.featureCreate);
-app.get("/apigee-templater/features/:feature", restService.featureGet);
-app.delete("/apigee-templater/features/:feature", restService.featureDelete);
+app.delete("/templates/:template", restService.templateDelete);
+app.post("/features", restService.featureCreate);
+app.get("/features/:feature", restService.featureGet);
+app.delete("/features/:feature", restService.featureDelete);
 app.post(
-  "/apigee-templater/templates/:template/features/:feature",
+  "/templates/:template/features/:feature",
   restService.templateApplyFeature,
 );
 app.delete(
-  "/apigee-templater/templates/:template/features/:feature",
+  "/templates/:template/features/:feature",
   restService.templateRemoveFeature,
 );
 

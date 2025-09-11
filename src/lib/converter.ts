@@ -4,7 +4,7 @@ import yazl from "yazl";
 import path from "path";
 import fs from "fs";
 import {
-  Proxy,
+  Template,
   Endpoint,
   Route,
   Flow,
@@ -29,7 +29,10 @@ export class ApigeeConverter {
     if (featuresPath) this.featuresPath = featuresPath;
   }
 
-  public async zipToJson(name: string, inputFilePath: string): Promise<Proxy> {
+  public async zipToJson(
+    name: string,
+    inputFilePath: string,
+  ): Promise<Template> {
     return new Promise((resolve, reject) => {
       let tempOutputDir = this.tempPath + name;
       yauzl.open(inputFilePath, { lazyEntries: true }, (err, zipfile) => {
@@ -59,7 +62,7 @@ export class ApigeeConverter {
           let proxies: string[] = fs.readdirSync(
             tempOutputDir + "/apiproxy/proxies",
           );
-          let newProxy = new Proxy();
+          let newProxy = new Template();
           newProxy.name = name;
           for (let proxy of proxies) {
             let newEndpoint = new Endpoint();
@@ -84,7 +87,8 @@ export class ApigeeConverter {
               for (let routeRule of proxyJson["ProxyEndpoint"]["RouteRule"]) {
                 let newRoute = new Route();
                 newRoute.name = routeRule["_attributes"]["name"];
-                newRoute.target = routeRule["TargetEndpoint"]["_text"];
+                if (routeRule["TargetEndpoint"])
+                  newRoute.target = routeRule["TargetEndpoint"]["_text"];
                 if (routeRule["Condition"])
                   newRoute.condition = routeRule["Condition"]["_text"];
                 newEndpoint.routes.push(newRoute);
@@ -93,17 +97,14 @@ export class ApigeeConverter {
               let newRoute = new Route();
               newRoute.name =
                 proxyJson["ProxyEndpoint"]["RouteRule"]["_attributes"]["name"];
-              newRoute.target =
-                proxyJson["ProxyEndpoint"]["RouteRule"]["TargetEndpoint"][
-                  "_text"
-                ];
-              if (
-                proxyJson["TargetEndpoint"]["RouteRule"]["Condition"]["_text"]
-              )
-                newRoute.condition =
-                  proxyJson["TargetEndpoint"]["RouteRule"]["Condition"][
+              if (proxyJson["ProxyEndpoint"]["RouteRule"]["TargetEndpoint"])
+                newRoute.target =
+                  proxyJson["ProxyEndpoint"]["RouteRule"]["TargetEndpoint"][
                     "_text"
                   ];
+              if (proxyJson["ProxyEndpoint"]["RouteRule"]["Condition"])
+                newRoute.condition =
+                  proxyJson["ProxyEndpoint"]["RouteRule"]["Condition"]["_text"];
               newEndpoint.routes.push(newRoute);
             }
 
@@ -142,9 +143,9 @@ export class ApigeeConverter {
             newProxy.endpoints.push(newEndpoint);
 
             // policies
-            let policies: string[] = fs.readdirSync(
-              tempOutputDir + "/apiproxy/policies",
-            );
+            let policies: string[] = [];
+            if (fs.existsSync(tempOutputDir + "/apiproxy/policies"))
+              policies = fs.readdirSync(tempOutputDir + "/apiproxy/policies");
             for (let policy of policies) {
               let policyContents = fs.readFileSync(
                 tempOutputDir + "/apiproxy/policies/" + policy,
@@ -166,9 +167,9 @@ export class ApigeeConverter {
             }
 
             // targets
-            let targets: string[] = fs.readdirSync(
-              tempOutputDir + "/apiproxy/targets",
-            );
+            let targets: string[] = [];
+            if (fs.existsSync(tempOutputDir + "/apiproxy/targets"))
+              targets = fs.readdirSync(tempOutputDir + "/apiproxy/targets");
             for (let target of targets) {
               let newTarget = new Target();
               let targetContent = fs.readFileSync(
@@ -271,7 +272,7 @@ export class ApigeeConverter {
     });
   }
 
-  public async jsonToZip(name: string, input: Proxy): Promise<string> {
+  public async jsonToZip(name: string, input: Template): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       var zipfile = new yazl.ZipFile();
       let tempFilePath = this.proxiesPath + name;
@@ -347,7 +348,7 @@ export class ApigeeConverter {
             },
           };
           if (endpoint["routes"][0]["target"]) {
-            endpointXml["ProxyEndpoint"]["RouteRule"]["Target"] = {
+            endpointXml["ProxyEndpoint"]["RouteRule"]["TargetEndpoint"] = {
               _text: endpoint["routes"][0]["target"],
             };
           }
@@ -559,10 +560,10 @@ export class ApigeeConverter {
   }
 
   public jsonApplyFeature(
-    proxy: Proxy,
+    proxy: Template,
     feature: Feature,
     parameters: { [key: string]: string } = {},
-  ): Proxy {
+  ): Template {
     // merge endpoint flows
     for (let featureFlow of feature.endpointFlows) {
       for (let endpoint of proxy.endpoints) {
@@ -633,7 +634,7 @@ export class ApigeeConverter {
     return proxy;
   }
 
-  public jsonRemoveFeature(proxy: Proxy, feature: Feature): Proxy {
+  public jsonRemoveFeature(proxy: Template, feature: Feature): Template {
     // remove endpoint flow steps
     for (let featureFlow of feature.endpointFlows) {
       for (let endpoint of proxy.endpoints) {
@@ -763,19 +764,22 @@ export class ApigeeConverter {
     return JSON.parse(inputString);
   }
 
-  public jsonToFeature(input: Proxy, endpointMode: boolean = false): Feature {
+  public jsonToFeature(
+    input: Template,
+    endpointMode: boolean = false,
+  ): Feature {
     let newFeature = new Feature();
     newFeature.name = input.name;
 
-    if (!endpointMode) {
-      if (input.endpoints.length > 0 && input.endpoints[0])
-        newFeature.endpointFlows = input.endpoints[0].flows;
-      if (input.targets.length > 0 && input.targets[0])
-        newFeature.targetFlows = input.targets[0].flows;
-    } else {
-      newFeature.endpoints = input.endpoints;
-      newFeature.targets = input.targets;
-    }
+    //if (!endpointMode) {
+    if (input.endpoints.length > 0 && input.endpoints[0])
+      newFeature.endpointFlows = input.endpoints[0].flows;
+    if (input.targets.length > 0 && input.targets[0])
+      newFeature.targetFlows = input.targets[0].flows;
+    //} else {
+    newFeature.endpoints = input.endpoints;
+    newFeature.targets = input.targets;
+    //}
 
     newFeature.policies = input.policies;
     newFeature.resources = input.resources;
@@ -783,7 +787,7 @@ export class ApigeeConverter {
     return newFeature;
   }
 
-  public proxyToString(proxy: Proxy): string {
+  public proxyToString(proxy: Template): string {
     let result = "";
     if (proxy.name) result = `Name: ${proxy.name}\n`;
     if (proxy.description) result += `Description: ${proxy.description}\n`;

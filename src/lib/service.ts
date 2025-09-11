@@ -1,12 +1,12 @@
 import { ApigeeConverter } from "./converter.js";
-import { Proxy, Feature } from "./interfaces.js";
+import { Template, Feature } from "./interfaces.js";
 import fs from "fs";
 import { Blob } from "buffer";
 import { Readable } from "node:stream";
 
 export class ApigeeTemplaterService {
   tempPath: string = "./data/temp/";
-  proxiesPath: string = "./data/templates/";
+  templatesPath: string = "./data/templates/";
   featuresPath: string = "./data/features/";
 
   constructor(
@@ -15,77 +15,105 @@ export class ApigeeTemplaterService {
     featuresPath: string = "",
   ) {
     if (tempPath) this.tempPath = tempPath;
-    if (proxiesPath) this.proxiesPath = proxiesPath;
+    if (proxiesPath) this.templatesPath = proxiesPath;
     if (featuresPath) this.featuresPath = featuresPath;
   }
 
-  public templatesList(): string[] {
-    let templateNames: string[] = [];
-    let templates: string[] = fs.readdirSync(this.proxiesPath);
+  public async templatesList(): Promise<Template[]> {
+    return new Promise<Template[]>(async (resolve, reject) => {
+      let templates: Template[] = [];
+      let templateNames: string[] = fs.readdirSync(this.templatesPath);
 
-    for (let templatePath of templates) {
-      if (templatePath.endsWith(".json")) {
-        let proxy: Proxy = JSON.parse(
-          fs.readFileSync(this.proxiesPath + templatePath, "utf8"),
-        );
-        templateNames.push(proxy.name);
+      for (let templatePath of templateNames) {
+        if (templatePath.endsWith(".json")) {
+          let template: Template = JSON.parse(
+            fs.readFileSync(this.templatesPath + templatePath, "utf8"),
+          );
+          templates.push(template);
+        }
       }
-    }
 
-    return templateNames;
+      let response = await fetch(
+        "https://api.github.com/repos/apigee/apigee-templater/contents/repository/templates",
+      );
+
+      if (response.status == 200) {
+        let remoteTemplates: any = await response.json();
+        if (remoteTemplates && remoteTemplates.length > 0) {
+          for (let template of remoteTemplates) {
+            if (
+              template &&
+              template["name"] &&
+              template["name"].endsWith(".json")
+            ) {
+              let downloadResponse = await fetch(template["download_url"]);
+              if (downloadResponse.status == 200) {
+                let remoteTemplate =
+                  (await downloadResponse.json()) as Template;
+                templates.push(remoteTemplate);
+              }
+            }
+          }
+        }
+      }
+
+      resolve(templates);
+    });
   }
 
-  public proxiesListText(): string {
-    let proxyLines: string[] = [];
-    let proxies: string[] = fs.readdirSync(this.proxiesPath);
+  public async featuresList(): Promise<Feature[]> {
+    return new Promise<Feature[]>(async (resolve, reject) => {
+      let features: Feature[] = [];
+      let featureNames: string[] = fs.readdirSync(this.featuresPath);
 
-    for (let proxyPath of proxies) {
-      if (proxyPath.endsWith(".json")) {
-        let proxy: Proxy = JSON.parse(
-          fs.readFileSync(this.proxiesPath + proxyPath, "utf8"),
-        );
-        let proxyString = proxy.description
-          ? " - " + proxy.name + " - " + proxy.description
-          : " - " + proxy.name + " - No description.";
-        proxyLines.push(proxyString);
+      for (let featurePath of featureNames) {
+        if (featurePath.endsWith(".json")) {
+          let feature: Feature = JSON.parse(
+            fs.readFileSync(this.featuresPath + featurePath, "utf8"),
+          );
+          features.push(feature);
+        }
       }
-    }
 
-    return proxyLines.join("\n");
+      let response = await fetch(
+        "https://api.github.com/repos/apigee/apigee-templater/contents/repository/features",
+      );
+
+      if (response.status == 200) {
+        let remoteFeatures: any = await response.json();
+        if (remoteFeatures && remoteFeatures.length > 0) {
+          for (let feature of remoteFeatures) {
+            if (
+              feature &&
+              feature["name"] &&
+              feature["name"].endsWith(".json")
+            ) {
+              let downloadResponse = await fetch(feature["download_url"]);
+              if (downloadResponse.status == 200) {
+                let remoteFeature = (await downloadResponse.json()) as Feature;
+                features.push(remoteFeature);
+              }
+            }
+          }
+        }
+      }
+
+      resolve(features);
+    });
   }
 
-  public featuresListText(): string {
-    let featureLines: string[] = [];
-    let features: string[] = fs.readdirSync(this.featuresPath);
-
-    for (let featurePath of features) {
-      if (featurePath.endsWith(".json")) {
-        let feature: Feature = JSON.parse(
-          fs.readFileSync(this.featuresPath + featurePath, "utf8"),
-        );
-        let featureString = feature.description
-          ? " - " + feature.name + " - " + feature.description
-          : " - " + feature.name + " - No description.";
-        featureLines.push(featureString);
-      }
-    }
-
-    return featureLines.join("\n");
-  }
-
-  public async templateGet(name: string): Promise<Proxy | undefined> {
+  public async templateGet(name: string): Promise<Template | undefined> {
     return new Promise(async (resolve, reject) => {
-      let result: Proxy | undefined = undefined;
+      let result: Template | undefined = undefined;
       let tempName = name.replaceAll(" ", "-");
       let proxyString = "";
 
-      if (fs.existsSync(this.proxiesPath + tempName + ".json")) {
+      if (fs.existsSync(this.templatesPath + tempName + ".json")) {
         proxyString = fs.readFileSync(
-          this.proxiesPath + tempName + ".json",
+          this.templatesPath + tempName + ".json",
           "utf8",
         );
       } else {
-        console.log("Could not load " + name + ", trying github...");
         // try to fetch remotely
         let response = await fetch(
           "https://raw.githubusercontent.com/apigee/apigee-templater/refs/heads/main/repository/templates/" +
@@ -108,9 +136,9 @@ export class ApigeeTemplaterService {
     });
   }
 
-  public proxyImport(proxy: Proxy) {
+  public templateImport(proxy: Template) {
     fs.writeFileSync(
-      this.proxiesPath + proxy.name + ".json",
+      this.templatesPath + proxy.name + ".json",
       JSON.stringify(proxy, null, 2),
     );
   }
@@ -136,7 +164,6 @@ export class ApigeeTemplaterService {
       }
 
       if (!featureString) {
-        console.log(`Could not load feature ${name}, not found.`);
         return result;
       } else {
         result = JSON.parse(featureString);
@@ -146,14 +173,14 @@ export class ApigeeTemplaterService {
     });
   }
 
-  public async proxyApplyFeature(
+  public async templateApplyFeature(
     proxyName: string,
     featureName: string,
     parameters: { [key: string]: string },
     converter: ApigeeConverter,
-  ): Promise<Proxy | undefined> {
+  ): Promise<Template | undefined> {
     return new Promise(async (resolve, reject) => {
-      let proxy: Proxy | undefined = undefined;
+      let proxy: Template | undefined = undefined;
 
       proxy = await this.templateGet(proxyName);
       let feature = await this.featureGet(featureName);
@@ -173,7 +200,7 @@ export class ApigeeTemplaterService {
       }
 
       fs.writeFileSync(
-        this.proxiesPath + proxyName + ".json",
+        this.templatesPath + proxyName + ".json",
         JSON.stringify(proxy, null, 2),
       );
 
@@ -185,9 +212,9 @@ export class ApigeeTemplaterService {
     proxyName: string,
     featureName: string,
     converter: ApigeeConverter,
-  ): Promise<Proxy | undefined> {
+  ): Promise<Template | undefined> {
     return new Promise(async (resolve, reject) => {
-      let proxy: Proxy | undefined = undefined;
+      let proxy: Template | undefined = undefined;
       proxy = await this.templateGet(proxyName);
       let feature = await this.featureGet(featureName);
 
@@ -206,7 +233,7 @@ export class ApigeeTemplaterService {
       }
 
       fs.writeFileSync(
-        this.proxiesPath + proxyName + ".json",
+        this.templatesPath + proxyName + ".json",
         JSON.stringify(proxy, null, 2),
       );
 
@@ -214,54 +241,54 @@ export class ApigeeTemplaterService {
     });
   }
 
-  public proxyCreate(
+  public templateCreate(
     name: string,
-    basePath: string,
+    basePath: string | undefined,
     targetUrl: string | undefined,
     converter: ApigeeConverter,
-  ): Proxy {
-    let tempProxyName = name.replaceAll(" ", "-");
-    let newProxy: Proxy = {
-      name: tempProxyName,
+  ): Template {
+    let tempName = name.replaceAll(" ", "-");
+    let newTemplate: Template = {
+      name: tempName,
       displayName: name,
       description: "API proxy " + name,
       features: [],
-      endpoints: [
-        {
-          name: "default",
-          path: basePath,
-          flows: [],
-          routes: [
-            {
-              name: "default",
-            },
-          ],
-        },
-      ],
+      endpoints: [],
       targets: [],
       policies: [],
       resources: [],
     };
 
+    if (basePath) {
+      newTemplate.endpoints.push({
+        name: "default",
+        path: basePath,
+        flows: [],
+        routes: [
+          {
+            name: "default",
+          },
+        ],
+      });
+    }
+
     if (targetUrl) {
-      newProxy.targets.push({
+      newTemplate.targets.push({
         name: "default",
         url: targetUrl,
         flows: [],
       });
 
-      if (newProxy.endpoints[0] && newProxy.endpoints[0].routes[0])
-        newProxy.endpoints[0].routes[0].target = "default";
+      if (newTemplate.endpoints[0] && newTemplate.endpoints[0].routes[0])
+        newTemplate.endpoints[0].routes[0].target = "default";
     }
 
-    console.log("Writing PROXY " + this.proxiesPath + tempProxyName + ".json");
-
     fs.writeFileSync(
-      this.proxiesPath + tempProxyName + ".json",
-      JSON.stringify(newProxy, null, 2),
+      this.templatesPath + tempName + ".json",
+      JSON.stringify(newTemplate, null, 2),
     );
 
-    return newProxy;
+    return newTemplate;
   }
 
   public featureImport(feature: Feature): Feature {
@@ -273,7 +300,7 @@ export class ApigeeTemplaterService {
     return feature;
   }
 
-  public proxyAddEndpoint(
+  public templateAddEndpoint(
     proxyName: string,
     endpointName: string,
     basePath: string,
@@ -281,18 +308,18 @@ export class ApigeeTemplaterService {
     targetUrl: string,
     targetRouteRule: string | undefined,
     converter: ApigeeConverter,
-  ): Proxy | undefined {
-    let proxy: Proxy | undefined = undefined;
+  ): Template | undefined {
+    let proxy: Template | undefined = undefined;
     let tempProxyName = proxyName.replaceAll(" ", "-").toLowerCase();
     let proxyString = fs.readFileSync(
-      this.proxiesPath + tempProxyName + ".json",
+      this.templatesPath + tempProxyName + ".json",
       "utf8",
     );
     let result = {};
     if (!proxyString) {
       return proxy;
     } else {
-      let proxy: Proxy = JSON.parse(proxyString);
+      let proxy: Template = JSON.parse(proxyString);
       proxy.endpoints.push({
         name: endpointName,
         path: basePath,
@@ -316,7 +343,7 @@ export class ApigeeTemplaterService {
       }
 
       fs.writeFileSync(
-        this.proxiesPath + tempProxyName + ".json",
+        this.templatesPath + tempProxyName + ".json",
         JSON.stringify(proxy, null, 2),
       );
 
@@ -324,15 +351,15 @@ export class ApigeeTemplaterService {
     }
   }
 
-  public proxyDelete(proxyName: string) {
-    if (fs.existsSync(this.proxiesPath + proxyName + ".json")) {
-      fs.rmSync(this.proxiesPath + proxyName + ".json");
+  public templateDelete(proxyName: string) {
+    if (fs.existsSync(this.templatesPath + proxyName + ".json")) {
+      fs.rmSync(this.templatesPath + proxyName + ".json");
     }
-    if (fs.existsSync(this.proxiesPath + proxyName + ".yaml")) {
-      fs.rmSync(this.proxiesPath + proxyName + ".yaml");
+    if (fs.existsSync(this.templatesPath + proxyName + ".yaml")) {
+      fs.rmSync(this.templatesPath + proxyName + ".yaml");
     }
-    if (fs.existsSync(this.proxiesPath + proxyName + ".zip")) {
-      fs.rmSync(this.proxiesPath + proxyName + ".zip");
+    if (fs.existsSync(this.templatesPath + proxyName + ".zip")) {
+      fs.rmSync(this.templatesPath + proxyName + ".zip");
     }
   }
 
@@ -342,17 +369,17 @@ export class ApigeeTemplaterService {
     }
   }
 
-  public proxyAddTarget(
+  public templateAddTarget(
     proxyName: string,
     targetName: string,
     targetUrl: string,
     routeRule: string,
     converter: ApigeeConverter,
-  ): Proxy | undefined {
-    let proxy: Proxy | undefined = undefined;
+  ): Template | undefined {
+    let proxy: Template | undefined = undefined;
     let tempProxyName = proxyName.replaceAll(" ", "-").toLowerCase();
     let proxyString = fs.readFileSync(
-      this.proxiesPath + tempProxyName + ".json",
+      this.templatesPath + tempProxyName + ".json",
       "utf8",
     );
     let result = {};
@@ -388,7 +415,7 @@ export class ApigeeTemplaterService {
         }
 
         fs.writeFileSync(
-          this.proxiesPath + tempProxyName + ".json",
+          this.templatesPath + tempProxyName + ".json",
           JSON.stringify(proxy, null, 2),
         );
       }
@@ -441,20 +468,22 @@ export class ApigeeTemplaterService {
         let latestRevisionId = responseBody.latestRevisionId;
         if (!latestRevisionId) resolve(undefined);
 
-        response = await fetch(
-          `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}/${latestRevisionId}?format=bundle`,
-          {
-            headers: {
-              Authorization: token,
-            },
+        let url = `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}/revisions/${latestRevisionId}?format=bundle`;
+        response = await fetch(url, {
+          headers: {
+            Authorization: token,
           },
-        );
-        let arrayBuffer = await response.arrayBuffer();
-        fs.writeFileSync(
-          this.proxiesPath + proxyName + ".zip",
-          Buffer.from(arrayBuffer),
-        );
-        resolve(this.proxiesPath + proxyName + ".zip");
+        });
+        if (response.status == 200) {
+          let arrayBuffer = await response.arrayBuffer();
+          fs.writeFileSync(
+            this.tempPath + proxyName + ".zip",
+            Buffer.from(arrayBuffer),
+          );
+          resolve(this.tempPath + proxyName + ".zip");
+        } else {
+          resolve(undefined);
+        }
       } else {
         console.log("Got response " + response.status);
         resolve(undefined);

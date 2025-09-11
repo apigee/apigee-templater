@@ -1,4 +1,4 @@
-export class Proxy {
+export class Template {
   name: string = "";
   displayName?: string = "";
   description?: string = "";

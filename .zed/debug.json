@@ -1,0 +1,15 @@
+// Project-local debug tasks
+//
+// For more documentation on how to configure debug tasks,
+// see: https://zed.dev/docs/debugger
+[
+  {
+    "adapter": "JavaScript",
+    "label": "index.js (JavaScript)",
+    "type": "pwa-node",
+    "request": "launch",
+    "program": "dist/index.js",
+    "stopOnEntry": false,
+    "cwd": "/home/tyayers/projects/apigee/apigee-templater"
+  }
+]

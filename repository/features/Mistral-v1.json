@@ -1,0 +1,46 @@
+{
+  "name": "Mistral-v1",
+  "description": "",
+  "parameters": [],
+  "endpointFlows": [],
+  "targetFlows": [],
+  "endpoints": [
+    {
+      "name": "mistral",
+      "path": "/v1/mistral",
+      "flows": [],
+      "faultRules": [],
+      "routes": [
+        {
+          "name": "default",
+          "target": "mistral"
+        }
+      ]
+    }
+  ],
+  "targets": [
+    {
+      "name": "mistral",
+      "flows": [],
+      "faultRules": [],
+      "url": "https://europe-west4-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west4/publishers/mistralai/models/mistral-large-2411:rawPredict",
+      "httpTargetConnection": {
+        "Properties": {},
+        "URL": {
+          "_text": "https://europe-west4-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west4/publishers/mistralai/models/mistral-large-2411:rawPredict"
+        },
+        "Authentication": {
+          "GoogleAccessToken": {
+            "Scopes": {
+              "Scope": {
+                "_text": "https://www.googleapis.com/auth/cloud-platform"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "policies": [],
+  "resources": []
+}

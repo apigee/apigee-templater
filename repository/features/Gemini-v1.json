@@ -1,0 +1,46 @@
+{
+  "name": "Gemini-v1",
+  "description": "",
+  "parameters": [],
+  "endpointFlows": [],
+  "targetFlows": [],
+  "endpoints": [
+    {
+      "name": "gemini",
+      "path": "/v1/gemini",
+      "flows": [],
+      "faultRules": [],
+      "routes": [
+        {
+          "name": "default",
+          "target": "gemini"
+        }
+      ]
+    }
+  ],
+  "targets": [
+    {
+      "name": "gemini",
+      "flows": [],
+      "faultRules": [],
+      "url": "https://europe-west1-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west1/endpoints/openapi/chat/completions",
+      "httpTargetConnection": {
+        "Properties": {},
+        "URL": {
+          "_text": "https://europe-west1-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west1/endpoints/openapi/chat/completions"
+        },
+        "Authentication": {
+          "GoogleAccessToken": {
+            "Scopes": {
+              "Scope": {
+                "_text": "https://www.googleapis.com/auth/cloud-platform"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "policies": [],
+  "resources": []
+}

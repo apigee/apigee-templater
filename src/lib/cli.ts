@@ -21,7 +21,7 @@ import inquirer from "inquirer";
 import chalk from "chalk";
 import * as YAML from "yaml";
 import { ApigeeConverter } from "./converter.js";
-import { Proxy, Feature } from "./interfaces.js";
+import { Template, Feature } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 
 import { stdin } from "process";
@@ -218,11 +218,11 @@ export class cli {
 
     options = await this.promptForMissingOptions(options);
 
-    let proxy: Proxy | undefined = undefined;
+    let proxy: Template | undefined = undefined;
 
     if (!options.file) {
       // create new proxy
-      proxy = this.apigeeService.proxyCreate(
+      proxy = this.apigeeService.templateCreate(
         options.name,
         options.basePath,
         options.targetUrl,
@@ -304,9 +304,12 @@ export class cli {
     // );
   }
 
-  async loadFile(name: string, inputPath: string): Promise<Proxy | undefined> {
-    return new Promise<Proxy | undefined>(async (resolve, reject) => {
-      let proxy: Proxy | undefined = undefined;
+  async loadFile(
+    name: string,
+    inputPath: string,
+  ): Promise<Template | undefined> {
+    return new Promise<Template | undefined>(async (resolve, reject) => {
+      let proxy: Template | undefined = undefined;
       if (inputPath.toLowerCase().endsWith(".zip")) {
         proxy = await this.converter.zipToJson(name, inputPath);
       } else if (

@@ -9,7 +9,7 @@ import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { any, z } from "zod";
 import * as YAML from "yaml";
 import { ApigeeConverter } from "./converter.js";
-import { Proxy, Feature } from "./interfaces.js";
+import { Template, Feature } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 
 export class McpService {
@@ -74,23 +74,13 @@ export class McpService {
       });
 
       server.registerResource(
-        "proxies",
-        "proxies://main",
+        "templates",
+        "templates://main",
         {
-          title: "Proxies",
-          description: "All proxies.",
+          title: "Templates",
+          description: "All templates.",
         },
-        async (uri) => {
-          // load all proxies
-          return {
-            contents: [
-              {
-                uri: uri.href,
-                text: this.apigeeService.proxiesListText(),
-              },
-            ],
-          };
-        },
+        this.resourceTemplatesList,
       );
 
       server.registerResource(
@@ -100,17 +90,7 @@ export class McpService {
           title: "Features",
           description: "All features.",
         },
-        async (uri) => {
-          // load all features
-          return {
-            contents: [
-              {
-                uri: uri.href,
-                text: this.apigeeService.featuresListText(),
-              },
-            ],
-          };
-        },
+        this.resourceFeaturesList,
       );
 
       // templatesList
@@ -122,13 +102,13 @@ export class McpService {
           inputSchema: {},
         },
         async () => {
-          let proxyText = this.apigeeService.proxiesListText();
-          if (proxyText) {
+          let templatesList = await this.apigeeService.templatesList();
+          if (templatesList) {
             return {
               content: [
                 {
                   type: "text",
-                  text: `Here is a list of all templates:\n ${proxyText}`,
+                  text: `${JSON.stringify(templatesList)}`,
                 },
               ],
             };
@@ -221,7 +201,7 @@ export class McpService {
                 apigeeProxyPath,
               );
               if (proxiesObject) {
-                this.apigeeService.proxyImport(proxiesObject);
+                this.apigeeService.templateImport(proxiesObject);
               }
             }
           }
@@ -379,13 +359,13 @@ export class McpService {
           inputSchema: {},
         },
         async () => {
-          let featureText = this.apigeeService.featuresListText();
-          if (featureText) {
+          let features = await this.apigeeService.featuresList();
+          if (features) {
             return {
               content: [
                 {
                   type: "text",
-                  text: `Here are all of the features:\n ${featureText}`,
+                  text: `${JSON.stringify(features)}`,
                 },
               ],
             };
@@ -532,12 +512,12 @@ export class McpService {
             "Create an empty API template with an optional target service URL.",
           inputSchema: {
             proxyName: z.string(),
-            basePath: z.string(),
+            basePath: z.string().optional(),
             targetUrl: z.string().optional(),
           },
         },
         async ({ proxyName, basePath, targetUrl }) => {
-          let proxy = this.apigeeService.proxyCreate(
+          let proxy = this.apigeeService.templateCreate(
             proxyName,
             basePath,
             targetUrl,
@@ -582,13 +562,13 @@ export class McpService {
             let response = await fetch(templateString);
             tempProxyString = await response.text();
           }
-          let proxy: Proxy = JSON.parse(tempProxyString);
+          let proxy: Template = JSON.parse(tempProxyString);
           if (!proxy) {
             // try to parse YAML
             proxy = YAML.parse(tempProxyString);
           }
           if (proxy) {
-            this.apigeeService.proxyImport(proxy);
+            this.apigeeService.templateImport(proxy);
             return {
               content: [
                 {
@@ -666,7 +646,7 @@ export class McpService {
           targetUrl,
           targetRouteRule,
         }) => {
-          let proxy = this.apigeeService.proxyAddEndpoint(
+          let proxy = this.apigeeService.templateAddEndpoint(
             proxyName,
             endpointName,
             basePath,
@@ -711,7 +691,7 @@ export class McpService {
           },
         },
         async ({ proxyName, targetName, targetUrl, targetRouteRule }) => {
-          let proxy = this.apigeeService.proxyAddTarget(
+          let proxy = this.apigeeService.templateAddTarget(
             proxyName,
             targetName,
             targetUrl,
@@ -752,8 +732,8 @@ export class McpService {
           },
         },
         async ({ templateName, featureName }) => {
-          let proxy: Proxy | undefined =
-            await this.apigeeService.proxyApplyFeature(
+          let proxy: Template | undefined =
+            await this.apigeeService.templateApplyFeature(
               templateName,
               featureName,
               {},
@@ -793,7 +773,7 @@ export class McpService {
           },
         },
         async ({ proxyName, featureName }) => {
-          let proxy: Proxy | undefined =
+          let proxy: Template | undefined =
             await this.apigeeService.templateRemoveFeature(
               proxyName,
               featureName,
@@ -834,7 +814,7 @@ export class McpService {
         async ({ proxyName }) => {
           let proxy = await this.apigeeService.templateGet(proxyName);
           if (proxy) {
-            this.apigeeService.proxyDelete(proxyName);
+            this.apigeeService.templateDelete(proxyName);
             return {
               content: [
                 {
@@ -909,5 +889,29 @@ export class McpService {
 
     // Handle the request
     await transport.handleRequest(req, res, req.body);
+  };
+
+  public resourceTemplatesList = async (uri: URL) => {
+    // load all proxies
+    return {
+      contents: [
+        {
+          uri: uri.href,
+          text: JSON.stringify(this.apigeeService.templatesList()),
+        },
+      ],
+    };
+  };
+
+  public resourceFeaturesList = async (uri: URL) => {
+    // load all features
+    return {
+      contents: [
+        {
+          uri: uri.href,
+          text: JSON.stringify(this.apigeeService.featuresList()),
+        },
+      ],
+    };
   };
 }

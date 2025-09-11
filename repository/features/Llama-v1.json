@@ -1,0 +1,46 @@
+{
+  "name": "Llama-v1",
+  "description": "",
+  "parameters": [],
+  "endpointFlows": [],
+  "targetFlows": [],
+  "endpoints": [
+    {
+      "name": "llama",
+      "path": "/v1/llama",
+      "flows": [],
+      "faultRules": [],
+      "routes": [
+        {
+          "name": "default",
+          "target": "llama"
+        }
+      ]
+    }
+  ],
+  "targets": [
+    {
+      "name": "llama",
+      "flows": [],
+      "faultRules": [],
+      "url": "https://us-east5-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/us-east5/endpoints/openapi/chat/completions",
+      "httpTargetConnection": {
+        "Properties": {},
+        "URL": {
+          "_text": "https://us-east5-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/us-east5/endpoints/openapi/chat/completions"
+        },
+        "Authentication": {
+          "GoogleAccessToken": {
+            "Scopes": {
+              "Scope": {
+                "_text": "https://www.googleapis.com/auth/cloud-platform"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "policies": [],
+  "resources": []
+}

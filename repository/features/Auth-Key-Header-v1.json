@@ -1,5 +1,5 @@
 {
-  "name": "auth-apikey-header",
+  "name": "Auth-Key-Header-v1",
   "description": "Adds simple API key authentication from a header in the proxy pre-flow.",
   "parameters": [
     {
