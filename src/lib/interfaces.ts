@@ -71,6 +71,11 @@ export class Feature {
   parameters: Parameter[] = [];
   endpointFlows: Flow[] = [];
   targetFlows: Flow[] = [];
+
+  // optional complete endpoints and targets
+  endpoints: Endpoint[] = [];
+  targets: Target[] = [];
+
   policies: Policy[] = [];
   resources: Resource[] = [];
 }

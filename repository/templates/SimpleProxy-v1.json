@@ -1,0 +1,90 @@
+{
+  "name": "SimpleProxy-v1",
+  "displayName": "",
+  "description": "",
+  "features": [],
+  "endpoints": [
+    {
+      "name": "default",
+      "path": "/v1/simple-proxy",
+      "flows": [
+        {
+          "name": "PostFlow",
+          "mode": "Response",
+          "condition": "",
+          "steps": [
+            {
+              "name": "JS-SetResponse"
+            }
+          ]
+        }
+      ],
+      "faultRules": [],
+      "routes": [
+        {
+          "name": "get",
+          "condition": "proxy.pathsuffix = \"/get\"",
+          "target": "httpbin"
+        },
+        {
+          "name": "default",
+          "target": "default"
+        }
+      ]
+    }
+  ],
+  "targets": [
+    {
+      "name": "default",
+      "flows": [],
+      "faultRules": [],
+      "url": "https://mocktarget.apigee.net",
+      "httpTargetConnection": {
+        "URL": {
+          "_text": "https://mocktarget.apigee.net"
+        }
+      }
+    },
+    {
+      "name": "httpbin",
+      "flows": [],
+      "faultRules": [],
+      "url": "https://httpbin.org",
+      "httpTargetConnection": {
+        "URL": {
+          "_text": "https://httpbin.org"
+        }
+      }
+    }
+  ],
+  "policies": [
+    {
+      "name": "JS-SetResponse",
+      "type": "Javascript",
+      "content": {
+        "Javascript": {
+          "_attributes": {
+            "continueOnError": "false",
+            "enabled": "true",
+            "timeLimit": "200",
+            "name": "JS-SetResponse"
+          },
+          "DisplayName": {
+            "_text": "JS-SetResponse"
+          },
+          "Properties": {},
+          "ResourceURL": {
+            "_text": "jsc://set-response.js"
+          }
+        }
+      }
+    }
+  ],
+  "resources": [
+    {
+      "name": "set-response.js",
+      "type": "jsc",
+      "content": "print(\"hello world!!\");\n\ncontext.proxyResponse.content += \"hello world!\";"
+    }
+  ]
+}

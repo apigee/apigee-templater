@@ -1,0 +1,23 @@
+openapi: 3.0.0
+info:
+  title: Apigee Templater API
+  description: This API provides access to Apigee Templating services.
+  version: 3.0.0
+servers:
+  - url: https://apigee-templater-609874082793.europe-west1.run.app
+paths:
+  /apigee-templater/templates:
+    get:
+      description: Get a list of all templates.
+      operationId: getTemplates
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  type: string
+                type: array
+          description: OK
+      tags:
+        - templates

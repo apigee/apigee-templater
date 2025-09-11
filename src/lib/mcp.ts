@@ -247,9 +247,9 @@ export class McpService {
         },
       );
 
-      // templateExportApigee
+      // templateExportToApigee
       server.registerTool(
-        "templateExportApigee",
+        "templateExportToApigee",
         {
           title: "Template to Apigee Proxy Export Tool",
           description:
@@ -309,18 +309,11 @@ export class McpService {
             proxyName: z.string(),
             apigeeOrg: z.string(),
             apigeeEnvironment: z.string(),
-            proxyRevision: z.string(),
             serviceAccountEmail: z.string().default(""),
           },
         },
         async (
-          {
-            proxyName,
-            apigeeOrg,
-            apigeeEnvironment,
-            proxyRevision,
-            serviceAccountEmail,
-          },
+          { proxyName, apigeeOrg, apigeeEnvironment, serviceAccountEmail },
           authInfo,
         ) => {
           let token: string =
@@ -330,15 +323,30 @@ export class McpService {
               : "";
           let apigeeProxyRevision = "";
           if (token) {
-            apigeeProxyRevision =
-              await this.apigeeService.apigeeProxyRevisionDeploy(
+            let apigeeProxyRevision = "";
+            let proxy = this.apigeeService.proxyGet(proxyName);
+
+            if (proxy) {
+              let zipPath = await this.converter.jsonToZip(proxyName, proxy);
+
+              apigeeProxyRevision = await this.apigeeService.apigeeProxyImport(
                 proxyName,
-                proxyRevision,
-                serviceAccountEmail,
-                apigeeEnvironment,
+                zipPath,
                 apigeeOrg,
                 token,
               );
+
+              if (apigeeProxyRevision)
+                apigeeProxyRevision =
+                  await this.apigeeService.apigeeProxyRevisionDeploy(
+                    proxyName,
+                    apigeeProxyRevision,
+                    serviceAccountEmail,
+                    apigeeEnvironment,
+                    apigeeOrg,
+                    token,
+                  );
+            }
           }
           if (apigeeProxyRevision) {
             return {
@@ -394,7 +402,7 @@ export class McpService {
         },
       );
 
-      // proxyDescribe
+      // templateDescribe
       server.registerTool(
         "templateDescribe",
         {
@@ -429,7 +437,7 @@ export class McpService {
         },
       );
 
-      // proxyDownload
+      // templateDownload
       server.registerTool(
         "templateDownload",
         {

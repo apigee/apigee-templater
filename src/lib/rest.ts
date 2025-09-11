@@ -14,7 +14,18 @@ export class RestService {
     this.apigeeService = service;
   }
 
-  public proxyPost = (req: express.Request, res: express.Response) => {
+  public templatesList = async (
+    req: express.Request,
+    res: express.Response,
+  ) => {
+    let templates = this.apigeeService.templatesList();
+    res.send(JSON.stringify(templates, null, 2));
+  };
+
+  public templateCreate = async (
+    req: express.Request,
+    res: express.Response,
+  ) => {
     if (!req.body) {
       return res.status(400).send("No data received.");
     }
@@ -90,10 +101,142 @@ export class RestService {
           res.status(201).json(JSON.stringify(proxy, null, 2));
         }
         break;
+      case "*/*":
+        console.log("YES ANY CONTENT-TYPE!!");
+        let apigeeOrg: string = req.query["org"]
+          ? req.query["org"].toString()
+          : "";
+        let proxyName: string = req.query["proxy"]
+          ? req.query["proxy"].toString()
+          : "";
+        let token: string = req.headers.authorization
+          ? req.headers.authorization
+          : "";
+        if (!apigeeOrg || !proxyName || !token) {
+          res.status(400).send("Either apigee org, proxy or token missing.");
+        } else {
+          let proxyPath = await this.apigeeService.apigeeProxyGet(
+            proxyName,
+            apigeeOrg,
+            token,
+          );
+          if (proxyPath)
+            this.converter
+              .zipToJson(name.toString(), proxyPath)
+              .then((result) => {
+                if (responseType == "application/yaml") {
+                  fs.writeFileSync(
+                    this.apigeeService.proxiesPath + name + ".json",
+                    JSON.stringify(result, null, 2),
+                  );
+                  res.setHeader("Content-Type", "application/yaml");
+                  res.status(201).send(YAML.stringify(result));
+                } else {
+                  fs.writeFileSync(
+                    this.apigeeService.proxiesPath + name + ".json",
+                    JSON.stringify(result, null, 2),
+                  );
+                  res.setHeader("Content-Type", "application/json");
+                  res.status(201).send(JSON.stringify(result, null, 2));
+                }
+              })
+              .catch((error) => {
+                res.status(500).send(error.message);
+              });
+          else res.status(404).send("Could not find proxy.");
+        }
+        break;
     }
   };
 
-  public proxyGet = (req: express.Request, res: express.Response) => {
+  public templateExportToApigee = async (
+    req: express.Request,
+    res: express.Response,
+  ) => {
+    let templateName = req.params.template;
+    let apigeeOrg: string = req.query["org"] ? req.query["org"].toString() : "";
+    let token: string = req.headers.authorization
+      ? req.headers.authorization
+      : "";
+    if (!templateName || !apigeeOrg || !token) {
+      res
+        .status(400)
+        .send("Either template name, apigee org, proxy or token missing.");
+    } else {
+      let apigeeProxyRevision = "";
+      let proxy = this.apigeeService.proxyGet(templateName);
+      if (proxy && token) {
+        let zipPath = await this.converter.jsonToZip(templateName, proxy);
+
+        apigeeProxyRevision = await this.apigeeService.apigeeProxyImport(
+          templateName,
+          zipPath,
+          apigeeOrg,
+          token,
+        );
+      }
+      if (!apigeeProxyRevision) {
+        res.status(500).send("Could not export template to apigee org.");
+      } else {
+        res.send(
+          `Template ${templateName} successfully exported to Apigee org ${apigeeOrg} with revision ${apigeeProxyRevision}`,
+        );
+      }
+    }
+  };
+
+  public templateDeployToApigee = async (
+    req: express.Request,
+    res: express.Response,
+  ) => {
+    let templateName = req.params.template;
+    let apigeeOrg: string = req.query["org"] ? req.query["org"].toString() : "";
+    let apigeeEnv: string = req.query["env"] ? req.query["env"].toString() : "";
+    let serviceAccountEmail: string = req.query["sa"]
+      ? req.query["sa"].toString()
+      : "";
+    let token: string = req.headers.authorization
+      ? req.headers.authorization
+      : "";
+    if (!templateName || !apigeeOrg || !apigeeEnv || !token) {
+      res
+        .status(400)
+        .send("Either template name, apigee org, env or token missing.");
+    } else {
+      let apigeeProxyRevision = "";
+      let proxy = this.apigeeService.proxyGet(templateName);
+      if (proxy && token) {
+        let zipPath = await this.converter.jsonToZip(templateName, proxy);
+
+        apigeeProxyRevision = await this.apigeeService.apigeeProxyImport(
+          templateName,
+          zipPath,
+          apigeeOrg,
+          token,
+        );
+      }
+      if (!apigeeProxyRevision) {
+        res.status(500).send("Could not export template to apigee org.");
+      } else {
+        let deployedRevision =
+          await this.apigeeService.apigeeProxyRevisionDeploy(
+            templateName,
+            apigeeProxyRevision,
+            serviceAccountEmail,
+            apigeeEnv,
+            apigeeOrg,
+            token,
+          );
+        if (deployedRevision)
+          res.send(
+            `Template ${templateName} successfully exported and deployed to Apigee org ${apigeeOrg} and env ${apigeeEnv} with revision ${apigeeProxyRevision}`,
+          );
+        else res.status(500).send("Could not deploy template to apigee org.");
+      }
+    }
+  };
+
+  public templateGet = (req: express.Request, res: express.Response) => {
     let proxyName = req.params.template;
     if (!proxyName) {
       return res.status(400).send("No proxy name received.");
@@ -131,7 +274,7 @@ export class RestService {
     } else res.status(404).send("Proxy could not be found.");
   };
 
-  public proxyDelete = (req: express.Request, res: express.Response) => {
+  public templateDelete = (req: express.Request, res: express.Response) => {
     let proxyName = req.params.template;
     if (!proxyName) {
       return res.status(400).send("No proxy name received.");
@@ -181,7 +324,7 @@ export class RestService {
     } else res.status(404).send("Feature could not be found.");
   };
 
-  public proxyApplyFeature = async (
+  public templateApplyFeature = async (
     req: express.Request,
     res: express.Response,
   ) => {
@@ -218,7 +361,10 @@ export class RestService {
     }
   };
 
-  public proxyRemoveFeature = (req: express.Request, res: express.Response) => {
+  public templateRemoveFeature = (
+    req: express.Request,
+    res: express.Response,
+  ) => {
     let proxyName = req.params.template;
     if (!proxyName) {
       return res.status(400).send("No proxy name received.");
@@ -245,7 +391,10 @@ export class RestService {
     }
   };
 
-  public featurePost = (req: express.Request, res: express.Response) => {
+  public featureCreate = async (
+    req: express.Request,
+    res: express.Response,
+  ) => {
     if (!req.body) {
       return res.status(400).send("No data received.");
     }
@@ -268,12 +417,11 @@ export class RestService {
           .then((result) => {
             fs.rmSync(tempFilePath);
             newFeature = this.converter.jsonToFeature(result);
+            this.apigeeService.featureImport(newFeature);
             if (responseType == "application/yaml") {
-              this.apigeeService.featureImport(newFeature);
               res.setHeader("Content-Type", "application/yaml");
               res.status(201).send(YAML.stringify(newFeature));
             } else {
-              this.apigeeService.featureImport(newFeature);
               res.setHeader("Content-Type", "application/json");
               res.status(201).send(JSON.stringify(newFeature, null, 2));
             }
@@ -300,6 +448,46 @@ export class RestService {
         } else {
           res.setHeader("Content-Type", "application/json");
           res.status(201).send(JSON.stringify(newFeature, null, 2));
+        }
+        break;
+      case "*/*":
+        console.log("YES ANY CONTENT-TYPE!!");
+        let apigeeOrg: string = req.query["org"]
+          ? req.query["org"].toString()
+          : "";
+        let proxyName: string = req.query["proxy"]
+          ? req.query["proxy"].toString()
+          : "";
+        let token: string = req.headers.authorization
+          ? req.headers.authorization
+          : "";
+        if (!apigeeOrg || !proxyName || !token) {
+          res.status(400).send("Either apigee org, proxy or token missing.");
+        } else {
+          let proxyPath = await this.apigeeService.apigeeProxyGet(
+            proxyName,
+            apigeeOrg,
+            token,
+          );
+          if (proxyPath) {
+            this.converter
+              .zipToJson(name.toString(), proxyPath)
+              .then((result) => {
+                fs.rmSync(tempFilePath);
+                newFeature = this.converter.jsonToFeature(result);
+                this.apigeeService.featureImport(newFeature);
+                if (responseType == "application/yaml") {
+                  res.setHeader("Content-Type", "application/yaml");
+                  res.status(201).send(YAML.stringify(newFeature));
+                } else {
+                  res.setHeader("Content-Type", "application/json");
+                  res.status(201).send(JSON.stringify(newFeature, null, 2));
+                }
+              })
+              .catch((error) => {
+                res.status(500).send(error.message);
+              });
+          } else res.status(404).send("Could not find proxy.");
         }
         break;
     }

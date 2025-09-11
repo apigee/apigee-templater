@@ -19,6 +19,22 @@ export class ApigeeTemplaterService {
     if (featuresPath) this.featuresPath = featuresPath;
   }
 
+  public templatesList(): string[] {
+    let templateNames: string[] = [];
+    let templates: string[] = fs.readdirSync(this.proxiesPath);
+
+    for (let templatePath of templates) {
+      if (templatePath.endsWith(".json")) {
+        let proxy: Proxy = JSON.parse(
+          fs.readFileSync(this.proxiesPath + templatePath, "utf8"),
+        );
+        templateNames.push(proxy.name);
+      }
+    }
+
+    return templateNames;
+  }
+
   public proxiesListText(): string {
     let proxyLines: string[] = [];
     let proxies: string[] = fs.readdirSync(this.proxiesPath);

@@ -11,9 +11,6 @@ from google.adk.auth import AuthCredentialTypes
 from google.adk.auth import OAuth2Auth
 
 apigeeTemplaterMcpServer = os.environ.get("APIGEE_TEMPLATER_MCP_URL", "http://localhost:8080/mcp")
-print(apigeeTemplaterMcpServer)
-
-print("HELLO WORLD!")
 
 auth_scheme = OAuth2(
     flows=OAuthFlows(
@@ -35,7 +32,7 @@ auth_credential = AuthCredential(
 )
 
 root_agent = Agent(
-    name="apigee_agent",
+    name="apigee_templater_agent",
     model="gemini-2.5-flash",
     description=(
         "Agent to help users create and manage Apigee API proxies."

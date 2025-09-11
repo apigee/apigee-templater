@@ -607,6 +607,16 @@ export class ApigeeConverter {
       }
     }
 
+    // if feature has endpoints
+    if (feature.endpoints && feature.endpoints.length > 0) {
+      proxy.endpoints = proxy.endpoints.concat(feature.endpoints);
+    }
+
+    // if feature has targets
+    if (feature.targets && feature.targets.length > 0) {
+      proxy.targets = proxy.targets.concat(feature.targets);
+    }
+
     // merge policies
     if (feature.policies && feature.policies.length > 0)
       proxy.policies = proxy.policies.concat(
@@ -694,6 +704,24 @@ export class ApigeeConverter {
       }
     }
 
+    // remove feature endpoints if there are any
+    if (feature.endpoints && feature.endpoints.length > 0) {
+      for (let endpoint of feature.endpoints) {
+        let index = proxy.endpoints.findIndex(
+          (x) => x.name === endpoint.name && x.path === endpoint.path,
+        );
+        if (index != -1) proxy.endpoints.splice(index, 1);
+      }
+    }
+
+    // remove feature targets if there are any
+    if (feature.targets && feature.targets.length > 0) {
+      for (let target of feature.targets) {
+        let index = proxy.targets.findIndex((x) => x.name === target.name);
+        if (index != -1) proxy.targets.splice(index, 1);
+      }
+    }
+
     // remove policies
     for (let policy of feature.policies) {
       let index = proxy.policies.findIndex((x) => x.name === policy.name);
@@ -735,13 +763,19 @@ export class ApigeeConverter {
     return JSON.parse(inputString);
   }
 
-  public jsonToFeature(input: Proxy): Feature {
+  public jsonToFeature(input: Proxy, endpointMode: boolean = false): Feature {
     let newFeature = new Feature();
     newFeature.name = input.name;
-    if (input.endpoints.length > 0 && input.endpoints[0])
-      newFeature.endpointFlows = input.endpoints[0].flows;
-    if (input.targets.length > 0 && input.targets[0])
-      newFeature.targetFlows = input.targets[0].flows;
+
+    if (!endpointMode) {
+      if (input.endpoints.length > 0 && input.endpoints[0])
+        newFeature.endpointFlows = input.endpoints[0].flows;
+      if (input.targets.length > 0 && input.targets[0])
+        newFeature.targetFlows = input.targets[0].flows;
+    } else {
+      newFeature.endpoints = input.endpoints;
+      newFeature.targets = input.targets;
+    }
 
     newFeature.policies = input.policies;
     newFeature.resources = input.resources;
