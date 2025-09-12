@@ -1,6 +1,5 @@
 export class Template {
   name: string = "";
-  displayName?: string = "";
   description?: string = "";
   features: string[] = [];
   endpoints: Endpoint[] = [];

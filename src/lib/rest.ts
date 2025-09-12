@@ -169,7 +169,7 @@ export class RestService {
       if (proxy && token) {
         let zipPath = await this.converter.jsonToZip(templateName, proxy);
 
-        apigeeProxyRevision = await this.apigeeService.apigeeProxyImport(
+        apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
           templateName,
           zipPath,
           apigeeOrg,
@@ -209,7 +209,7 @@ export class RestService {
       if (proxy && token) {
         let zipPath = await this.converter.jsonToZip(templateName, proxy);
 
-        apigeeProxyRevision = await this.apigeeService.apigeeProxyImport(
+        apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
           templateName,
           zipPath,
           apigeeOrg,
@@ -237,9 +237,52 @@ export class RestService {
     }
   };
 
+  public templateUpdate = async (
+    req: express.Request,
+    res: express.Response,
+  ) => {
+    let name = req.params.template ? req.params.template : "";
+    if (!name) {
+      return res.status(400).send("No template name received.");
+    } else if (!req.body) {
+      return res.status(400).send("No data received.");
+    }
+
+    let requestType = req.header("Content-Type");
+    let responseType = req.header("Accept");
+
+    switch (requestType) {
+      case "application/json":
+        name = req.body["name"] ? req.body["name"] : name;
+        this.apigeeService.templateImport(req.body);
+        if (responseType == "application/yaml") {
+          res.setHeader("Content-Type", "application/yaml");
+          res.status(201).send(YAML.stringify(req.body));
+        } else {
+          res.setHeader("Content-Type", "application/json");
+          res.status(201).send(JSON.stringify(req.body, null, 2));
+        }
+        break;
+      case "application/yaml":
+        if (!req.body) {
+          return res.status(400).send("No data received.");
+        }
+        let proxy = YAML.parse(req.body);
+        this.apigeeService.templateImport(proxy);
+        if (responseType == "application/yaml") {
+          res.setHeader("Content-Type", "application/yaml");
+          res.status(201).send(YAML.stringify(proxy));
+        } else {
+          res.setHeader("Content-Type", "application/json");
+          res.status(201).send(JSON.stringify(proxy, null, 2));
+        }
+        break;
+    }
+  };
+
   public templateGet = async (req: express.Request, res: express.Response) => {
-    let proxyName = req.params.template;
-    if (!proxyName) {
+    let templateName = req.params.template;
+    if (!templateName) {
       return res.status(400).send("No proxy name received.");
     }
 
@@ -247,7 +290,7 @@ export class RestService {
       req.query.format && typeof req.query.format == "string"
         ? req.query.format.toLowerCase()
         : "";
-    let proxy = await this.apigeeService.templateGet(proxyName);
+    let proxy = await this.apigeeService.templateGet(templateName);
     let responseType = req.header("Accept");
 
     if (proxy) {
@@ -263,7 +306,10 @@ export class RestService {
         format == "zip" ||
         format == "xml"
       ) {
-        let templateResult = await this.converter.jsonToZip(proxyName, proxy);
+        let templateResult = await this.converter.jsonToZip(
+          templateName,
+          proxy,
+        );
         let zipOutputFile = fs.readFileSync(templateResult);
         res.setHeader("Content-Type", "application/octet-stream");
         res.status(200).send(zipOutputFile);
@@ -307,6 +353,49 @@ export class RestService {
         res.status(201).send(JSON.stringify(feature, null, 2));
       }
     } else res.status(404).send("Feature could not be found.");
+  };
+
+  public featureUpdate = async (
+    req: express.Request,
+    res: express.Response,
+  ) => {
+    let name = req.params.template ? req.params.template : "";
+    if (!name) {
+      return res.status(400).send("No feature name received.");
+    } else if (!req.body) {
+      return res.status(400).send("No data received.");
+    }
+
+    let requestType = req.header("Content-Type");
+    let responseType = req.header("Accept");
+
+    switch (requestType) {
+      case "application/json":
+        name = req.body["name"] ? req.body["name"] : name;
+        this.apigeeService.featureImport(req.body);
+        if (responseType == "application/yaml") {
+          res.setHeader("Content-Type", "application/yaml");
+          res.status(201).send(YAML.stringify(req.body));
+        } else {
+          res.setHeader("Content-Type", "application/json");
+          res.status(201).send(JSON.stringify(req.body, null, 2));
+        }
+        break;
+      case "application/yaml":
+        if (!req.body) {
+          return res.status(400).send("No data received.");
+        }
+        let feature = YAML.parse(req.body);
+        this.apigeeService.featureImport(feature);
+        if (responseType == "application/yaml") {
+          res.setHeader("Content-Type", "application/yaml");
+          res.status(201).send(YAML.stringify(feature));
+        } else {
+          res.setHeader("Content-Type", "application/json");
+          res.status(201).send(JSON.stringify(feature, null, 2));
+        }
+        break;
+    }
   };
 
   public featureDelete = (req: express.Request, res: express.Response) => {

@@ -194,11 +194,18 @@ export class ApigeeConverter {
                     "_text"
                   ];
               if (targetJson["TargetEndpoint"]["HTTPTargetConnection"]) {
-                newTarget.httpTargetConnection =
+                let targetXml =
                   targetJson["TargetEndpoint"]["HTTPTargetConnection"];
-              } else if (targetJson["TargetEndpoint"]["LocalTargetConnection"])
-                newTarget.localTargetConnection =
+                // targetXml = this.cleanXmlJson(targetXml);
+                newTarget.httpTargetConnection = targetXml;
+              } else if (
+                targetJson["TargetEndpoint"]["LocalTargetConnection"]
+              ) {
+                let targetXml =
                   targetJson["TargetEndpoint"]["LocalTargetConnection"];
+                // targetXml = this.cleanXmlJson(targetXml);
+                newTarget.localTargetConnection = targetXml;
+              }
 
               let requestPreFlow = this.flowXmlToJson(
                 "PreFlow",
@@ -385,11 +392,13 @@ export class ApigeeConverter {
         };
 
         if (target.httpTargetConnection) {
-          targetXml["TargetEndpoint"]["HTTPTargetConnection"] =
-            target.httpTargetConnection;
+          let targetJson = target.httpTargetConnection;
+          // targetJson = this.cleanJsonXml(targetJson);
+          targetXml["TargetEndpoint"]["HTTPTargetConnection"] = targetJson;
         } else if (target.localTargetConnection) {
-          targetXml["TargetEndpoint"]["LocalTargetConnection"] =
-            target.localTargetConnection;
+          let targetJson = target.localTargetConnection;
+          // targetJson = this.cleanJsonXml(targetJson);
+          targetXml["TargetEndpoint"]["LocalTargetConnection"] = targetJson;
         } else if (target.url) {
           targetXml["TargetEndpoint"]["HTTPTargetConnection"] = {
             URL: {
@@ -438,8 +447,9 @@ export class ApigeeConverter {
       // policies
       for (let policy of input["policies"]) {
         fs.mkdirSync(tempFilePath + "/apiproxy/policies", { recursive: true });
-        //policy["content"] = this.cleanJsonXml(policy["content"]);
-        let policyContent = JSON.stringify(policy["content"]);
+        let policyJson = policy["content"];
+        // policyJson = this.cleanJsonXml(policyJson);
+        let policyContent = JSON.stringify(policyJson);
         let xmlString = xmljs.json2xml(policyContent, {
           compact: true,
           spaces: 2,
@@ -563,6 +573,7 @@ export class ApigeeConverter {
     proxy: Template,
     feature: Feature,
     parameters: { [key: string]: string } = {},
+    onlyApplyPolicies: boolean = false,
   ): Template {
     // merge endpoint flows
     for (let featureFlow of feature.endpointFlows) {
@@ -608,14 +619,16 @@ export class ApigeeConverter {
       }
     }
 
-    // if feature has endpoints
-    if (feature.endpoints && feature.endpoints.length > 0) {
-      proxy.endpoints = proxy.endpoints.concat(feature.endpoints);
-    }
+    if (!onlyApplyPolicies) {
+      // if feature has endpoints
+      if (feature.endpoints && feature.endpoints.length > 0) {
+        proxy.endpoints = proxy.endpoints.concat(feature.endpoints);
+      }
 
-    // if feature has targets
-    if (feature.targets && feature.targets.length > 0) {
-      proxy.targets = proxy.targets.concat(feature.targets);
+      // if feature has targets
+      if (feature.targets && feature.targets.length > 0) {
+        proxy.targets = proxy.targets.concat(feature.targets);
+      }
     }
 
     // merge policies
@@ -787,7 +800,7 @@ export class ApigeeConverter {
     return newFeature;
   }
 
-  public proxyToString(proxy: Template): string {
+  public templateToString(proxy: Template): string {
     let result = "";
     if (proxy.name) result = `Name: ${proxy.name}\n`;
     if (proxy.description) result += `Description: ${proxy.description}\n`;
@@ -932,11 +945,6 @@ export class ApigeeConverter {
       if (obj.hasOwnProperty(key)) {
         let newKey = key;
 
-        // Rule 1: Rename the "_attributes" key to "Config".
-        if (key === "_attributes") {
-          newKey = "config";
-        }
-
         // Recursively transform the value and assign it to the new key.
         newObj[newKey] = this.removeXml(obj[key]);
       }
@@ -975,10 +983,7 @@ export class ApigeeConverter {
       if (Object.prototype.hasOwnProperty.call(inputObject, key)) {
         const value = inputObject[key];
 
-        // Rule 1: Rename "Config" key to "_attributes".
-        if (key === "config") {
-          newObject["_attributes"] = value;
-        } else if (typeof value === "string") {
+        if (typeof value === "string") {
           newObject[key] = {
             _text: value,
           };

@@ -51,21 +51,12 @@ fs.mkdirSync(rootStorageDir + "features", { recursive: true });
 fs.mkdirSync(rootStorageDir + "temp", { recursive: true });
 
 // REST
+// templates
 app.post("/templates", restService.templateCreate);
+app.put("/templates/:template", restService.templateUpdate);
 app.get("/templates", restService.templatesList);
 app.get("/templates/:template", restService.templateGet);
-app.post(
-  "/templates/:template/apigee-export",
-  restService.templateExportToApigee,
-);
-app.post(
-  "/templates/:template/apigee-deploy",
-  restService.templateDeployToApigee,
-);
 app.delete("/templates/:template", restService.templateDelete);
-app.post("/features", restService.featureCreate);
-app.get("/features/:feature", restService.featureGet);
-app.delete("/features/:feature", restService.featureDelete);
 app.post(
   "/templates/:template/features/:feature",
   restService.templateApplyFeature,
@@ -74,6 +65,20 @@ app.delete(
   "/templates/:template/features/:feature",
   restService.templateRemoveFeature,
 );
+app.post(
+  "/templates/:template/apigee-export",
+  restService.templateExportToApigee,
+);
+app.post(
+  "/templates/:template/apigee-deploy",
+  restService.templateDeployToApigee,
+);
+
+// features
+app.post("/features", restService.featureCreate);
+app.put("/features/:feature", restService.featureUpdate);
+app.get("/features/:feature", restService.featureGet);
+app.delete("/features/:feature", restService.featureDelete);
 
 // MCP
 app.post("/mcp", mcpService.mcppost);
