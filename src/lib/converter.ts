@@ -4,15 +4,18 @@ import yazl from "yazl";
 import path from "path";
 import fs from "fs";
 import {
-  Template,
+  Proxy,
   Endpoint,
+  ProxyEndpoint,
   Route,
   Flow,
   Step,
   Policy,
   Target,
+  ProxyTarget,
   Resource,
   Feature,
+  Template,
 } from "./interfaces.js";
 
 export class ApigeeConverter {
@@ -29,10 +32,7 @@ export class ApigeeConverter {
     if (featuresPath) this.featuresPath = featuresPath;
   }
 
-  public async zipToJson(
-    name: string,
-    inputFilePath: string,
-  ): Promise<Template> {
+  public async zipToProxy(name: string, inputFilePath: string): Promise<Proxy> {
     return new Promise((resolve, reject) => {
       let tempOutputDir = this.tempPath + name;
       yauzl.open(inputFilePath, { lazyEntries: true }, (err, zipfile) => {
@@ -62,10 +62,10 @@ export class ApigeeConverter {
           let proxies: string[] = fs.readdirSync(
             tempOutputDir + "/apiproxy/proxies",
           );
-          let newProxy = new Template();
+          let newProxy = new Proxy();
           newProxy.name = name;
           for (let proxy of proxies) {
-            let newEndpoint = new Endpoint();
+            let newEndpoint = new ProxyEndpoint();
             let proxyPath = path.join(tempOutputDir, "apiproxy/proxies", proxy);
             let proxyContents = fs.readFileSync(proxyPath, "utf8");
 
@@ -77,7 +77,7 @@ export class ApigeeConverter {
 
             newEndpoint.name =
               proxyJson["ProxyEndpoint"]["_attributes"]["name"];
-            newEndpoint.path =
+            newEndpoint.basePath =
               proxyJson["ProxyEndpoint"]["HTTPProxyConnection"]["BasePath"][
                 "_text"
               ];
@@ -171,7 +171,7 @@ export class ApigeeConverter {
             if (fs.existsSync(tempOutputDir + "/apiproxy/targets"))
               targets = fs.readdirSync(tempOutputDir + "/apiproxy/targets");
             for (let target of targets) {
-              let newTarget = new Target();
+              let newTarget = new ProxyTarget();
               let targetContent = fs.readFileSync(
                 tempOutputDir + "/apiproxy/targets/" + target,
                 "utf8",
@@ -279,7 +279,7 @@ export class ApigeeConverter {
     });
   }
 
-  public async jsonToZip(name: string, input: Template): Promise<string> {
+  public async proxyToZip(name: string, input: Proxy): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       var zipfile = new yazl.ZipFile();
       let tempFilePath = this.proxiesPath + name;
@@ -294,7 +294,7 @@ export class ApigeeConverter {
             },
             HTTPProxyConnection: {
               BasePath: {
-                _text: endpoint["path"],
+                _text: endpoint["basePath"],
               },
             },
           },
@@ -569,12 +569,54 @@ export class ApigeeConverter {
     return result;
   }
 
-  public jsonApplyFeature(
-    proxy: Template,
+  public templateApplyFeature(template: Template, feature: Feature): Template {
+    if (feature.endpoints && feature.endpoints.length > 0) {
+      for (let endpoint of feature.endpoints) {
+        if (endpoint.name != "default") template.endpoints.push(endpoint);
+      }
+    }
+
+    // if feature has targets
+    if (feature.targets && feature.targets.length > 0) {
+      for (let target of feature.targets) {
+        if (target.name != "default") template.targets.push(target);
+      }
+    }
+
+    return template;
+  }
+
+  public templateRemoveFeature(template: Template, feature: Feature): Template {
+    if (feature.endpoints && feature.endpoints.length > 0) {
+      for (let endpoint of feature.endpoints) {
+        if (endpoint.name != "default") {
+          let index = template.endpoints.findIndex(
+            (x) => x.name === endpoint.name,
+          );
+          if (index != -1) template.endpoints.splice(index, 1);
+        }
+      }
+    }
+
+    // if feature has targets
+    if (feature.targets && feature.targets.length > 0) {
+      for (let target of feature.targets) {
+        if (target.name != "default") {
+          let index = template.targets.findIndex((x) => x.name === target.name);
+          if (index != -1) template.targets.splice(index, 1);
+        }
+      }
+    }
+
+    return template;
+  }
+
+  public proxyApplyFeature(
+    proxy: Proxy,
     feature: Feature,
     parameters: { [key: string]: string } = {},
     onlyApplyPolicies: boolean = false,
-  ): Template {
+  ): Proxy {
     // merge endpoint flows
     for (let featureFlow of feature.endpointFlows) {
       for (let endpoint of proxy.endpoints) {
@@ -642,123 +684,121 @@ export class ApigeeConverter {
         this.featureReplaceParameters(feature.resources, feature, parameters),
       );
 
-    proxy.features.push(feature.name);
-
     return proxy;
   }
 
-  public jsonRemoveFeature(proxy: Template, feature: Feature): Template {
-    // remove endpoint flow steps
-    for (let featureFlow of feature.endpointFlows) {
-      for (let endpoint of proxy.endpoints) {
-        let flowsToRemove: Flow[] = [];
-        for (let proxyFlow of endpoint.flows) {
-          if (
-            proxyFlow.name == featureFlow.name &&
-            proxyFlow.mode == featureFlow.mode &&
-            proxyFlow.condition == featureFlow.condition
-          ) {
-            for (let step of featureFlow.steps) {
-              let index = proxyFlow.steps.findIndex(
-                (x) => x.name === step.name,
-              );
-              if (index != -1) {
-                proxyFlow.steps.splice(index, 1);
-              }
-            }
+  // public jsonRemoveFeature(proxy: Proxy, feature: Feature): Proxy {
+  //   // remove endpoint flow steps
+  //   for (let featureFlow of feature.endpointFlows) {
+  //     for (let endpoint of proxy.endpoints) {
+  //       let flowsToRemove: Flow[] = [];
+  //       for (let proxyFlow of endpoint.flows) {
+  //         if (
+  //           proxyFlow.name == featureFlow.name &&
+  //           proxyFlow.mode == featureFlow.mode &&
+  //           proxyFlow.condition == featureFlow.condition
+  //         ) {
+  //           for (let step of featureFlow.steps) {
+  //             let index = proxyFlow.steps.findIndex(
+  //               (x) => x.name === step.name,
+  //             );
+  //             if (index != -1) {
+  //               proxyFlow.steps.splice(index, 1);
+  //             }
+  //           }
 
-            if (proxyFlow.steps.length === 0) flowsToRemove.push(proxyFlow);
-          }
-        }
+  //           if (proxyFlow.steps.length === 0) flowsToRemove.push(proxyFlow);
+  //         }
+  //       }
 
-        for (let removeFlow of flowsToRemove) {
-          let index = endpoint.flows.findIndex(
-            (x) =>
-              x.name === removeFlow.name &&
-              x.mode === removeFlow.mode &&
-              x.condition == removeFlow.condition,
-          );
-          if (index != -1) endpoint.flows.splice(index, 1);
-        }
-      }
-    }
+  //       for (let removeFlow of flowsToRemove) {
+  //         let index = endpoint.flows.findIndex(
+  //           (x) =>
+  //             x.name === removeFlow.name &&
+  //             x.mode === removeFlow.mode &&
+  //             x.condition == removeFlow.condition,
+  //         );
+  //         if (index != -1) endpoint.flows.splice(index, 1);
+  //       }
+  //     }
+  //   }
 
-    // remove target flows
-    for (let featureFlow of feature.targetFlows) {
-      for (let target of proxy.targets) {
-        let flowsToRemove: Flow[] = [];
-        for (let targetFlow of target.flows) {
-          if (
-            targetFlow.name == featureFlow.name &&
-            targetFlow.mode == featureFlow.mode &&
-            targetFlow.condition == featureFlow.condition
-          ) {
-            for (let step of featureFlow.steps) {
-              let index = targetFlow.steps.findIndex(
-                (x) => x.name === step.name,
-              );
-              if (index != -1) {
-                targetFlow.steps.splice(index, 1);
-              }
-            }
+  //   // remove target flows
+  //   for (let featureFlow of feature.targetFlows) {
+  //     for (let target of proxy.targets) {
+  //       let flowsToRemove: Flow[] = [];
+  //       for (let targetFlow of target.flows) {
+  //         if (
+  //           targetFlow.name == featureFlow.name &&
+  //           targetFlow.mode == featureFlow.mode &&
+  //           targetFlow.condition == featureFlow.condition
+  //         ) {
+  //           for (let step of featureFlow.steps) {
+  //             let index = targetFlow.steps.findIndex(
+  //               (x) => x.name === step.name,
+  //             );
+  //             if (index != -1) {
+  //               targetFlow.steps.splice(index, 1);
+  //             }
+  //           }
 
-            if (targetFlow.steps.length === 0) flowsToRemove.push(targetFlow);
-          }
-        }
+  //           if (targetFlow.steps.length === 0) flowsToRemove.push(targetFlow);
+  //         }
+  //       }
 
-        for (let removeFlow of flowsToRemove) {
-          let index = target.flows.findIndex(
-            (x) =>
-              x.name === removeFlow.name &&
-              x.mode === removeFlow.mode &&
-              x.condition == removeFlow.condition,
-          );
-          if (index != -1) target.flows.splice(index, 1);
-        }
-      }
-    }
+  //       for (let removeFlow of flowsToRemove) {
+  //         let index = target.flows.findIndex(
+  //           (x) =>
+  //             x.name === removeFlow.name &&
+  //             x.mode === removeFlow.mode &&
+  //             x.condition == removeFlow.condition,
+  //         );
+  //         if (index != -1) target.flows.splice(index, 1);
+  //       }
+  //     }
+  //   }
 
-    // remove feature endpoints if there are any
-    if (feature.endpoints && feature.endpoints.length > 0) {
-      for (let endpoint of feature.endpoints) {
-        let index = proxy.endpoints.findIndex(
-          (x) => x.name === endpoint.name && x.path === endpoint.path,
-        );
-        if (index != -1) proxy.endpoints.splice(index, 1);
-      }
-    }
+  //   // remove feature endpoints if there are any
+  //   if (feature.endpoints && feature.endpoints.length > 0) {
+  //     for (let endpoint of feature.endpoints) {
+  //       let index = proxy.endpoints.findIndex(
+  //         (x) => x.name === endpoint.name && x.path === endpoint.path,
+  //       );
+  //       if (index != -1) proxy.endpoints.splice(index, 1);
+  //     }
+  //   }
 
-    // remove feature targets if there are any
-    if (feature.targets && feature.targets.length > 0) {
-      for (let target of feature.targets) {
-        let index = proxy.targets.findIndex((x) => x.name === target.name);
-        if (index != -1) proxy.targets.splice(index, 1);
-      }
-    }
+  //   // remove feature targets if there are any
+  //   if (feature.targets && feature.targets.length > 0) {
+  //     for (let target of feature.targets) {
+  //       let index = proxy.targets.findIndex((x) => x.name === target.name);
+  //       if (index != -1) proxy.targets.splice(index, 1);
+  //     }
+  //   }
 
-    // remove policies
-    for (let policy of feature.policies) {
-      let index = proxy.policies.findIndex((x) => x.name === policy.name);
-      if (index != -1) {
-        proxy.policies.splice(index, 1);
-      }
-    }
+  //   // remove policies
+  //   for (let policy of feature.policies) {
+  //     let index = proxy.policies.findIndex((x) => x.name === policy.name);
+  //     if (index != -1) {
+  //       proxy.policies.splice(index, 1);
+  //     }
+  //   }
 
-    // remove resources
-    if (feature.resources) {
-      for (let resource of feature.resources) {
-        let index = proxy.resources.findIndex((x) => x.name === resource.name);
-        if (index != -1) {
-          proxy.resources.splice(index, 1);
-        }
-      }
-    }
+  //   // remove resources
+  //   if (feature.resources) {
+  //     for (let resource of feature.resources) {
+  //       let index = proxy.resources.findIndex((x) => x.name === resource.name);
+  //       if (index != -1) {
+  //         proxy.resources.splice(index, 1);
+  //       }
+  //     }
+  //   }
 
-    let index = proxy.features.findIndex((x) => x === feature.name);
-    if (index != -1) proxy.features.splice(index, 1);
+  //   let index = proxy.features.findIndex((x) => x === feature.name);
+  //   if (index != -1) proxy.features.splice(index, 1);
 
-    return proxy;
-  }
+  //   return proxy;
+  // }
 
   public featureReplaceParameters(
     input: any,
@@ -777,10 +817,7 @@ export class ApigeeConverter {
     return JSON.parse(inputString);
   }
 
-  public jsonToFeature(
-    input: Template,
-    endpointMode: boolean = false,
-  ): Feature {
+  public jsonToFeature(input: Proxy, endpointMode: boolean = false): Feature {
     let newFeature = new Feature();
     newFeature.name = input.name;
 
@@ -800,55 +837,56 @@ export class ApigeeConverter {
     return newFeature;
   }
 
-  public templateToString(proxy: Template): string {
+  public templateToProxy(
+    template: Template,
+    features: Feature[],
+    parameters: { [key: string]: string } = {},
+  ): Proxy {
+    let proxy: Proxy = new Proxy();
+    proxy.name = template.name;
+    proxy.description = template.description;
+    // proxy.endpoints = template.endpoints;
+    // proxy.targets = template.targets;
+
+    for (let feature of features) {
+      proxy = this.proxyApplyFeature(proxy, feature, parameters);
+    }
+
+    return proxy;
+  }
+
+  public templateToString(template: Template): string {
     let result = "";
-    if (proxy.name) result = `Name: ${proxy.name}\n`;
-    if (proxy.description) result += `Description: ${proxy.description}\n`;
+    if (template.name) result = `Name: ${template.name}\n`;
+    if (template.description)
+      result += `Description: ${template.description}\n`;
     result += "\n";
 
-    if (proxy.features && proxy.features.length > 0) {
+    if (template.features && template.features.length > 0) {
       result += `\nFeatures:\n`;
-      for (let feature of proxy.features) {
+      for (let feature of template.features) {
         result += ` - ${feature}\n`;
       }
     } else {
       result += `\nFeatures: none\n`;
     }
 
-    if (proxy.endpoints && proxy.endpoints.length > 0) {
+    if (template.endpoints && template.endpoints.length > 0) {
       result += `\nEndpoints:\n`;
-      for (let endpoint of proxy.endpoints) {
-        result += ` - ${endpoint.path}\n`;
+      for (let endpoint of template.endpoints) {
+        result += ` - ${endpoint.basePath}\n`;
       }
     } else {
       result += `\nEndpoints: none\n`;
     }
 
-    if (proxy.targets && proxy.targets.length > 0) {
+    if (template.targets && template.targets.length > 0) {
       result += `\nTargets:\n`;
-      for (let target of proxy.targets) {
+      for (let target of template.targets) {
         result += ` - ${target.name} - ${target.url}\n`;
       }
     } else {
       result += `\nTargets: none\n`;
-    }
-
-    if (proxy.policies && proxy.policies.length > 0) {
-      result += `\nPolicies:\n`;
-      for (let policy of proxy.policies) {
-        result += ` - ${policy.name} - ${policy.type}\n`;
-      }
-    } else {
-      result += `\nPolicies: none\n`;
-    }
-
-    if (proxy.resources && proxy.resources.length > 0) {
-      result += `\nResources:\n`;
-      for (let resource of proxy.resources) {
-        result += ` - ${resource.name} - ${resource.type}\n`;
-      }
-    } else {
-      result += `\nResources: none\n`;
     }
 
     return result;
@@ -869,7 +907,7 @@ export class ApigeeConverter {
           result += ` - Examples: ${parameter.examples.toString()}\n`;
       }
     } else {
-      result += `\nEndpoints flows: none\n`;
+      result += `\Parameters: none\n`;
     }
 
     if (feature.endpointFlows && feature.endpointFlows.length > 0) {
@@ -908,6 +946,51 @@ export class ApigeeConverter {
     if (feature.resources && feature.resources.length > 0) {
       result += `\nResources:\n`;
       for (let resource of feature.resources) {
+        result += ` - ${resource.name} - ${resource.type}\n`;
+      }
+    } else {
+      result += `\nResources: none\n`;
+    }
+
+    return result;
+  }
+
+  public proxyToString(proxy: Proxy): string {
+    let result = "";
+    if (proxy.name) result = `Name: ${proxy.name}\n`;
+    if (proxy.description) result += `Description: ${proxy.description}\n`;
+    result += "\n";
+
+    if (proxy.endpoints && proxy.endpoints.length > 0) {
+      result += `\nEndpoints:\n`;
+      for (let endpoint of proxy.endpoints) {
+        result += ` - ${endpoint.basePath}\n`;
+      }
+    } else {
+      result += `\nEndpoints: none\n`;
+    }
+
+    if (proxy.targets && proxy.targets.length > 0) {
+      result += `\nTargets:\n`;
+      for (let target of proxy.targets) {
+        result += ` - ${target.name} - ${target.url}\n`;
+      }
+    } else {
+      result += `\nTargets: none\n`;
+    }
+
+    if (proxy.policies && proxy.policies.length > 0) {
+      result += `\nPolicies:\n`;
+      for (let policy of proxy.policies) {
+        result += ` - ${policy.name} - ${policy.type}\n`;
+      }
+    } else {
+      result += `\nPolicies: none\n`;
+    }
+
+    if (proxy.resources && proxy.resources.length > 0) {
+      result += `\nResources:\n`;
+      for (let resource of proxy.resources) {
         result += ` - ${resource.name} - ${resource.type}\n`;
       }
     } else {

@@ -1,5 +1,5 @@
 import { ApigeeConverter } from "./converter.js";
-import { Template, Feature } from "./interfaces.js";
+import { Template, Proxy, Feature } from "./interfaces.js";
 import fs from "fs";
 import { Blob } from "buffer";
 import { Readable } from "node:stream";
@@ -19,14 +19,14 @@ export class ApigeeTemplaterService {
     if (featuresPath) this.featuresPath = featuresPath;
   }
 
-  public async templatesList(): Promise<Template[]> {
-    return new Promise<Template[]>(async (resolve, reject) => {
-      let templates: Template[] = [];
+  public async templatesList(): Promise<Proxy[]> {
+    return new Promise<Proxy[]>(async (resolve, reject) => {
+      let templates: Proxy[] = [];
       let templateNames: string[] = fs.readdirSync(this.templatesPath);
 
       for (let templatePath of templateNames) {
         if (templatePath.endsWith(".json")) {
-          let template: Template = JSON.parse(
+          let template: Proxy = JSON.parse(
             fs.readFileSync(this.templatesPath + templatePath, "utf8"),
           );
           templates.push(template);
@@ -48,8 +48,7 @@ export class ApigeeTemplaterService {
             ) {
               let downloadResponse = await fetch(template["download_url"]);
               if (downloadResponse.status == 200) {
-                let remoteTemplate =
-                  (await downloadResponse.json()) as Template;
+                let remoteTemplate = (await downloadResponse.json()) as Proxy;
                 templates.push(remoteTemplate);
               }
             }
@@ -136,10 +135,10 @@ export class ApigeeTemplaterService {
     });
   }
 
-  public templateImport(proxy: Template) {
+  public templateImport(template: Template) {
     fs.writeFileSync(
-      this.templatesPath + proxy.name + ".json",
-      JSON.stringify(proxy, null, 2),
+      this.templatesPath + template.name + ".json",
+      JSON.stringify(template, null, 2),
     );
   }
 
@@ -177,39 +176,30 @@ export class ApigeeTemplaterService {
   }
 
   public async templateApplyFeature(
-    proxyName: string,
+    templateName: string,
     featureName: string,
-    parameters: { [key: string]: string },
     converter: ApigeeConverter,
-    onlyApplyPolicies: boolean = false,
   ): Promise<Template | undefined> {
     return new Promise(async (resolve, reject) => {
-      let template: Template | undefined = undefined;
-
-      template = await this.templateGet(proxyName);
+      let template: Template | undefined = await this.templateGet(templateName);
       let feature = await this.featureGet(featureName);
 
       if (!template || !feature) {
         console.log(
-          `templateApplyFeature error: either ${proxyName} or ${featureName} could not be loaded.`,
+          `templateApplyFeature error: either ${templateName} or ${featureName} could not be loaded.`,
         );
         return undefined;
       } else if (template.features.includes(feature.name)) {
         console.log(
-          `templateApplyFeature error: template ${proxyName} already uses feature ${featureName}.`,
+          `templateApplyFeature error: template ${templateName} already uses feature ${featureName}.`,
         );
         return undefined;
       } else {
-        template = converter.jsonApplyFeature(
-          template,
-          feature,
-          parameters,
-          onlyApplyPolicies,
-        );
+        template = converter.templateApplyFeature(template, feature);
       }
 
       fs.writeFileSync(
-        this.templatesPath + proxyName + ".json",
+        this.templatesPath + templateName + ".json",
         JSON.stringify(template, null, 2),
       );
 
@@ -218,35 +208,35 @@ export class ApigeeTemplaterService {
   }
 
   public async templateRemoveFeature(
-    proxyName: string,
+    templateName: string,
     featureName: string,
     converter: ApigeeConverter,
   ): Promise<Template | undefined> {
     return new Promise(async (resolve, reject) => {
-      let proxy: Template | undefined = undefined;
-      proxy = await this.templateGet(proxyName);
+      let template: Template | undefined = undefined;
+      template = await this.templateGet(templateName);
       let feature = await this.featureGet(featureName);
 
-      if (!proxy || !feature) {
+      if (!template || !feature) {
         console.log(
-          `proxyApplyFeature error: either ${proxyName} or ${featureName} could not be loaded.`,
+          `proxyApplyFeature error: either ${templateName} or ${featureName} could not be loaded.`,
         );
         return undefined;
-      } else if (!proxy.features.includes(feature.name)) {
+      } else if (!template.features.includes(feature.name)) {
         console.log(
-          `proxyRemoveFeature error: proxy ${proxyName} doesn't use feature ${featureName}.`,
+          `proxyRemoveFeature error: proxy ${templateName} doesn't use feature ${featureName}.`,
         );
         return undefined;
       } else {
-        proxy = converter.jsonRemoveFeature(proxy, feature);
+        template = converter.templateRemoveFeature(template, feature);
       }
 
       fs.writeFileSync(
-        this.templatesPath + proxyName + ".json",
-        JSON.stringify(proxy, null, 2),
+        this.templatesPath + templateName + ".json",
+        JSON.stringify(template, null, 2),
       );
 
-      resolve(proxy);
+      resolve(template);
     });
   }
 
@@ -263,14 +253,12 @@ export class ApigeeTemplaterService {
       features: [],
       endpoints: [],
       targets: [],
-      policies: [],
-      resources: [],
     };
 
     if (basePath) {
       newTemplate.endpoints.push({
         name: "default",
-        path: basePath,
+        basePath: basePath,
         flows: [],
         routes: [
           {
@@ -309,65 +297,47 @@ export class ApigeeTemplaterService {
   }
 
   public templateAddEndpoint(
-    proxyName: string,
+    templateName: string,
     endpointName: string,
     basePath: string,
-    targetName: string,
-    targetUrl: string,
-    targetRouteRule: string | undefined,
     converter: ApigeeConverter,
-  ): Template | undefined {
-    let proxy: Template | undefined = undefined;
-    let tempProxyName = proxyName.replaceAll(" ", "-").toLowerCase();
-    let proxyString = fs.readFileSync(
-      this.templatesPath + tempProxyName + ".json",
-      "utf8",
-    );
-    let result = {};
-    if (!proxyString) {
-      return proxy;
-    } else {
-      let proxy: Template = JSON.parse(proxyString);
-      proxy.endpoints.push({
-        name: endpointName,
-        path: basePath,
-        flows: [],
-        routes: [
-          {
+    targetName?: string,
+    targetUrl?: string,
+    targetRouteRule?: string,
+  ): Promise<Template | undefined> {
+    return new Promise(async (resolve) => {
+      let template: Template | undefined = undefined;
+      template = await this.templateGet(templateName);
+      if (template) {
+        template.endpoints.push({
+          name: endpointName,
+          basePath: basePath,
+          routes: [],
+        });
+
+        if (targetName) {
+          template.endpoints[template.endpoints.length - 1]?.routes.push({
             name: targetName,
             target: targetName,
             condition: targetRouteRule ?? "",
-          },
-        ],
-      });
+          });
 
-      // create new target, if targetUrl is passed
-      if (targetUrl) {
-        proxy.targets.push({
-          name: targetName,
-          url: targetUrl,
-          flows: [],
-        });
+          if (targetUrl) {
+            template.targets.push({
+              name: targetName,
+              url: targetUrl,
+            });
+          }
+        }
       }
 
-      fs.writeFileSync(
-        this.templatesPath + tempProxyName + ".json",
-        JSON.stringify(proxy, null, 2),
-      );
-
-      return proxy;
-    }
+      resolve(template);
+    });
   }
 
-  public templateDelete(proxyName: string) {
-    if (fs.existsSync(this.templatesPath + proxyName + ".json")) {
-      fs.rmSync(this.templatesPath + proxyName + ".json");
-    }
-    if (fs.existsSync(this.templatesPath + proxyName + ".yaml")) {
-      fs.rmSync(this.templatesPath + proxyName + ".yaml");
-    }
-    if (fs.existsSync(this.templatesPath + proxyName + ".zip")) {
-      fs.rmSync(this.templatesPath + proxyName + ".zip");
+  public templateDelete(templateName: string) {
+    if (fs.existsSync(this.templatesPath + templateName + ".json")) {
+      fs.rmSync(this.templatesPath + templateName + ".json");
     }
   }
 
@@ -377,59 +347,27 @@ export class ApigeeTemplaterService {
     }
   }
 
-  public templateAddTarget(
-    proxyName: string,
-    targetName: string,
-    targetUrl: string,
-    routeRule: string,
+  public async proxyCreateFromTemplate(
+    templateName: string,
     converter: ApigeeConverter,
-  ): Template | undefined {
-    let proxy: Template | undefined = undefined;
-    let tempProxyName = proxyName.replaceAll(" ", "-").toLowerCase();
-    let proxyString = fs.readFileSync(
-      this.templatesPath + tempProxyName + ".json",
-      "utf8",
-    );
-    let result = {};
-    if (!proxyString) {
-      return undefined;
-    } else {
-      proxy = JSON.parse(proxyString);
-      if (proxy) {
-        proxy.targets.push({
-          name: targetName,
-          url: targetUrl,
-          flows: [],
-        });
-        if (routeRule) {
-          for (let endpoint of proxy.endpoints) {
-            endpoint.routes.unshift({
-              name: targetName,
-              target: targetName,
-              condition: routeRule,
-            });
-          }
-        } else {
-          // check if this is a no-target proxy, and if so add default route rule.
-          for (let endpoint of proxy.endpoints) {
-            if (
-              endpoint.routes.length === 1 &&
-              endpoint.routes[0] &&
-              !endpoint.routes[0].target
-            ) {
-              endpoint.routes[0].target = targetName;
-            }
-          }
+    parameters: { [key: string]: string } = {},
+  ): Promise<Proxy | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let proxy: Proxy | undefined = undefined;
+      let template: Template | undefined = await this.templateGet(templateName);
+
+      if (template) {
+        let features: Feature[] = [];
+        for (let featureName of template.features) {
+          let feature = await this.featureGet(featureName);
+          if (feature) features.push(feature);
         }
 
-        fs.writeFileSync(
-          this.templatesPath + tempProxyName + ".json",
-          JSON.stringify(proxy, null, 2),
-        );
+        proxy = converter.templateToProxy(template, features, parameters);
       }
 
-      return proxy;
-    }
+      resolve(proxy);
+    });
   }
 
   public async apigeeProxiesList(
@@ -504,9 +442,9 @@ export class ApigeeTemplaterService {
     apigeeOrg: string,
     token: string,
     converter: ApigeeConverter,
-  ): Promise<Template | undefined> {
+  ): Promise<Proxy | undefined> {
     return new Promise(async (resolve, reject) => {
-      let template: Template | undefined = undefined;
+      let template: Proxy | undefined = undefined;
       let apigeeProxyPath = await this.apigeeProxyGet(
         proxyName,
         apigeeOrg,
@@ -514,7 +452,7 @@ export class ApigeeTemplaterService {
       );
 
       if (apigeeProxyPath) {
-        template = await converter.zipToJson(proxyName, apigeeProxyPath);
+        template = await converter.zipToProxy(proxyName, apigeeProxyPath);
         if (template) this.templateImport(template);
         fs.rmSync(apigeeProxyPath);
       }

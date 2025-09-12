@@ -7,7 +7,7 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { any, z } from "zod";
 import * as YAML from "yaml";
 import { ApigeeConverter } from "./converter.js";
-import { Template, Feature } from "./interfaces.js";
+import { Proxy, Template, Feature } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 
 export class McpService {
@@ -250,51 +250,6 @@ export class McpService {
         },
       );
 
-      // templateImport
-      server.registerTool(
-        "templateImport",
-        {
-          title: "Template import file tool",
-          description:
-            "Import a template file either with JSON or a public URL to the file.",
-          inputSchema: {
-            templateString: z.string(),
-          },
-        },
-        async ({ templateString }) => {
-          let tempProxyString = templateString;
-          if (templateString.toLowerCase().startsWith("http")) {
-            let response = await fetch(templateString);
-            tempProxyString = await response.text();
-          }
-          let proxy: Template = JSON.parse(tempProxyString);
-          if (!proxy) {
-            // try to parse YAML
-            proxy = YAML.parse(tempProxyString);
-          }
-          if (proxy) {
-            this.apigeeService.templateImport(proxy);
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `The template ${proxy.name} has been imported.\n ${this.converter.templateToString(proxy)}`,
-                },
-              ],
-            };
-          } else {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `The template could not be imported, was the sent data valid JSON or YAML?`,
-                },
-              ],
-            };
-          }
-        },
-      );
-
       // templateUpdate
       server.registerTool(
         "templateUpdate",
@@ -386,8 +341,8 @@ export class McpService {
             proxyName: z.string(),
             endpointName: z.string(),
             basePath: z.string(),
-            targetName: z.string(),
-            targetUrl: z.string(),
+            targetName: z.string().optional(),
+            targetUrl: z.string().optional(),
             targetRouteRule: z
               .string()
               .describe("An optional target route rule to apply.")
@@ -402,21 +357,21 @@ export class McpService {
           targetUrl,
           targetRouteRule,
         }) => {
-          let proxy = this.apigeeService.templateAddEndpoint(
+          let template = await this.apigeeService.templateAddEndpoint(
             proxyName,
             endpointName,
             basePath,
+            this.converter,
             targetName,
             targetUrl,
             targetRouteRule,
-            this.converter,
           );
-          if (proxy) {
+          if (template) {
             return {
               content: [
                 {
                   type: "text",
-                  text: `The template ${proxyName} was updated with the new endpoint ${endpointName}. Here is the new template summary:\n ${this.converter.templateToString(proxy)}`,
+                  text: `The template ${proxyName} was updated with the new endpoint ${endpointName}. Here is the new template summary:\n ${this.converter.templateToString(template)}`,
                 },
               ],
             };
@@ -433,49 +388,6 @@ export class McpService {
         },
       );
 
-      // templateAddTarget
-      server.registerTool(
-        "templateAddTarget",
-        {
-          title: "Template Add Target Tool",
-          description: "Add a backend target to a template.",
-          inputSchema: {
-            proxyName: z.string(),
-            targetName: z.string(),
-            targetUrl: z.string(),
-            targetRouteRule: z.string(),
-          },
-        },
-        async ({ proxyName, targetName, targetUrl, targetRouteRule }) => {
-          let proxy = this.apigeeService.templateAddTarget(
-            proxyName,
-            targetName,
-            targetUrl,
-            targetRouteRule,
-            this.converter,
-          );
-          if (proxy) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `The template ${proxyName} was updated with the new target ${targetName}. Here is the new template summary:\n ${this.converter.templateToString(proxy)}`,
-                },
-              ],
-            };
-          } else {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `The template ${proxyName} could not be updated with the target ${targetName}, maybe there is a target name conflict?`,
-                },
-              ],
-            };
-          }
-        },
-      );
-
       // templateApplyFeature
       server.registerTool(
         "templateApplyFeature",
@@ -485,29 +397,20 @@ export class McpService {
           inputSchema: {
             templateName: z.string(),
             featureName: z.string(),
-            onlyApplyPolicies: z
-              .boolean()
-              .describe(
-                "Sets if only the flow policies should be applied, or also the endpoints and targets.",
-              )
-              .default(false),
           },
         },
-        async ({ templateName, featureName, onlyApplyPolicies }) => {
-          let proxy: Template | undefined =
-            await this.apigeeService.templateApplyFeature(
-              templateName,
-              featureName,
-              {},
-              this.converter,
-              onlyApplyPolicies,
-            );
-          if (proxy) {
+        async ({ templateName, featureName }) => {
+          let template = await this.apigeeService.templateApplyFeature(
+            templateName,
+            featureName,
+            this.converter,
+          );
+          if (template) {
             return {
               content: [
                 {
                   type: "text",
-                  text: `The feature ${featureName} has been added to template ${templateName}.\n Here is the new template summary: ${this.converter.templateToString(proxy)}`,
+                  text: `The feature ${featureName} has been added to template ${templateName}.\n Here is the new template summary: ${this.converter.templateToString(template)}`,
                 },
               ],
             };
@@ -531,23 +434,22 @@ export class McpService {
           title: "Template Remove Feature",
           description: "Remove a feature from a template.",
           inputSchema: {
-            proxyName: z.string(),
+            templateName: z.string(),
             featureName: z.string(),
           },
         },
-        async ({ proxyName, featureName }) => {
-          let proxy: Template | undefined =
-            await this.apigeeService.templateRemoveFeature(
-              proxyName,
-              featureName,
-              this.converter,
-            );
-          if (proxy) {
+        async ({ templateName, featureName }) => {
+          let template = await this.apigeeService.templateRemoveFeature(
+            templateName,
+            featureName,
+            this.converter,
+          );
+          if (template) {
             return {
               content: [
                 {
                   type: "text",
-                  text: `The feature ${featureName} has been removed from template ${proxyName}. Here is the new template summary:\n ${this.converter.templateToString(proxy)}`,
+                  text: `The feature ${featureName} has been removed from template ${templateName}. Here is the new template summary:\n ${this.converter.templateToString(template)}`,
                 },
               ],
             };
@@ -556,7 +458,7 @@ export class McpService {
               content: [
                 {
                   type: "text",
-                  text: `The feature ${featureName} could not be removed from template ${proxyName}, are you sure the names are correct?`,
+                  text: `The feature ${featureName} could not be removed from template ${templateName}, are you sure the names are correct?`,
                 },
               ],
             };
@@ -858,57 +760,6 @@ export class McpService {
         },
       );
 
-      // apigeeProxyImportToTemplate
-      server.registerTool(
-        "apigeeProxyImportToTemplate",
-        {
-          title: "Apigee Proxy Import to Template Tool",
-          description: "Imports an Apigee proxy from an org into a template.",
-          inputSchema: {
-            proxyName: z.string(),
-            apigeeOrg: z.string(),
-          },
-        },
-        async ({ proxyName, apigeeOrg }, authInfo) => {
-          let token: string =
-            authInfo.requestInfo?.headers.authorization &&
-            typeof authInfo.requestInfo?.headers.authorization === "string"
-              ? authInfo.requestInfo?.headers.authorization
-              : "";
-          let template: Template | undefined = undefined;
-          let templateDescription = "";
-          if (token) {
-            template = await this.apigeeService.apigeeProxyImportTemplate(
-              proxyName,
-              apigeeOrg,
-              token,
-              this.converter,
-            );
-            if (template)
-              templateDescription = this.converter.templateToString(template);
-          }
-          if (templateDescription) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: templateDescription,
-                },
-              ],
-            };
-          } else {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `No Apigee proxies found.`,
-                },
-              ],
-            };
-          }
-        },
-      );
-
       // apigeeProxyDescribe
       server.registerTool(
         "apigeeProxyDescribe",
@@ -926,8 +777,8 @@ export class McpService {
             typeof authInfo.requestInfo?.headers.authorization === "string"
               ? authInfo.requestInfo?.headers.authorization
               : "";
-          let template: Template | undefined = undefined;
-          let templateDescription = "";
+          let proxy: Proxy | undefined = undefined;
+          let proxyDescription = "";
           if (token) {
             let zipPath = await this.apigeeService.apigeeProxyGet(
               proxyName,
@@ -935,17 +786,16 @@ export class McpService {
               token,
             );
             if (zipPath) {
-              template = await this.converter.zipToJson(proxyName, zipPath);
-              if (template)
-                templateDescription = this.converter.templateToString(template);
+              proxy = await this.converter.zipToProxy(proxyName, zipPath);
+              if (proxy) proxyDescription = this.converter.proxyToString(proxy);
             }
           }
-          if (templateDescription) {
+          if (proxyDescription) {
             return {
               content: [
                 {
                   type: "text",
-                  text: templateDescription,
+                  text: proxyDescription,
                 },
               ],
             };
@@ -988,7 +838,7 @@ export class McpService {
             );
 
             if (apigeeProxyPath) {
-              let templateObject = await this.converter.zipToJson(
+              let templateObject = await this.converter.zipToProxy(
                 proxyName,
                 apigeeProxyPath,
               );
@@ -1041,9 +891,13 @@ export class McpService {
               ? authInfo.requestInfo?.headers.authorization
               : "";
           let apigeeProxyRevision = "";
-          let template = await this.apigeeService.templateGet(proxyName);
-          if (template && token) {
-            let zipPath = await this.converter.jsonToZip(proxyName, template);
+          let proxy = await this.apigeeService.proxyCreateFromTemplate(
+            proxyName,
+            this.converter,
+          );
+
+          if (proxy && token) {
+            let zipPath = await this.converter.proxyToZip(proxyName, proxy);
 
             apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
               proxyName,
@@ -1074,21 +928,26 @@ export class McpService {
         },
       );
 
-      // apigeeProxyDeploy
+      // apigeeTemplateDeploy
       server.registerTool(
-        "apigeeProxyDeploy",
+        "apigeeTemplateDeploy",
         {
-          title: "Deploy Apigee Proxy Revision Tool",
-          description: "Deploys an Apigee revision to an org.",
+          title: "Deploy Apigee Template Revision Tool",
+          description: "Deploys an Apigee proxy revision to an org.",
           inputSchema: {
-            proxyName: z.string(),
+            templateName: z.string(),
             apigeeOrg: z.string(),
             apigeeEnvironment: z.string(),
             serviceAccountEmail: z.string().default(""),
           },
         },
         async (
-          { proxyName, apigeeOrg, apigeeEnvironment, serviceAccountEmail },
+          {
+            templateName: proxyName,
+            apigeeOrg,
+            apigeeEnvironment,
+            serviceAccountEmail,
+          },
           authInfo,
         ) => {
           let token: string =
@@ -1098,10 +957,13 @@ export class McpService {
               : "";
           let apigeeProxyRevision = "";
           if (token) {
-            let proxy = await this.apigeeService.templateGet(proxyName);
+            let proxy = await this.apigeeService.proxyCreateFromTemplate(
+              proxyName,
+              this.converter,
+            );
 
             if (proxy) {
-              let zipPath = await this.converter.jsonToZip(proxyName, proxy);
+              let zipPath = await this.converter.proxyToZip(proxyName, proxy);
 
               apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
                 proxyName,
@@ -1137,165 +999,6 @@ export class McpService {
                 {
                   type: "text",
                   text: `The template ${proxyName} could not be deployed to Apigee, maybe the name or org is incorrect?.`,
-                },
-              ],
-            };
-          }
-        },
-      );
-
-      // apigeeApplyFeature
-      server.registerTool(
-        "apigeeApplyFeature",
-        {
-          title: "Template Apply Feature to Apigee Proxy",
-          description: "Add a feature to an Apigee proxy.",
-          inputSchema: {
-            proxyName: z.string(),
-            apigeeOrg: z.string(),
-            featureName: z.string(),
-            onlyApplyPolicies: z
-              .boolean()
-              .describe(
-                "Sets if only the flow policies should be applied, or also the endpoints and targets.",
-              )
-              .default(false),
-          },
-        },
-        async (
-          { proxyName, apigeeOrg, featureName, onlyApplyPolicies },
-          authInfo,
-        ) => {
-          let template: Template | undefined = undefined;
-          let apigeeProxyRevision = "";
-          let token: string =
-            authInfo.requestInfo?.headers.authorization &&
-            typeof authInfo.requestInfo?.headers.authorization === "string"
-              ? authInfo.requestInfo?.headers.authorization
-              : "";
-          if (token) {
-            template = await this.apigeeService.apigeeProxyImportTemplate(
-              proxyName,
-              apigeeOrg,
-              token,
-              this.converter,
-            );
-
-            if (template) {
-              template = await this.apigeeService.templateApplyFeature(
-                proxyName,
-                featureName,
-                {},
-                this.converter,
-                onlyApplyPolicies,
-              );
-
-              if (template) {
-                let zipPath = await this.converter.jsonToZip(
-                  proxyName,
-                  template,
-                );
-
-                apigeeProxyRevision =
-                  await this.apigeeService.apigeeProxyExport(
-                    proxyName,
-                    zipPath,
-                    apigeeOrg,
-                    token,
-                  );
-              }
-            }
-          }
-
-          if (template && apigeeProxyRevision) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `${JSON.stringify(template)}`,
-                },
-              ],
-            };
-          } else {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `There was a problem applying the feature ${featureName} to the Apigee proxy ${proxyName}, maybe the names are incorrect?`,
-                },
-              ],
-            };
-          }
-        },
-      );
-
-      // apigeeRemoveFeature
-      server.registerTool(
-        "apigeeRemoveFeature",
-        {
-          title: "Template Remove Feature from an Apigee Proxy",
-          description: "Remove a feature from an Apigee proxy.",
-          inputSchema: {
-            proxyName: z.string(),
-            apigeeOrg: z.string(),
-            featureName: z.string(),
-          },
-        },
-        async ({ proxyName, apigeeOrg, featureName }, authInfo) => {
-          let template: Template | undefined = undefined;
-          let apigeeProxyRevision = "";
-          let token: string =
-            authInfo.requestInfo?.headers.authorization &&
-            typeof authInfo.requestInfo?.headers.authorization === "string"
-              ? authInfo.requestInfo?.headers.authorization
-              : "";
-          if (token) {
-            template = await this.apigeeService.apigeeProxyImportTemplate(
-              proxyName,
-              apigeeOrg,
-              token,
-              this.converter,
-            );
-
-            if (template) {
-              template = await this.apigeeService.templateRemoveFeature(
-                proxyName,
-                featureName,
-                this.converter,
-              );
-
-              if (template) {
-                let zipPath = await this.converter.jsonToZip(
-                  proxyName,
-                  template,
-                );
-
-                apigeeProxyRevision =
-                  await this.apigeeService.apigeeProxyExport(
-                    proxyName,
-                    zipPath,
-                    apigeeOrg,
-                    token,
-                  );
-              }
-            }
-          }
-
-          if (template && apigeeProxyRevision) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `${JSON.stringify(template)}`,
-                },
-              ],
-            };
-          } else {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `There was a problem removing the feature ${featureName} from the Apigee proxy ${proxyName}, maybe the names are incorrect?`,
                 },
               ],
             };

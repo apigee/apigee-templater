@@ -2,7 +2,7 @@ import fs from "fs";
 import express from "express";
 import * as YAML from "yaml";
 import { ApigeeConverter } from "./converter.js";
-import { Template, Feature } from "./interfaces.js";
+import { Proxy, Feature } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 
 export class RestService {
@@ -30,7 +30,7 @@ export class RestService {
     if (!name) name = Math.random().toString(36).slice(2);
     let requestType = req.header("Content-Type");
     let responseType = req.header("Accept");
-    let templateResult: Template | undefined = undefined;
+    let templateResult: Proxy | undefined = undefined;
 
     // let tempFileName = Math.random().toString(36).slice(2);
     switch (requestType) {
@@ -42,7 +42,7 @@ export class RestService {
         let tempFilePath = this.apigeeService.tempPath + name + ".zip";
         fs.writeFileSync(tempFilePath, req.body);
 
-        templateResult = await this.converter.zipToJson(
+        templateResult = await this.converter.zipToProxy(
           name.toString(),
           tempFilePath,
         );
@@ -73,7 +73,7 @@ export class RestService {
           res.setHeader("Content-Type", "application/yaml");
           res.status(201).send(YAML.stringify(req.body));
         } else if (responseType == "application/octet-stream") {
-          let remplateResult = await this.converter.jsonToZip(name, req.body);
+          let remplateResult = await this.converter.proxyToZip(name, req.body);
           let zipOutputFile = fs.readFileSync(remplateResult);
           res.setHeader("Content-Type", "application/octet-stream");
           res.status(201).send(zipOutputFile);
@@ -92,7 +92,7 @@ export class RestService {
           res.setHeader("Content-Type", "application/yaml");
           res.status(201).send(YAML.stringify(proxy));
         } else if (responseType == "application/octet-stream") {
-          let templateResult = await this.converter.jsonToZip(name, proxy);
+          let templateResult = await this.converter.proxyToZip(name, proxy);
           let zipOutputFile = fs.readFileSync(templateResult);
           res.setHeader("Content-Type", "application/octet-stream");
           res.status(201).send(zipOutputFile);
@@ -113,7 +113,7 @@ export class RestService {
           : "";
 
         if (!apigeeOrg || !proxyName || !token) {
-          templateResult = new Template();
+          templateResult = new Proxy();
           templateResult.name = proxyName ? proxyName : name;
         } else {
           let proxyPath = await this.apigeeService.apigeeProxyGet(
@@ -122,7 +122,7 @@ export class RestService {
             token,
           );
           if (proxyPath) {
-            templateResult = await this.converter.zipToJson(
+            templateResult = await this.converter.zipToProxy(
               name.toString(),
               proxyPath,
             );
@@ -167,7 +167,7 @@ export class RestService {
       let apigeeProxyRevision = "";
       let proxy = await this.apigeeService.templateGet(templateName);
       if (proxy && token) {
-        let zipPath = await this.converter.jsonToZip(templateName, proxy);
+        let zipPath = await this.converter.proxyToZip(templateName, proxy);
 
         apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
           templateName,
@@ -207,7 +207,7 @@ export class RestService {
       let apigeeProxyRevision = "";
       let proxy = await this.apigeeService.templateGet(templateName);
       if (proxy && token) {
-        let zipPath = await this.converter.jsonToZip(templateName, proxy);
+        let zipPath = await this.converter.proxyToZip(templateName, proxy);
 
         apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
           templateName,
@@ -306,7 +306,7 @@ export class RestService {
         format == "zip" ||
         format == "xml"
       ) {
-        let templateResult = await this.converter.jsonToZip(
+        let templateResult = await this.converter.proxyToZip(
           templateName,
           proxy,
         );
@@ -431,7 +431,7 @@ export class RestService {
       parameters = req.body["parameters"];
     }
 
-    let proxy: Template | undefined =
+    let proxy: Proxy | undefined =
       await this.apigeeService.templateApplyFeature(
         proxyName,
         featureName,
@@ -464,7 +464,7 @@ export class RestService {
       return res.status(400).send("No feature name received.");
     }
 
-    let proxy: Template | undefined =
+    let proxy: Proxy | undefined =
       await this.apigeeService.templateRemoveFeature(
         proxyName,
         featureName,
@@ -503,7 +503,7 @@ export class RestService {
         let tempFilePath = this.apigeeService.tempPath + name + ".zip";
         fs.writeFileSync(tempFilePath, req.body);
 
-        let featureResult = await this.converter.zipToJson(
+        let featureResult = await this.converter.zipToProxy(
           name.toString(),
           tempFilePath,
         );
@@ -565,7 +565,7 @@ export class RestService {
             token,
           );
           if (proxyPath) {
-            let proxy = await this.converter.zipToJson(proxyName, proxyPath);
+            let proxy = await this.converter.zipToProxy(proxyName, proxyPath);
             newFeature = this.converter.jsonToFeature(proxy);
             fs.rmSync(proxyPath);
             this.apigeeService.featureImport(newFeature);

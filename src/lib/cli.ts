@@ -22,7 +22,7 @@ import inquirer from "inquirer";
 import chalk from "chalk";
 import * as YAML from "yaml";
 import { ApigeeConverter } from "./converter.js";
-import { Template, Feature } from "./interfaces.js";
+import { Proxy, Feature } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 
 import { stdin } from "process";
@@ -223,7 +223,7 @@ export class cli {
 
     options = await this.promptForMissingOptions(options);
 
-    let proxy: Template | undefined = undefined;
+    let proxy: Proxy | undefined = undefined;
 
     if (!options.file) {
       // create new proxy
@@ -260,7 +260,7 @@ export class cli {
         } else {
           if (options.applyFeatureFile) {
             let feature = JSON.parse(options.applyFeatureFile);
-            proxy = this.converter.jsonApplyFeature(proxy, feature);
+            proxy = this.converter.proxyApplyFeature(proxy, feature);
           } else if (options.removeFeatureFile) {
             let feature = JSON.parse(options.removeFeatureFile);
             proxy = this.converter.jsonRemoveFeature(proxy, feature);
@@ -272,7 +272,7 @@ export class cli {
         options.outputFormat.toLowerCase() === "zip" ||
         options.outputFormat.toLowerCase() === "xml"
       ) {
-        let outputPath: string = await this.converter.jsonToZip(
+        let outputPath: string = await this.converter.proxyToZip(
           options.name,
           proxy,
         );
@@ -309,14 +309,11 @@ export class cli {
     // );
   }
 
-  async loadFile(
-    name: string,
-    inputPath: string,
-  ): Promise<Template | undefined> {
-    return new Promise<Template | undefined>(async (resolve, reject) => {
-      let proxy: Template | undefined = undefined;
+  async loadFile(name: string, inputPath: string): Promise<Proxy | undefined> {
+    return new Promise<Proxy | undefined>(async (resolve, reject) => {
+      let proxy: Proxy | undefined = undefined;
       if (inputPath.toLowerCase().endsWith(".zip")) {
-        proxy = await this.converter.zipToJson(name, inputPath);
+        proxy = await this.converter.zipToProxy(name, inputPath);
       } else if (
         inputPath.toLowerCase().endsWith(".yaml") ||
         inputPath.toLowerCase().endsWith(".yml")
