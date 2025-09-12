@@ -16,6 +16,7 @@
 
 import arg from "arg";
 import fs from "fs";
+import path from "path";
 import { performance } from "perf_hooks";
 import inquirer from "inquirer";
 import chalk from "chalk";
@@ -82,11 +83,15 @@ export class cli {
   async promptForMissingOptions(options: cliArgs): Promise<cliArgs> {
     const questions: any[] = [];
     if (!options.name) {
+      let defaultName = "MyAPI";
+      if (options.file)
+        defaultName = path.basename(options.file, path.extname(options.file));
+
       questions.push({
         type: "input",
         name: "name",
         message: "What should the proxy be named?",
-        default: "MyProxy",
+        default: defaultName,
         transformer: (input: string) => {
           return input.replace(/ /g, "-");
         },
