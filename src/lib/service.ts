@@ -147,20 +147,23 @@ export class ApigeeTemplaterService {
     return new Promise(async (resolve, reject) => {
       let result: Feature | undefined = undefined;
       let tempName = name.replaceAll(" ", "-");
-      let featureString = fs.readFileSync(
-        this.featuresPath + tempName + ".json",
-        "utf8",
-      );
+      let featureString = "";
+      if (fs.existsSync(this.featuresPath + tempName + ".json")) {
+        featureString = fs.readFileSync(
+          this.featuresPath + tempName + ".json",
+          "utf8",
+        );
+      } else {
+        // try to fetch remotely
+        let response = await fetch(
+          "https://raw.githubusercontent.com/apigee/apigee-templater/refs/heads/main/repository/features/" +
+            tempName +
+            ".json",
+        );
 
-      // try to fetch remotely
-      let response = await fetch(
-        "https://raw.githubusercontent.com/apigee/apigee-templater/refs/heads/main/repository/features/" +
-          tempName +
-          ".json",
-      );
-
-      if (response.status == 200) {
-        featureString = await response.text();
+        if (response.status == 200) {
+          featureString = await response.text();
+        }
       }
 
       if (!featureString) {
@@ -188,12 +191,12 @@ export class ApigeeTemplaterService {
 
       if (!template || !feature) {
         console.log(
-          `proxyApplyFeature error: either ${proxyName} or ${featureName} could not be loaded.`,
+          `templateApplyFeature error: either ${proxyName} or ${featureName} could not be loaded.`,
         );
         return undefined;
       } else if (template.features.includes(feature.name)) {
         console.log(
-          `proxyApplyFeature error: proxy ${proxyName} already uses feature ${featureName}.`,
+          `templateApplyFeature error: template ${proxyName} already uses feature ${featureName}.`,
         );
         return undefined;
       } else {
