@@ -24,7 +24,7 @@ resources: []
 
 - **Proxy** - a proxy is a finished API generated from one template and multiple features, and can be either in JSON, YAML or ZIP format. It includes all details of the API logic and handling, and can be directly deployed to any Apigee instance.
 
-Using **templates**, **features** and **proxies** it's possible to compose Apigee proxies from pre-defined building blocks, without having to directly write or create Apigee proxy definitions. If templates and features cannot be found locally, the [repository directory](https://github.com/apigee/apigee-templater/tree/main/repository) here is checked as a central repository. If you would like to add useful templates or features to the repository, just open a pull request.
+Using **templates** and **features** it's possible to compose Apigee **proxies** from pre-defined building blocks, without having to directly write or create Apigee proxy definitions. If templates and features cannot be found locally, the [repository directory](https://github.com/apigee/apigee-templater/tree/main/repository) here is checked as a central repository. If you would like to add useful templates or features to the repository, just open a pull request.
 
 Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, manage & apply templates and features to create or modify Apigee proxies. Apigee Templater v3 is currently in **ALPHA** status, if you test and find bugs or have feature requests please report them as [Issues](https://github.com/apigee/apigee-templater/issues).
 
