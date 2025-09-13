@@ -820,10 +820,11 @@ export class McpService {
           description: "Imports an Apigee proxy from an org into a template.",
           inputSchema: {
             proxyName: z.string(),
+            templateName: z.string(),
             apigeeOrg: z.string(),
           },
         },
-        async ({ proxyName, apigeeOrg }, authInfo) => {
+        async ({ proxyName, templateName, apigeeOrg }, authInfo) => {
           let token: string =
             authInfo.requestInfo?.headers.authorization &&
             typeof authInfo.requestInfo?.headers.authorization === "string"
@@ -839,7 +840,7 @@ export class McpService {
 
             if (apigeeProxyPath) {
               let proxy = await this.converter.apigeeZipToProxy(
-                proxyName,
+                templateName ? templateName : proxyName,
                 apigeeProxyPath,
               );
               if (proxy) {
@@ -880,10 +881,11 @@ export class McpService {
           description: "Imports an Apigee proxy from an org into a feature.",
           inputSchema: {
             proxyName: z.string(),
+            featureName: z.string(),
             apigeeOrg: z.string(),
           },
         },
-        async ({ proxyName, apigeeOrg }, authInfo) => {
+        async ({ proxyName, featureName, apigeeOrg }, authInfo) => {
           let token: string =
             authInfo.requestInfo?.headers.authorization &&
             typeof authInfo.requestInfo?.headers.authorization === "string"
@@ -899,7 +901,7 @@ export class McpService {
 
             if (apigeeProxyPath) {
               let proxy = await this.converter.apigeeZipToProxy(
-                proxyName,
+                featureName ? featureName : proxyName,
                 apigeeProxyPath,
               );
               if (proxy) {
@@ -940,11 +942,12 @@ export class McpService {
           description:
             "Converts and exports a template to an Apigee proxy in an org.",
           inputSchema: {
-            proxyName: z.string(),
+            templateName: z.string(),
+            apigeeProxyName: z.string().optional(),
             apigeeOrg: z.string(),
           },
         },
-        async ({ proxyName, apigeeOrg }, authInfo) => {
+        async ({ templateName, apigeeProxyName, apigeeOrg }, authInfo) => {
           let token: string =
             authInfo.requestInfo?.headers.authorization &&
             typeof authInfo.requestInfo?.headers.authorization === "string"
@@ -952,7 +955,7 @@ export class McpService {
               : "";
           let apigeeProxyRevision = "";
           let proxy = await this.apigeeService.templateToProxy(
-            proxyName,
+            templateName,
             this.converter,
           );
 
@@ -960,7 +963,7 @@ export class McpService {
             let zipPath = await this.converter.proxyToApigeeZip(proxy);
 
             apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
-              proxyName,
+              apigeeProxyName ? apigeeProxyName : templateName,
               zipPath,
               apigeeOrg,
               token,
@@ -971,7 +974,7 @@ export class McpService {
               content: [
                 {
                   type: "text",
-                  text: `Template ${proxyName} has been exported to Apigee org ${apigeeOrg} with revision id ${apigeeProxyRevision}.`,
+                  text: `Template ${templateName} has been exported to Apigee org ${apigeeOrg} ${apigeeProxyName ? " - " + apigeeProxyName : ""} with revision id ${apigeeProxyRevision}.`,
                 },
               ],
             };
@@ -980,7 +983,7 @@ export class McpService {
               content: [
                 {
                   type: "text",
-                  text: `The template ${proxyName} could not be exported to Apigee, maybe the name or org is incorrect?.`,
+                  text: `The template ${templateName} could not be exported to Apigee, maybe the name or org is incorrect?.`,
                 },
               ],
             };
@@ -996,6 +999,7 @@ export class McpService {
           description: "Deploys an Apigee proxy revision to an org.",
           inputSchema: {
             templateName: z.string(),
+            apigeeProxyName: z.string().optional(),
             apigeeOrg: z.string(),
             apigeeEnvironment: z.string(),
             serviceAccountEmail: z.string().default(""),
@@ -1003,7 +1007,8 @@ export class McpService {
         },
         async (
           {
-            templateName: proxyName,
+            templateName,
+            apigeeProxyName,
             apigeeOrg,
             apigeeEnvironment,
             serviceAccountEmail,
@@ -1018,15 +1023,14 @@ export class McpService {
           let apigeeProxyRevision = "";
           if (token) {
             let proxy = await this.apigeeService.templateToProxy(
-              proxyName,
+              templateName,
               this.converter,
             );
 
             if (proxy) {
               let zipPath = await this.converter.proxyToApigeeZip(proxy);
-
               apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
-                proxyName,
+                apigeeProxyName ? apigeeProxyName : templateName,
                 zipPath,
                 apigeeOrg,
                 token,
@@ -1035,7 +1039,7 @@ export class McpService {
               if (apigeeProxyRevision)
                 apigeeProxyRevision =
                   await this.apigeeService.apigeeProxyRevisionDeploy(
-                    proxyName,
+                    apigeeProxyName ? apigeeProxyName : templateName,
                     apigeeProxyRevision,
                     serviceAccountEmail,
                     apigeeEnvironment,
@@ -1049,7 +1053,7 @@ export class McpService {
               content: [
                 {
                   type: "text",
-                  text: `Apigee proxy ${proxyName} has been deployed to Apigee org ${apigeeOrg} and environment ${apigeeEnvironment} with revision id ${apigeeProxyRevision}.`,
+                  text: `Apigee proxy ${apigeeProxyName ? apigeeProxyName : templateName} has been deployed to Apigee org ${apigeeOrg} and environment ${apigeeEnvironment} with revision id ${apigeeProxyRevision}.`,
                 },
               ],
             };
@@ -1058,7 +1062,7 @@ export class McpService {
               content: [
                 {
                   type: "text",
-                  text: `The template ${proxyName} could not be deployed to Apigee, maybe the name or org is incorrect?.`,
+                  text: `The template ${templateName} could not be deployed to Apigee, maybe the name or org is incorrect?.`,
                 },
               ],
             };

@@ -5,22 +5,25 @@ Apigee Templater is a [Node.js](https://nodejs.org/) tool written in [Typescript
 
 - **Template** - a template is file used to generate Apigee proxies. It includes basic endpoint, target and feature configurations that describe a proxy, however it doesn't include the details of the included features. This makes it clean and optimized.
 
-Example template in YAML for a no-target proxy:
+Example template in YAML format to create a proxy to httpbin.org:
 ```yaml
 ---
-name: SimpleProxy-v1
+name: HttpBin-v1
+type: template
+description: A simple proxy to httpbin.
 features: []
 endpoints:
 - name: default
-  path: "/v1/simple-proxy"
+  basePath: "/v1/httpbin"
   routes:
   - name: default
-targets: []
-policies: []
-resources: []
+    target: default
+targets:
+- name: default
+  url: https://httpbin.org
 ```
 
-- **Feature** - a feature is a piece of composable functionality that can be added to templates, and includes all details needed to implement the functionality. Here is an [example feature definition](https://github.com/apigee/apigee-templater/blob/main/test/features/auth-apikey-header.json) that adds API key authentication polices. Apigee proxies can be converted to features easily using Apigee Templater.
+- **Feature** - a feature is a piece of composable functionality that can be added to templates, and includes all details needed to implement the functionality. Here is an [example feature definition](https://github.com/apigee/apigee-templater/blob/main/repository/features/Auth-Key-Header-v1.json) that adds API key authentication. Apigee proxies can be converted to features easily using Apigee Templater.
 
 - **Proxy** - a proxy is a finished API generated from one template and multiple features, and can be either in JSON, YAML or ZIP format. It includes all details of the API logic and handling, and can be directly deployed to any Apigee instance.
 
