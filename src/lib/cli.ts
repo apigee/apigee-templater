@@ -52,16 +52,18 @@ export class cli {
         "--basePath": String,
         "--targetUrl": String,
         "--outputFormat": String,
-        "--applyFeatureFile": String,
-        "--removeFeatureFile": String,
+        "--applyFeature": String,
+        "--removeFeature": String,
+        "--token": String,
         "--help": Boolean,
         "-f": "--file",
         "-n": "--name",
         "-b": "--basePath",
-        "-t": "--targetUrl",
+        "-u": "--targetUrl",
         "-o": "--outputFormat",
         "-a": "--applyFeature",
         "-r": "--removeFeature",
+        "-t": "--token",
         "-h": "--help",
       },
       {
@@ -74,8 +76,9 @@ export class cli {
       basePath: args["--basePath"] || "",
       targetUrl: args["--targetUrl"] || "",
       outputFormat: args["--outputFormat"] || "",
-      applyFeatureFile: args["--applyFeatureFile"] || "",
-      removeFeatureFile: args["--removeFeatureFile"] || "",
+      applyFeature: args["--applyFeature"] || "",
+      removeFeature: args["--removeFeature"] || "",
+      token: args["--token"] || "",
       help: args["--help"] || false,
     };
   }
@@ -243,6 +246,21 @@ export class cli {
         options.targetUrl,
         this.converter,
       );
+    } else if (options.file.includes(":")) {
+      // this is an apigee proxy reference
+      let pieces = options.file.split(":");
+      if (pieces && pieces.length > 1 && pieces[0] && pieces[1]) {
+        let apigeePath = await this.apigeeService.apigeeProxyGet(
+          pieces[1],
+          pieces[0],
+          options.token,
+        );
+        if (apigeePath)
+          proxy = await this.converter.apigeeZipToProxy(
+            options.name,
+            apigeePath,
+          );
+      }
     } else if (fs.existsSync(options.file)) {
       let file = await this.loadFile(options.name, options.file);
       if (file && file instanceof Template) template = file as Template;
@@ -255,23 +273,17 @@ export class cli {
       );
       return;
     } else {
-      // if (options.applyFeatureFile || options.removeFeatureFile) {
-      //   let featureString = fs.readFileSync(options.applyFeatureFile, "utf8");
-      //   if (!featureString) {
-      //     console.log(
-      //       `${chalk.bold(chalk.redBright("> Feature could not be loaded, maybe the file or name is wrong?"))}`,
-      //     );
-      //     return;
-      //   } else {
-      //     if (options.applyFeatureFile) {
-      //       let feature = JSON.parse(options.applyFeatureFile);
-      //       template = this.converter.proxyApplyFeature(template, feature);
-      //     } else if (options.removeFeatureFile) {
-      //       let feature = JSON.parse(options.removeFeatureFile);
-      //       template = this.converter.jsonRemoveFeature(template, feature);
-      //     }
-      //   }
-      // }
+      if (options.applyFeature) {
+        let feature = await this.apigeeService.featureGet(options.applyFeature);
+        if (template && feature)
+          template = this.converter.templateApplyFeature(template, feature);
+        else if (proxy && feature)
+          proxy = this.converter.proxyApplyFeature(proxy, feature);
+      } else if (options.removeFeature) {
+        let feature = await this.apigeeService.featureGet(options.applyFeature);
+        if (template && feature)
+          template = this.converter.templateRemoveFeature(template, feature);
+      }
 
       if (options.outputFormat.toLowerCase() === "proxy-zip") {
         let outputPath: string = "";
@@ -362,10 +374,6 @@ export class cli {
             `${chalk.bold(chalk.magentaBright("> Feature successfully written to ./" + feature.name + ".yaml"))}`,
           );
         }
-
-        // console.log(
-        //   `${chalk.green(">")} Flow ${chalk.bold(chalk.blue(generateResult.template.name))} generated to ${chalk.magentaBright(chalk.bold(generateResult.localPath))} in ${chalk.bold(chalk.green(Math.round(generateResult.duration) + " milliseconds"))}.`,
-        // );
       }
     }
   }
@@ -411,8 +419,9 @@ class cliArgs {
   basePath = "";
   targetUrl = "";
   outputFormat = "";
-  applyFeatureFile = "";
-  removeFeatureFile = "";
+  applyFeature = "";
+  removeFeature = "";
+  token = "";
   help = false;
 }
 
@@ -424,28 +433,32 @@ const helpCommands = [
   },
   {
     name: "--name, -n",
-    description: "The name for the output proxy.",
+    description: "The name for the output.",
   },
   {
-    name: "--applyFeatureFile, -a",
-    description: "The path to a feature file to apply to the proxy.",
+    name: "--applyFeature, -a",
+    description: "The feature to apply to the template.",
   },
   {
-    name: "--removeFeatureFile, -r",
-    description: "The path to a feature file to remove from the proxy.",
+    name: "--removeFeature, -r",
+    description: "The feature to remove from the template",
   },
   {
     name: "--outputFormat, -o",
     description:
-      "The output format to save the resulting proxy to, either proxy-zip, proxy-json, proxy-yaml, template-json, template-yaml, feature-json, feature-yaml.",
+      "The output format to save the resulting proxy to, either proxy-zip, proxy-json, proxy-yaml, template-json, template-yaml, feature-json, or feature-yaml.",
   },
   {
     name: "--basePath, -b",
     description: "If creating a new proxy, the base path to use.",
   },
   {
-    name: "--targetUrl, -t",
+    name: "--targetUrl, -u",
     description: "If creating a new proxy, the target URL to use.",
+  },
+  {
+    name: "--token, -t",
+    description: "A token to use with Apigee if needed.",
   },
 ];
 
