@@ -249,6 +249,7 @@ export class ApigeeTemplaterService {
     let tempName = name.replaceAll(" ", "-");
     let newTemplate: Template = {
       name: tempName,
+      type: "type",
       description: "API proxy " + name,
       features: [],
       endpoints: [],
@@ -259,7 +260,6 @@ export class ApigeeTemplaterService {
       newTemplate.endpoints.push({
         name: "default",
         basePath: basePath,
-        flows: [],
         routes: [
           {
             name: "default",
@@ -272,7 +272,6 @@ export class ApigeeTemplaterService {
       newTemplate.targets.push({
         name: "default",
         url: targetUrl,
-        flows: [],
       });
 
       if (newTemplate.endpoints[0] && newTemplate.endpoints[0].routes[0])
@@ -347,7 +346,7 @@ export class ApigeeTemplaterService {
     }
   }
 
-  public async proxyCreateFromTemplate(
+  public async templateToProxy(
     templateName: string,
     converter: ApigeeConverter,
     parameters: { [key: string]: string } = {},
@@ -355,6 +354,26 @@ export class ApigeeTemplaterService {
     return new Promise(async (resolve, reject) => {
       let proxy: Proxy | undefined = undefined;
       let template: Template | undefined = await this.templateGet(templateName);
+
+      if (template) {
+        proxy = await this.templateObjectToProxy(
+          template,
+          converter,
+          parameters,
+        );
+      }
+
+      resolve(proxy);
+    });
+  }
+
+  public async templateObjectToProxy(
+    template: Template,
+    converter: ApigeeConverter,
+    parameters: { [key: string]: string } = {},
+  ): Promise<Proxy | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let proxy: Proxy | undefined = undefined;
 
       if (template) {
         let features: Feature[] = [];
@@ -437,14 +456,15 @@ export class ApigeeTemplaterService {
     });
   }
 
+  // imports an apigee proxy as template
   public async apigeeProxyImportTemplate(
     proxyName: string,
     apigeeOrg: string,
     token: string,
     converter: ApigeeConverter,
-  ): Promise<Proxy | undefined> {
+  ): Promise<Template | undefined> {
     return new Promise(async (resolve, reject) => {
-      let template: Proxy | undefined = undefined;
+      let template: Template | undefined = undefined;
       let apigeeProxyPath = await this.apigeeProxyGet(
         proxyName,
         apigeeOrg,
@@ -452,8 +472,13 @@ export class ApigeeTemplaterService {
       );
 
       if (apigeeProxyPath) {
-        template = await converter.zipToProxy(proxyName, apigeeProxyPath);
-        if (template) this.templateImport(template);
+        let proxy = await converter.apigeeZipToProxy(
+          proxyName,
+          apigeeProxyPath,
+        );
+        if (proxy) {
+          template = converter.proxyToTemplate(proxy);
+        }
         fs.rmSync(apigeeProxyPath);
       }
 

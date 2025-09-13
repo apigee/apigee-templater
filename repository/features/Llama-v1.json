@@ -1,29 +1,30 @@
 {
   "name": "Llama-v1",
-  "description": "",
+  "type": "feature",
+  "description": "Adds an endpoint and target for Llama 4",
   "parameters": [],
   "endpointFlows": [],
   "targetFlows": [],
   "endpoints": [
     {
       "name": "llama",
-      "path": "/v1/llama",
-      "flows": [],
-      "faultRules": [],
+      "basePath": "/v1/llama",
       "routes": [
         {
           "name": "default",
           "target": "llama"
         }
-      ]
+      ],
+      "flows": [],
+      "faultRules": []
     }
   ],
   "targets": [
     {
       "name": "llama",
+      "url": "https://us-east5-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/us-east5/endpoints/openapi/chat/completions",
       "flows": [],
       "faultRules": [],
-      "url": "https://us-east5-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/us-east5/endpoints/openapi/chat/completions",
       "httpTargetConnection": {
         "Properties": {},
         "URL": {

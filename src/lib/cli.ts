@@ -22,7 +22,7 @@ import inquirer from "inquirer";
 import chalk from "chalk";
 import * as YAML from "yaml";
 import { ApigeeConverter } from "./converter.js";
-import { Proxy, Feature } from "./interfaces.js";
+import { Proxy, Feature, Template } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 
 import { stdin } from "process";
@@ -103,8 +103,16 @@ export class cli {
         type: "list",
         name: "outputFormat",
         message: "Which output format should be used?",
-        choices: ["json", "yaml", "zip"],
-        default: "json",
+        choices: [
+          "proxy-zip",
+          "proxy-json",
+          "proxy-yaml",
+          "template-json",
+          "template-yaml",
+          "feature-json",
+          "feature-yaml",
+        ],
+        default: "proxy-yaml",
       });
     }
 
@@ -223,112 +231,176 @@ export class cli {
 
     options = await this.promptForMissingOptions(options);
 
+    let template: Template | undefined = undefined;
+    let feature: Feature | undefined = undefined;
     let proxy: Proxy | undefined = undefined;
 
     if (!options.file) {
-      // create new proxy
-      proxy = this.apigeeService.templateCreate(
+      // create new template
+      template = this.apigeeService.templateCreate(
         options.name,
         options.basePath,
         options.targetUrl,
         this.converter,
       );
-    } else {
-      if (fs.existsSync(options.file)) {
-        proxy = await this.loadFile(options.name, options.file);
-      } else {
-        console.log(
-          `${chalk.bold(chalk.redBright("> Proxy could not be loaded, maybe the file or name is wrong?"))}`,
-        );
-        return;
-      }
+    } else if (fs.existsSync(options.file)) {
+      let file = await this.loadFile(options.name, options.file);
+      if (file && file instanceof Template) template = file as Template;
+      else if (file && file instanceof Proxy) proxy = file as Proxy;
     }
 
-    if (!proxy) {
+    if (!template && !proxy) {
       console.log(
-        `${chalk.bold(chalk.redBright("> Proxy could not be loaded, maybe the file or name is wrong?"))}`,
+        `${chalk.bold(chalk.redBright("> File could not be loaded, maybe the file or name is wrong?"))}`,
       );
       return;
     } else {
-      if (options.applyFeatureFile || options.removeFeatureFile) {
-        let featureString = fs.readFileSync(options.applyFeatureFile, "utf8");
-        if (!featureString) {
+      // if (options.applyFeatureFile || options.removeFeatureFile) {
+      //   let featureString = fs.readFileSync(options.applyFeatureFile, "utf8");
+      //   if (!featureString) {
+      //     console.log(
+      //       `${chalk.bold(chalk.redBright("> Feature could not be loaded, maybe the file or name is wrong?"))}`,
+      //     );
+      //     return;
+      //   } else {
+      //     if (options.applyFeatureFile) {
+      //       let feature = JSON.parse(options.applyFeatureFile);
+      //       template = this.converter.proxyApplyFeature(template, feature);
+      //     } else if (options.removeFeatureFile) {
+      //       let feature = JSON.parse(options.removeFeatureFile);
+      //       template = this.converter.jsonRemoveFeature(template, feature);
+      //     }
+      //   }
+      // }
+
+      if (options.outputFormat.toLowerCase() === "proxy-zip") {
+        let outputPath: string = "";
+        if (template) {
+          proxy = await this.apigeeService.templateToProxy(
+            options.name,
+            this.converter,
+          );
+        }
+
+        if (proxy) outputPath = await this.converter.proxyToApigeeZip(proxy);
+        if (proxy && outputPath)
           console.log(
-            `${chalk.bold(chalk.redBright("> Feature could not be loaded, maybe the file or name is wrong?"))}`,
+            `${chalk.bold(chalk.magentaBright("> Proxy successfully written to " + outputPath))}`,
+          );
+        else {
+          console.log(
+            `${chalk.bold(chalk.redBright("> Error, could not convert to proxy-zip."))}`,
           );
           return;
-        } else {
-          if (options.applyFeatureFile) {
-            let feature = JSON.parse(options.applyFeatureFile);
-            proxy = this.converter.proxyApplyFeature(proxy, feature);
-          } else if (options.removeFeatureFile) {
-            let feature = JSON.parse(options.removeFeatureFile);
-            proxy = this.converter.jsonRemoveFeature(proxy, feature);
-          }
         }
-      }
+      } else if (options.outputFormat.startsWith("proxy-")) {
+        if (template) {
+          proxy = await this.apigeeService.templateObjectToProxy(
+            template,
+            this.converter,
+          );
+        }
 
-      if (
-        options.outputFormat.toLowerCase() === "zip" ||
-        options.outputFormat.toLowerCase() === "xml"
-      ) {
-        let outputPath: string = await this.converter.proxyToZip(
-          options.name,
-          proxy,
-        );
-        console.log(
-          `${chalk.bold(chalk.magentaBright("> Proxy successfully written to " + outputPath))}`,
-        );
-        return;
-      } else if (
-        options.outputFormat.toLowerCase() === "yaml" ||
-        options.outputFormat.toLowerCase() === "yml"
-      ) {
-        fs.writeFileSync("./" + proxy.name + ".yaml", YAML.stringify(proxy));
-        console.log(
-          `${chalk.bold(chalk.magentaBright("> Proxy successfully written to ./" + proxy.name + ".yaml"))}`,
-        );
-        return;
-      } else if (
-        options.outputFormat.toLowerCase() === "json" ||
-        options.outputFormat.toLowerCase() === "js"
-      ) {
-        fs.writeFileSync(
-          "./" + proxy.name + ".json",
-          JSON.stringify(proxy, null, 2),
-        );
-        console.log(
-          `${chalk.bold(chalk.magentaBright("> Proxy successfully written to ./" + proxy.name + ".json"))}`,
-        );
-        return;
+        if (proxy) {
+          if (options.outputFormat.endsWith("-json")) {
+            fs.writeFileSync(
+              "./" + proxy.name + ".yaml",
+              JSON.stringify(proxy, null, 2),
+            );
+          } else if (options.outputFormat.endsWith("-yaml")) {
+            fs.writeFileSync(
+              "./" + proxy.name + ".yaml",
+              YAML.stringify(proxy, null, 2),
+            );
+          }
+
+          console.log(
+            `${chalk.bold(chalk.magentaBright("> Proxy successfully written to ./" + proxy.name + ".yaml"))}`,
+          );
+        }
+      } else if (options.outputFormat.startsWith("template-")) {
+        if (proxy) {
+          template = this.converter.proxyToTemplate(proxy);
+        }
+
+        if (template) {
+          if (options.outputFormat.endsWith("-json")) {
+            fs.writeFileSync(
+              "./" + template.name + ".yaml",
+              JSON.stringify(template, null, 2),
+            );
+          } else if (options.outputFormat.endsWith("-yaml")) {
+            fs.writeFileSync(
+              "./" + template.name + ".yaml",
+              YAML.stringify(template, null, 2),
+            );
+          }
+
+          console.log(
+            `${chalk.bold(chalk.magentaBright("> Template successfully written to ./" + template.name + ".yaml"))}`,
+          );
+        }
+      } else if (options.outputFormat.startsWith("feature-")) {
+        if (proxy) {
+          feature = this.converter.proxyToFeature(proxy);
+        }
+
+        if (feature) {
+          if (options.outputFormat.endsWith("-json")) {
+            fs.writeFileSync(
+              "./" + feature.name + ".yaml",
+              JSON.stringify(feature, null, 2),
+            );
+          } else if (options.outputFormat.endsWith("-yaml")) {
+            fs.writeFileSync(
+              "./" + feature.name + ".yaml",
+              YAML.stringify(feature, null, 2),
+            );
+          }
+
+          console.log(
+            `${chalk.bold(chalk.magentaBright("> Feature successfully written to ./" + feature.name + ".yaml"))}`,
+          );
+        }
+
+        // console.log(
+        //   `${chalk.green(">")} Flow ${chalk.bold(chalk.blue(generateResult.template.name))} generated to ${chalk.magentaBright(chalk.bold(generateResult.localPath))} in ${chalk.bold(chalk.green(Math.round(generateResult.duration) + " milliseconds"))}.`,
+        // );
       }
     }
-
-    // console.log(
-    //   `${chalk.green(">")} Flow ${chalk.bold(chalk.blue(generateResult.template.name))} generated to ${chalk.magentaBright(chalk.bold(generateResult.localPath))} in ${chalk.bold(chalk.green(Math.round(generateResult.duration) + " milliseconds"))}.`,
-    // );
   }
 
-  async loadFile(name: string, inputPath: string): Promise<Proxy | undefined> {
-    return new Promise<Proxy | undefined>(async (resolve, reject) => {
-      let proxy: Proxy | undefined = undefined;
+  async loadFile(
+    name: string,
+    inputPath: string,
+  ): Promise<Proxy | Template | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let input: any | undefined = undefined;
+
       if (inputPath.toLowerCase().endsWith(".zip")) {
-        proxy = await this.converter.zipToProxy(name, inputPath);
+        let proxy = await this.converter.apigeeZipToProxy(name, inputPath);
+        resolve(proxy);
       } else if (
         inputPath.toLowerCase().endsWith(".yaml") ||
         inputPath.toLowerCase().endsWith(".yml")
       ) {
-        let proxyString = fs.readFileSync(inputPath, "utf8");
-        if (proxyString) proxy = YAML.parse(proxyString);
+        let inputString = fs.readFileSync(inputPath, "utf8");
+        if (inputString) input = YAML.parse(inputString);
       } else if (
         inputPath.toLowerCase().endsWith(".json") ||
         inputPath.toLowerCase().endsWith(".js")
       ) {
-        let proxyString = fs.readFileSync(inputPath, "utf8");
-        if (proxyString) proxy = JSON.parse(proxyString);
+        let inputString = fs.readFileSync(inputPath, "utf8");
+        if (inputString) input = JSON.parse(inputString);
       }
 
-      resolve(proxy);
+      if (input) {
+        if (input["type"] && input["type"] == "proxy") {
+          resolve(input as Proxy);
+        } else if (input["type"] && input["type"] == "template") {
+          resolve(input as Template);
+        }
+      }
     });
   }
 }
@@ -365,7 +437,7 @@ const helpCommands = [
   {
     name: "--outputFormat, -o",
     description:
-      "The output format to save the resulting proxy to, either ZIP, JSON or YAML.",
+      "The output format to save the resulting proxy to, either proxy-zip, proxy-json, proxy-yaml, template-json, template-yaml, feature-json, feature-yaml.",
   },
   {
     name: "--basePath, -b",

@@ -1,5 +1,6 @@
 export class Template {
   name: string = "";
+  type: string = "template";
   description: string = "";
   features: string[] = [];
   endpoints: Endpoint[] = [];
@@ -8,6 +9,7 @@ export class Template {
 
 export class Proxy {
   name: string = "";
+  type: string = "proxy";
   description: string = "";
   endpoints: ProxyEndpoint[] = [];
   targets: ProxyTarget[] = [];
@@ -79,6 +81,7 @@ export class Resource {
 
 export class Feature {
   name: string = "";
+  type: string = "feature";
   description: string = "";
   parameters: Parameter[] = [];
   endpointFlows: Flow[] = [];

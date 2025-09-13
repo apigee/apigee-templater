@@ -786,7 +786,7 @@ export class McpService {
               token,
             );
             if (zipPath) {
-              proxy = await this.converter.zipToProxy(proxyName, zipPath);
+              proxy = await this.converter.apigeeZipToProxy(proxyName, zipPath);
               if (proxy) proxyDescription = this.converter.proxyToString(proxy);
             }
           }
@@ -796,6 +796,66 @@ export class McpService {
                 {
                   type: "text",
                   text: proxyDescription,
+                },
+              ],
+            };
+          } else {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `No Apigee proxies found.`,
+                },
+              ],
+            };
+          }
+        },
+      );
+
+      // apigeeProxyImportToTemplate
+      server.registerTool(
+        "apigeeProxyImportToTemplate",
+        {
+          title: "Apigee Proxy Import to Template Tool",
+          description: "Imports an Apigee proxy from an org into a template.",
+          inputSchema: {
+            proxyName: z.string(),
+            apigeeOrg: z.string(),
+          },
+        },
+        async ({ proxyName, apigeeOrg }, authInfo) => {
+          let token: string =
+            authInfo.requestInfo?.headers.authorization &&
+            typeof authInfo.requestInfo?.headers.authorization === "string"
+              ? authInfo.requestInfo?.headers.authorization
+              : "";
+          let newTemplate: Template | undefined;
+          if (token) {
+            let apigeeProxyPath = await this.apigeeService.apigeeProxyGet(
+              proxyName,
+              apigeeOrg,
+              token,
+            );
+
+            if (apigeeProxyPath) {
+              let proxy = await this.converter.apigeeZipToProxy(
+                proxyName,
+                apigeeProxyPath,
+              );
+              if (proxy) {
+                newTemplate = this.converter.proxyToTemplate(proxy);
+                if (newTemplate) this.apigeeService.templateImport(newTemplate);
+              }
+
+              fs.rmSync(apigeeProxyPath);
+            }
+          }
+          if (newTemplate) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(newTemplate),
                 },
               ],
             };
@@ -838,12 +898,12 @@ export class McpService {
             );
 
             if (apigeeProxyPath) {
-              let templateObject = await this.converter.zipToProxy(
+              let proxy = await this.converter.apigeeZipToProxy(
                 proxyName,
                 apigeeProxyPath,
               );
-              if (templateObject) {
-                newFeature = this.converter.jsonToFeature(templateObject);
+              if (proxy) {
+                newFeature = this.converter.proxyToFeature(proxy);
                 if (newFeature) this.apigeeService.featureImport(newFeature);
               }
 
@@ -891,13 +951,13 @@ export class McpService {
               ? authInfo.requestInfo?.headers.authorization
               : "";
           let apigeeProxyRevision = "";
-          let proxy = await this.apigeeService.proxyCreateFromTemplate(
+          let proxy = await this.apigeeService.templateToProxy(
             proxyName,
             this.converter,
           );
 
           if (proxy && token) {
-            let zipPath = await this.converter.proxyToZip(proxyName, proxy);
+            let zipPath = await this.converter.proxyToApigeeZip(proxy);
 
             apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
               proxyName,
@@ -957,13 +1017,13 @@ export class McpService {
               : "";
           let apigeeProxyRevision = "";
           if (token) {
-            let proxy = await this.apigeeService.proxyCreateFromTemplate(
+            let proxy = await this.apigeeService.templateToProxy(
               proxyName,
               this.converter,
             );
 
             if (proxy) {
-              let zipPath = await this.converter.proxyToZip(proxyName, proxy);
+              let zipPath = await this.converter.proxyToApigeeZip(proxy);
 
               apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
                 proxyName,

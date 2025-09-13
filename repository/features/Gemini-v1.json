@@ -1,29 +1,30 @@
 {
   "name": "Gemini-v1",
-  "description": "",
+  "type": "feature",
+  "description": "Adds an endpoint and target for Gemini 2.5 Flash",
   "parameters": [],
   "endpointFlows": [],
   "targetFlows": [],
   "endpoints": [
     {
       "name": "gemini",
-      "path": "/v1/gemini",
-      "flows": [],
-      "faultRules": [],
+      "basePath": "/v1/gemini",
       "routes": [
         {
           "name": "default",
           "target": "gemini"
         }
-      ]
+      ],
+      "flows": [],
+      "faultRules": []
     }
   ],
   "targets": [
     {
       "name": "gemini",
+      "url": "https://europe-west1-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west1/endpoints/openapi/chat/completions",
       "flows": [],
       "faultRules": [],
-      "url": "https://europe-west1-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west1/endpoints/openapi/chat/completions",
       "httpTargetConnection": {
         "Properties": {},
         "URL": {
