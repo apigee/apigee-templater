@@ -52,6 +52,7 @@ export class cli {
         "--basePath": String,
         "--targetUrl": String,
         "--output": String,
+        "--format": String,
         "--applyFeature": String,
         "--removeFeature": String,
         "--token": String,
@@ -61,6 +62,7 @@ export class cli {
         "-b": "--basePath",
         "-u": "--targetUrl",
         "-o": "--output",
+        "-f": "--format",
         "-a": "--applyFeature",
         "-r": "--removeFeature",
         "-t": "--token",
@@ -76,6 +78,7 @@ export class cli {
       basePath: args["--basePath"] || "",
       targetUrl: args["--targetUrl"] || "",
       output: args["--output"] || "",
+      format: args["--format"] || "",
       applyFeature: args["--applyFeature"] || "",
       removeFeature: args["--removeFeature"] || "",
       token: args["--token"] || "",
@@ -85,37 +88,51 @@ export class cli {
 
   async promptForMissingOptions(options: cliArgs): Promise<cliArgs> {
     const questions: any[] = [];
-    if (options.output.endsWith("-js"))
-      options.output = options.output.replace("-js", "-json");
+    if (options.output.endsWith(".js"))
+      options.output = options.output.replace(".js", ".json");
     if (options.output.endsWith("-yml"))
-      options.output = options.output.replace("-yml", "-yaml");
-    if (!options.name) {
-      let defaultName = "MyAPI";
-      if (options.input && options.input.includes(":")) {
-        let pieces = options.input.split(":");
-        if (pieces.length > 1 && pieces[1]) defaultName = pieces[1];
-      } else if (options.input)
-        defaultName = path.basename(options.input, path.extname(options.input));
+      options.output = options.output.replace(".yml", ".yaml");
 
-      if (
-        options.output &&
-        (options.output.endsWith("-json") ||
-          options.output.endsWith("-yaml") ||
-          options.output.endsWith("-zip"))
-      )
-        questions.push({
-          type: "input",
-          name: "name",
-          message: "Which name should be used?",
-          default: defaultName,
-          transformer: (input: string) => {
-            return input.replace(/ /g, "-");
-          },
-        });
-      else options.name = defaultName;
+    if (!options.name) {
+      //let defaultName = "MyAPI";
+      if (options.output) {
+        if (options.output.includes(":")) {
+          let pieces = options.output.split(":");
+          if (pieces.length > 1 && pieces[1]) options.name = pieces[1];
+        } else {
+          options.name = path.basename(
+            options.output,
+            path.extname(options.output),
+          );
+        }
+      } else if (options.input && options.input.includes(":")) {
+        let pieces = options.input.split(":");
+        if (pieces.length > 1 && pieces[1]) options.name = pieces[1];
+      } else if (options.input) {
+        options.name = path.basename(
+          options.input,
+          path.extname(options.input),
+        );
+      }
+
+      // if (
+      //   options.output &&
+      //   (options.output.endsWith("-json") ||
+      //     options.output.endsWith("-yaml") ||
+      //     options.output.endsWith("-zip"))
+      // )
+      //   questions.push({
+      //     type: "input",
+      //     name: "name",
+      //     message: "Which name should be used?",
+      //     default: defaultName,
+      //     transformer: (input: string) => {
+      //       return input.replace(/ /g, "-");
+      //     },
+      //   });
+      // else options.name = defaultName;
     }
 
-    if (!options.output) options.output = "";
     // if (!options.output) {
     //   questions.push({
     //     type: "list",
@@ -344,23 +361,27 @@ export class cli {
           `${chalk.bold(chalk.magentaBright(`> Proxy ${proxy.name} overview: `))}`,
         );
         console.log(this.converter.proxyToString(proxy));
+        if (!options.format) options.format = "proxy";
       } else if (template) {
         console.log(
           `${chalk.bold(chalk.magentaBright(`> Template ${template.name} overview: `))}`,
         );
         console.log(this.converter.templateToString(template));
+        if (!options.format) options.format = "template";
       } else if (feature) {
         console.log(
           `${chalk.bold(chalk.magentaBright(`> Feature ${feature.name} overview: `))}`,
         );
         console.log(this.converter.featureToString(feature));
+        if (!options.format) options.format = "feature";
       } else {
         console.log(
           `${chalk.bold(chalk.redBright(`> Input '${options.input}' could not be loaded, maybe incorrect spelling?`))}`,
         );
+        return;
       }
 
-      if (options.output && options.output == "proxy-zip") {
+      if (options.output && options.output.toLowerCase().endsWith(".zip")) {
         let outputPath: string = "";
         if (template) {
           proxy = await this.apigeeService.templateToProxy(
@@ -376,11 +397,11 @@ export class cli {
           );
         else {
           console.log(
-            `${chalk.bold(chalk.redBright("> Error, could not convert to proxy-zip."))}`,
+            `${chalk.bold(chalk.redBright("> Error, could not write proxy zip."))}`,
           );
           return;
         }
-      } else if (options.output && options.output.startsWith("proxy-")) {
+      } else if (options.output && options.format == "proxy") {
         if (template) {
           proxy = await this.apigeeService.templateObjectToProxy(
             template,
@@ -389,62 +410,57 @@ export class cli {
         }
 
         if (proxy) {
-          let fileName = "";
-          if (options.output.endsWith("-json")) {
-            fileName = "./" + proxy.name + ".json";
-            fs.writeFileSync(fileName, JSON.stringify(proxy, null, 2));
-          } else if (options.output.endsWith("-yaml")) {
-            fileName = "./" + proxy.name + ".yaml";
-            fs.writeFileSync(fileName, YAML.stringify(proxy, null, 2));
+          if (options.output.toLowerCase().endsWith(".json")) {
+            fs.writeFileSync(options.output, JSON.stringify(proxy, null, 2));
+          } else if (options.output.toLowerCase().endsWith(".yaml")) {
+            fs.writeFileSync(options.output, YAML.stringify(proxy, null, 2));
+          } else if (options.output.toLowerCase().includes(":")) {
+            let outputPath = await this.converter.proxyToApigeeZip(proxy);
+            let pieces = options.output.split(":");
+            if (pieces && pieces.length > 1 && pieces[0] && pieces[1])
+              this.apigeeService.apigeeProxyExport(
+                options.name,
+                outputPath,
+                pieces[0],
+                options.token,
+              );
           }
 
-          if (fileName) {
-            console.log(
-              `${chalk.bold(chalk.magentaBright("> Proxy successfully written to " + fileName))}`,
-            );
-          }
+          console.log(
+            `${chalk.bold(chalk.magentaBright("> Proxy successfully written to " + options.output))}`,
+          );
         }
-      } else if (options.output && options.output.startsWith("template-")) {
+      } else if (options.output && options.format == "template") {
         if (proxy) {
           template = this.converter.proxyToTemplate(proxy);
         }
 
         if (template) {
-          let fileName = "";
-          if (options.output.endsWith("-json")) {
-            fileName = "./" + template.name + ".json";
-            fs.writeFileSync(fileName, JSON.stringify(template, null, 2));
-          } else if (options.output.endsWith("-yaml")) {
-            fileName = "./" + template.name + ".yaml";
-            fs.writeFileSync(fileName, YAML.stringify(template, null, 2));
+          if (options.output.toLowerCase().endsWith(".json")) {
+            fs.writeFileSync(options.output, JSON.stringify(template, null, 2));
+          } else if (options.output.toLowerCase().endsWith(".yaml")) {
+            fs.writeFileSync(options.output, YAML.stringify(template, null, 2));
           }
 
-          if (fileName) {
-            console.log(
-              `${chalk.bold(chalk.magentaBright("> Template successfully written to " + fileName))}`,
-            );
-          }
+          console.log(
+            `${chalk.bold(chalk.magentaBright("> Template successfully written to " + options.output))}`,
+          );
         }
-      } else if (options.output && options.output.startsWith("feature-")) {
+      } else if (options.output && options.format == "feature") {
         if (proxy) {
           feature = this.converter.proxyToFeature(proxy);
         }
 
         if (feature) {
-          let fileName = "";
-          if (options.output.endsWith("-json")) {
-            fileName = "./" + feature.name + ".json";
-            fs.writeFileSync(fileName, JSON.stringify(feature, null, 2));
-          } else if (options.output.endsWith("-yaml")) {
-            fileName = "./" + feature.name + ".yaml";
-            fs.writeFileSync(fileName, YAML.stringify(feature, null, 2));
+          if (options.output.toLowerCase().endsWith(".json")) {
+            fs.writeFileSync(options.output, JSON.stringify(feature, null, 2));
+          } else if (options.output.toLowerCase().endsWith(".yaml")) {
+            fs.writeFileSync(options.output, YAML.stringify(feature, null, 2));
           }
 
-          if (fileName) {
-            console.log(
-              `${chalk.bold(chalk.magentaBright("> Feature successfully written to " + fileName))}`,
-            );
-          }
+          console.log(
+            `${chalk.bold(chalk.magentaBright("> Feature successfully written to " + options.output))}`,
+          );
         }
       }
     }
@@ -486,6 +502,7 @@ class cliArgs {
   basePath = "";
   targetUrl = "";
   output = "";
+  format = "";
   applyFeature = "";
   removeFeature = "";
   token = "";
@@ -513,7 +530,12 @@ const helpCommands = [
   {
     name: "--output, -o",
     description:
-      "An optional file output type & format: 'proxy-zip', 'proxy-json', 'proxy-yaml', 'template-json', 'template-yaml', 'feature-json', or 'feature-yaml'.",
+      "An optional file output name and type (e.g. AI-Template-v1.yaml).",
+  },
+  {
+    name: "--format, -f",
+    description:
+      "An optional format to convert the input into: 'proxy', 'template' or 'feature'.",
   },
   {
     name: "--basePath, -b",
