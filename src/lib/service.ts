@@ -246,40 +246,10 @@ export class ApigeeTemplaterService {
     targetUrl: string | undefined,
     converter: ApigeeConverter,
   ): Template {
-    let tempName = name.replaceAll(" ", "-");
-    let newTemplate: Template = {
-      name: tempName,
-      type: "type",
-      description: "API proxy " + name,
-      features: [],
-      endpoints: [],
-      targets: [],
-    };
-
-    if (basePath) {
-      newTemplate.endpoints.push({
-        name: "default",
-        basePath: basePath,
-        routes: [
-          {
-            name: "default",
-          },
-        ],
-      });
-    }
-
-    if (targetUrl) {
-      newTemplate.targets.push({
-        name: "default",
-        url: targetUrl,
-      });
-
-      if (newTemplate.endpoints[0] && newTemplate.endpoints[0].routes[0])
-        newTemplate.endpoints[0].routes[0].target = "default";
-    }
+    let newTemplate = converter.templateCreate(name, basePath, targetUrl);
 
     fs.writeFileSync(
-      this.templatesPath + tempName + ".json",
+      this.templatesPath + newTemplate.name + ".json",
       JSON.stringify(newTemplate, null, 2),
     );
 
@@ -450,7 +420,7 @@ export class ApigeeTemplaterService {
           resolve(undefined);
         }
       } else {
-        console.log("Got response " + response.status);
+        console.log(" > Apigee proxy GET response: " + response.status);
         resolve(undefined);
       }
     });
@@ -514,7 +484,7 @@ export class ApigeeTemplaterService {
         if (!latestRevisionId) resolve("");
         else resolve(latestRevisionId);
       } else {
-        console.log("Got response " + response.status);
+        console.log(" > Apigee proxy EXPORT response: " + response.status);
         resolve("");
       }
     });
@@ -544,7 +514,7 @@ export class ApigeeTemplaterService {
         if (!latestRevisionId) resolve("");
         else resolve(latestRevisionId);
       } else {
-        console.log("Got response " + response.status);
+        console.log(" > Apigee proxy DEPLOY response: " + response.status);
         resolve("");
       }
     });

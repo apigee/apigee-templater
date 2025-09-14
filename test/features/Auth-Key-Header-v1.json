@@ -1,6 +1,7 @@
 {
-  "name": "auth-apikey-header",
-  "description": "Adds simple API key authentication from a header in the proxy pre-flow.",
+  "name": "Auth-Key-Header-v1",
+  "type": "feature",
+  "description": "Adds API key authentication using the x-api-key header",
   "parameters": [
     {
       "name": "API_KEY_HEADER_NAME",
@@ -25,47 +26,13 @@
     }
   ],
   "targetFlows": [],
+  "endpoints": [],
+  "targets": [],
   "policies": [
-    {
-      "name": "VA-VerifyKey",
-      "type": "VerifyAPIKey",
-      "content": {
-        "_declaration": {
-          "_attributes": {
-            "version": "1.0",
-            "encoding": "UTF-8",
-            "standalone": "yes"
-          }
-        },
-        "VerifyAPIKey": {
-          "_attributes": {
-            "continueOnError": "false",
-            "enabled": "true",
-            "name": "VA-VerifyKey"
-          },
-          "DisplayName": {
-            "_text": "VA-VerifyKey"
-          },
-          "Properties": {},
-          "APIKey": {
-            "_attributes": {
-              "ref": "request.header.API_KEY_HEADER_NAME"
-            }
-          }
-        }
-      }
-    },
     {
       "name": "AM-RemoveKey",
       "type": "AssignMessage",
       "content": {
-        "_declaration": {
-          "_attributes": {
-            "version": "1.0",
-            "encoding": "UTF-8",
-            "standalone": "yes"
-          }
-        },
         "AssignMessage": {
           "_attributes": {
             "continueOnError": "false",
@@ -97,6 +64,29 @@
           }
         }
       }
+    },
+    {
+      "name": "VA-VerifyKey",
+      "type": "VerifyAPIKey",
+      "content": {
+        "VerifyAPIKey": {
+          "_attributes": {
+            "continueOnError": "false",
+            "enabled": "true",
+            "name": "VA-VerifyKey"
+          },
+          "DisplayName": {
+            "_text": "VA-VerifyKey"
+          },
+          "Properties": {},
+          "APIKey": {
+            "_attributes": {
+              "ref": "request.header.API_KEY_HEADER_NAME"
+            }
+          }
+        }
+      }
     }
-  ]
+  ],
+  "resources": []
 }

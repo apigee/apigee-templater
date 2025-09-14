@@ -11,5 +11,14 @@
     "program": "dist/index.js",
     "stopOnEntry": false,
     "cwd": "/home/tyayers/projects/apigee/apigee-templater"
+  },
+  {
+    "adapter": "JavaScript",
+    "label": "cli.js (JavaScript)",
+    "type": "pwa-node",
+    "request": "launch",
+    "program": "dist/bin/apigee-templater.js",
+    "stopOnEntry": false,
+    "cwd": "/home/tyayers/projects/apigee/apigee-templater"
   }
 ]

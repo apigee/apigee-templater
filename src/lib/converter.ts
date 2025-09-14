@@ -881,6 +881,46 @@ export class ApigeeConverter {
     return newFeature;
   }
 
+  public templateCreate(
+    name: string,
+    basePath: string | undefined,
+    targetUrl: string | undefined,
+  ): Template {
+    let tempName = name.replaceAll(" ", "-");
+    let newTemplate: Template = {
+      name: tempName,
+      type: "template",
+      description: "API proxy " + name,
+      features: [],
+      endpoints: [],
+      targets: [],
+    };
+
+    if (basePath) {
+      newTemplate.endpoints.push({
+        name: "default",
+        basePath: basePath,
+        routes: [
+          {
+            name: "default",
+          },
+        ],
+      });
+    }
+
+    if (targetUrl) {
+      newTemplate.targets.push({
+        name: "default",
+        url: targetUrl,
+      });
+
+      if (newTemplate.endpoints[0] && newTemplate.endpoints[0].routes[0])
+        newTemplate.endpoints[0].routes[0].target = "default";
+    }
+
+    return newTemplate;
+  }
+
   public templateToProxy(
     template: Template,
     features: Feature[],
@@ -901,36 +941,34 @@ export class ApigeeConverter {
 
   public templateToString(template: Template): string {
     let result = "";
-    if (template.name) result = `Name: ${template.name}\n`;
-    if (template.description)
-      result += `Description: ${template.description}\n`;
-    result += "\n";
+    if (template.name) result = `Name: ${template.name}`;
+    if (template.description) result += `Description: ${template.description}`;
 
     if (template.features && template.features.length > 0) {
-      result += `\nFeatures:\n`;
+      result += `\nFeatures:`;
       for (let feature of template.features) {
-        result += ` - ${feature}\n`;
+        result += `\n - ${feature}`;
       }
     } else {
-      result += `\nFeatures: none\n`;
+      result += `\nFeatures: none`;
     }
 
     if (template.endpoints && template.endpoints.length > 0) {
-      result += `\nEndpoints:\n`;
+      result += `\nEndpoints:`;
       for (let endpoint of template.endpoints) {
-        result += ` - ${endpoint.basePath}\n`;
+        result += `\n - ${endpoint.basePath}`;
       }
     } else {
-      result += `\nEndpoints: none\n`;
+      result += `\nEndpoints: none`;
     }
 
     if (template.targets && template.targets.length > 0) {
-      result += `\nTargets:\n`;
+      result += `\nTargets:`;
       for (let target of template.targets) {
-        result += ` - ${target.name} - ${target.url}\n`;
+        result += `\n - ${target.name} - ${target.url}`;
       }
     } else {
-      result += `\nTargets: none\n`;
+      result += `\nTargets: none`;
     }
 
     return result;
@@ -938,62 +976,61 @@ export class ApigeeConverter {
 
   public featureToString(feature: Feature): string {
     let result = "";
-    if (feature.name) result = `Name: ${feature.name}\n`;
-    if (feature.description) result += `Description: ${feature.description}\n`;
-    result += "\n";
+    if (feature.name) result = `Name: ${feature.name}`;
+    if (feature.description) result += `\nDescription: ${feature.description}`;
 
     if (feature.parameters && feature.parameters.length > 0) {
-      result += `\nParameters:\n`;
+      result += `\nParameters:`;
       for (let parameter of feature.parameters) {
-        result += ` - ${parameter.name} - ${parameter.description}\n`;
-        if (parameter.default) result += ` - Default: ${parameter.default}\n`;
+        result += `\n - ${parameter.name} - ${parameter.description}`;
+        if (parameter.default) result += `\n - Default: ${parameter.default}`;
         if (parameter.examples && parameter.examples.length > 0)
-          result += ` - Examples: ${parameter.examples.toString()}\n`;
+          result += `\n - Examples: ${parameter.examples.toString()}`;
       }
     } else {
-      result += `\Parameters: none\n`;
+      result += `\Parameters: none`;
     }
 
     if (feature.endpointFlows && feature.endpointFlows.length > 0) {
-      result += `\nEndpoint flows:\n`;
+      result += `\nEndpoint flows:`;
       for (let flow of feature.endpointFlows) {
-        result += ` - ${flow.name} - ${flow.mode} - ${flow.condition}\n`;
+        result += `\n - ${flow.name} - ${flow.mode} - ${flow.condition}`;
         for (let step of flow.steps) {
-          result += `  - ${step.name} - ${step.condition}\n`;
+          result += `\n  - ${step.name} - ${step.condition}`;
         }
       }
     } else {
-      result += `\nEndpoints flows: none\n`;
+      result += `\nEndpoints flows: none`;
     }
 
     if (feature.targetFlows && feature.targetFlows.length > 0) {
-      result += `\nTarget flows:\n`;
+      result += `\nTarget flows:`;
       for (let flow of feature.targetFlows) {
-        result += ` - ${flow.name} - ${flow.mode} - ${flow.condition}\n`;
+        result += `\n - ${flow.name} - ${flow.mode} - ${flow.condition}`;
         for (let step of flow.steps) {
-          result += `  - ${step.name} - ${step.condition}\n`;
+          result += `\n  - ${step.name} - ${step.condition}`;
         }
       }
     } else {
-      result += `\nTarget flows: none\n`;
+      result += `\nTarget flows: none`;
     }
 
     if (feature.policies && feature.policies.length > 0) {
-      result += `\nPolicies:\n`;
+      result += `\nPolicies:`;
       for (let policy of feature.policies) {
-        result += ` - ${policy.name} - ${policy.type}\n`;
+        result += `\n - ${policy.name} - ${policy.type}`;
       }
     } else {
-      result += `\nPolicies: none\n`;
+      result += `\nPolicies: none`;
     }
 
     if (feature.resources && feature.resources.length > 0) {
-      result += `\nResources:\n`;
+      result += `\nResources:`;
       for (let resource of feature.resources) {
-        result += ` - ${resource.name} - ${resource.type}\n`;
+        result += `\n - ${resource.name} - ${resource.type}`;
       }
     } else {
-      result += `\nResources: none\n`;
+      result += `\nResources: none`;
     }
 
     return result;
@@ -1001,44 +1038,43 @@ export class ApigeeConverter {
 
   public proxyToString(proxy: Proxy): string {
     let result = "";
-    if (proxy.name) result = `Name: ${proxy.name}\n`;
-    if (proxy.description) result += `Description: ${proxy.description}\n`;
-    result += "\n";
+    if (proxy.name) result = `Name: ${proxy.name}`;
+    if (proxy.description) result += `\nDescription: ${proxy.description}`;
 
     if (proxy.endpoints && proxy.endpoints.length > 0) {
-      result += `\nEndpoints:\n`;
+      result += `\nEndpoints:`;
       for (let endpoint of proxy.endpoints) {
-        result += ` - ${endpoint.basePath}\n`;
+        result += `\n - ${endpoint.basePath}`;
       }
     } else {
-      result += `\nEndpoints: none\n`;
+      result += `\nEndpoints: none`;
     }
 
     if (proxy.targets && proxy.targets.length > 0) {
-      result += `\nTargets:\n`;
+      result += `\nTargets:`;
       for (let target of proxy.targets) {
-        result += ` - ${target.name} - ${target.url}\n`;
+        result += `\n - ${target.name} - ${target.url}`;
       }
     } else {
-      result += `\nTargets: none\n`;
+      result += `\nTargets: none`;
     }
 
     if (proxy.policies && proxy.policies.length > 0) {
-      result += `\nPolicies:\n`;
+      result += `\nPolicies:`;
       for (let policy of proxy.policies) {
-        result += ` - ${policy.name} - ${policy.type}\n`;
+        result += `\n - ${policy.name} - ${policy.type}`;
       }
     } else {
-      result += `\nPolicies: none\n`;
+      result += `\nPolicies: none`;
     }
 
     if (proxy.resources && proxy.resources.length > 0) {
-      result += `\nResources:\n`;
+      result += `\nResources:`;
       for (let resource of proxy.resources) {
-        result += ` - ${resource.name} - ${resource.type}\n`;
+        result += `\n - ${resource.name} - ${resource.type}`;
       }
     } else {
-      result += `\nResources: none\n`;
+      result += `\nResources: none`;
     }
 
     return result;

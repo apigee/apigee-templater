@@ -40,15 +40,18 @@ Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, man
 ## CLI
 You can use the **apigee-templater** CLI locally or using npx. Currently the CLI can do conversions and apply / remove features to proxies.
 ```sh
-# Install globally
+# install
 npm i -g apigee-templater
 
-# Run with npx
-npx apigee-templater
+# get a description of the proxy Gemini-v1 from Apigee org apigee-prod13
+apigee-templater -i apigee-prod13:Gemini-v1 -t $(gcloud auth print-access-token)
 
-# Convert Apigee proxy ZIP to a template in YAML format
-cd test/templates
-npx apigee-templater -f SimpleProxy-v1.zip -n SimpleProxy-v1 -o yaml
+# export the proxy as a yaml proxy file
+apigee-templater -i apigee-prod13:Gemini-v1 -o proxy-yaml -t $(gcloud auth print-access-token)
+
+# convert Apigee proxy ZIP to a template in YAML format
+cd test/proxies
+apigee-templater -i SimpleProxy-v1.zip -n SimpleProxy-v1 -o template-yaml
 ```
 ## REST & MCP server
 After cloning this repository you can start the REST & MCP server like this.

@@ -1,6 +1,6 @@
 {
   "name": "apigee-templater",
-  "version": "3.0.7",
+  "version": "3.0.14",
   "description": "Provides tooling for the templating and conversion of Apigee proxies between XML zip, JSON, and Yaml, and providing conversion services through REST, CLI and MCP.",
   "main": "index.js",
   "directories": {
@@ -25,8 +25,8 @@
   "keywords": [
     "apigee"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "tyler.ayers@gmail.com",
+  "license": "Apache-2.0",
   "type": "module",
   "bugs": {
     "url": "https://github.com/apigee/apigee-templater/issues"
