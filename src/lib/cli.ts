@@ -113,6 +113,16 @@ export class cli {
           options.input,
           path.extname(options.input),
         );
+      } else {
+        questions.push({
+          type: "input",
+          name: "name",
+          message: "Which name should be used?",
+          default: "MyProxy",
+          transformer: (input: string) => {
+            return input.replace(/ /g, "-");
+          },
+        });
       }
 
       // if (
@@ -196,26 +206,14 @@ export class cli {
   }
 
   printHelp() {
-    console.log(`${chalk.bold(chalk.magentaBright("> All parameters:"))}`);
+    console.log(
+      `${chalk.bold(chalk.magentaBright("> Welcome to Apigee Templater. All parameters:"))}`,
+    );
     for (const line of helpCommands) {
       console.log(
         `${line.name}: ${chalk.italic(chalk.magentaBright(line.description))} `,
       );
     }
-    // console.log("");
-    // console.log(`${chalk.bold(chalk.magentaBright("> Simple examples:"))}`);
-    // console.log(
-    //   `> apigee-templater ${chalk.italic(chalk.magentaBright("# Start interactive mode to enter the parameters."))}`,
-    // );
-    // console.log(
-    //   `> apigee-templater -n TestProxy -b /httpbin -t https://httpbin.org' ${chalk.italic(chalk.magentaBright("# Create a proxy called TestProxy with the base path /test to target https://httpbin.org > will produce a TestProxy.zip bundle."))}`,
-    // );
-    // console.log(
-    //   `> apigee-templater -i ./input-proxy.zip -f proxy-json' ${chalk.italic(chalk.magentaBright("# Convert an Apigee proxy from zip to json format."))}`,
-    // );
-    // console.log(
-    //   `> apigee-templater -i ./input-proxy.zip -f proxy-zip -a ./auth-apikey-header.json' ${chalk.italic(chalk.magentaBright("# Apply the feature auth-apikey-header to input-proxy and return in zip format."))}`,
-    // );
   }
 
   processDataSpec(): Promise<string> {
@@ -277,6 +275,7 @@ export class cli {
         options.basePath,
         options.targetUrl,
       );
+      if (!options.output) options.output = options.name + ".json";
     } else if (options.input.includes(":")) {
       // this is an apigee proxy reference
       let pieces = options.input.split(":");
@@ -393,7 +392,7 @@ export class cli {
         if (proxy) outputPath = await this.converter.proxyToApigeeZip(proxy);
         if (proxy && outputPath)
           console.log(
-            `${chalk.bold(chalk.magentaBright("> Proxy successfully written to " + outputPath))}`,
+            `${chalk.bold(chalk.magentaBright("> Proxy written to " + outputPath))}`,
           );
         else {
           console.log(
@@ -417,17 +416,40 @@ export class cli {
           } else if (options.output.toLowerCase().includes(":")) {
             let outputPath = await this.converter.proxyToApigeeZip(proxy);
             let pieces = options.output.split(":");
-            if (pieces && pieces.length > 1 && pieces[0] && pieces[1])
-              this.apigeeService.apigeeProxyExport(
+            let lastRevision = "";
+            // export to apigee
+            if (pieces && pieces.length > 1 && pieces[0]) {
+              lastRevision = await this.apigeeService.apigeeProxyExport(
                 options.name,
                 outputPath,
                 pieces[0],
                 options.token,
               );
+            }
+            // deploy to apigee
+            if (
+              pieces &&
+              pieces.length > 2 &&
+              pieces[0] &&
+              pieces[2] &&
+              lastRevision
+            ) {
+              let serviceAccount = "";
+              let environment = pieces[2];
+              if (pieces.length === 4 && pieces[3]) serviceAccount = pieces[3];
+              this.apigeeService.apigeeProxyRevisionDeploy(
+                options.name,
+                lastRevision,
+                serviceAccount,
+                environment,
+                pieces[0],
+                options.token,
+              );
+            }
           }
 
           console.log(
-            `${chalk.bold(chalk.magentaBright("> Proxy successfully written to " + options.output))}`,
+            `${chalk.bold(chalk.magentaBright("> Proxy written to " + options.output))}`,
           );
         }
       } else if (options.output && options.format == "template") {
@@ -443,7 +465,7 @@ export class cli {
           }
 
           console.log(
-            `${chalk.bold(chalk.magentaBright("> Template successfully written to " + options.output))}`,
+            `${chalk.bold(chalk.magentaBright("> Template written to " + options.output))}`,
           );
         }
       } else if (options.output && options.format == "feature") {
@@ -459,7 +481,7 @@ export class cli {
           }
 
           console.log(
-            `${chalk.bold(chalk.magentaBright("> Feature successfully written to " + options.output))}`,
+            `${chalk.bold(chalk.magentaBright("> Feature written to " + options.output))}`,
           );
         }
       }
