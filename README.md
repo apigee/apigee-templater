@@ -63,6 +63,20 @@ npm start
 ```
 Sample REST calls can be found in the [wiki](https://github.com/apigee/apigee-templater/wiki).
 
+Test the MCP server in a sample ADK agent [here](https://apigee-templater-agent-609874082793.europe-west1.run.app).
+
+Sample agent requests:
+
+> *List all proxies in the apigee org apigee-prod13.*
+
+> *Describe the proxy Llama-v1 in the org apigee-prod13.*
+
+> *Import the proxy Llama-v1 to a feature with the name AI-Llama-v1.*
+
+> *Create a new template named AI-Proxy-v1 with the features AI-Llama-v1, AI-Gemini-v1 and Auth-Key-Header-v1 applied.*
+
+> *Export a proxy from the template AI-Proxy-v1 and deploy it to the apigee org apigee-prod13 and environment dev.*
+
 ## Limitations
 Currently these features are not yet supported:
 - Apigee proxy conditional endpoints are not yet supported.

@@ -1015,6 +1015,24 @@ export class ApigeeConverter {
       result += `\nTarget flows: none`;
     }
 
+    if (feature.endpoints && feature.endpoints.length > 0) {
+      result += `\nEndpoints:`;
+      for (let endpoint of feature.endpoints) {
+        result += `\n - ${endpoint.basePath}`;
+      }
+    } else {
+      result += `\nEndpoints: none`;
+    }
+
+    if (feature.targets && feature.targets.length > 0) {
+      result += `\nTargets:`;
+      for (let target of feature.targets) {
+        result += `\n - ${target.name} - ${target.url}`;
+      }
+    } else {
+      result += `\nTargets: none`;
+    }
+
     if (feature.policies && feature.policies.length > 0) {
       result += `\nPolicies:`;
       for (let policy of feature.policies) {
