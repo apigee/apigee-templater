@@ -991,6 +991,15 @@ export class ApigeeConverter {
       result += `\Parameters: none`;
     }
 
+    if (feature.endpoints && feature.endpoints.length > 0) {
+      result += `\nEndpoints:`;
+      for (let endpoint of feature.endpoints) {
+        result += `\n - ${endpoint.basePath}`;
+      }
+    } else {
+      result += `\nEndpoints: none`;
+    }
+
     if (feature.endpointFlows && feature.endpointFlows.length > 0) {
       result += `\nEndpoint flows:`;
       for (let flow of feature.endpointFlows) {
@@ -1000,7 +1009,16 @@ export class ApigeeConverter {
         }
       }
     } else {
-      result += `\nEndpoints flows: none`;
+      result += `\nEndpoint flows: none`;
+    }
+
+    if (feature.targets && feature.targets.length > 0) {
+      result += `\nTargets:`;
+      for (let target of feature.targets) {
+        result += `\n - ${target.name} - ${target.url}`;
+      }
+    } else {
+      result += `\nTargets: none`;
     }
 
     if (feature.targetFlows && feature.targetFlows.length > 0) {
@@ -1013,24 +1031,6 @@ export class ApigeeConverter {
       }
     } else {
       result += `\nTarget flows: none`;
-    }
-
-    if (feature.endpoints && feature.endpoints.length > 0) {
-      result += `\nEndpoints:`;
-      for (let endpoint of feature.endpoints) {
-        result += `\n - ${endpoint.basePath}`;
-      }
-    } else {
-      result += `\nEndpoints: none`;
-    }
-
-    if (feature.targets && feature.targets.length > 0) {
-      result += `\nTargets:`;
-      for (let target of feature.targets) {
-        result += `\n - ${target.name} - ${target.url}`;
-      }
-    } else {
-      result += `\nTargets: none`;
     }
 
     if (feature.policies && feature.policies.length > 0) {
