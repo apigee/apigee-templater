@@ -47,11 +47,11 @@ npm i -g apigee-templater
 apigee-templater -i apigee-prod13:Gemini-v1 -t $(gcloud auth print-access-token)
 
 # export the proxy as a yaml proxy file
-apigee-templater -i apigee-prod13:Gemini-v1 -o proxy-yaml -t $(gcloud auth print-access-token)
+apigee-templater -i apigee-prod13:Gemini-v1 -o Gemini-v1.yaml -t $(gcloud auth print-access-token)
 
 # convert Apigee proxy ZIP to a template in YAML format
 cd test/proxies
-apigee-templater -i SimpleProxy-v1.zip -n SimpleProxy-v1 -o template-yaml
+apigee-templater -i SimpleProxy-v1.zip -o SimpleProxy-v1.yaml -f template
 ```
 ## REST & MCP server
 After cloning this repository you can start the REST & MCP server like this.
