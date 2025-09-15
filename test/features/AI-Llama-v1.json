@@ -1,5 +1,5 @@
 {
-  "name": "Llama-v1",
+  "name": "AI-Llama-v1",
   "type": "feature",
   "description": "Adds an endpoint and target for Llama 4",
   "parameters": [],

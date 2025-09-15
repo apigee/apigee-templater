@@ -1,0 +1,31 @@
+name: AI-API-v1
+type: template
+description: API proxy AI-API-v1
+features:
+  - AI-Gemini-v1
+  - AI-Llama-v1
+  - AI-Mistral-v1
+  - Auth-Key-Header-v1
+endpoints:
+  - name: gemini
+    basePath: /v1/gemini
+    routes:
+      - name: default
+        target: gemini
+  - name: llama
+    basePath: /v1/llama
+    routes:
+      - name: default
+        target: llama
+  - name: mistral
+    basePath: /v1/mistral
+    routes:
+      - name: default
+        target: mistral
+targets:
+  - name: gemini
+    url: https://europe-west1-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west1/endpoints/openapi/chat/completions
+  - name: llama
+    url: https://us-east5-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/us-east5/endpoints/openapi/chat/completions
+  - name: mistral
+    url: https://europe-west4-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west4/publishers/mistralai/models/mistral-large-2411:rawPredict

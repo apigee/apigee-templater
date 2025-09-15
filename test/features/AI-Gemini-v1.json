@@ -1,18 +1,18 @@
 {
-  "name": "Mistral-v1",
+  "name": "AI-Gemini-v1",
   "type": "feature",
-  "description": "Adds an endpoint and target for Mistral Large 2411",
+  "description": "Adds an endpoint and target for Gemini 2.5 Flash",
   "parameters": [],
   "endpointFlows": [],
   "targetFlows": [],
   "endpoints": [
     {
-      "name": "mistral",
-      "basePath": "/v1/mistral",
+      "name": "gemini",
+      "basePath": "/v1/gemini",
       "routes": [
         {
           "name": "default",
-          "target": "mistral"
+          "target": "gemini"
         }
       ],
       "flows": [],
@@ -21,14 +21,14 @@
   ],
   "targets": [
     {
-      "name": "mistral",
-      "url": "https://europe-west4-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west4/publishers/mistralai/models/mistral-large-2411:rawPredict",
+      "name": "gemini",
+      "url": "https://europe-west1-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west1/endpoints/openapi/chat/completions",
       "flows": [],
       "faultRules": [],
       "httpTargetConnection": {
         "Properties": {},
         "URL": {
-          "_text": "https://europe-west4-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west4/publishers/mistralai/models/mistral-large-2411:rawPredict"
+          "_text": "https://europe-west1-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west1/endpoints/openapi/chat/completions"
         },
         "Authentication": {
           "GoogleAccessToken": {

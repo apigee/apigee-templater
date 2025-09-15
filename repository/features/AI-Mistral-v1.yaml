@@ -1,0 +1,30 @@
+name: AI-Mistral-v1
+type: feature
+description: Adds an endpoint and target for Mistral Large 2411
+parameters: []
+endpointFlows: []
+targetFlows: []
+endpoints:
+  - name: mistral
+    basePath: /v1/mistral
+    routes:
+      - name: default
+        target: mistral
+    flows: []
+    faultRules: []
+targets:
+  - name: mistral
+    url: https://europe-west4-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west4/publishers/mistralai/models/mistral-large-2411:rawPredict
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL:
+        _text: https://europe-west4-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west4/publishers/mistralai/models/mistral-large-2411:rawPredict
+      Authentication:
+        GoogleAccessToken:
+          Scopes:
+            Scope:
+              _text: https://www.googleapis.com/auth/cloud-platform
+policies: []
+resources: []

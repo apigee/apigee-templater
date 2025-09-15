@@ -1,0 +1,13 @@
+name: HttpBinAPI-v1
+type: template
+description: A simple proxy to httpbin.
+features: []
+endpoints:
+  - name: default
+    basePath: /v1/httpbin
+    routes:
+      - name: default
+        target: default
+targets:
+  - name: default
+    url: https://httpbin.org

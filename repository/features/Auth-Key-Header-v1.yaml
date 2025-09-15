@@ -1,0 +1,59 @@
+name: Auth-Key-Header-v1
+type: feature
+description: Adds API key authentication using the x-api-key header
+parameters:
+  - name: API_KEY_HEADER_NAME
+    description: The header name to use for the API key
+    examples:
+      - x-api-key
+      - x-apikey
+    default: x-api-key
+endpointFlows:
+  - name: PreFlow
+    mode: Request
+    condition: ""
+    steps:
+      - name: VA-VerifyKey
+      - name: AM-RemoveKey
+targetFlows: []
+endpoints: []
+targets: []
+policies:
+  - name: AM-RemoveKey
+    type: AssignMessage
+    content:
+      AssignMessage:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-RemoveKey
+        DisplayName:
+          _text: AM-RemoveKey
+        Properties: {}
+        Remove:
+          Headers:
+            Header:
+              _attributes:
+                name: API_KEY_HEADER_NAME
+        IgnoreUnresolvedVariables:
+          _text: "true"
+        AssignTo:
+          _attributes:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: VA-VerifyKey
+    type: VerifyAPIKey
+    content:
+      VerifyAPIKey:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: VA-VerifyKey
+        DisplayName:
+          _text: VA-VerifyKey
+        Properties: {}
+        APIKey:
+          _attributes:
+            ref: request.header.API_KEY_HEADER_NAME
+resources: []

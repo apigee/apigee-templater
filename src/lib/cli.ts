@@ -94,7 +94,6 @@ export class cli {
       options.output = options.output.replace(".yml", ".yaml");
 
     if (!options.name) {
-      //let defaultName = "MyAPI";
       if (options.output) {
         if (options.output.includes(":")) {
           let pieces = options.output.split(":");
@@ -167,7 +166,7 @@ export class cli {
           type: "input",
           name: "basePath",
           message: "Which base path be used?",
-          default: "/my-proxy",
+          default: options.name ? "/" + options.name : "/my-proxy",
           transformer: (input: string) => {
             return input.replace(/ /g, "-");
           },
@@ -178,7 +177,7 @@ export class cli {
         questions.push({
           type: "input",
           name: "targetUrl",
-          message: "Which target URL should be used?",
+          message: "Add an optional target?",
           default: "https://httpbin.org",
           transformer: (input: string) => {
             return input.replace(/ /g, "-");
@@ -407,7 +406,6 @@ export class cli {
             this.converter,
           );
         }
-
         if (proxy) {
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(proxy, null, 2));
@@ -451,6 +449,11 @@ export class cli {
           console.log(
             `${chalk.bold(chalk.magentaBright("> Proxy written to " + options.output))}`,
           );
+        } else {
+          console.log(
+            `${chalk.bold(chalk.redBright("> Error, could not create proxy."))}`,
+          );
+          return;
         }
       } else if (options.output && options.format == "template") {
         if (proxy) {
