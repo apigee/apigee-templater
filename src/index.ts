@@ -11,12 +11,12 @@ const rootStorageDir = process.env.STORAGE_DIR
   ? process.env.STORAGE_DIR
   : "./data/";
 const converter = new ApigeeConverter(
-  rootStorageDir + "temp/",
+  "./data/temp/",
   rootStorageDir + "templates/",
   rootStorageDir + "features/",
 );
 const apigeeService = new ApigeeTemplaterService(
-  rootStorageDir + "temp/",
+  "./data/temp/",
   rootStorageDir + "templates/",
   rootStorageDir + "features/",
 );

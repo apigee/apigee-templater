@@ -133,14 +133,16 @@ export class McpService {
           },
         },
         async ({ proxyName }) => {
-          let proxy = await this.apigeeService.templateGet(proxyName);
-          if (proxy) {
-            let proxyText = this.converter.templateToString(proxy);
+          let template = await this.apigeeService.templateGet(proxyName);
+          if (template) {
+            let templateTextArray =
+              this.converter.templateToStringArray(template);
+            let templateText = templateTextArray.join("\n\n");
             return {
               content: [
                 {
                   type: "text",
-                  text: `${proxyText}`,
+                  text: `${JSON.stringify(templateText)}`,
                 },
               ],
             };
@@ -657,8 +659,8 @@ export class McpService {
         async ({ featureName }) => {
           let feature = await this.apigeeService.featureGet(featureName);
           if (feature) {
-            let featureText = this.converter.featureToString(feature);
-            //let featureText = JSON.stringify(feature);
+            let featureTextArray = this.converter.featureToStringArray(feature);
+            let featureText = featureTextArray.join("\n\n");
             return {
               content: [
                 {
@@ -787,10 +789,15 @@ export class McpService {
             );
             if (zipPath) {
               proxy = await this.converter.apigeeZipToProxy(proxyName, zipPath);
-              if (proxy) proxyDescription = this.converter.proxyToString(proxy);
+              if (proxy) {
+                proxyDescription = this.converter
+                  .proxyToStringArray(proxy)
+                  .join("\n\n");
+              }
             }
           }
           if (proxyDescription) {
+            proxyDescription = proxyDescription.replaceAll("\n", "\n\n");
             return {
               content: [
                 {

@@ -939,163 +939,212 @@ export class ApigeeConverter {
     return proxy;
   }
 
-  public templateToString(template: Template): string {
-    let result = "";
-    if (template.name) result = `Name: ${template.name}`;
-    if (template.description) result += `Description: ${template.description}`;
+  public templateToStringArray(template: Template): string[] {
+    let result: string[] = [];
+    if (template.name) result.push(`Name: ${template.name}`);
+    if (template.description)
+      result.push(`Description: ${template.description}`);
 
     if (template.features && template.features.length > 0) {
-      result += `\nFeatures:`;
+      result.push(`Features:`);
       for (let feature of template.features) {
-        result += `\n - ${feature}`;
+        result.push(`- ${feature}`);
       }
     } else {
-      result += `\nFeatures: none`;
+      result.push(`Features: none`);
     }
 
     if (template.endpoints && template.endpoints.length > 0) {
-      result += `\nEndpoints:`;
+      result.push(`Endpoints:`);
       for (let endpoint of template.endpoints) {
-        result += `\n - ${endpoint.basePath}`;
+        result.push(`- ${endpoint.basePath}`);
       }
     } else {
-      result += `\nEndpoints: none`;
+      result.push(`Endpoints: none`);
     }
 
     if (template.targets && template.targets.length > 0) {
-      result += `\nTargets:`;
+      result.push(`Targets:`);
       for (let target of template.targets) {
-        result += `\n - ${target.name} - ${target.url}`;
+        result.push(`- ${target.name} - ${target.url}`);
       }
     } else {
-      result += `\nTargets: none`;
+      result.push(`Targets: none`);
+    }
+
+    return result;
+  }
+
+  public templateToString(template: Template): string {
+    // let result = "";
+    // if (template.name) result = `Name: ${template.name}`;
+    // if (template.description) result += `Description: ${template.description}`;
+
+    // if (template.features && template.features.length > 0) {
+    //   result += `\nFeatures:`;
+    //   for (let feature of template.features) {
+    //     result += `\n - ${feature}`;
+    //   }
+    // } else {
+    //   result += `\nFeatures: none`;
+    // }
+
+    // if (template.endpoints && template.endpoints.length > 0) {
+    //   result += `\nEndpoints:`;
+    //   for (let endpoint of template.endpoints) {
+    //     result += `\n - ${endpoint.basePath}`;
+    //   }
+    // } else {
+    //   result += `\nEndpoints: none`;
+    // }
+
+    // if (template.targets && template.targets.length > 0) {
+    //   result += `\nTargets:`;
+    //   for (let target of template.targets) {
+    //     result += `\n - ${target.name} - ${target.url}`;
+    //   }
+    // } else {
+    //   result += `\nTargets: none`;
+    // }
+    let result = this.templateToStringArray(template);
+    return result.join("\n");
+  }
+
+  public featureToStringArray(feature: Feature): string[] {
+    let result: string[] = [];
+    if (feature.name) result.push(`Name: ${feature.name}`);
+    if (feature.description) result.push(`Description: ${feature.description}`);
+
+    if (feature.parameters && feature.parameters.length > 0) {
+      result.push(`Parameters:`);
+      for (let parameter of feature.parameters) {
+        result.push(`- ${parameter.name} - ${parameter.description}`);
+        if (parameter.default) result.push(`- Default: ${parameter.default}`);
+        if (parameter.examples && parameter.examples.length > 0)
+          result.push(`- Examples: ${parameter.examples.toString()}`);
+      }
+    } else {
+      result.push(`Parameters: none`);
+    }
+
+    if (feature.endpoints && feature.endpoints.length > 0) {
+      result.push(`Endpoints:`);
+      for (let endpoint of feature.endpoints) {
+        result.push(`- ${endpoint.basePath}`);
+      }
+    } else {
+      result.push(`Endpoints: none`);
+    }
+
+    if (feature.endpointFlows && feature.endpointFlows.length > 0) {
+      result.push(`Endpoint flows:`);
+      for (let flow of feature.endpointFlows) {
+        if (flow.condition)
+          result.push(`- ${flow.name} - ${flow.mode} - ${flow.condition}`);
+        else result.push(`- ${flow.name} - ${flow.mode}`);
+        for (let step of flow.steps) {
+          if (step.condition)
+            result.push(`  - ${step.name} - ${step.condition}`);
+          else result.push(`  - ${step.name}`);
+        }
+      }
+    } else {
+      result.push(`Endpoint flows: none`);
+    }
+
+    if (feature.targets && feature.targets.length > 0) {
+      result.push(`Targets:`);
+      for (let target of feature.targets) {
+        result.push(`- ${target.name} - ${target.url}`);
+      }
+    } else {
+      result.push(`Targets: none`);
+    }
+
+    if (feature.targetFlows && feature.targetFlows.length > 0) {
+      result.push(`Target flows:`);
+      for (let flow of feature.targetFlows) {
+        result.push(`- ${flow.name} - ${flow.mode} - ${flow.condition}`);
+        for (let step of flow.steps) {
+          result.push(`- ${step.name} - ${step.condition}`);
+        }
+      }
+    } else {
+      result.push(`Target flows: none`);
+    }
+
+    if (feature.policies && feature.policies.length > 0) {
+      result.push(`Policies:`);
+      for (let policy of feature.policies) {
+        result.push(`- ${policy.name} - ${policy.type}`);
+      }
+    } else {
+      result.push(`Policies: none`);
+    }
+
+    if (feature.resources && feature.resources.length > 0) {
+      result.push(`Resources:`);
+      for (let resource of feature.resources) {
+        result.push(`- ${resource.name} - ${resource.type}`);
+      }
+    } else {
+      result.push(`Resources: none`);
     }
 
     return result;
   }
 
   public featureToString(feature: Feature): string {
-    let result = "";
-    if (feature.name) result = `Name: ${feature.name}`;
-    if (feature.description) result += `\nDescription: ${feature.description}`;
+    let result = this.featureToStringArray(feature);
+    return result.join("\n");
+  }
 
-    if (feature.parameters && feature.parameters.length > 0) {
-      result += `\nParameters:`;
-      for (let parameter of feature.parameters) {
-        result += `\n - ${parameter.name} - ${parameter.description}`;
-        if (parameter.default) result += `\n - Default: ${parameter.default}`;
-        if (parameter.examples && parameter.examples.length > 0)
-          result += `\n - Examples: ${parameter.examples.toString()}`;
+  public proxyToStringArray(proxy: Proxy): string[] {
+    let result: string[] = [];
+    if (proxy.name) result.push(`Name: ${proxy.name}`);
+    if (proxy.description) result.push(`Description: ${proxy.description}`);
+
+    if (proxy.endpoints && proxy.endpoints.length > 0) {
+      result.push(`Endpoints:`);
+      for (let endpoint of proxy.endpoints) {
+        result.push(`- ${endpoint.basePath}`);
       }
     } else {
-      result += `\Parameters: none`;
+      result.push(`Endpoints: none`);
     }
 
-    if (feature.endpoints && feature.endpoints.length > 0) {
-      result += `\nEndpoints:`;
-      for (let endpoint of feature.endpoints) {
-        result += `\n - ${endpoint.basePath}`;
+    if (proxy.targets && proxy.targets.length > 0) {
+      result.push(`Targets:`);
+      for (let target of proxy.targets) {
+        result.push(`- ${target.name} - ${target.url}`);
       }
     } else {
-      result += `\nEndpoints: none`;
+      result.push(`Targets: none`);
     }
 
-    if (feature.endpointFlows && feature.endpointFlows.length > 0) {
-      result += `\nEndpoint flows:`;
-      for (let flow of feature.endpointFlows) {
-        result += `\n - ${flow.name} - ${flow.mode} - ${flow.condition}`;
-        for (let step of flow.steps) {
-          result += `\n  - ${step.name} - ${step.condition}`;
-        }
+    if (proxy.policies && proxy.policies.length > 0) {
+      result.push(`Policies:`);
+      for (let policy of proxy.policies) {
+        result.push(`- ${policy.name} - ${policy.type}`);
       }
     } else {
-      result += `\nEndpoint flows: none`;
+      result.push(`Policies: none`);
     }
 
-    if (feature.targets && feature.targets.length > 0) {
-      result += `\nTargets:`;
-      for (let target of feature.targets) {
-        result += `\n - ${target.name} - ${target.url}`;
+    if (proxy.resources && proxy.resources.length > 0) {
+      result.push(`Resources:`);
+      for (let resource of proxy.resources) {
+        result.push(`- ${resource.name} - ${resource.type}`);
       }
     } else {
-      result += `\nTargets: none`;
-    }
-
-    if (feature.targetFlows && feature.targetFlows.length > 0) {
-      result += `\nTarget flows:`;
-      for (let flow of feature.targetFlows) {
-        result += `\n - ${flow.name} - ${flow.mode} - ${flow.condition}`;
-        for (let step of flow.steps) {
-          result += `\n  - ${step.name} - ${step.condition}`;
-        }
-      }
-    } else {
-      result += `\nTarget flows: none`;
-    }
-
-    if (feature.policies && feature.policies.length > 0) {
-      result += `\nPolicies:`;
-      for (let policy of feature.policies) {
-        result += `\n - ${policy.name} - ${policy.type}`;
-      }
-    } else {
-      result += `\nPolicies: none`;
-    }
-
-    if (feature.resources && feature.resources.length > 0) {
-      result += `\nResources:`;
-      for (let resource of feature.resources) {
-        result += `\n - ${resource.name} - ${resource.type}`;
-      }
-    } else {
-      result += `\nResources: none`;
+      result.push(`Resources: none`);
     }
 
     return result;
   }
 
   public proxyToString(proxy: Proxy): string {
-    let result = "";
-    if (proxy.name) result = `Name: ${proxy.name}`;
-    if (proxy.description) result += `\nDescription: ${proxy.description}`;
-
-    if (proxy.endpoints && proxy.endpoints.length > 0) {
-      result += `\nEndpoints:`;
-      for (let endpoint of proxy.endpoints) {
-        result += `\n - ${endpoint.basePath}`;
-      }
-    } else {
-      result += `\nEndpoints: none`;
-    }
-
-    if (proxy.targets && proxy.targets.length > 0) {
-      result += `\nTargets:`;
-      for (let target of proxy.targets) {
-        result += `\n - ${target.name} - ${target.url}`;
-      }
-    } else {
-      result += `\nTargets: none`;
-    }
-
-    if (proxy.policies && proxy.policies.length > 0) {
-      result += `\nPolicies:`;
-      for (let policy of proxy.policies) {
-        result += `\n - ${policy.name} - ${policy.type}`;
-      }
-    } else {
-      result += `\nPolicies: none`;
-    }
-
-    if (proxy.resources && proxy.resources.length > 0) {
-      result += `\nResources:`;
-      for (let resource of proxy.resources) {
-        result += `\n - ${resource.name} - ${resource.type}`;
-      }
-    } else {
-      result += `\nResources: none`;
-    }
-
-    return result;
+    return this.proxyToStringArray(proxy).join("\n");
   }
 
   public cleanXmlJson(input: any): any {

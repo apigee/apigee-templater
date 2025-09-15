@@ -1,6 +1,7 @@
 import { ApigeeConverter } from "./converter.js";
 import { Template, Proxy, Feature } from "./interfaces.js";
 import fs from "fs";
+import * as YAML from "yaml";
 import { Blob } from "buffer";
 import { Readable } from "node:stream";
 
@@ -8,6 +9,13 @@ export class ApigeeTemplaterService {
   tempPath: string = "./data/temp/";
   templatesPath: string = "./data/templates/";
   featuresPath: string = "./data/features/";
+
+  remoteGetBaseUrl = process.env.TEMPLATER_GET_BASE_URL
+    ? process.env.TEMPLATER_GET_BASE_URL
+    : "https://raw.githubusercontent.com/apigee/apigee-templater/refs/heads/main/repository/";
+  remoteListUrl = process.env.TEMPLATER_LIST_URL
+    ? process.env.TEMPLATER_LIST_URL
+    : "https://api.github.com/repos/apigee/apigee-templater/contents/repository/";
 
   constructor(
     tempPath: string = "",
@@ -19,23 +27,26 @@ export class ApigeeTemplaterService {
     if (featuresPath) this.featuresPath = featuresPath;
   }
 
-  public async templatesList(): Promise<Proxy[]> {
-    return new Promise<Proxy[]>(async (resolve, reject) => {
-      let templates: Proxy[] = [];
+  public async templatesList(): Promise<Template[]> {
+    return new Promise(async (resolve, reject) => {
+      let templates: Template[] = [];
       let templateNames: string[] = fs.readdirSync(this.templatesPath);
 
       for (let templatePath of templateNames) {
         if (templatePath.endsWith(".json")) {
-          let template: Proxy = JSON.parse(
+          let template: Template = JSON.parse(
+            fs.readFileSync(this.templatesPath + templatePath, "utf8"),
+          );
+          templates.push(template);
+        } else if (templatePath.endsWith(".yaml")) {
+          let template: Template = YAML.parse(
             fs.readFileSync(this.templatesPath + templatePath, "utf8"),
           );
           templates.push(template);
         }
       }
 
-      let response = await fetch(
-        "https://api.github.com/repos/apigee/apigee-templater/contents/repository/templates",
-      );
+      let response = await fetch(this.remoteListUrl);
 
       if (response.status == 200) {
         let remoteTemplates: any = await response.json();
@@ -44,12 +55,21 @@ export class ApigeeTemplaterService {
             if (
               template &&
               template["name"] &&
-              template["name"].endsWith(".json")
+              (template["name"].endsWith(".json") ||
+                template["name"].endsWith(".yaml"))
             ) {
               let downloadResponse = await fetch(template["download_url"]);
               if (downloadResponse.status == 200) {
-                let remoteTemplate = (await downloadResponse.json()) as Proxy;
-                templates.push(remoteTemplate);
+                let remoteTemplate: Template;
+                let remoteTemplateText = await downloadResponse.text();
+                if (template["name"].endsWith(".json"))
+                  remoteTemplate = YAML.parse(remoteTemplateText) as Template;
+                else
+                  remoteTemplate = JSON.parse(remoteTemplateText) as Template;
+                let templateExistsIndex = templates.findIndex(
+                  (x) => x.name == remoteTemplate.name,
+                );
+                if (templateExistsIndex == -1) templates.push(remoteTemplate);
               }
             }
           }
@@ -74,9 +94,7 @@ export class ApigeeTemplaterService {
         }
       }
 
-      let response = await fetch(
-        "https://api.github.com/repos/apigee/apigee-templater/contents/repository/features",
-      );
+      let response = await fetch(this.remoteListUrl + "features");
 
       if (response.status == 200) {
         let remoteFeatures: any = await response.json();
@@ -85,12 +103,22 @@ export class ApigeeTemplaterService {
             if (
               feature &&
               feature["name"] &&
-              feature["name"].endsWith(".json")
+              (feature["name"].endsWith(".json") ||
+                feature["name"].endsWith(".yaml"))
             ) {
               let downloadResponse = await fetch(feature["download_url"]);
               if (downloadResponse.status == 200) {
-                let remoteFeature = (await downloadResponse.json()) as Feature;
-                features.push(remoteFeature);
+                let remoteFeature: Feature;
+                if (feature["name"].endsWith(".json"))
+                  remoteFeature = (await downloadResponse.json()) as Feature;
+                else {
+                  let remoteFeatureText = await downloadResponse.text();
+                  remoteFeature = YAML.parse(remoteFeatureText) as Feature;
+                }
+                let featureExistsIndex = features.findIndex(
+                  (x) => x.name == remoteFeature.name,
+                );
+                if (featureExistsIndex == -1) features.push(remoteFeature);
               }
             }
           }
@@ -105,30 +133,38 @@ export class ApigeeTemplaterService {
     return new Promise(async (resolve, reject) => {
       let result: Template | undefined = undefined;
       let tempName = name.replaceAll(" ", "-");
-      let proxyString = "";
-
+      let yamlString = "";
+      let foundJson = false,
+        foundYaml = false;
       if (fs.existsSync(this.templatesPath + tempName + ".json")) {
-        proxyString = fs.readFileSync(
+        yamlString = fs.readFileSync(
           this.templatesPath + tempName + ".json",
           "utf8",
         );
       } else {
         // try to fetch remotely
         let response = await fetch(
-          "https://raw.githubusercontent.com/apigee/apigee-templater/refs/heads/main/repository/templates/" +
-            tempName +
-            ".json",
+          this.remoteGetBaseUrl + "templates/" + tempName + ".json",
         );
+        if (response.status == 200) foundJson = true;
+
+        if (response.status == 404) {
+          response = await fetch(
+            this.remoteGetBaseUrl + "templates/" + tempName + ".yaml",
+          );
+          if (response.status == 200) foundYaml = true;
+        }
 
         if (response.status == 200) {
-          proxyString = await response.text();
+          yamlString = await response.text();
         }
       }
 
-      if (!proxyString) {
+      if (!yamlString) {
         console.log(`Could not load proxy ${name}, not found.`);
       } else {
-        result = JSON.parse(proxyString);
+        if (foundJson) result = JSON.parse(yamlString);
+        else result = YAML.parse(yamlString);
       }
 
       resolve(result);
@@ -146,6 +182,8 @@ export class ApigeeTemplaterService {
     return new Promise(async (resolve, reject) => {
       let result: Feature | undefined = undefined;
       let tempName = name.replaceAll(" ", "-");
+      let foundJson = false,
+        foundYaml = false;
       let featureString = "";
       if (fs.existsSync(this.featuresPath + tempName + ".json")) {
         featureString = fs.readFileSync(
@@ -155,10 +193,16 @@ export class ApigeeTemplaterService {
       } else {
         // try to fetch remotely
         let response = await fetch(
-          "https://raw.githubusercontent.com/apigee/apigee-templater/refs/heads/main/repository/features/" +
-            tempName +
-            ".json",
+          this.remoteGetBaseUrl + "features/" + tempName + ".json",
         );
+        if (response.status == 200) foundJson = true;
+
+        if (response.status == 404) {
+          response = await fetch(
+            this.remoteGetBaseUrl + "features/" + tempName + ".yaml",
+          );
+          if (response.status == 200) foundYaml = true;
+        }
 
         if (response.status == 200) {
           featureString = await response.text();
@@ -168,7 +212,8 @@ export class ApigeeTemplaterService {
       if (!featureString) {
         return result;
       } else {
-        result = JSON.parse(featureString);
+        if (foundJson) result = JSON.parse(featureString);
+        else result = YAML.parse(featureString);
       }
 
       resolve(result);
