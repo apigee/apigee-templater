@@ -303,8 +303,15 @@ export class cli {
         );
         return;
       }
-    } else if (!options.input.includes(".")) {
-      // in this case maybe it's an apigee org name, try to load a list of all proxies
+    } else {
+      // try to load it from remote repositories
+      template = await this.apigeeService.templateGet(options.input);
+      if (!template)
+        feature = await this.apigeeService.featureGet(options.input);
+    }
+
+    if (!template && !proxy && !feature) {
+      // as a last test, maybe the input is an apigee org and we can get a proxy list
       let proxyList = await this.apigeeService.apigeeProxiesList(
         options.input,
         `Bearer ${options.token}`,
@@ -320,15 +327,11 @@ export class cli {
         for (let proxy of proxyList["proxies"]) {
           console.log(` - ${proxy["name"]}`);
         }
-
-        return;
+      } else {
+        console.log(
+          `${chalk.bold(chalk.redBright(`> Input '${options.input}' could not be loaded, maybe incorrect spelling?`))}`,
+        );
       }
-    }
-
-    if (!template && !proxy && !feature) {
-      console.log(
-        `${chalk.bold(chalk.redBright(`> Input '${options.input}' could not be loaded, maybe incorrect spelling?`))}`,
-      );
       return;
     } else {
       if (options.applyFeature) {

@@ -136,28 +136,41 @@ export class ApigeeTemplaterService {
       let templateString = "";
       let foundJson = false,
         foundYaml = false;
-      if (fs.existsSync(this.templatesPath + tempName + ".json")) {
-        templateString = fs.readFileSync(
-          this.templatesPath + tempName + ".json",
-          "utf8",
-        );
-        foundJson = true;
-      } else if (fs.existsSync(this.templatesPath + tempName + ".yaml")) {
-        templateString = fs.readFileSync(
-          this.templatesPath + tempName + ".yaml",
-          "utf8",
-        );
-        foundYaml = true;
-      } else {
+
+      if (!tempName.endsWith(".json") && !tempName.endsWith(".yaml")) {
+        if (fs.existsSync(this.templatesPath + tempName + ".json")) {
+          templateString = fs.readFileSync(
+            this.templatesPath + tempName + ".json",
+            "utf8",
+          );
+          foundJson = true;
+        } else if (fs.existsSync(this.templatesPath + tempName + ".yaml")) {
+          templateString = fs.readFileSync(
+            this.templatesPath + tempName + ".yaml",
+            "utf8",
+          );
+          foundYaml = true;
+        }
+      } else if (fs.existsSync(tempName)) {
+        templateString = fs.readFileSync(tempName, "utf8");
+        if (tempName.endsWith(".json")) foundJson = true;
+        else if (tempName.endsWith(".yaml")) foundYaml = true;
+      }
+
+      if (!foundJson && !foundYaml) {
         // try to fetch remotely
+        let fileName = tempName.endsWith(".json")
+          ? tempName
+          : tempName + ".json";
         let response = await fetch(
-          this.remoteGetBaseUrl + "templates/" + tempName + ".json",
+          this.remoteGetBaseUrl + "templates/" + fileName,
         );
         if (response.status == 200) foundJson = true;
 
         if (response.status == 404) {
+          fileName = tempName.endsWith(".yaml") ? tempName : tempName + ".yaml";
           response = await fetch(
-            this.remoteGetBaseUrl + "templates/" + tempName + ".yaml",
+            this.remoteGetBaseUrl + "templates/" + fileName,
           );
           if (response.status == 200) foundYaml = true;
         }
@@ -167,9 +180,7 @@ export class ApigeeTemplaterService {
         }
       }
 
-      if (!templateString) {
-        console.log(`Could not load proxy ${name}, not found.`);
-      } else {
+      if (templateString) {
         if (foundJson) result = JSON.parse(templateString);
         else result = YAML.parse(templateString);
       }
@@ -210,14 +221,18 @@ export class ApigeeTemplaterService {
         else foundJson = true;
       } else {
         // try to fetch remotely
+        let fileName = tempName.endsWith(".json")
+          ? tempName
+          : tempName + ".json";
         let response = await fetch(
-          this.remoteGetBaseUrl + "features/" + tempName + ".json",
+          this.remoteGetBaseUrl + "features/" + fileName,
         );
         if (response.status == 200) foundJson = true;
 
         if (response.status == 404) {
+          fileName = tempName.endsWith(".yaml") ? tempName : tempName + ".yaml";
           response = await fetch(
-            this.remoteGetBaseUrl + "features/" + tempName + ".yaml",
+            this.remoteGetBaseUrl + "features/" + fileName,
           );
           if (response.status == 200) foundYaml = true;
         }
@@ -227,9 +242,7 @@ export class ApigeeTemplaterService {
         }
       }
 
-      if (!featureString) {
-        return result;
-      } else {
+      if (featureString) {
         if (foundJson) result = JSON.parse(featureString);
         else result = YAML.parse(featureString);
       }
