@@ -1,0 +1,11 @@
+<AssignMessage continueOnError="false" enabled="true" name="AM-RemoveKey">
+  <DisplayName>AM-RemoveKey</DisplayName>
+  <Properties/>
+  <Remove>
+    <Headers>
+      <Header name="x-api-key"/>
+    </Headers>
+  </Remove>
+  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+  <AssignTo createNew="false" transport="http" type="request"/>
+</AssignMessage>

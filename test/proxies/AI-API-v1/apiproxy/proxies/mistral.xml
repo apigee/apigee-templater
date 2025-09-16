@@ -1,0 +1,23 @@
+<ProxyEndpoint name="mistral">
+  <HTTPProxyConnection>
+    <BasePath>/v1/mistral</BasePath>
+  </HTTPProxyConnection>
+  <PreFlow name="PreFlow">
+    <Request>
+      <Step>
+        <Name>VA-VerifyKey</Name>
+      </Step>
+      <Step>
+        <Name>AM-RemoveKey</Name>
+      </Step>
+    </Request>
+    <Response/>
+  </PreFlow>
+  <PostFlow name="PostFlow">
+    <Request/>
+    <Response/>
+  </PostFlow>
+  <RouteRule name="default">
+    <TargetEndpoint>mistral</TargetEndpoint>
+  </RouteRule>
+</ProxyEndpoint>

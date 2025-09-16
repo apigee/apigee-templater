@@ -46,7 +46,7 @@ export class ApigeeTemplaterService {
         }
       }
 
-      let response = await fetch(this.remoteListUrl);
+      let response = await fetch(this.remoteListUrl + "templates");
 
       if (response.status == 200) {
         let remoteTemplates: any = await response.json();

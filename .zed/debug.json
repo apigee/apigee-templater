@@ -19,6 +19,12 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "cwd": "/home/tyayers/projects/apigee/apigee-templater"
+    "cwd": "/home/tyayers/projects/apigee/apigee-templater",
+    "args": [
+      "-i",
+      "./repository/templates/AI-API-v1.yaml",
+      "-o",
+      "AI-Proxy-v1.zip"
+    ]
   }
 ]

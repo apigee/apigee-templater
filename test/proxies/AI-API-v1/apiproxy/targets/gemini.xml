@@ -1,0 +1,21 @@
+<TargetEndpoint name="gemini">
+  <HTTPTargetConnection>
+    <Properties/>
+    <URL>https://europe-west1-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west1/endpoints/openapi/chat/completions</URL>
+    <Authentication>
+      <GoogleAccessToken>
+        <Scopes>
+          <Scope>https://www.googleapis.com/auth/cloud-platform</Scope>
+        </Scopes>
+      </GoogleAccessToken>
+    </Authentication>
+  </HTTPTargetConnection>
+  <PreFlow name="PreFlow">
+    <Request/>
+    <Response/>
+  </PreFlow>
+  <PostFlow name="PostFlow">
+    <Request/>
+    <Response/>
+  </PostFlow>
+</TargetEndpoint>

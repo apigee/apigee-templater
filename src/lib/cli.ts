@@ -382,8 +382,8 @@ export class cli {
       if (options.output && options.output.toLowerCase().endsWith(".zip")) {
         let outputPath: string = "";
         if (template) {
-          proxy = await this.apigeeService.templateToProxy(
-            options.name,
+          proxy = await this.apigeeService.templateObjectToProxy(
+            template,
             this.converter,
           );
         }
@@ -410,7 +410,10 @@ export class cli {
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(proxy, null, 2));
           } else if (options.output.toLowerCase().endsWith(".yaml")) {
-            fs.writeFileSync(options.output, YAML.stringify(proxy, null, 2));
+            fs.writeFileSync(
+              options.output,
+              YAML.stringify(proxy, { aliasDuplicateObjects: false }),
+            );
           } else if (options.output.toLowerCase().includes(":")) {
             let outputPath = await this.converter.proxyToApigeeZip(proxy);
             let pieces = options.output.split(":");
@@ -464,7 +467,10 @@ export class cli {
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(template, null, 2));
           } else if (options.output.toLowerCase().endsWith(".yaml")) {
-            fs.writeFileSync(options.output, YAML.stringify(template, null, 2));
+            fs.writeFileSync(
+              options.output,
+              YAML.stringify(template, { aliasDuplicateObjects: false }),
+            );
           }
 
           console.log(
@@ -480,7 +486,10 @@ export class cli {
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(feature, null, 2));
           } else if (options.output.toLowerCase().endsWith(".yaml")) {
-            fs.writeFileSync(options.output, YAML.stringify(feature, null, 2));
+            fs.writeFileSync(
+              options.output,
+              YAML.stringify(feature, { aliasDuplicateObjects: false }),
+            );
           }
 
           console.log(
