@@ -44,8 +44,8 @@ export class Flow {
 
   constructor(name: string, mode: string = "", condition: string = "") {
     this.name = name;
-    this.mode = mode;
-    this.condition = condition;
+    if (mode) this.mode = mode;
+    if (condition) this.condition = condition;
   }
 }
 

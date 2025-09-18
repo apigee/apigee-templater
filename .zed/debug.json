@@ -20,6 +20,11 @@
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
-    "args": ["-i", "AI-API-v1.json"]
+    "args": [
+      "-i",
+      "./test/proxies/FaultProxy-v1.zip",
+      "-o",
+      "FaultProxy-v1.local.yaml"
+    ]
   }
 ]

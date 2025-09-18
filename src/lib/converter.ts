@@ -111,12 +111,13 @@ export class ApigeeConverter {
               newEndpoint.routes.push(newRoute);
             }
 
+            // flows
             let requestPreFlow = this.flowXmlToJson(
               "PreFlow",
               "Request",
               proxyJson["ProxyEndpoint"],
             );
-            if (requestPreFlow.steps.length > 0)
+            if (requestPreFlow && requestPreFlow.steps.length > 0)
               newEndpoint.flows.push(requestPreFlow);
 
             let responsePreFlow = this.flowXmlToJson(
@@ -124,7 +125,7 @@ export class ApigeeConverter {
               "Response",
               proxyJson["ProxyEndpoint"],
             );
-            if (responsePreFlow.steps.length > 0)
+            if (responsePreFlow && responsePreFlow.steps.length > 0)
               newEndpoint.flows.push(responsePreFlow);
 
             let requestPostFlow = this.flowXmlToJson(
@@ -132,7 +133,7 @@ export class ApigeeConverter {
               "Request",
               proxyJson["ProxyEndpoint"],
             );
-            if (requestPostFlow.steps.length > 0)
+            if (requestPostFlow && requestPostFlow.steps.length > 0)
               newEndpoint.flows.push(requestPostFlow);
 
             let responsePostFlow = this.flowXmlToJson(
@@ -140,9 +141,76 @@ export class ApigeeConverter {
               "Response",
               proxyJson["ProxyEndpoint"],
             );
-            if (responsePostFlow.steps.length > 0)
+            if (responsePostFlow && responsePostFlow.steps.length > 0)
               newEndpoint.flows.push(responsePostFlow);
 
+            // default fault rule
+            if (proxyJson["ProxyEndpoint"]["DefaultFaultRule"]) {
+              let defaultFaultRule = this.flowXmlNodeToJson(
+                proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["_attributes"][
+                  "name"
+                ],
+                "",
+                proxyJson["ProxyEndpoint"]["DefaultFaultRule"],
+              );
+              if (proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["Condition"])
+                defaultFaultRule.condition =
+                  proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["Condition"][
+                    "_text"
+                  ];
+
+              if (defaultFaultRule && defaultFaultRule.steps.length > 0)
+                newEndpoint.defaultFaultRule = defaultFaultRule;
+            }
+
+            // fault rules
+            if (
+              proxyJson["ProxyEndpoint"]["FaultRules"] &&
+              proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"] &&
+              proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"].length
+            ) {
+              for (let faultXml of proxyJson["ProxyEndpoint"]["FaultRules"]) {
+                let faultRule = this.flowXmlNodeToJson(
+                  faultXml["_attributes"]["name"],
+                  "",
+                  faultXml,
+                );
+                if (faultXml["Condition"])
+                  faultRule.condition = faultXml["Condition"]["_text"];
+                if (faultRule && newEndpoint.faultRules) {
+                  newEndpoint.faultRules.push(faultRule);
+                } else if (faultRule) {
+                  newEndpoint.faultRules = [faultRule];
+                }
+              }
+            } else if (
+              proxyJson["ProxyEndpoint"]["FaultRules"] &&
+              proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"]
+            ) {
+              let faultRule = this.flowXmlNodeToJson(
+                proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"][
+                  "_attributes"
+                ]["name"],
+                "",
+                proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"],
+              );
+              if (
+                proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"][
+                  "Condition"
+                ]
+              )
+                faultRule.condition =
+                  proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"][
+                    "Condition"
+                  ]["_text"];
+              if (faultRule && newEndpoint.faultRules) {
+                newEndpoint.faultRules.push(faultRule);
+              } else if (faultRule) {
+                newEndpoint.faultRules = [faultRule];
+              }
+            }
+
+            // push endpoint
             newProxy.endpoints.push(newEndpoint);
 
             // policies
@@ -215,35 +283,36 @@ export class ApigeeConverter {
                 "Request",
                 targetJson["TargetEndpoint"],
               );
-              if (requestPreFlow.steps.length > 0)
+              if (requestPreFlow && requestPreFlow.steps.length > 0)
                 newTarget.flows.push(requestPreFlow);
               let responsePreFlow = this.flowXmlToJson(
                 "PreFlow",
                 "Response",
                 targetJson["TargetEndpoint"],
               );
-              if (responsePreFlow.steps.length > 0)
+              if (responsePreFlow && responsePreFlow.steps.length > 0)
                 newTarget.flows.push(responsePreFlow);
               let requestPostFlow = this.flowXmlToJson(
                 "PostFlow",
                 "Request",
                 targetJson["TargetEndpoint"],
               );
-              if (requestPostFlow.steps.length > 0)
+              if (requestPostFlow && requestPostFlow.steps.length > 0)
                 newTarget.flows.push(requestPostFlow);
               let responsePostFlow = this.flowXmlToJson(
                 "PostFlow",
                 "Response",
                 targetJson["TargetEndpoint"],
               );
-              if (responsePostFlow.steps.length > 0)
+              if (responsePostFlow && responsePostFlow.steps.length > 0)
                 newTarget.flows.push(responsePostFlow);
               let eventFlow = this.flowXmlToJson(
                 "EventFlow",
                 "Response",
                 targetJson["TargetEndpoint"],
               );
-              if (eventFlow.steps.length > 0) newTarget.flows.push(eventFlow);
+              if (eventFlow && eventFlow.steps.length > 0)
+                newTarget.flows.push(eventFlow);
               newProxy.targets.push(newTarget);
             }
 
@@ -501,16 +570,22 @@ export class ApigeeConverter {
     });
   }
 
-  public flowXmlToJson(type: string, mode: string, sourceDoc: any): Flow {
-    let resultFlow: Flow = new Flow(type, mode);
-    if (
-      sourceDoc &&
-      sourceDoc[type] &&
-      sourceDoc[type][mode] &&
-      sourceDoc[type][mode]["Step"] &&
-      sourceDoc[type][mode]["Step"].length > 0
-    ) {
-      for (let step of sourceDoc[type][mode]["Step"]) {
+  public flowXmlToJson(
+    type: string,
+    mode: string,
+    sourceDoc: any,
+  ): Flow | undefined {
+    let resultFlow: Flow | undefined = undefined;
+    if (sourceDoc && sourceDoc[type] && sourceDoc[type][mode])
+      resultFlow = this.flowXmlNodeToJson(type, mode, sourceDoc[type][mode]);
+
+    return resultFlow;
+  }
+
+  public flowXmlNodeToJson(name: string, mode: string, sourceDoc: any): Flow {
+    let resultFlow: Flow = new Flow(name, mode);
+    if (sourceDoc && sourceDoc["Step"] && sourceDoc["Step"].length > 0) {
+      for (let step of sourceDoc["Step"]) {
         let newStep = new Step();
         newStep.name = step["Name"]["_text"];
         if (step["Condition"]) {
@@ -519,16 +594,11 @@ export class ApigeeConverter {
 
         resultFlow.steps.push(newStep);
       }
-    } else if (
-      sourceDoc &&
-      sourceDoc[type] &&
-      sourceDoc[type][mode] &&
-      sourceDoc[type][mode]["Step"]
-    ) {
+    } else if (sourceDoc && sourceDoc["Step"]) {
       let newStep = new Step();
-      newStep.name = sourceDoc[type][mode]["Step"]["Name"]["_text"];
-      if (sourceDoc[type][mode]["Step"]["Condition"]) {
-        newStep.condition = sourceDoc[type][mode]["Step"]["Condition"]["_text"];
+      newStep.name = sourceDoc["Step"]["Name"]["_text"];
+      if (sourceDoc["Step"]["Condition"]) {
+        newStep.condition = sourceDoc["Step"]["Condition"]["_text"];
       }
       resultFlow.steps.push(newStep);
     }

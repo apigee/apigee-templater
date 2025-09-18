@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<APIProxy revision="2" name="TestProxy-v1">
+  <DisplayName/>
+  <Description/>
+  <CreatedAt>1758114022550</CreatedAt>
+  <LastModifiedAt>1758114022550</LastModifiedAt>
+  <BasePaths>/v1/test-proxy</BasePaths>
+  <Policies>
+    <Policy>AM-SetInvalidKey</Policy>
+    <Policy>AM-SetDefaultError</Policy>
+    <Policy>VA-VerifyKey</Policy>
+  </Policies>
+  <ProxyEndpoints>
+    <ProxyEndpoint>default</ProxyEndpoint>
+  </ProxyEndpoints>
+  <TargetEndpoints>
+    <TargetEndpoint>default</TargetEndpoint>
+  </TargetEndpoints>
+</APIProxy>
