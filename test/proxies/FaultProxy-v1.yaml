@@ -1,0 +1,92 @@
+name: FaultProxy-v1
+type: proxy
+description: ""
+endpoints:
+  - name: default
+    basePath: /v1/test-proxy
+    routes:
+      - name: default
+        target: default
+      - name: get
+        condition: (proxy.pathsuffix MatchesPath "/get") and (request.verb = "GET")
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: VA-VerifyKey
+    faultRules:
+      - name: invalid_key_rule
+        condition: (fault.name = "FailedToResolveAPIKey")
+        steps:
+          - name: AM-SetInvalidKey
+    defaultFaultRule:
+      name: default-fault
+      steps:
+        - name: AM-SetDefaultError
+targets:
+  - name: default
+    url: https://httpbin.org
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL:
+        _text: https://httpbin.org
+policies:
+  - name: AM-SetDefaultError
+    type: AssignMessage
+    content:
+      AssignMessage:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetDefaultError
+        DisplayName:
+          _text: AM-SetDefaultError
+        Properties: {}
+        Set:
+          Payload:
+            _text: "\n      Invalid input!\n    "
+        IgnoreUnresolvedVariables:
+          _text: "true"
+        AssignTo:
+          _attributes:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: AM-SetInvalidKey
+    type: AssignMessage
+    content:
+      AssignMessage:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetInvalidKey
+        DisplayName:
+          _text: AM-SetInvalidKey
+        Properties: {}
+        Set:
+          Payload:
+            _text: "\n      Invalid key!\n    "
+        IgnoreUnresolvedVariables:
+          _text: "true"
+        AssignTo:
+          _attributes:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: VA-VerifyKey
+    type: VerifyAPIKey
+    content:
+      VerifyAPIKey:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: VA-VerifyKey
+        DisplayName:
+          _text: VA-VerifyKey
+        Properties: {}
+        APIKey:
+          _attributes:
+            ref: request.queryparam.apikey
+resources: []

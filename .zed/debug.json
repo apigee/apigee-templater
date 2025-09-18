@@ -22,9 +22,9 @@
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
     "args": [
       "-i",
-      "./test/proxies/FaultProxy-v1.zip",
+      "./test/proxies/SimpleProxy-v1",
       "-o",
-      "FaultProxy-v1.local.yaml"
+      "./test/proxies/SimpleProxy-v1.yaml"
     ]
   }
 ]

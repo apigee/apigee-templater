@@ -382,7 +382,11 @@ export class cli {
         return;
       }
 
-      if (options.output && options.output.toLowerCase().endsWith(".zip")) {
+      if (
+        options.output &&
+        (options.output.toLowerCase().endsWith(".zip") ||
+          options.output.toLowerCase().endsWith(".dir"))
+      ) {
         let outputPath: string = "";
         if (template) {
           proxy = await this.apigeeService.templateObjectToProxy(
@@ -390,13 +394,30 @@ export class cli {
             this.converter,
           );
         }
-
-        if (proxy) outputPath = await this.converter.proxyToApigeeZip(proxy);
-        if (proxy && outputPath)
+        let removeDir = options.output.toLowerCase().endsWith(".dir")
+          ? false
+          : true;
+        if (proxy)
+          outputPath = await this.converter.proxyToApigeeZip(proxy, removeDir);
+        if (proxy && outputPath) {
           console.log(
             `${chalk.bold(chalk.magentaBright("> Proxy written to " + outputPath))}`,
           );
-        else {
+
+          if (options.output.toLowerCase().endsWith(".dir")) {
+            // remove zip
+            fs.rmSync(outputPath);
+            fs.cpSync(
+              outputPath.replace(".zip", ""),
+              options.output.replace(".dir", ""),
+              { recursive: true },
+            );
+            fs.rmdirSync(outputPath.replace(".zip", ""), { recursive: true });
+          } else {
+            fs.copyFileSync(outputPath, options.output);
+            fs.rmSync(outputPath);
+          }
+        } else {
           console.log(
             `${chalk.bold(chalk.redBright("> Error, could not write proxy zip."))}`,
           );
@@ -508,8 +529,7 @@ export class cli {
       let input: any | undefined = undefined;
 
       if (inputPath.toLowerCase().endsWith(".zip")) {
-        let proxy = await this.converter.apigeeZipToProxy(name, inputPath);
-        resolve(proxy);
+        input = await this.converter.apigeeZipToProxy(name, inputPath);
       } else if (
         inputPath.toLowerCase().endsWith(".yaml") ||
         inputPath.toLowerCase().endsWith(".yml")
@@ -522,6 +542,9 @@ export class cli {
       ) {
         let inputString = fs.readFileSync(inputPath, "utf8");
         if (inputString) input = JSON.parse(inputString);
+      } else {
+        // try to load extracted proxy zip dir
+        input = this.converter.apigeeFolderToProxy(name, inputPath);
       }
 
       if (input) {

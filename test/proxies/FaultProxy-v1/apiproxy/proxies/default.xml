@@ -8,12 +8,6 @@
       </Step>
       <Condition>(fault.name = "FailedToResolveAPIKey")</Condition>
     </FaultRule>
-    <FaultRule name="invalid_token_rule">
-      <Step>
-        <Name>AM-SetInvalidKey</Name>
-      </Step>
-      <Condition>(fault.name = "FailedToResolveToken")</Condition>
-    </FaultRule>
   </FaultRules>
   <DefaultFaultRule name="default-fault">
     <Step>

@@ -62,288 +62,7 @@ export class ApigeeConverter {
         });
         zipfile.on("close", () => {
           // proxies
-          let proxies: string[] = fs.readdirSync(
-            tempOutputDir + "/apiproxy/proxies",
-          );
-          let newProxy = new Proxy();
-          newProxy.name = name;
-          for (let proxy of proxies) {
-            let newEndpoint = new ProxyEndpoint();
-            let proxyPath = path.join(tempOutputDir, "apiproxy/proxies", proxy);
-            let proxyContents = fs.readFileSync(proxyPath, "utf8");
-
-            let proxyJsonString = xmljs.xml2json(proxyContents, {
-              compact: true,
-              spaces: 2,
-            });
-            let proxyJson = JSON.parse(proxyJsonString);
-
-            newEndpoint.name =
-              proxyJson["ProxyEndpoint"]["_attributes"]["name"];
-            newEndpoint.basePath =
-              proxyJson["ProxyEndpoint"]["HTTPProxyConnection"]["BasePath"][
-                "_text"
-              ];
-
-            // routes
-            if (proxyJson["ProxyEndpoint"]["RouteRule"].length > 0) {
-              for (let routeRule of proxyJson["ProxyEndpoint"]["RouteRule"]) {
-                let newRoute = new Route();
-                newRoute.name = routeRule["_attributes"]["name"];
-                if (routeRule["TargetEndpoint"])
-                  newRoute.target = routeRule["TargetEndpoint"]["_text"];
-                if (routeRule["Condition"])
-                  newRoute.condition = routeRule["Condition"]["_text"];
-                newEndpoint.routes.push(newRoute);
-              }
-            } else {
-              let newRoute = new Route();
-              newRoute.name =
-                proxyJson["ProxyEndpoint"]["RouteRule"]["_attributes"]["name"];
-              if (proxyJson["ProxyEndpoint"]["RouteRule"]["TargetEndpoint"])
-                newRoute.target =
-                  proxyJson["ProxyEndpoint"]["RouteRule"]["TargetEndpoint"][
-                    "_text"
-                  ];
-              if (proxyJson["ProxyEndpoint"]["RouteRule"]["Condition"])
-                newRoute.condition =
-                  proxyJson["ProxyEndpoint"]["RouteRule"]["Condition"]["_text"];
-              newEndpoint.routes.push(newRoute);
-            }
-
-            // flows
-            let requestPreFlow = this.flowXmlToJson(
-              "PreFlow",
-              "Request",
-              proxyJson["ProxyEndpoint"],
-            );
-            if (requestPreFlow && requestPreFlow.steps.length > 0)
-              newEndpoint.flows.push(requestPreFlow);
-
-            let responsePreFlow = this.flowXmlToJson(
-              "PreFlow",
-              "Response",
-              proxyJson["ProxyEndpoint"],
-            );
-            if (responsePreFlow && responsePreFlow.steps.length > 0)
-              newEndpoint.flows.push(responsePreFlow);
-
-            let requestPostFlow = this.flowXmlToJson(
-              "PostFlow",
-              "Request",
-              proxyJson["ProxyEndpoint"],
-            );
-            if (requestPostFlow && requestPostFlow.steps.length > 0)
-              newEndpoint.flows.push(requestPostFlow);
-
-            let responsePostFlow = this.flowXmlToJson(
-              "PostFlow",
-              "Response",
-              proxyJson["ProxyEndpoint"],
-            );
-            if (responsePostFlow && responsePostFlow.steps.length > 0)
-              newEndpoint.flows.push(responsePostFlow);
-
-            // default fault rule
-            if (proxyJson["ProxyEndpoint"]["DefaultFaultRule"]) {
-              let defaultFaultRule = this.flowXmlNodeToJson(
-                proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["_attributes"][
-                  "name"
-                ],
-                "",
-                proxyJson["ProxyEndpoint"]["DefaultFaultRule"],
-              );
-              if (proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["Condition"])
-                defaultFaultRule.condition =
-                  proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["Condition"][
-                    "_text"
-                  ];
-
-              if (defaultFaultRule && defaultFaultRule.steps.length > 0)
-                newEndpoint.defaultFaultRule = defaultFaultRule;
-            }
-
-            // fault rules
-            if (
-              proxyJson["ProxyEndpoint"]["FaultRules"] &&
-              proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"] &&
-              proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"].length
-            ) {
-              for (let faultXml of proxyJson["ProxyEndpoint"]["FaultRules"]) {
-                let faultRule = this.flowXmlNodeToJson(
-                  faultXml["_attributes"]["name"],
-                  "",
-                  faultXml,
-                );
-                if (faultXml["Condition"])
-                  faultRule.condition = faultXml["Condition"]["_text"];
-                if (faultRule && newEndpoint.faultRules) {
-                  newEndpoint.faultRules.push(faultRule);
-                } else if (faultRule) {
-                  newEndpoint.faultRules = [faultRule];
-                }
-              }
-            } else if (
-              proxyJson["ProxyEndpoint"]["FaultRules"] &&
-              proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"]
-            ) {
-              let faultRule = this.flowXmlNodeToJson(
-                proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"][
-                  "_attributes"
-                ]["name"],
-                "",
-                proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"],
-              );
-              if (
-                proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"][
-                  "Condition"
-                ]
-              )
-                faultRule.condition =
-                  proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"][
-                    "Condition"
-                  ]["_text"];
-              if (faultRule && newEndpoint.faultRules) {
-                newEndpoint.faultRules.push(faultRule);
-              } else if (faultRule) {
-                newEndpoint.faultRules = [faultRule];
-              }
-            }
-
-            // push endpoint
-            newProxy.endpoints.push(newEndpoint);
-
-            // policies
-            let policies: string[] = [];
-            if (fs.existsSync(tempOutputDir + "/apiproxy/policies"))
-              policies = fs.readdirSync(tempOutputDir + "/apiproxy/policies");
-            for (let policy of policies) {
-              let policyContents = fs.readFileSync(
-                tempOutputDir + "/apiproxy/policies/" + policy,
-                "utf8",
-              );
-              let policyJsonString = xmljs.xml2json(policyContents, {
-                compact: true,
-                spaces: 2,
-              });
-              let policyJson = JSON.parse(policyJsonString);
-              let newPolicy = new Policy();
-              newPolicy.type = Object.keys(policyJson)[1] ?? "";
-              newPolicy.name =
-                policyJson[newPolicy.type]["_attributes"]["name"];
-              if (policyJson["_declaration"]) delete policyJson["_declaration"];
-              // policyJson = this.cleanXmlJson(policyJson);
-              newPolicy.content = policyJson;
-              newProxy.policies.push(newPolicy);
-            }
-
-            // targets
-            let targets: string[] = [];
-            if (fs.existsSync(tempOutputDir + "/apiproxy/targets"))
-              targets = fs.readdirSync(tempOutputDir + "/apiproxy/targets");
-            for (let target of targets) {
-              let newTarget = new ProxyTarget();
-              let targetContent = fs.readFileSync(
-                tempOutputDir + "/apiproxy/targets/" + target,
-                "utf8",
-              );
-
-              let targetJsonString = xmljs.xml2json(targetContent, {
-                compact: true,
-                spaces: 2,
-              });
-              let targetJson = JSON.parse(targetJsonString);
-              // console.log(targetJsonString);
-              newTarget.name =
-                targetJson["TargetEndpoint"]["_attributes"]["name"];
-              if (
-                targetJson["TargetEndpoint"]["HTTPTargetConnection"] &&
-                targetJson["TargetEndpoint"]["HTTPTargetConnection"]["URL"]
-              )
-                newTarget.url =
-                  targetJson["TargetEndpoint"]["HTTPTargetConnection"]["URL"][
-                    "_text"
-                  ];
-              if (targetJson["TargetEndpoint"]["HTTPTargetConnection"]) {
-                let targetXml =
-                  targetJson["TargetEndpoint"]["HTTPTargetConnection"];
-                // targetXml = this.cleanXmlJson(targetXml);
-                newTarget.httpTargetConnection = targetXml;
-              } else if (
-                targetJson["TargetEndpoint"]["LocalTargetConnection"]
-              ) {
-                let targetXml =
-                  targetJson["TargetEndpoint"]["LocalTargetConnection"];
-                // targetXml = this.cleanXmlJson(targetXml);
-                newTarget.localTargetConnection = targetXml;
-              }
-
-              let requestPreFlow = this.flowXmlToJson(
-                "PreFlow",
-                "Request",
-                targetJson["TargetEndpoint"],
-              );
-              if (requestPreFlow && requestPreFlow.steps.length > 0)
-                newTarget.flows.push(requestPreFlow);
-              let responsePreFlow = this.flowXmlToJson(
-                "PreFlow",
-                "Response",
-                targetJson["TargetEndpoint"],
-              );
-              if (responsePreFlow && responsePreFlow.steps.length > 0)
-                newTarget.flows.push(responsePreFlow);
-              let requestPostFlow = this.flowXmlToJson(
-                "PostFlow",
-                "Request",
-                targetJson["TargetEndpoint"],
-              );
-              if (requestPostFlow && requestPostFlow.steps.length > 0)
-                newTarget.flows.push(requestPostFlow);
-              let responsePostFlow = this.flowXmlToJson(
-                "PostFlow",
-                "Response",
-                targetJson["TargetEndpoint"],
-              );
-              if (responsePostFlow && responsePostFlow.steps.length > 0)
-                newTarget.flows.push(responsePostFlow);
-              let eventFlow = this.flowXmlToJson(
-                "EventFlow",
-                "Response",
-                targetJson["TargetEndpoint"],
-              );
-              if (eventFlow && eventFlow.steps.length > 0)
-                newTarget.flows.push(eventFlow);
-              newProxy.targets.push(newTarget);
-            }
-
-            // resources
-            if (fs.existsSync(tempOutputDir + "/apiproxy/resources")) {
-              let resTypes: string[] = fs.readdirSync(
-                tempOutputDir + "/apiproxy/resources",
-              );
-              for (let resType of resTypes) {
-                let resFiles: string[] = fs.readdirSync(
-                  tempOutputDir + "/apiproxy/resources/" + resType,
-                );
-
-                for (let resFile of resFiles) {
-                  let newFile = new Resource();
-                  newFile.name = resFile;
-                  newFile.type = resType;
-                  newFile.content = fs.readFileSync(
-                    tempOutputDir +
-                      "/apiproxy/resources/" +
-                      resType +
-                      "/" +
-                      resFile,
-                    "utf8",
-                  );
-                  newProxy.resources.push(newFile);
-                }
-              }
-            }
-          }
-
+          let newProxy: Proxy = this.apigeeFolderToProxy(name, tempOutputDir);
           fs.rmSync(tempOutputDir, { recursive: true });
           resolve(newProxy);
         });
@@ -351,7 +70,273 @@ export class ApigeeConverter {
     });
   }
 
-  public async proxyToApigeeZip(input: Proxy): Promise<string> {
+  public apigeeFolderToProxy(name: string, inputPath: string): Proxy {
+    let proxies: string[] = fs.readdirSync(inputPath + "/apiproxy/proxies");
+    let newProxy = new Proxy();
+    newProxy.name = name;
+    for (let proxy of proxies) {
+      let newEndpoint = new ProxyEndpoint();
+      let proxyPath = path.join(inputPath, "apiproxy/proxies", proxy);
+      let proxyContents = fs.readFileSync(proxyPath, "utf8");
+
+      let proxyJsonString = xmljs.xml2json(proxyContents, {
+        compact: true,
+        spaces: 2,
+      });
+      let proxyJson = JSON.parse(proxyJsonString);
+
+      newEndpoint.name = proxyJson["ProxyEndpoint"]["_attributes"]["name"];
+      newEndpoint.basePath =
+        proxyJson["ProxyEndpoint"]["HTTPProxyConnection"]["BasePath"]["_text"];
+
+      // routes
+      if (proxyJson["ProxyEndpoint"]["RouteRule"].length > 0) {
+        for (let routeRule of proxyJson["ProxyEndpoint"]["RouteRule"]) {
+          let newRoute = new Route();
+          newRoute.name = routeRule["_attributes"]["name"];
+          if (routeRule["TargetEndpoint"])
+            newRoute.target = routeRule["TargetEndpoint"]["_text"];
+          if (routeRule["Condition"])
+            newRoute.condition = routeRule["Condition"]["_text"];
+          newEndpoint.routes.push(newRoute);
+        }
+      } else {
+        let newRoute = new Route();
+        newRoute.name =
+          proxyJson["ProxyEndpoint"]["RouteRule"]["_attributes"]["name"];
+        if (proxyJson["ProxyEndpoint"]["RouteRule"]["TargetEndpoint"])
+          newRoute.target =
+            proxyJson["ProxyEndpoint"]["RouteRule"]["TargetEndpoint"]["_text"];
+        if (proxyJson["ProxyEndpoint"]["RouteRule"]["Condition"])
+          newRoute.condition =
+            proxyJson["ProxyEndpoint"]["RouteRule"]["Condition"]["_text"];
+        newEndpoint.routes.push(newRoute);
+      }
+
+      // flows
+      let requestPreFlow = this.flowXmlToJson(
+        "PreFlow",
+        "Request",
+        proxyJson["ProxyEndpoint"],
+      );
+      if (requestPreFlow && requestPreFlow.steps.length > 0)
+        newEndpoint.flows.push(requestPreFlow);
+
+      let responsePreFlow = this.flowXmlToJson(
+        "PreFlow",
+        "Response",
+        proxyJson["ProxyEndpoint"],
+      );
+      if (responsePreFlow && responsePreFlow.steps.length > 0)
+        newEndpoint.flows.push(responsePreFlow);
+
+      let requestPostFlow = this.flowXmlToJson(
+        "PostFlow",
+        "Request",
+        proxyJson["ProxyEndpoint"],
+      );
+      if (requestPostFlow && requestPostFlow.steps.length > 0)
+        newEndpoint.flows.push(requestPostFlow);
+
+      let responsePostFlow = this.flowXmlToJson(
+        "PostFlow",
+        "Response",
+        proxyJson["ProxyEndpoint"],
+      );
+      if (responsePostFlow && responsePostFlow.steps.length > 0)
+        newEndpoint.flows.push(responsePostFlow);
+
+      // default fault rule
+      if (proxyJson["ProxyEndpoint"]["DefaultFaultRule"]) {
+        let defaultFaultRule = this.flowXmlNodeToJson(
+          proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["_attributes"]["name"],
+          "",
+          proxyJson["ProxyEndpoint"]["DefaultFaultRule"],
+        );
+        if (proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["Condition"])
+          defaultFaultRule.condition =
+            proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["Condition"][
+              "_text"
+            ];
+
+        if (defaultFaultRule && defaultFaultRule.steps.length > 0)
+          newEndpoint.defaultFaultRule = defaultFaultRule;
+      }
+
+      // fault rules
+      if (
+        proxyJson["ProxyEndpoint"]["FaultRules"] &&
+        proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"] &&
+        proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"].length
+      ) {
+        for (let faultXml of proxyJson["ProxyEndpoint"]["FaultRules"]) {
+          let faultRule = this.flowXmlNodeToJson(
+            faultXml["_attributes"]["name"],
+            "",
+            faultXml,
+          );
+          if (faultXml["Condition"])
+            faultRule.condition = faultXml["Condition"]["_text"];
+          if (faultRule && newEndpoint.faultRules) {
+            newEndpoint.faultRules.push(faultRule);
+          } else if (faultRule) {
+            newEndpoint.faultRules = [faultRule];
+          }
+        }
+      } else if (
+        proxyJson["ProxyEndpoint"]["FaultRules"] &&
+        proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"]
+      ) {
+        let faultRule = this.flowXmlNodeToJson(
+          proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"]["_attributes"][
+            "name"
+          ],
+          "",
+          proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"],
+        );
+        if (proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"]["Condition"])
+          faultRule.condition =
+            proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"]["Condition"][
+              "_text"
+            ];
+        if (faultRule && newEndpoint.faultRules) {
+          newEndpoint.faultRules.push(faultRule);
+        } else if (faultRule) {
+          newEndpoint.faultRules = [faultRule];
+        }
+      }
+
+      // push endpoint
+      newProxy.endpoints.push(newEndpoint);
+
+      // policies
+      let policies: string[] = [];
+      if (fs.existsSync(inputPath + "/apiproxy/policies"))
+        policies = fs.readdirSync(inputPath + "/apiproxy/policies");
+      for (let policy of policies) {
+        let policyContents = fs.readFileSync(
+          inputPath + "/apiproxy/policies/" + policy,
+          "utf8",
+        );
+        let policyJsonString = xmljs.xml2json(policyContents, {
+          compact: true,
+          spaces: 2,
+        });
+        let policyJson = JSON.parse(policyJsonString);
+        let newPolicy = new Policy();
+        newPolicy.type = Object.keys(policyJson)[1] ?? "";
+        newPolicy.name = policyJson[newPolicy.type]["_attributes"]["name"];
+        if (policyJson["_declaration"]) delete policyJson["_declaration"];
+        // policyJson = this.cleanXmlJson(policyJson);
+        newPolicy.content = policyJson;
+        newProxy.policies.push(newPolicy);
+      }
+
+      // targets
+      let targets: string[] = [];
+      if (fs.existsSync(inputPath + "/apiproxy/targets"))
+        targets = fs.readdirSync(inputPath + "/apiproxy/targets");
+      for (let target of targets) {
+        let newTarget = new ProxyTarget();
+        let targetContent = fs.readFileSync(
+          inputPath + "/apiproxy/targets/" + target,
+          "utf8",
+        );
+
+        let targetJsonString = xmljs.xml2json(targetContent, {
+          compact: true,
+          spaces: 2,
+        });
+        let targetJson = JSON.parse(targetJsonString);
+        // console.log(targetJsonString);
+        newTarget.name = targetJson["TargetEndpoint"]["_attributes"]["name"];
+        if (
+          targetJson["TargetEndpoint"]["HTTPTargetConnection"] &&
+          targetJson["TargetEndpoint"]["HTTPTargetConnection"]["URL"]
+        )
+          newTarget.url =
+            targetJson["TargetEndpoint"]["HTTPTargetConnection"]["URL"][
+              "_text"
+            ];
+        if (targetJson["TargetEndpoint"]["HTTPTargetConnection"]) {
+          let targetXml = targetJson["TargetEndpoint"]["HTTPTargetConnection"];
+          // targetXml = this.cleanXmlJson(targetXml);
+          newTarget.httpTargetConnection = targetXml;
+        } else if (targetJson["TargetEndpoint"]["LocalTargetConnection"]) {
+          let targetXml = targetJson["TargetEndpoint"]["LocalTargetConnection"];
+          // targetXml = this.cleanXmlJson(targetXml);
+          newTarget.localTargetConnection = targetXml;
+        }
+
+        let requestPreFlow = this.flowXmlToJson(
+          "PreFlow",
+          "Request",
+          targetJson["TargetEndpoint"],
+        );
+        if (requestPreFlow && requestPreFlow.steps.length > 0)
+          newTarget.flows.push(requestPreFlow);
+        let responsePreFlow = this.flowXmlToJson(
+          "PreFlow",
+          "Response",
+          targetJson["TargetEndpoint"],
+        );
+        if (responsePreFlow && responsePreFlow.steps.length > 0)
+          newTarget.flows.push(responsePreFlow);
+        let requestPostFlow = this.flowXmlToJson(
+          "PostFlow",
+          "Request",
+          targetJson["TargetEndpoint"],
+        );
+        if (requestPostFlow && requestPostFlow.steps.length > 0)
+          newTarget.flows.push(requestPostFlow);
+        let responsePostFlow = this.flowXmlToJson(
+          "PostFlow",
+          "Response",
+          targetJson["TargetEndpoint"],
+        );
+        if (responsePostFlow && responsePostFlow.steps.length > 0)
+          newTarget.flows.push(responsePostFlow);
+        let eventFlow = this.flowXmlToJson(
+          "EventFlow",
+          "Response",
+          targetJson["TargetEndpoint"],
+        );
+        if (eventFlow && eventFlow.steps.length > 0)
+          newTarget.flows.push(eventFlow);
+        newProxy.targets.push(newTarget);
+      }
+
+      // resources
+      if (fs.existsSync(inputPath + "/apiproxy/resources")) {
+        let resTypes: string[] = fs.readdirSync(
+          inputPath + "/apiproxy/resources",
+        );
+        for (let resType of resTypes) {
+          let resFiles: string[] = fs.readdirSync(
+            inputPath + "/apiproxy/resources/" + resType,
+          );
+
+          for (let resFile of resFiles) {
+            let newFile = new Resource();
+            newFile.name = resFile;
+            newFile.type = resType;
+            newFile.content = fs.readFileSync(
+              inputPath + "/apiproxy/resources/" + resType + "/" + resFile,
+              "utf8",
+            );
+            newProxy.resources.push(newFile);
+          }
+        }
+      }
+    }
+
+    return newProxy;
+  }
+
+  public async proxyToApigeeZip(
+    input: Proxy,
+    removeDir: boolean = true,
+  ): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       var zipfile = new yazl.ZipFile();
       let tempFilePath = this.tempPath + input.name;
@@ -372,7 +357,7 @@ export class ApigeeConverter {
           },
         };
 
-        // request preflow
+        // request preflow and postflow
         endpointXml["ProxyEndpoint"]["PreFlow"] = {
           _attributes: {
             name: "PreFlow",
@@ -391,7 +376,7 @@ export class ApigeeConverter {
         for (let flow of endpoint.flows) {
           if (!flow.condition && flow.steps.length > 0 && flow.mode) {
             endpointXml["ProxyEndpoint"][flow.name][flow.mode] =
-              this.flowJsonToXml(flow.mode, flow);
+              this.flowJsonToXml(flow);
           }
         }
 
@@ -436,6 +421,50 @@ export class ApigeeConverter {
               _text: endpoint["routes"][0]["condition"],
             };
           }
+        }
+
+        // fault rules
+        if (endpoint.faultRules && endpoint.faultRules.length > 1) {
+          endpointXml["ProxyEndpoint"]["FaultRules"] = [];
+          for (let faultRule of endpoint.faultRules) {
+            let newFaultRule = this.flowJsonToXml(faultRule);
+            newFaultRule["_attributes"] = {
+              name: faultRule.name,
+            };
+            if (faultRule.condition)
+              newFaultRule["Condition"] = {
+                _text: faultRule.condition,
+              };
+
+            endpointXml["ProxyEndpoint"]["FaultRules"].push(newFaultRule);
+          }
+        } else if (
+          endpoint.faultRules &&
+          endpoint.faultRules.length == 1 &&
+          endpoint.faultRules[0]
+        ) {
+          endpointXml["ProxyEndpoint"]["FaultRules"] = {
+            FaultRule: this.flowJsonToXml(endpoint.faultRules[0]),
+          };
+          endpointXml["ProxyEndpoint"]["FaultRules"]["FaultRule"][
+            "_attributes"
+          ] = {
+            name: endpoint.faultRules[0].name,
+          };
+          if (endpoint.faultRules[0].condition) {
+            endpointXml["ProxyEndpoint"]["FaultRules"]["FaultRule"][
+              "Condition"
+            ] = {
+              _text: endpoint.faultRules[0].condition,
+            };
+          }
+        }
+
+        // default fault rule
+        if (endpoint.defaultFaultRule) {
+          endpointXml["ProxyEndpoint"]["DefaultFaultRule"] = this.flowJsonToXml(
+            endpoint.defaultFaultRule,
+          );
         }
 
         fs.mkdirSync(tempFilePath + "/apiproxy/proxies", { recursive: true });
@@ -497,7 +526,7 @@ export class ApigeeConverter {
         for (let flow of target.flows) {
           if (!flow.condition && flow.steps.length > 0 && flow.mode) {
             targetXml["TargetEndpoint"][flow.name][flow.mode] =
-              this.flowJsonToXml(flow.mode, flow);
+              this.flowJsonToXml(flow);
           }
         }
 
@@ -563,7 +592,7 @@ export class ApigeeConverter {
       zipfile.outputStream
         .pipe(fs.createWriteStream(tempFilePath + ".zip"))
         .on("close", function () {
-          fs.rmSync(tempFilePath, { recursive: true });
+          if (removeDir) fs.rmSync(tempFilePath, { recursive: true });
           resolve(tempFilePath + ".zip");
         });
       zipfile.end();
@@ -606,7 +635,7 @@ export class ApigeeConverter {
     return resultFlow;
   }
 
-  public flowJsonToXml(type: string, sourceDoc: any): any {
+  public flowJsonToXml(sourceDoc: any): any {
     let result: any = {};
     if (sourceDoc && sourceDoc["steps"] && sourceDoc["steps"].length > 1) {
       result["Step"] = [];

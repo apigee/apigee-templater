@@ -1,0 +1,55 @@
+name: SimpleProxy-v1
+type: proxy
+description: ""
+endpoints:
+  - name: default
+    basePath: /v1/simple-proxy
+    routes:
+      - name: get
+        condition: proxy.pathsuffix = "/get"
+        target: httpbin
+      - name: default
+        target: default
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-SetResponse
+    faultRules: []
+targets:
+  - name: default
+    url: https://mocktarget.apigee.net
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      URL:
+        _text: https://mocktarget.apigee.net
+  - name: httpbin
+    url: https://httpbin.org
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      URL:
+        _text: https://httpbin.org
+policies:
+  - name: JS-SetResponse
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetResponse
+        DisplayName:
+          _text: JS-SetResponse
+        Properties: {}
+        ResourceURL:
+          _text: jsc://set-response.js
+resources:
+  - name: set-response.js
+    type: jsc
+    content: |-
+      print("hello world!!");
+
+      context.proxyResponse.content += "hello world!";
