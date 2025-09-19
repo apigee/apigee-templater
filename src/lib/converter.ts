@@ -22,11 +22,15 @@ export class ApigeeConverter {
   tempPath: string = "./data/temp/";
   templatesPath: string = "./data/templates/";
   featuresPath: string = "./data/features/";
-  constructor(basePath: string = "") {
-    if (basePath) {
+  constructor(basePath: string = "", subDirs: boolean = true) {
+    if (basePath && subDirs) {
       this.tempPath = basePath + "temp/";
       this.templatesPath = basePath + "templates/";
       this.featuresPath = basePath + "features/";
+    } else {
+      this.tempPath = basePath;
+      this.templatesPath = basePath;
+      this.featuresPath = basePath;
     }
   }
 
@@ -987,7 +991,7 @@ export class ApigeeConverter {
     let newTemplate: Template = {
       name: tempName,
       type: "template",
-      description: "API proxy " + name,
+      description: "API template for " + name,
       features: [],
       endpoints: [],
       targets: [],

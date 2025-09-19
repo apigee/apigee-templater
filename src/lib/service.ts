@@ -21,12 +21,17 @@ export class ApigeeTemplaterService {
     ? process.env.TEMPLATER_LIST_URL
     : "https://api.github.com/repos/apigee/apigee-templater/contents/repository/";
 
-  constructor(basePath: string = "") {
-    if (basePath) {
+  constructor(basePath: string = "", subDirs: boolean = true) {
+    if (basePath && subDirs) {
       this.tempPath = basePath + "temp/";
       this.templatesPath = basePath + "templates/";
       this.featuresPath = basePath + "features/";
       this.proxiesPath = basePath + "proxies/";
+    } else if (basePath) {
+      this.tempPath = basePath;
+      this.templatesPath = basePath;
+      this.featuresPath = basePath;
+      this.proxiesPath = basePath;
     }
   }
 

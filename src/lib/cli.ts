@@ -41,8 +41,8 @@ process.on("uncaughtException", function (e) {
  * @class cli
  */
 export class cli {
-  converter = new ApigeeConverter("./");
-  apigeeService = new ApigeeTemplaterService("./");
+  converter = new ApigeeConverter("./", false);
+  apigeeService = new ApigeeTemplaterService("./", false);
 
   parseArgumentsIntoOptions(rawArgs: string[]): cliArgs {
     const args = arg(
@@ -90,7 +90,7 @@ export class cli {
     const questions: any[] = [];
     if (options.output.endsWith(".js"))
       options.output = options.output.replace(".js", ".json");
-    if (options.output.endsWith("-yml"))
+    if (options.output.endsWith(".yml"))
       options.output = options.output.replace(".yml", ".yaml");
 
     if (!options.name) {
@@ -274,7 +274,7 @@ export class cli {
         options.basePath,
         options.targetUrl,
       );
-      if (!options.output) options.output = options.name + ".json";
+      if (!options.output) options.output = options.name + ".yaml";
     } else if (options.input.includes(":")) {
       // this is an apigee proxy reference
       let pieces = options.input.split(":");
@@ -413,7 +413,10 @@ export class cli {
               { recursive: true },
             );
             fs.rmdirSync(outputPath.replace(".zip", ""), { recursive: true });
-          } else {
+          } else if (
+            outputPath != options.output &&
+            outputPath != "./" + options.output
+          ) {
             fs.copyFileSync(outputPath, options.output);
             fs.rmSync(outputPath);
           }
@@ -448,7 +451,7 @@ export class cli {
                 options.name,
                 outputPath,
                 pieces[0],
-                options.token,
+                "Bearer " + options.token,
               );
             }
             // deploy to apigee
@@ -468,7 +471,7 @@ export class cli {
                 serviceAccount,
                 environment,
                 pieces[0],
-                options.token,
+                "Bearer " + options.token,
               );
             }
           }
