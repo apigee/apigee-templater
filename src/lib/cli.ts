@@ -116,8 +116,8 @@ export class cli {
         questions.push({
           type: "input",
           name: "name",
-          message: "Which name should be used?",
-          default: "MyProxy",
+          message: "Let's create a new template! What should it be called?",
+          default: "MyTemplate",
           transformer: (input: string) => {
             return input.replace(/ /g, "-");
           },
@@ -165,8 +165,8 @@ export class cli {
         questions.push({
           type: "input",
           name: "basePath",
-          message: "Which base path be used?",
-          default: options.name ? "/" + options.name : "/my-proxy",
+          message: "Which base path should be used, or none for now?",
+          default: options.name ? "/" + options.name : "/v1/coolapi",
           transformer: (input: string) => {
             return input.replace(/ /g, "-");
           },
@@ -177,7 +177,7 @@ export class cli {
         questions.push({
           type: "input",
           name: "targetUrl",
-          message: "Add an optional target?",
+          message: "Do you want to add a target url to receive traffic?",
           default: "https://httpbin.org",
           transformer: (input: string) => {
             return input.replace(/ /g, "-");
@@ -206,7 +206,7 @@ export class cli {
 
   printHelp() {
     console.log(
-      `${chalk.bold(chalk.magentaBright("> Welcome to Apigee Templater. All parameters:"))}`,
+      `${chalk.bold(chalk.magentaBright("> Welcome to Apigee Templater! Here are all the parameters:"))}`,
     );
     for (const line of helpCommands) {
       console.log(

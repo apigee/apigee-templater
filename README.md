@@ -3,9 +3,9 @@ Apigee Templater is a [Node.js](https://nodejs.org/) tool written in [Typescript
 
 ## Concepts
 
-- **Template** - a template is file used to generate Apigee proxies. It includes basic endpoint, target and feature configurations that describe a proxy, however it doesn't include the details of the included features. This makes it clean and optimized.
+- **Template** - a template is file used to generate Apigee proxies. It includes basic endpoint, target and feature configurations that describe a proxy, however it doesn't include the details of the included features. This makes it clean and optimized. Here is an [example template YAML file](https://github.com/apigee/apigee-templater/blob/main/repository/templates/AI-API-v1.yaml) that gives a definition for AI API composed of several features.
 
-Example template in YAML format to create a proxy to httpbin.org:
+Here is an example template in YAML format to create a simple proxy to httpbin.org:
 ```yaml
 ---
 name: HttpBin-v1
@@ -23,11 +23,11 @@ targets:
   url: https://httpbin.org
 ```
 
-- **Feature** - a feature is a piece of composable functionality that can be added to templates, and includes all details needed to implement the functionality. Here is an [example feature definition](https://github.com/apigee/apigee-templater/blob/main/repository/features/Auth-Key-Header-v1.json) that adds API key authentication. Apigee proxies can be converted to features easily using Apigee Templater.
+- **Feature** - a feature is a piece of composable functionality that can be added to templates, and includes all details needed to implement the functionality. Here is an [example feature definition YAML file](https://github.com/apigee/apigee-templater/blob/main/repository/features/Auth-Key-Header-v1.yaml) that adds API key authentication to any template. Apigee proxies that model individual features, let's call them feature proxies, can be converted to features easily using Apigee Templater.
 
-- **Proxy** - a proxy is a finished API generated from one template and multiple features, and can be either in JSON, YAML or ZIP format. It includes all details of the API logic and handling, and can be directly deployed to any Apigee instance.
+- **Proxy** - a proxy is a finished API generated from a template and all referenced features, and can be either in JSON, YAML or ZIP format. It includes all details of the API logic and handling, and can be directly deployed to any Apigee instance. Here is an [example proxy output YAML file](https://github.com/apigee/apigee-templater/blob/main/test/proxies/AI-Proxy-v1.yaml) that has been generated from the AI Template.
 
-Using **templates** and **features** it's possible to compose Apigee **proxies** from pre-defined building blocks, without having to directly write or create Apigee proxy definitions. If templates and features cannot be found locally, the [repository directory](https://github.com/apigee/apigee-templater/tree/main/repository) here is checked as a central repository. If you would like to add useful templates or features to the repository, just open a pull request.
+Using **templates** and **features** it's possible to compose Apigee **proxies** from pre-defined building blocks, without having to directly write or create Apigee proxy definitions in XML. If templates and features cannot be found locally, the [repository directory](https://github.com/apigee/apigee-templater/tree/main/repository) is checked as a central repository. If you would like to add useful templates or features to the repository, just open a pull request.
 
 Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, manage & apply templates and features to create or modify Apigee proxies. Apigee Templater v3 is currently in **BETA** status, if you test and find bugs or have feature requests please report them as [Issues](https://github.com/apigee/apigee-templater/issues).
 
@@ -49,14 +49,11 @@ geet -h
 # get a description of the proxy Gemini-v1 from Apigee org apigee-prod13
 geet -i apigee-prod13:Gemini-v1 -t $(gcloud auth print-access-token)
 
-# export the proxy as a yaml proxy file
+# export the Apigee proxy Gemini-v1 from the org apigee-prod13 as a yaml proxy file
 geet -i apigee-prod13:Gemini-v1 -o Gemini-v1.yaml -t $(gcloud auth print-access-token)
 
-cd test/proxies
-# convert apigee proxy zip to yaml
-geet -i SimpleProxy-v1.zip -o SimpleProxy-v1.yaml
-# convert proxy yaml to a feature
-geet -i SimpleProxy-v1.yaml -o SimpleProxy-v1.yaml -f feature
+# build the AI Template into a proxy zip that can be deployed to Apigee (-f format is not needed since .zip can only mean the apigee proxy format).
+geet -i AI-API-v1 -o AI-API-v1.zip
 ```
 ## REST & MCP server
 After cloning this repository you can start the REST & MCP server like this.
