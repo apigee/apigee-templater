@@ -23,7 +23,7 @@ targets:
   url: https://httpbin.org
 ```
 
-- **Feature** - a feature is a piece of composable functionality that can be added to templates, and includes all details needed to implement the functionality. Here is an [example feature definition YAML file](https://github.com/apigee/apigee-templater/blob/main/repository/features/Auth-Key-Header-v1.yaml) that adds API key authentication to any template. Apigee proxies that model individual features, let's call them feature proxies, can be converted to features easily using Apigee Templater.
+- **Feature** - a feature is a piece of composable functionality that can be added to templates, and includes all details needed to implement the functionality. Here is an [example feature definition YAML file](https://github.com/apigee/apigee-templater/blob/main/repository/features/AI-Gemini-v1.yaml) that a Gemini endpoint and target to a template. Apigee proxies that model individual features, let's call them feature proxies, can be converted to features easily using Apigee Templater.
 
 - **Proxy** - a proxy is a finished API generated from a template and all referenced features, and can be either in JSON, YAML or ZIP format. It includes all details of the API logic and handling, and can be directly deployed to any Apigee instance. Here is an [example proxy output YAML file](https://github.com/apigee/apigee-templater/blob/main/test/proxies/AI-Proxy-v1.yaml) that has been generated from the AI Template.
 
