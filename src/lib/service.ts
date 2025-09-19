@@ -9,6 +9,10 @@ export class ApigeeTemplaterService {
   tempPath: string = "./data/temp/";
   templatesPath: string = "./data/templates/";
   featuresPath: string = "./data/features/";
+  proxiesPath: string = "./data/proxies/";
+  public apigeeProxyListCache: { [key: string]: string[] } = {};
+  public templateListCache: string[] = [];
+  public featureListCache: string[] = [];
 
   remoteGetBaseUrl = process.env.TEMPLATER_GET_BASE_URL
     ? process.env.TEMPLATER_GET_BASE_URL
@@ -17,14 +21,13 @@ export class ApigeeTemplaterService {
     ? process.env.TEMPLATER_LIST_URL
     : "https://api.github.com/repos/apigee/apigee-templater/contents/repository/";
 
-  constructor(
-    tempPath: string = "",
-    proxiesPath: string = "",
-    featuresPath: string = "",
-  ) {
-    if (tempPath) this.tempPath = tempPath;
-    if (proxiesPath) this.templatesPath = proxiesPath;
-    if (featuresPath) this.featuresPath = featuresPath;
+  constructor(basePath: string = "") {
+    if (basePath) {
+      this.tempPath = basePath + "temp/";
+      this.templatesPath = basePath + "templates/";
+      this.featuresPath = basePath + "features/";
+      this.proxiesPath = basePath + "proxies/";
+    }
   }
 
   public async templatesList(): Promise<Template[]> {
@@ -75,7 +78,8 @@ export class ApigeeTemplaterService {
           }
         }
       }
-
+      if (templates && templates.length > 0)
+        this.templateListCache = templates.map((x) => x.name);
       resolve(templates);
     });
   }
@@ -125,7 +129,61 @@ export class ApigeeTemplaterService {
         }
       }
 
+      if (features && features.length > 0)
+        this.featureListCache = features.map((x) => x.name);
       resolve(features);
+    });
+  }
+
+  public async proxiesList(): Promise<Proxy[]> {
+    return new Promise(async (resolve, reject) => {
+      let proxies: Proxy[] = [];
+      let proxyNames: string[] = fs.readdirSync(this.proxiesPath);
+
+      for (let proxyPath of proxyNames) {
+        if (proxyPath.endsWith(".json")) {
+          let proxy: Proxy = JSON.parse(
+            fs.readFileSync(this.proxiesPath + proxyPath, "utf8"),
+          );
+          proxies.push(proxy);
+        } else if (proxyPath.endsWith(".yaml")) {
+          let proxy: Proxy = YAML.parse(
+            fs.readFileSync(this.proxiesPath + proxyPath, "utf8"),
+          );
+          proxies.push(proxy);
+        }
+      }
+
+      let response = await fetch(this.remoteListUrl + "proxies");
+
+      if (response.status == 200) {
+        let remoteProxies: any = await response.json();
+        if (remoteProxies && remoteProxies.length > 0) {
+          for (let proxy of remoteProxies) {
+            if (
+              proxy &&
+              proxy["name"] &&
+              (proxy["name"].endsWith(".json") ||
+                proxy["name"].endsWith(".yaml"))
+            ) {
+              let downloadResponse = await fetch(proxy["download_url"]);
+              if (downloadResponse.status == 200) {
+                let remoteProxy: Proxy;
+                let remoteTemplateText = await downloadResponse.text();
+                if (proxy["name"].endsWith(".yaml"))
+                  remoteProxy = YAML.parse(remoteTemplateText) as Proxy;
+                else remoteProxy = JSON.parse(remoteTemplateText) as Proxy;
+                let proxyExistsIndex = proxies.findIndex(
+                  (x) => x.name == remoteProxy.name,
+                );
+                if (proxyExistsIndex == -1) proxies.push(remoteProxy);
+              }
+            }
+          }
+        }
+      }
+
+      resolve(proxies);
     });
   }
 
@@ -187,6 +245,71 @@ export class ApigeeTemplaterService {
 
       resolve(result);
     });
+  }
+
+  public async proxyGet(name: string): Promise<Proxy | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let result: Proxy | undefined = undefined;
+      let tempName = name.replaceAll(" ", "-");
+      let proxyString = "";
+      let foundJson = false,
+        foundYaml = false;
+
+      if (!tempName.endsWith(".json") && !tempName.endsWith(".yaml")) {
+        if (fs.existsSync(this.proxiesPath + tempName + ".json")) {
+          proxyString = fs.readFileSync(
+            this.proxiesPath + tempName + ".json",
+            "utf8",
+          );
+          foundJson = true;
+        } else if (fs.existsSync(this.proxiesPath + tempName + ".yaml")) {
+          proxyString = fs.readFileSync(
+            this.proxiesPath + tempName + ".yaml",
+            "utf8",
+          );
+          foundYaml = true;
+        }
+      } else if (fs.existsSync(tempName)) {
+        proxyString = fs.readFileSync(tempName, "utf8");
+        if (tempName.endsWith(".json")) foundJson = true;
+        else if (tempName.endsWith(".yaml")) foundYaml = true;
+      }
+
+      if (!foundJson && !foundYaml) {
+        // try to fetch remotely
+        let fileName = tempName.endsWith(".json")
+          ? tempName
+          : tempName + ".json";
+        let response = await fetch(
+          this.remoteGetBaseUrl + "proxies/" + fileName,
+        );
+        if (response.status == 200) foundJson = true;
+
+        if (response.status == 404) {
+          fileName = tempName.endsWith(".yaml") ? tempName : tempName + ".yaml";
+          response = await fetch(this.remoteGetBaseUrl + "proxies/" + fileName);
+          if (response.status == 200) foundYaml = true;
+        }
+
+        if (response.status == 200) {
+          proxyString = await response.text();
+        }
+      }
+
+      if (proxyString) {
+        if (foundJson) result = JSON.parse(proxyString);
+        else result = YAML.parse(proxyString);
+      }
+
+      resolve(result);
+    });
+  }
+
+  public proxyImport(proxy: Proxy) {
+    fs.writeFileSync(
+      this.proxiesPath + proxy.name + ".json",
+      JSON.stringify(proxy, null, 2),
+    );
   }
 
   public templateImport(template: Template) {
@@ -435,6 +558,12 @@ export class ApigeeTemplaterService {
     });
   }
 
+  public apigeeOrgProxiesCache(apigeeOrg: string): string[] {
+    if (this.apigeeProxyListCache[apigeeOrg])
+      return this.apigeeProxyListCache[apigeeOrg];
+    else return [];
+  }
+
   public async apigeeProxiesList(
     apigeeOrg: string,
     token: string,
@@ -451,6 +580,11 @@ export class ApigeeTemplaterService {
 
       if (response.status === 200) {
         let responseBody: any = await response.json();
+        if (responseBody && responseBody.length) {
+          this.apigeeProxyListCache[apigeeOrg] = responseBody.map(
+            (x: any) => x.name,
+          );
+        }
         resolve(responseBody);
       } else {
         console.log("Got response " + response.status);

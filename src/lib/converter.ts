@@ -20,16 +20,14 @@ import {
 
 export class ApigeeConverter {
   tempPath: string = "./data/temp/";
-  proxiesPath: string = "./data/templates/";
+  templatesPath: string = "./data/templates/";
   featuresPath: string = "./data/features/";
-  constructor(
-    tempPath: string = "",
-    proxiesPath: string = "",
-    featuresPath: string = "",
-  ) {
-    if (tempPath) this.tempPath = tempPath;
-    if (proxiesPath) this.proxiesPath = proxiesPath;
-    if (featuresPath) this.featuresPath = featuresPath;
+  constructor(basePath: string = "") {
+    if (basePath) {
+      this.tempPath = basePath + "temp/";
+      this.templatesPath = basePath + "templates/";
+      this.featuresPath = basePath + "features/";
+    }
   }
 
   public async apigeeZipToProxy(
@@ -958,7 +956,7 @@ export class ApigeeConverter {
     return JSON.parse(inputString);
   }
 
-  public proxyToFeature(proxy: Proxy, endpointMode: boolean = false): Feature {
+  public proxyToFeature(proxy: Proxy): Feature {
     let newFeature = new Feature();
     newFeature.name = proxy.name;
 

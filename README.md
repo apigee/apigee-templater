@@ -38,20 +38,25 @@ Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, man
 - Test the [Apigee Templater Agent](https://apigee-templater-agent-609874082793.europe-west1.run.app) built with [ADK](https://google.github.io/adk-docs/) and using the Apigee Templater MCP server to create templates and add / remove features.
 - Run the unit tests for the above flow after cloning the repository with `npm i && npm run test`.
 ## CLI
-You can use the **apigee-templater** CLI locally or using npx. Currently the CLI can do conversions and apply / remove features to proxies.
+You can use the **apigee-templater** CLI locally or using npx, using either **apigee-templater** or **apgt** as command.
 ```sh
 # install
 npm i -g apigee-templater
 
+# list commands
+apgt -h
+
 # get a description of the proxy Gemini-v1 from Apigee org apigee-prod13
-apigee-templater -i apigee-prod13:Gemini-v1 -t $(gcloud auth print-access-token)
+apgt -i apigee-prod13:Gemini-v1 -t $(gcloud auth print-access-token)
 
 # export the proxy as a yaml proxy file
-apigee-templater -i apigee-prod13:Gemini-v1 -o Gemini-v1.yaml -t $(gcloud auth print-access-token)
+apgt -i apigee-prod13:Gemini-v1 -o Gemini-v1.yaml -t $(gcloud auth print-access-token)
 
-# convert Apigee proxy ZIP to a template in YAML format
 cd test/proxies
-apigee-templater -i SimpleProxy-v1.zip -o SimpleProxy-v1.yaml -f template
+# convert apigee proxy zip to yaml
+apgt -i SimpleProxy-v1.zip -o SimpleProxy-v1.yaml
+# convert proxy yaml to a feature
+apgt -i SimpleProxy-v1.yaml -o SimpleProxy-v1.yaml -f feature
 ```
 ## REST & MCP server
 After cloning this repository you can start the REST & MCP server like this.
@@ -79,17 +84,7 @@ Sample agent requests:
 
 ## Limitations
 Currently these features are not yet supported:
-- Apigee proxy conditional endpoints are not yet supported.
-- Apigee fault rules and fault handling is not yet supported.
 - MCP and CLI inputs cannot yet process parameters when applying features, so currently only default values are used.
-- Find out the best way to leverage **Shared Flows** - currently features can have Flow Callout policies as part of their feature logic, but maybe it would be useful to convert a shared flow to a feature, or something similar...
-- Since this in ALPHA status and only test data is being used, there is currently no auth to the REST and MCP server.
-
-## Plans & ideas
-These are some future ideas for additions, feel free to suggest any changes under Issues or Discussions.
-- Add proxy conditional endpoints and fault rules, as documented under limitations above.
-- Allow features to also have targets and endpoints, this could be interesting to compose proxies from features (for example compose Gemini and Mistral features into an AI proxy).
-- Allow templates to be applied directly to Apigee orgs using OAuth to authenticate to the Apigee API.
 
 ## Contributing
 

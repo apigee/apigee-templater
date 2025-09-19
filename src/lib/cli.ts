@@ -41,8 +41,8 @@ process.on("uncaughtException", function (e) {
  * @class cli
  */
 export class cli {
-  converter = new ApigeeConverter("./", "./", "./");
-  apigeeService = new ApigeeTemplaterService("./", "./", "./");
+  converter = new ApigeeConverter("./");
+  apigeeService = new ApigeeTemplaterService("./");
 
   parseArgumentsIntoOptions(rawArgs: string[]): cliArgs {
     const args = arg(

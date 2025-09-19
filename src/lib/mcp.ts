@@ -3,6 +3,7 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { any, z } from "zod";
 import * as YAML from "yaml";
@@ -129,7 +130,11 @@ export class McpService {
           title: "Template Describe Tool",
           description: "Describes an API template.",
           inputSchema: {
-            proxyName: z.string(),
+            proxyName: completable(z.string(), (value) => {
+              return this.apigeeService.templateListCache.filter((x) =>
+                x.startsWith(value),
+              );
+            }),
           },
         },
         async ({ proxyName }) => {
@@ -653,7 +658,11 @@ export class McpService {
           title: "Feature Describe Tool",
           description: "Describes an API proxy feature.",
           inputSchema: {
-            featureName: z.string(),
+            featureName: completable(z.string(), (value) => {
+              return this.apigeeService.featureListCache.filter((x) =>
+                x.startsWith(value),
+              );
+            }),
           },
         },
         async ({ featureName }) => {
@@ -710,6 +719,79 @@ export class McpService {
                 {
                   type: "text",
                   text: `The feature ${featureName} could not be found, maybe the name is incorrect?`,
+                },
+              ],
+            };
+          }
+        },
+      );
+
+      // proxiesList
+      server.registerTool(
+        "proxiesList",
+        {
+          title: "Proxies List Tool",
+          description: "Lists all API proxies on the server.",
+          inputSchema: {},
+        },
+        async () => {
+          let proxiesList = await this.apigeeService.proxiesList();
+          if (proxiesList) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `${JSON.stringify(proxiesList)}`,
+                },
+              ],
+            };
+          } else {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `No proxies found.`,
+                },
+              ],
+            };
+          }
+        },
+      );
+
+      // proxyConvertToFeature
+      server.registerTool(
+        "proxyConvertToFeature",
+        {
+          title: "Convert Proxy to Feature Tool",
+          description: "Convert a proxy to a feature.",
+          inputSchema: {
+            proxyName: z.string(),
+            featureName: z.string().optional(),
+            featureDescription: z.string().optional(),
+          },
+        },
+        async ({ proxyName, featureName, featureDescription }) => {
+          let proxy = await this.apigeeService.proxyGet(proxyName);
+          if (proxy) {
+            let newFeature: Feature = this.converter.proxyToFeature(proxy);
+            if (featureName) newFeature.name = featureName;
+            if (featureDescription) newFeature.description = featureDescription;
+
+            this.apigeeService.featureImport(newFeature);
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `${JSON.stringify(newFeature)}`,
+                },
+              ],
+            };
+          } else {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `The proxy could not be found, maybe the name is incorrect?`,
                 },
               ],
             };
@@ -819,6 +901,73 @@ export class McpService {
         },
       );
 
+      // apigeeProxyImport
+      server.registerTool(
+        "apigeeProxyImport",
+        {
+          title: "Apigee Proxy Import",
+          description: "Imports an Apigee proxy from an org.",
+          inputSchema: {
+            proxyName: completable(z.string(), (value, context) => {
+              const apigeeOrg = context?.arguments?.["apigeeOrg"];
+              if (apigeeOrg)
+                return this.apigeeService
+                  .apigeeOrgProxiesCache(apigeeOrg)
+                  .filter((n) => n.startsWith(value));
+              else return [];
+            }),
+            newName: z.string().optional(),
+            apigeeOrg: z.string(),
+          },
+        },
+        async ({ proxyName, newName, apigeeOrg }, authInfo) => {
+          let token: string =
+            authInfo.requestInfo?.headers.authorization &&
+            typeof authInfo.requestInfo?.headers.authorization === "string"
+              ? authInfo.requestInfo?.headers.authorization
+              : "";
+          let proxy: Proxy | undefined;
+          if (token) {
+            let apigeeProxyPath = await this.apigeeService.apigeeProxyGet(
+              proxyName,
+              apigeeOrg,
+              token,
+            );
+
+            if (apigeeProxyPath) {
+              proxy = await this.converter.apigeeZipToProxy(
+                newName ? newName : proxyName,
+                apigeeProxyPath,
+              );
+              if (proxy) {
+                this.apigeeService.proxyImport(proxy);
+              }
+
+              fs.rmSync(apigeeProxyPath);
+            }
+          }
+          if (proxy) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Proxy ${proxy.name} has been imported, here are the details:\n ${this.converter.proxyToString(proxy)}`,
+                },
+              ],
+            };
+          } else {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `The Apigee proxy ${proxyName} could not be found.`,
+                },
+              ],
+            };
+          }
+        },
+      );
+
       // apigeeProxyImportToTemplate
       server.registerTool(
         "apigeeProxyImportToTemplate",
@@ -827,7 +976,7 @@ export class McpService {
           description: "Imports an Apigee proxy from an org into a template.",
           inputSchema: {
             proxyName: z.string(),
-            templateName: z.string(),
+            templateName: z.string().optional(),
             apigeeOrg: z.string(),
           },
         },
@@ -888,7 +1037,7 @@ export class McpService {
           description: "Imports an Apigee proxy from an org into a feature.",
           inputSchema: {
             proxyName: z.string(),
-            featureName: z.string(),
+            featureName: z.string().optional(),
             apigeeOrg: z.string(),
           },
         },
@@ -934,6 +1083,135 @@ export class McpService {
                 {
                   type: "text",
                   text: `No Apigee proxies found.`,
+                },
+              ],
+            };
+          }
+        },
+      );
+
+      // proxyExportToApigee
+      server.registerTool(
+        "proxyExportToApigee",
+        {
+          title: "Proxy to Apigee Proxy Export Tool",
+          description: "Exports a local proxy to an Apigee proxy in an org.",
+          inputSchema: {
+            proxyName: z.string(),
+            apigeeProxyName: z.string().optional(),
+            apigeeOrg: z.string(),
+          },
+        },
+        async ({ proxyName, apigeeProxyName, apigeeOrg }, authInfo) => {
+          let token: string =
+            authInfo.requestInfo?.headers.authorization &&
+            typeof authInfo.requestInfo?.headers.authorization === "string"
+              ? authInfo.requestInfo?.headers.authorization
+              : "";
+          let apigeeProxyRevision = "";
+          let proxy = await this.apigeeService.proxyGet(proxyName);
+
+          if (proxy && token) {
+            let zipPath = await this.converter.proxyToApigeeZip(proxy);
+
+            apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
+              apigeeProxyName ? apigeeProxyName : proxyName,
+              zipPath,
+              apigeeOrg,
+              token,
+            );
+          }
+          if (apigeeProxyRevision) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Proxy ${proxyName} has been exported to Apigee org ${apigeeOrg} ${apigeeProxyName ? " - " + apigeeProxyName : ""} with revision id ${apigeeProxyRevision}.`,
+                },
+              ],
+            };
+          } else {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `The proxy ${proxyName} could not be exported to Apigee, maybe the name or org is incorrect?.`,
+                },
+              ],
+            };
+          }
+        },
+      );
+
+      // apigeeProxyDeploy
+      server.registerTool(
+        "apigeeProxyDeploy",
+        {
+          title: "Deploy Apigee Proxy Revision Tool",
+          description: "Deploys an Apigee proxy revision to an org.",
+          inputSchema: {
+            proxyName: z.string(),
+            apigeeProxyName: z.string().optional(),
+            apigeeOrg: z.string(),
+            apigeeEnvironment: z.string(),
+            serviceAccountEmail: z.string().default(""),
+          },
+        },
+        async (
+          {
+            proxyName,
+            apigeeProxyName,
+            apigeeOrg,
+            apigeeEnvironment,
+            serviceAccountEmail,
+          },
+          authInfo,
+        ) => {
+          let token: string =
+            authInfo.requestInfo?.headers.authorization &&
+            typeof authInfo.requestInfo?.headers.authorization === "string"
+              ? authInfo.requestInfo?.headers.authorization
+              : "";
+          let apigeeProxyRevision = "";
+          if (token) {
+            let proxy = await this.apigeeService.proxyGet(proxyName);
+
+            if (proxy) {
+              let zipPath = await this.converter.proxyToApigeeZip(proxy);
+              apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
+                apigeeProxyName ? apigeeProxyName : proxyName,
+                zipPath,
+                apigeeOrg,
+                token,
+              );
+
+              if (apigeeProxyRevision)
+                apigeeProxyRevision =
+                  await this.apigeeService.apigeeProxyRevisionDeploy(
+                    apigeeProxyName ? apigeeProxyName : proxyName,
+                    apigeeProxyRevision,
+                    serviceAccountEmail,
+                    apigeeEnvironment,
+                    apigeeOrg,
+                    token,
+                  );
+            }
+          }
+          if (apigeeProxyRevision) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Apigee proxy ${apigeeProxyName ? apigeeProxyName : proxyName} has been deployed to Apigee org ${apigeeOrg} and environment ${apigeeEnvironment} with revision id ${apigeeProxyRevision}.`,
+                },
+              ],
+            };
+          } else {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `The proxy ${proxyName} could not be deployed to Apigee, maybe the name or org is incorrect?.`,
                 },
               ],
             };

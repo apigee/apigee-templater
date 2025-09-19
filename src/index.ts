@@ -10,16 +10,8 @@ import { RestService } from "./lib/rest.js";
 const rootStorageDir = process.env.STORAGE_DIR
   ? process.env.STORAGE_DIR
   : "./data/";
-const converter = new ApigeeConverter(
-  "./data/temp/",
-  rootStorageDir + "templates/",
-  rootStorageDir + "features/",
-);
-const apigeeService = new ApigeeTemplaterService(
-  "./data/temp/",
-  rootStorageDir + "templates/",
-  rootStorageDir + "features/",
-);
+const converter = new ApigeeConverter(rootStorageDir);
+const apigeeService = new ApigeeTemplaterService(rootStorageDir);
 const mcpService = new McpService(converter, apigeeService);
 const restService = new RestService(converter, apigeeService);
 
