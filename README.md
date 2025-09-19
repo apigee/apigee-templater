@@ -38,25 +38,25 @@ Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, man
 - Test the [Apigee Templater Agent](https://apigee-templater-agent-609874082793.europe-west1.run.app) built with [ADK](https://google.github.io/adk-docs/) and using the Apigee Templater MCP server to create templates and add / remove features.
 - Run the unit tests for the above flow after cloning the repository with `npm i && npm run test`.
 ## CLI
-You can use the **apigee-templater** CLI locally or using npx, using either **apigee-templater** or **apgt** as command.
+You can use the **apigee-templater** CLI locally or using npx, using either **apigee-templater** or **geet** as command.
 ```sh
 # install
 npm i -g apigee-templater
 
 # list commands
-apgt -h
+geet -h
 
 # get a description of the proxy Gemini-v1 from Apigee org apigee-prod13
-apgt -i apigee-prod13:Gemini-v1 -t $(gcloud auth print-access-token)
+geet -i apigee-prod13:Gemini-v1 -t $(gcloud auth print-access-token)
 
 # export the proxy as a yaml proxy file
-apgt -i apigee-prod13:Gemini-v1 -o Gemini-v1.yaml -t $(gcloud auth print-access-token)
+geet -i apigee-prod13:Gemini-v1 -o Gemini-v1.yaml -t $(gcloud auth print-access-token)
 
 cd test/proxies
 # convert apigee proxy zip to yaml
-apgt -i SimpleProxy-v1.zip -o SimpleProxy-v1.yaml
+geet -i SimpleProxy-v1.zip -o SimpleProxy-v1.yaml
 # convert proxy yaml to a feature
-apgt -i SimpleProxy-v1.yaml -o SimpleProxy-v1.yaml -f feature
+geet -i SimpleProxy-v1.yaml -o SimpleProxy-v1.yaml -f feature
 ```
 ## REST & MCP server
 After cloning this repository you can start the REST & MCP server like this.
