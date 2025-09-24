@@ -3,7 +3,6 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { any, z } from "zod";
 import * as YAML from "yaml";
@@ -130,15 +129,11 @@ export class McpService {
           title: "Template Describe Tool",
           description: "Describes an API template.",
           inputSchema: {
-            proxyName: completable(z.string(), (value) => {
-              return this.apigeeService.templateListCache.filter((x) =>
-                x.startsWith(value),
-              );
-            }),
+            templateName: z.string(),
           },
         },
-        async ({ proxyName }) => {
-          let template = await this.apigeeService.templateGet(proxyName);
+        async ({ templateName }) => {
+          let template = await this.apigeeService.templateGet(templateName);
           if (template) {
             let templateTextArray =
               this.converter.templateToStringArray(template);
@@ -147,7 +142,7 @@ export class McpService {
               content: [
                 {
                   type: "text",
-                  text: `${JSON.stringify(templateText)}`,
+                  text: templateText,
                 },
               ],
             };
@@ -658,11 +653,7 @@ export class McpService {
           title: "Feature Describe Tool",
           description: "Describes an API proxy feature.",
           inputSchema: {
-            featureName: completable(z.string(), (value) => {
-              return this.apigeeService.featureListCache.filter((x) =>
-                x.startsWith(value),
-              );
-            }),
+            featureName: z.string(),
           },
         },
         async ({ featureName }) => {
@@ -816,11 +807,14 @@ export class McpService {
               ? authInfo.requestInfo?.headers.authorization
               : "";
           let proxiesObject: any | undefined;
+          console.log(token);
           if (token) {
             proxiesObject = await this.apigeeService.apigeeProxiesList(
               apigeeOrg,
               token,
             );
+          } else {
+            console.log("No token found in request to list apigee proxies.");
           }
           if (proxiesObject) {
             return {
@@ -908,14 +902,7 @@ export class McpService {
           title: "Apigee Proxy Import",
           description: "Imports an Apigee proxy from an org.",
           inputSchema: {
-            proxyName: completable(z.string(), (value, context) => {
-              const apigeeOrg = context?.arguments?.["apigeeOrg"];
-              if (apigeeOrg)
-                return this.apigeeService
-                  .apigeeOrgProxiesCache(apigeeOrg)
-                  .filter((n) => n.startsWith(value));
-              else return [];
-            }),
+            proxyName: z.string(),
             newName: z.string().optional(),
             apigeeOrg: z.string(),
           },

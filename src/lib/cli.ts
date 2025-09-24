@@ -55,6 +55,7 @@ export class cli {
         "--format": String,
         "--applyFeature": String,
         "--removeFeature": String,
+        "--parameters": String,
         "--token": String,
         "--help": Boolean,
         "-i": "--input",
@@ -65,6 +66,7 @@ export class cli {
         "-f": "--format",
         "-a": "--applyFeature",
         "-r": "--removeFeature",
+        "-p": "--parameters",
         "-t": "--token",
         "-h": "--help",
       },
@@ -81,6 +83,7 @@ export class cli {
       format: args["--format"] || "",
       applyFeature: args["--applyFeature"] || "",
       removeFeature: args["--removeFeature"] || "",
+      parameters: args["--parameters"] || "",
       token: args["--token"] || "",
       help: args["--help"] || false,
     };
@@ -123,42 +126,7 @@ export class cli {
           },
         });
       }
-
-      // if (
-      //   options.output &&
-      //   (options.output.endsWith("-json") ||
-      //     options.output.endsWith("-yaml") ||
-      //     options.output.endsWith("-zip"))
-      // )
-      //   questions.push({
-      //     type: "input",
-      //     name: "name",
-      //     message: "Which name should be used?",
-      //     default: defaultName,
-      //     transformer: (input: string) => {
-      //       return input.replace(/ /g, "-");
-      //     },
-      //   });
-      // else options.name = defaultName;
     }
-
-    // if (!options.output) {
-    //   questions.push({
-    //     type: "list",
-    //     name: "outputFormat",
-    //     message: "Which output format should be used?",
-    //     choices: [
-    //       "proxy-zip",
-    //       "proxy-json",
-    //       "proxy-yaml",
-    //       "template-json",
-    //       "template-yaml",
-    //       "feature-json",
-    //       "feature-yaml",
-    //     ],
-    //     default: "proxy-yaml",
-    //   });
-    // }
 
     if (!options.input) {
       if (!options.basePath) {
@@ -381,7 +349,18 @@ export class cli {
         );
         return;
       }
+      // parse parameters
+      let templateParameters: { [key: string]: string } = {};
+      if (options.parameters) {
+        let paramPairs = options.parameters.split(",");
+        for (let paramPair of paramPairs) {
+          let paramPieces = paramPair.split("=");
+          if (paramPieces.length == 2 && paramPieces[0] && paramPieces[1])
+            templateParameters[paramPieces[0]] = paramPieces[1];
+        }
+      }
 
+      // write output
       if (
         options.output &&
         (options.output.toLowerCase().endsWith(".zip") ||
@@ -392,6 +371,7 @@ export class cli {
           proxy = await this.apigeeService.templateObjectToProxy(
             template,
             this.converter,
+            templateParameters,
           );
         }
         let removeDir = options.output.toLowerCase().endsWith(".dir")
@@ -431,6 +411,7 @@ export class cli {
           proxy = await this.apigeeService.templateObjectToProxy(
             template,
             this.converter,
+            templateParameters,
           );
         }
         if (proxy) {
@@ -568,6 +549,7 @@ class cliArgs {
   format = "";
   applyFeature = "";
   removeFeature = "";
+  parameters = "";
   token = "";
   help = false;
 }
@@ -583,14 +565,6 @@ const helpCommands = [
     description: "The name for the output template, feature or proxy.",
   },
   {
-    name: "--applyFeature, -a",
-    description: "A feature name to apply to a template.",
-  },
-  {
-    name: "--removeFeature, -r",
-    description: "A feature name to remove from a template",
-  },
-  {
     name: "--output, -o",
     description:
       "An optional file output name and type (e.g. AI-Template-v1.yaml).",
@@ -601,12 +575,25 @@ const helpCommands = [
       "An optional format to convert the input into: 'proxy', 'template' or 'feature'.",
   },
   {
+    name: "--applyFeature, -a",
+    description: "A feature name to apply to a template.",
+  },
+  {
+    name: "--removeFeature, -r",
+    description: "A feature name to remove from a template",
+  },
+  {
     name: "--basePath, -b",
     description: "If creating a new proxy or template, the base path to use.",
   },
   {
     name: "--targetUrl, -u",
     description: "If creating a new proxy or template, the target URL to use.",
+  },
+  {
+    name: "--parameters, -p",
+    description:
+      "If generating a proxy from a template, these parameters are used for substitutions (param1=value1,param2=value2).",
   },
   {
     name: "--token, -t",
