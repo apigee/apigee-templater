@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Apigee Basepath</title>
+        <title>Apigee Agentic Portal</title>
         <style>
             * {
                 margin: 0;
@@ -397,10 +397,10 @@
     </head>
     <body>
         <div class="app-container">
-            <div class="header">
+            <!--<div class="header">
                 <div class="header-left">
                     <div class="logo">A</div>
-                    <div class="app-title">Apigee Basepath</div>
+                    <div class="app-title">Apigee Agentic Portal</div>
                 </div>
                 <button
                     class="theme-toggle"
@@ -436,13 +436,13 @@
                         />
                     </svg>
                 </button>
-            </div>
+            </div>-->
 
             <div class="chat-container">
                 <div class="messages" id="messages">
                     <div class="welcome-message">
                         <div class="welcome-title">
-                            Welcome to Apigee Basepath
+                            Welcome to Apigee Agentic Portal
                         </div>
                         I'm here to help you with creating and managing API
                         templates, features & proxies.
@@ -513,7 +513,7 @@
                         window.location.href,
                     );
                     for (const p of searchParams) {
-                        console.log(p);
+                        // console.log(p);
                         if (p[0] == "code") {
                             code = p[1];
                         }
@@ -567,12 +567,15 @@
                             let responseJson = await newResponse.json();
                             this.processResponse(responseJson);
                         } else {
-                            console.log(
-                                "could not complete oauth flow: " +
-                                    newResponse.status,
+                            await fetch(
+                                "http://127.0.0.1:8000/apps/apigee_templater_agent/users/u_123/sessions/s_abc",
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                },
                             );
-                            let responseText = await newResponse.text();
-                            console.log(responseText);
                         }
                     } else {
                         let sessionResponse = await fetch(
@@ -586,7 +589,7 @@
                         );
 
                         let responseText = await sessionResponse.text();
-                        console.log(responseText);
+                        // console.log(responseText);
                     }
                 }
 
@@ -599,13 +602,13 @@
                     document.documentElement.setAttribute("data-theme", theme);
                     localStorage.setItem("theme", theme);
 
-                    if (theme === "dark") {
-                        this.lightIcon.style.display = "none";
-                        this.darkIcon.style.display = "block";
-                    } else {
-                        this.lightIcon.style.display = "block";
-                        this.darkIcon.style.display = "none";
-                    }
+                    // if (theme === "dark") {
+                    //     this.lightIcon.style.display = "none";
+                    //     this.darkIcon.style.display = "block";
+                    // } else {
+                    //     this.lightIcon.style.display = "block";
+                    //     this.darkIcon.style.display = "none";
+                    // }
                 }
 
                 toggleTheme() {
@@ -619,9 +622,9 @@
                     this.sendButton.addEventListener("click", () =>
                         this.sendMessage(),
                     );
-                    this.themeToggle.addEventListener("click", () =>
-                        this.toggleTheme(),
-                    );
+                    // this.themeToggle.addEventListener("click", () =>
+                    //     this.toggleTheme(),
+                    // );
 
                     this.messageInput.addEventListener("keydown", (e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
@@ -709,24 +712,67 @@
                     if (newResponse.status == 200) {
                         let responseJson = await newResponse.json();
                         this.processResponse(responseJson);
-
-                        // const responses = [
-                        //     "I understand your question. Let me provide you with a thoughtful response based on the information you've shared.",
-                        //     "That's an interesting point you've raised. Here's my perspective on this topic.",
-                        //     "Thank you for that question. I'll do my best to give you a helpful and accurate answer.",
-                        //     "I appreciate you asking about this. Let me share some insights that might be useful.",
-                        //     "That's a great question that touches on several important aspects. Here's what I think.",
-                        //     "I'd be happy to help you with that. Based on your message, here's my response.",
-                        // ];
-
-                        // const response =
-                        //     responses[
-                        //         Math.floor(Math.random() * responses.length)
-                        //     ];
-                        // await this.typeMessage(response, "ai");
                     } else {
                         console.log("Error calling ADK: " + newResponse.status);
                     }
+                }
+
+                async processResponse(agentResponse) {
+                    for (let response of agentResponse) {
+                        if (
+                            response["content"] &&
+                            response["content"]["parts"] &&
+                            response["content"]["parts"][0] &&
+                            response["content"]["parts"][0]["text"]
+                        ) {
+                            await this.typeMessage(
+                                response["content"]["parts"][0]["text"],
+                                "ai",
+                            );
+                        } else if (
+                            response["content"] &&
+                            response["content"]["parts"] &&
+                            response["content"]["parts"][0]["functionCall"] &&
+                            response["content"]["parts"][0]["functionCall"] &&
+                            response["content"]["parts"][0]["functionCall"][
+                                "args"
+                            ] &&
+                            response["content"]["parts"][0]["functionCall"][
+                                "args"
+                            ]["authConfig"]
+                        ) {
+                            this.oauthMessage =
+                                response["content"]["parts"][0]["functionCall"];
+                            this.oauthMessage["args"]["authConfig"][
+                                "exchangedAuthCredential"
+                            ]["oauth2"]["redirectUri"] = window.location.href;
+                            localStorage.setItem(
+                                "oauthMessage",
+                                JSON.stringify(this.oauthMessage),
+                            );
+                            setTimeout(() => {
+                                var event = new CustomEvent("myEvent", {
+                                    detail: {
+                                        url: this.oauthMessage["args"][
+                                            "authConfig"
+                                        ]["exchangedAuthCredential"]["oauth2"][
+                                            "authUri"
+                                        ],
+                                        message: "hello world",
+                                    },
+                                });
+                                window.parent.document.dispatchEvent(event);
+                                // window.location.href =
+                                //     this.oauthMessage["args"]["authConfig"][
+                                //         "exchangedAuthCredential"
+                                //     ]["oauth2"]["authUri"] +
+                                //     "&redirect_uri=" +
+                                //     window.location.href;
+                            }, 3000);
+                        }
+                    }
+
+                    this.hideTypingIndicator();
                 }
 
                 async typeMessage(text, sender) {
