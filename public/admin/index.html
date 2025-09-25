@@ -645,7 +645,13 @@
                 if (p[0] == "code") {
                     let code = p[1];
                     localStorage.setItem("authorization_code", code);
-                    window.location.href = window.location.origin;
+                    localStorage.setItem(
+                        "auth_response_uri",
+                        window.location.href,
+                    );
+
+                    window.location.href =
+                        window.location.origin + window.location.pathname;
                 }
             }
 
@@ -733,10 +739,25 @@
                 }
             });
 
-            window.document.addEventListener("myEvent", (event) => {
+            window.document.addEventListener("oauth_redirect", (event) => {
                 console.log(event);
+
+                let authUri =
+                    event.detail["args"]["authConfig"][
+                        "exchangedAuthCredential"
+                    ]["oauth2"]["authUri"];
+
+                event.detail["args"]["authConfig"]["exchangedAuthCredential"][
+                    "oauth2"
+                ]["redirectUri"] = window.location.href;
+
+                localStorage.setItem(
+                    "oauthMessage",
+                    JSON.stringify(event.detail),
+                );
+
                 window.location.href =
-                    event.detail.url + "&redirect_uri=" + window.location.href;
+                    authUri + "&redirect_uri=" + window.location.href;
             });
         </script>
     </body>
