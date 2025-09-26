@@ -1,35 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Apigee Agentic Portal</title>
+        <link rel="icon" type="image/x-icon" href="/favicon.png" />
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
         <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-
-            a:link {
-                color: var(--text-primary);
-            }
-
-            /* visited link */
-            a:visited {
-                color: var(--text-primary);
-            }
-
-            /* mouse over link */
-            a:hover {
-                color: var(--text-primary);
-            }
-
-            /* selected link */
-            a:active {
-                color: var(--text-primary);
-            }
-
             :root {
                 /* Dark mode colors */
                 --bg-primary: #0f172a;
@@ -38,6 +21,7 @@
                 --text-primary: #f8fafc;
                 --text-secondary: #cbd5e1;
                 --text-tertiary: #64748b;
+                --text-title: rgb(129, 140, 248, 1);
                 --border: #334155;
                 --shadow: rgba(0, 0, 0, 0.3);
                 --accent: #60a5fa;
@@ -58,6 +42,7 @@
                 --text-primary: #0f172a;
                 --text-secondary: #475569;
                 --text-tertiary: #94a3b8;
+                --text-title: rgb(79, 70, 229, 1);
                 --border: #e2e8f0;
                 --shadow: rgba(0, 0, 0, 0.05);
                 --accent: #3b82f6;
@@ -69,7 +54,6 @@
                 --input-bg: #ffffff;
                 --header-bg: rgba(255, 255, 255, 0.8);
             }
-
             body {
                 font-family:
                     -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter",
@@ -86,7 +70,7 @@
             .app-container {
                 max-width: 900px;
                 margin: 0 auto;
-                height: 100vh;
+                height: calc(100vh - 120px);
                 display: flex;
                 flex-direction: column;
                 background-color: var(--bg-primary);
@@ -132,7 +116,7 @@
 
             .theme-toggle {
                 background: none;
-                border: 1px solid var(--border);
+                /*border: 1px solid var(--border);*/
                 border-radius: 8px;
                 width: 40px;
                 height: 40px;
@@ -392,62 +376,279 @@
                     margin: 40px 16px;
                 }
             }
+
+            .menu-item:hover {
+                background-color: var(--bg-tertiary);
+                color: var(--text-primary);
+            }
         </style>
         <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
     </head>
-    <body>
-        <div class="app-container">
-            <div class="chat-container">
-                <div class="messages" id="messages">
-                    <div class="welcome-message">
-                        <div class="welcome-title">
-                            Welcome to Apigee Agentic Portal
-                        </div>
-                        I'm here to help you with creating and managing API
-                        templates, features & proxies.
-                    </div>
+    <body class="">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Header -->
+            <header class="flex justify-between items-center py-6">
+                <div class="text-2xl font-bold tracking-tight">
+                    <a href="/">
+                        <span style="color: var(--text-title)">Apigee</span>
+                        Agentic Portal</a
+                    >
                 </div>
 
-                <div class="typing-indicator" id="typingIndicator">
-                    <div class="avatar ai">AI</div>
-                    <div class="typing-dots">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                </div>
+                <div style="display: flex">
+                    <a
+                        href="/explore"
+                        class="relative top-1.5 px-2 md:px-5 font-bold right-0 text-lg"
+                        >APIs</a
+                    >
 
-                <div class="input-area">
-                    <div class="input-container">
-                        <textarea
-                            class="message-input"
-                            id="messageInput"
-                            placeholder="Message Apigee..."
-                            rows="1"
-                        ></textarea>
+                    <a
+                        href="/agent"
+                        class="relative top-1.5 px-2 md:px-5 font-bold right-0 text-lg"
+                        >AI Agent</a
+                    >
+
+                    <button class="px-2 theme-toggle" onclick="toggleTheme()">
+                        <svg
+                            class="theme-icon-light"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                            />
+                        </svg>
+                        <svg
+                            class="theme-icon-dark"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            style="display: none"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                            />
+                        </svg>
+                    </button>
+
+                    <!-- Account Dropdown -->
+                    <div class="relative">
                         <button
-                            class="send-button"
-                            id="sendButton"
-                            aria-label="Send message"
+                            id="account-dropdown-button"
+                            style="background-color: var(--bg-tertiary)"
+                            class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-full p-2 transition duration-150 ease-in-out"
                         >
                             <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
+                                class="h-6 w-6 text-gray-500 dark:text-gray-400"
                                 fill="none"
+                                viewBox="0 0 24 24"
                                 stroke="currentColor"
-                                stroke-width="2"
                             >
-                                <path d="M22 2L11 13" />
-                                <path d="M22 2L15 22L11 13L2 9L22 2z" />
+                                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                                <g
+                                    id="SVGRepo_tracerCarrier"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                ></g>
+                                <g id="SVGRepo_iconCarrier">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+                                    ></path>
+                                </g>
+                            </svg>
+                            <span
+                                style="color: var(--text-secondary)"
+                                class="font-medium text-gray-900 dark:text-white hidden md:inline"
+                                >Account</span
+                            >
+                            <svg
+                                class="h-4 w-4 text-gray-500 dark:text-gray-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 9l-7 7-7-7"
+                                />
                             </svg>
                         </button>
+
+                        <!-- Dropdown Menu -->
+                        <div
+                            id="account-dropdown-menu"
+                            style="background-color: var(--bg-secondary)"
+                            class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 z-10 opacity-0 dropdown-menu"
+                        >
+                            <a
+                                href="/apps"
+                                style="color: var(--text-primary)"
+                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                >Apps</a
+                            >
+                            <a
+                                href="/admin"
+                                style="color: var(--text-primary)"
+                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                >Admin Console</a
+                            >
+                            <a
+                                href="/"
+                                style="color: var(--text-primary)"
+                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                >Sign-Out</a
+                            >
+                        </div>
                     </div>
                 </div>
-            </div>
+            </header>
+
+            <main class="space-y-24">
+                <div class="app-container">
+                    <div class="chat-container">
+                        <div class="messages" id="messages">
+                            <div class="welcome-message">
+                                <div class="welcome-title">
+                                    Welcome to Apigee Agentic Portal
+                                </div>
+                                I'm here to help you with creating and managing
+                                API templates, features & proxies.
+                            </div>
+                        </div>
+
+                        <div class="typing-indicator" id="typingIndicator">
+                            <div class="avatar ai">AI</div>
+                            <div class="typing-dots">
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                            </div>
+                        </div>
+
+                        <div class="input-area">
+                            <div class="input-container">
+                                <textarea
+                                    class="message-input"
+                                    id="messageInput"
+                                    placeholder="Message Apigee..."
+                                    rows="1"
+                                ></textarea>
+                                <button
+                                    class="send-button"
+                                    id="sendButton"
+                                    aria-label="Send message"
+                                >
+                                    <svg
+                                        width="20"
+                                        height="20"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path d="M22 2L11 13" />
+                                        <path d="M22 2L15 22L11 13L2 9L22 2z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
 
         <script>
+            const themeToggle = document.getElementById("theme-toggle");
+
+            const savedTheme = localStorage.getItem("theme") || "dark";
+            setTheme(savedTheme);
+
+            function toggleTheme() {
+                const currentTheme = document.body.getAttribute("data-theme");
+                const newTheme = currentTheme === "light" ? "dark" : "light";
+
+                setTheme(newTheme);
+            }
+
+            function setTheme(newTheme) {
+                const lightIcon = document.querySelector(".theme-icon-light");
+                const darkIcon = document.querySelector(".theme-icon-dark");
+
+                document.body.setAttribute("data-theme", newTheme);
+                localStorage.setItem("theme", newTheme);
+
+                if (newTheme === "dark") {
+                    lightIcon.style.display = "none";
+                    darkIcon.style.display = "block";
+                } else {
+                    lightIcon.style.display = "block";
+                    darkIcon.style.display = "none";
+                }
+            }
+
+            const dropdownButton = document.getElementById(
+                "account-dropdown-button",
+            );
+            const dropdownMenu = document.getElementById(
+                "account-dropdown-menu",
+            );
+
+            // --- Dropdown Logic ---
+            dropdownButton.addEventListener("click", () => {
+                const isExpanded =
+                    dropdownButton.getAttribute("aria-expanded") === "true" ||
+                    false;
+                dropdownButton.setAttribute("aria-expanded", !isExpanded);
+                if (dropdownMenu.classList.contains("hidden")) {
+                    dropdownMenu.classList.remove("hidden");
+                    // Trigger a reflow to ensure the transition runs
+                    dropdownMenu.offsetHeight;
+                    dropdownMenu.classList.add("opacity-100", "translate-y-0");
+                    dropdownMenu.classList.remove("opacity-0", "translate-y-2");
+                } else {
+                    dropdownMenu.classList.remove(
+                        "opacity-100",
+                        "translate-y-0",
+                    );
+                    dropdownMenu.classList.add("opacity-0", "translate-y-2");
+                    setTimeout(() => {
+                        dropdownMenu.classList.add("hidden");
+                    }, 200); // Match transition duration
+                }
+            });
+
+            // Close dropdown if user clicks outside
+            window.addEventListener("click", (event) => {
+                if (
+                    !dropdownButton.contains(event.target) &&
+                    !dropdownMenu.contains(event.target)
+                ) {
+                    dropdownMenu.classList.add(
+                        "hidden",
+                        "opacity-0",
+                        "translate-y-2",
+                    );
+                    dropdownMenu.classList.remove(
+                        "opacity-100",
+                        "translate-y-0",
+                    );
+                    dropdownButton.setAttribute("aria-expanded", "false");
+                }
+            });
+
             class ChatInterface {
                 oauthMessage = {};
 
@@ -461,7 +662,7 @@
                     this.lightIcon = document.getElementById("lightIcon");
                     this.darkIcon = document.getElementById("darkIcon");
 
-                    this.initTheme();
+                    // this.initTheme();
                     this.setupEventListeners();
                     this.autoResizeTextarea();
                     this.startSession();

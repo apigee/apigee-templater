@@ -13,8 +13,6 @@ fi
 sed -i "/              value: SERVICE_URL_/c\              value: SERVICE_URL_$SERVICE_URL" cloud-run.local.yaml
 gcloud run services replace cloud-run.local.yaml --project $PROJECT_ID --region $REGION
 echo | gcloud run services set-iam-policy asset-service cloud-run-policy.yaml --project $PROJECT_ID --region $REGION
-# set mcp server url in agent .env file
-sed -i "s,^APIGEE_TEMPLATER_MCP_URL=.*,APIGEE_TEMPLATER_MCP_URL=$SERVICE_URL/mcp," ./agent/apigee_templater_agent/.env
 
 duration=$SECONDS
 echo "Total deployment finished in $((duration / 60)) minutes and $((duration % 60)) seconds."

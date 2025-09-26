@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en" class="dark">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Apigee Agentic Portal</title>
+        <link rel="icon" type="image/x-icon" href="/favicon.png" />
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                /* Dark mode colors */
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-tertiary: #334155;
+                --text-primary: #f8fafc;
+                --text-secondary: #cbd5e1;
+                --text-tertiary: #64748b;
+                --text-title: rgb(129, 140, 248, 1);
+                --border: #334155;
+                --shadow: rgba(0, 0, 0, 0.3);
+                --accent: #60a5fa;
+                --accent-hover: #3b82f6;
+                --user-bg: #3b82f6;
+                --user-text: #ffffff;
+                --ai-bg: #1e293b;
+                --ai-text: #f8fafc;
+                --input-bg: #1e293b;
+                --header-bg: rgba(15, 23, 42, 0.8);
+            }
+
+            [data-theme="light"] {
+                /* Light mode colors */
+                --bg-primary: #ffffff;
+                --bg-secondary: #f8fafc;
+                --bg-tertiary: #f1f5f9;
+                --text-primary: #0f172a;
+                --text-secondary: #475569;
+                --text-tertiary: #94a3b8;
+                --text-title: rgb(79, 70, 229, 1);
+                --border: #e2e8f0;
+                --shadow: rgba(0, 0, 0, 0.05);
+                --accent: #3b82f6;
+                --accent-hover: #2563eb;
+                --user-bg: #3b82f6;
+                --user-text: #ffffff;
+                --ai-bg: #f1f5f9;
+                --ai-text: #0f172a;
+                --input-bg: #ffffff;
+                --header-bg: rgba(255, 255, 255, 0.8);
+            }
+            body {
+                font-family: "Inter", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                transition: all 0.3s ease;
+            }
+
+            .menu-item:hover {
+                background-color: var(--bg-tertiary);
+                color: var(--text-primary);
+            }
+        </style>
+    </head>
+    <body class="">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Header -->
+            <header class="flex justify-between items-center py-6">
+                <div class="text-2xl font-bold tracking-tight">
+                    <a href="/">
+                        <span style="color: var(--text-title)">Apigee</span>
+                        Agentic Portal</a
+                    >
+                </div>
+
+                <div style="display: flex">
+                    <a
+                        href="/explore"
+                        class="relative top-1.5 px-2 md:px-5 font-bold right-0 text-lg"
+                        >APIs</a
+                    >
+
+                    <a
+                        href="/agent"
+                        class="relative top-1.5 px-2 md:px-5 font-bold right-0 text-lg"
+                        >AI Agent</a
+                    >
+
+                    <button class="px-2 theme-toggle" onclick="toggleTheme()">
+                        <svg
+                            class="theme-icon-light"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                            />
+                        </svg>
+                        <svg
+                            class="theme-icon-dark"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            style="display: none"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                            />
+                        </svg>
+                    </button>
+
+                    <!-- Account Dropdown -->
+                    <div class="relative">
+                        <button
+                            id="account-dropdown-button"
+                            style="background-color: var(--bg-tertiary)"
+                            class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-full p-2 transition duration-150 ease-in-out"
+                        >
+                            <svg
+                                class="h-6 w-6 text-gray-500 dark:text-gray-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                                <g
+                                    id="SVGRepo_tracerCarrier"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                ></g>
+                                <g id="SVGRepo_iconCarrier">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+                                    ></path>
+                                </g>
+                            </svg>
+                            <span
+                                style="color: var(--text-secondary)"
+                                class="font-medium text-gray-900 dark:text-white hidden md:inline"
+                                >Account</span
+                            >
+                            <svg
+                                class="h-4 w-4 text-gray-500 dark:text-gray-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 9l-7 7-7-7"
+                                />
+                            </svg>
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div
+                            id="account-dropdown-menu"
+                            style="background-color: var(--bg-secondary)"
+                            class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 z-10 opacity-0 dropdown-menu"
+                        >
+                            <a
+                                href="/apps"
+                                style="color: var(--text-primary)"
+                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                >Apps</a
+                            >
+                            <a
+                                href="/admin"
+                                style="color: var(--text-primary)"
+                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                >Admin Console</a
+                            >
+                            <a
+                                href="/"
+                                style="color: var(--text-primary)"
+                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                >Sign-Out</a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="space-y-24 mt-12 sm:mt-24">
+                <!-- Hero Section -->
+                <section class="text-center">
+                    <h1
+                        class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight"
+                    >
+                        The Next Evolution of API Management
+                    </h1>
+                    <p
+                        class="mt-4 text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto"
+                    >
+                        Apigee Agentic Portal leverages AI to create a dynamic,
+                        self-optimizing API ecosystem, simplifying development
+                        and boosting performance.
+                    </p>
+                    <div class="mt-8 flex justify-center space-x-4">
+                        <a
+                            href="/explore"
+                            class="px-6 py-3 text-lg font-medium text-white bg-indigo-600 rounded-full shadow-lg hover:bg-indigo-700 transition-colors duration-300"
+                            >Explore APIs</a
+                        >
+                        <a
+                            href="/agent"
+                            class="px-6 py-3 text-lg font-medium text-gray-800 dark:text-gray-200 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-300"
+                            >AI Agent</a
+                        >
+                    </div>
+                </section>
+
+                <!-- Showcase Section -->
+                <section id="features" class="py-12">
+                    <div class="text-center">
+                        <h2
+                            class="text-3xl sm:text-4xl font-bold tracking-tight"
+                        >
+                            Empowering Your API Ecosystem
+                        </h2>
+                        <p
+                            class="mt-4 text-gray-600 dark:text-gray-400 max-w-xl mx-auto"
+                        >
+                            Discover the intelligent features that make Apigee
+                            Agentic Portal a game-changer for developers and
+                            enterprises.
+                        </p>
+                    </div>
+                    <div
+                        class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+                    >
+                        <!-- Feature Card 1 -->
+                        <div
+                            style="
+                                background-color: var(--bg-tertiary);
+                                border-color: var(--accent);
+                            "
+                            class="p-8 rounded-2xl shadow-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
+                        >
+                            <div
+                                class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-600 dark:text-white"
+                            >
+                                <svg
+                                    class="h-8 w-8"
+                                    fill="none"
+                                    viewBox="0 0 512 512"
+                                    stroke="currentColor"
+                                >
+                                    <g
+                                        id="SVGRepo_bgCarrier"
+                                        stroke-width="0"
+                                    ></g>
+                                    <g
+                                        id="SVGRepo_tracerCarrier"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    ></g>
+                                    <g id="SVGRepo_iconCarrier">
+                                        <title>ai</title>
+                                        <g
+                                            id="Page-1"
+                                            stroke-width="1"
+                                            fill="currentColor"
+                                            fill-rule="evenodd"
+                                        >
+                                            <g
+                                                id="icon"
+                                                fill="currentColor"
+                                                transform="translate(64.000000, 64.000000)"
+                                            >
+                                                <path
+                                                    d="M320,64 L320,320 L64,320 L64,64 L320,64 Z M171.749388,128 L146.817842,128 L99.4840387,256 L121.976629,256 L130.913039,230.977 L187.575039,230.977 L196.319607,256 L220.167172,256 L171.749388,128 Z M260.093778,128 L237.691519,128 L237.691519,256 L260.093778,256 L260.093778,128 Z M159.094727,149.47526 L181.409039,213.333 L137.135039,213.333 L159.094727,149.47526 Z M341.333333,256 L384,256 L384,298.666667 L341.333333,298.666667 L341.333333,256 Z M85.3333333,341.333333 L128,341.333333 L128,384 L85.3333333,384 L85.3333333,341.333333 Z M170.666667,341.333333 L213.333333,341.333333 L213.333333,384 L170.666667,384 L170.666667,341.333333 Z M85.3333333,0 L128,0 L128,42.6666667 L85.3333333,42.6666667 L85.3333333,0 Z M256,341.333333 L298.666667,341.333333 L298.666667,384 L256,384 L256,341.333333 Z M170.666667,0 L213.333333,0 L213.333333,42.6666667 L170.666667,42.6666667 L170.666667,0 Z M256,0 L298.666667,0 L298.666667,42.6666667 L256,42.6666667 L256,0 Z M341.333333,170.666667 L384,170.666667 L384,213.333333 L341.333333,213.333333 L341.333333,170.666667 Z M0,256 L42.6666667,256 L42.6666667,298.666667 L0,298.666667 L0,256 Z M341.333333,85.3333333 L384,85.3333333 L384,128 L341.333333,128 L341.333333,85.3333333 Z M0,170.666667 L42.6666667,170.666667 L42.6666667,213.333333 L0,213.333333 L0,170.666667 Z M0,85.3333333 L42.6666667,85.3333333 L42.6666667,128 L0,128 L0,85.3333333 Z"
+                                                    id="Combined-Shape"
+                                                ></path>
+                                            </g>
+                                        </g>
+                                    </g>
+                                </svg>
+                                <!--<svg
+                                    class="h-6 w-6"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 016.382 11.042M12 15a3 3 0 100-6 3 3 0 000 6z"
+                                    />
+                                </svg>-->
+                            </div>
+                            <h3 class="mt-6 text-xl font-semibold">
+                                AI-Powered Optimization
+                            </h3>
+                            <p class="mt-4 text-gray-600 dark:text-gray-400">
+                                Our agentic AI learns and adapts, automatically
+                                optimizing API performance, security, and
+                                developer experience.
+                            </p>
+                        </div>
+                        <!-- Feature Card 2 -->
+                        <div
+                            style="
+                                background-color: var(--bg-tertiary);
+                                border-color: var(--accent);
+                            "
+                            class="p-8 rounded-2xl shadow-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
+                        >
+                            <div
+                                class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-600 dark:text-white"
+                            >
+                                <svg
+                                    class="h-6 w-6"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                                    />
+                                </svg>
+                            </div>
+                            <h3 class="mt-6 text-xl font-semibold">
+                                Self-Healing Infrastructure
+                            </h3>
+                            <p class="mt-4 text-gray-600 dark:text-gray-400">
+                                The portal proactively identifies and resolves
+                                issues, ensuring maximum uptime and reliability
+                                for your services.
+                            </p>
+                        </div>
+                        <!-- Feature Card 3 -->
+                        <div
+                            style="
+                                background-color: var(--bg-tertiary);
+                                border-color: var(--accent);
+                            "
+                            class="p-8 rounded-2xl shadow-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
+                        >
+                            <div
+                                class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-600 dark:text-white"
+                            >
+                                <svg
+                                    class="h-7 w-7"
+                                    fill="currentColor"
+                                    viewBox="0 0 1024 1024"
+                                    stroke="currentColor"
+                                >
+                                    <g
+                                        id="SVGRepo_bgCarrier"
+                                        stroke-width="0"
+                                    ></g>
+                                    <g
+                                        id="SVGRepo_tracerCarrier"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    ></g>
+                                    <g id="SVGRepo_iconCarrier">
+                                        <path
+                                            d="M877.685565 727.913127l-0.584863-0.365539a32.898541 32.898541 0 0 1-8.041866-46.423497 411.816631 411.816631 0 1 0-141.829267 145.777092c14.621574-8.992268 33.62962-5.117551 43.645398 8.772944l0.146216 0.073108a30.412874 30.412874 0 0 1-7.968758 43.206751l-6.141061 4.020933a475.201154 475.201154 0 1 1 163.615412-164.419599 29.974227 29.974227 0 0 1-42.841211 9.357807z m-537.342843-398.584106c7.164571-7.091463 24.71046-9.650239 33.26408 0 10.600641 11.185504 7.164571 29.462472 0 37.138798l-110.612207 107.468569L370.901811 576.14119c7.164571 7.091463 8.114974 27.342343 0 35.384209-9.796455 9.723347-29.828011 8.188081-36.480827 1.535265L208.309909 487.388236a18.423183 18.423183 0 0 1 0-25.953294l132.032813-132.032813z m343.314556 0l132.032813 132.032813a18.423183 18.423183 0 0 1 0 25.953294L689.652124 613.133772c-6.652816 6.579708-25.587754 10.746857-36.553935 0-10.30821-10.235102-7.091463-31.290168 0-38.381632l108.345863-100.669537-111.855041-108.638294c-7.164571-7.676326-9.504023-26.611265 0-36.04218 9.284699-9.138484 26.903696-7.091463 34.068267 0z m-135.54199-26.318833c3.582286-9.504023 21.347498-15.498868 32.679217-11.258612 10.819965 4.020933 17.180349 19.008046 14.256035 28.512069l-119.896906 329.716493c-3.509178 9.504023-20.616419 13.305632-30.193551 9.723347-10.161994-3.509178-21.201282-17.545889-17.545888-26.976804l120.627985-329.716493z"
+                                        ></path>
+                                    </g>
+                                </svg>
+
+                                <!--<svg
+                                    class="h-6 w-6"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-3.048c0-3.313 2.687-6 6-6s6 2.687 6 6V21zm0 0h6.048C21.313 18.048 24 15.361 24 12a12.001 12.001 0 00-4.477-9.333m-10.141 12.333V21m0 0H7.048C3.737 18.048 1 15.361 1 12a12.001 12.001 0 0110.523-9.333z"
+                                    />
+                                </svg>-->
+                            </div>
+                            <h3 class="mt-6 text-xl font-semibold">
+                                Intuitive Developer Experience
+                            </h3>
+                            <p class="mt-4 text-gray-600 dark:text-gray-400">
+                                An easy-to-use interface and intelligent
+                                documentation simplify everything from
+                                onboarding to integration.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Testimonials Section -->
+                <section id="testimonials" class="py-12">
+                    <div class="text-center">
+                        <h2
+                            class="text-3xl sm:text-4xl font-bold tracking-tight"
+                        >
+                            What Our Customers Say
+                        </h2>
+                        <p
+                            class="mt-4 text-gray-600 dark:text-gray-400 max-w-xl mx-auto"
+                        >
+                            See how Apigee Agentic Portal has transformed API
+                            management for businesses of all sizes.
+                        </p>
+                    </div>
+                    <div
+                        class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+                    >
+                        <!-- Testimonial Card 1 -->
+                        <div
+                            style="
+                                background-color: var(--bg-tertiary);
+                                border-color: var(--accent);
+                            "
+                            class="p-8 rounded-2xl shadow-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
+                        >
+                            <p
+                                class="text-lg italic text-gray-600 dark:text-gray-400"
+                            >
+                                "The AI capabilities are mind-blowing. Our API
+                                deployment time has been cut in half, allowing
+                                us to focus on innovation."
+                            </p>
+                            <div class="mt-6 flex items-center">
+                                <img
+                                    class="h-12 w-12 rounded-full"
+                                    src="https://placehold.co/100x100/A5B4FC/4338CA?text=A.C."
+                                    alt="User Avatar"
+                                />
+                                <div class="ml-4">
+                                    <p class="text-lg font-semibold">
+                                        Alex Chen
+                                    </p>
+                                    <p
+                                        class="text-sm text-gray-500 dark:text-gray-400"
+                                    >
+                                        CTO, Tech Solutions Inc.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Testimonial Card 2 -->
+                        <div
+                            style="
+                                background-color: var(--bg-tertiary);
+                                border-color: var(--accent);
+                            "
+                            class="p-8 rounded-2xl shadow-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
+                        >
+                            <p
+                                class="text-lg italic text-gray-600 dark:text-gray-400"
+                            >
+                                "A seamless, intuitive experience. The portal's
+                                automation has drastically reduced our
+                                operational overhead."
+                            </p>
+                            <div class="mt-6 flex items-center">
+                                <img
+                                    class="h-12 w-12 rounded-full"
+                                    src="https://placehold.co/100x100/FCA5A5/DC2626?text=B.P."
+                                    alt="User Avatar"
+                                />
+                                <div class="ml-4">
+                                    <p class="text-lg font-semibold">
+                                        Bianca Perez
+                                    </p>
+                                    <p
+                                        class="text-sm text-gray-500 dark:text-gray-400"
+                                    >
+                                        Lead Developer, InnovateNow
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Testimonial Card 3 -->
+                        <div
+                            style="
+                                background-color: var(--bg-tertiary);
+                                border-color: var(--accent);
+                            "
+                            class="p-8 rounded-2xl shadow-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
+                        >
+                            <p
+                                class="text-lg italic text-gray-600 dark:text-gray-400"
+                            >
+                                "We've seen a measurable improvement in our API
+                                performance since migrating. The self-healing
+                                feature is a lifesaver."
+                            </p>
+                            <div class="mt-6 flex items-center">
+                                <img
+                                    class="h-12 w-12 rounded-full"
+                                    src="https://placehold.co/100x100/99F6E4/0F766E?text=C.S."
+                                    alt="User Avatar"
+                                />
+                                <div class="ml-4">
+                                    <p class="text-lg font-semibold">
+                                        Chris Smith
+                                    </p>
+                                    <p
+                                        class="text-sm text-gray-500 dark:text-gray-400"
+                                    >
+                                        Product Manager, Nexus Labs
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- CTA Section -->
+                <section class="py-12 text-center">
+                    <div
+                        class="bg-indigo-600 dark:bg-indigo-700 rounded-3xl p-10 sm:p-16"
+                    >
+                        <h2
+                            class="text-3xl sm:text-4xl font-bold text-white tracking-tight"
+                        >
+                            Ready to Transform Your APIs?
+                        </h2>
+                        <p class="mt-4 text-lg text-indigo-200">
+                            Join the future of API management. Sign up for a
+                            free trial today.
+                        </p>
+                        <div class="mt-8">
+                            <a
+                                href="https://cloud.google.com/apigee"
+                                class="px-8 py-4 text-lg font-medium text-indigo-600 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors duration-300"
+                                >Start Your Free Trial</a
+                            >
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Footer -->
+            <footer class="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>
+                    &copy; 2025-2026 Apigee Agentic Portal. All rights reserved.
+                </p>
+            </footer>
+        </div>
+
+        <script>
+            const themeToggle = document.getElementById("theme-toggle");
+
+            const savedTheme = localStorage.getItem("theme") || "dark";
+            setTheme(savedTheme);
+
+            function toggleTheme() {
+                const currentTheme = document.body.getAttribute("data-theme");
+                const newTheme = currentTheme === "light" ? "dark" : "light";
+
+                setTheme(newTheme);
+            }
+
+            function setTheme(newTheme) {
+                const lightIcon = document.querySelector(".theme-icon-light");
+                const darkIcon = document.querySelector(".theme-icon-dark");
+
+                document.body.setAttribute("data-theme", newTheme);
+                localStorage.setItem("theme", newTheme);
+
+                if (newTheme === "dark") {
+                    lightIcon.style.display = "none";
+                    darkIcon.style.display = "block";
+                } else {
+                    lightIcon.style.display = "block";
+                    darkIcon.style.display = "none";
+                }
+            }
+
+            const dropdownButton = document.getElementById(
+                "account-dropdown-button",
+            );
+            const dropdownMenu = document.getElementById(
+                "account-dropdown-menu",
+            );
+
+            // --- Dropdown Logic ---
+            dropdownButton.addEventListener("click", () => {
+                const isExpanded =
+                    dropdownButton.getAttribute("aria-expanded") === "true" ||
+                    false;
+                dropdownButton.setAttribute("aria-expanded", !isExpanded);
+                if (dropdownMenu.classList.contains("hidden")) {
+                    dropdownMenu.classList.remove("hidden");
+                    // Trigger a reflow to ensure the transition runs
+                    dropdownMenu.offsetHeight;
+                    dropdownMenu.classList.add("opacity-100", "translate-y-0");
+                    dropdownMenu.classList.remove("opacity-0", "translate-y-2");
+                } else {
+                    dropdownMenu.classList.remove(
+                        "opacity-100",
+                        "translate-y-0",
+                    );
+                    dropdownMenu.classList.add("opacity-0", "translate-y-2");
+                    setTimeout(() => {
+                        dropdownMenu.classList.add("hidden");
+                    }, 200); // Match transition duration
+                }
+            });
+
+            // Close dropdown if user clicks outside
+            window.addEventListener("click", (event) => {
+                if (
+                    !dropdownButton.contains(event.target) &&
+                    !dropdownMenu.contains(event.target)
+                ) {
+                    dropdownMenu.classList.add(
+                        "hidden",
+                        "opacity-0",
+                        "translate-y-2",
+                    );
+                    dropdownMenu.classList.remove(
+                        "opacity-100",
+                        "translate-y-0",
+                    );
+                    dropdownButton.setAttribute("aria-expanded", "false");
+                }
+            });
+        </script>
+    </body>
+</html>

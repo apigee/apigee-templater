@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Apigee Agentic Portal - Explore</title>
+        <link rel="icon" type="image/x-icon" href="/favicon.png" />
+        <!-- Tailwind CSS -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            :root {
+                /* Dark mode colors */
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-tertiary: #334155;
+                --text-primary: #f8fafc;
+                --text-secondary: #cbd5e1;
+                --text-tertiary: #64748b;
+                --text-title: rgb(129, 140, 248, 1);
+                --border: #334155;
+                --shadow: rgba(0, 0, 0, 0.3);
+                --accent: #60a5fa;
+                --accent-hover: #3b82f6;
+                --user-bg: #3b82f6;
+                --user-text: #ffffff;
+                --ai-bg: #1e293b;
+                --ai-text: #f8fafc;
+                --input-bg: #1e293b;
+                --header-bg: rgba(15, 23, 42, 0.8);
+            }
+
+            [data-theme="light"] {
+                /* Light mode colors */
+                --bg-primary: #ffffff;
+                --bg-secondary: #f8fafc;
+                --bg-tertiary: #f1f5f9;
+                --text-primary: #0f172a;
+                --text-secondary: #475569;
+                --text-tertiary: #94a3b8;
+                --text-title: rgb(79, 70, 229, 1);
+                --border: #e2e8f0;
+                --shadow: rgba(0, 0, 0, 0.05);
+                --accent: #3b82f6;
+                --accent-hover: #2563eb;
+                --user-bg: #3b82f6;
+                --user-text: #ffffff;
+                --ai-bg: #f1f5f9;
+                --ai-text: #0f172a;
+                --input-bg: #ffffff;
+                --header-bg: rgba(255, 255, 255, 0.8);
+            }
+            body {
+                font-family: "Inter", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                transition: all 0.3s ease;
+            }
+
+            a:link {
+                color: var(--text-primary);
+                text-decoration: none;
+            }
+
+            /* visited link */
+            a:visited {
+                color: var(--text-primary);
+            }
+
+            /* mouse over link */
+            a:hover {
+                color: var(--text-primary);
+            }
+
+            /* selected link */
+            a:active {
+                color: var(--text-primary);
+            }
+            /* Custom styles for the API type icons */
+            .icon-rest {
+                color: #f97316;
+            } /* Orange-500 */
+            .icon-graphql {
+                color: #ec4899;
+            } /* Pink-500 */
+            .icon-mcp {
+                color: #3b82f6;
+            } /* Blue-500 */
+            .icon-grpc {
+                color: #a855f7;
+            } /* Purple-500 */
+
+            .card-icon {
+                width: 48px;
+                height: 48px;
+            }
+
+            .menu-item:hover {
+                background-color: var(--bg-tertiary);
+                color: var(--text-primary);
+            }
+        </style>
+    </head>
+    <body class="transition-colors duration-300">
+        <div class="container mx-auto px-4 max-w-7xl">
+            <!-- Header -->
+            <header class="flex justify-between items-center py-6">
+                <div class="text-2xl font-bold tracking-tight">
+                    <a href="/">
+                        <span style="color: var(--text-title)">Apigee</span>
+                        Agentic Portal
+                    </a>
+                </div>
+
+                <div style="display: flex">
+                    <a
+                        href="/explore"
+                        class="relative top-1.5 px-2 md:px-5 font-bold right-0 text-lg"
+                        >APIs</a
+                    >
+
+                    <a
+                        href="/agent"
+                        class="relative top-1.5 px-2 md:px-5 font-bold right-0 text-lg"
+                        >AI Agent</a
+                    >
+
+                    <button class="px-2 theme-toggle" onclick="toggleTheme()">
+                        <svg
+                            class="theme-icon-light"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                            />
+                        </svg>
+                        <svg
+                            class="theme-icon-dark"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            style="display: none"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                            />
+                        </svg>
+                    </button>
+
+                    <!-- Account Dropdown -->
+                    <div class="relative">
+                        <button
+                            id="account-dropdown-button"
+                            style="background-color: var(--bg-tertiary)"
+                            class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-full p-2 transition duration-150 ease-in-out"
+                        >
+                            <svg
+                                class="h-6 w-6 text-gray-500 dark:text-gray-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                                <g
+                                    id="SVGRepo_tracerCarrier"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                ></g>
+                                <g id="SVGRepo_iconCarrier">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+                                    ></path>
+                                </g>
+                            </svg>
+                            <span
+                                style="color: var(--text-secondary)"
+                                class="font-medium text-gray-900 dark:text-white hidden md:inline"
+                                >Account</span
+                            >
+                            <svg
+                                class="h-4 w-4 text-gray-500 dark:text-gray-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 9l-7 7-7-7"
+                                />
+                            </svg>
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div
+                            id="account-dropdown-menu"
+                            style="background-color: var(--bg-secondary)"
+                            class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 z-10 opacity-0 dropdown-menu"
+                        >
+                            <a
+                                href="/apps"
+                                style="color: var(--text-primary)"
+                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                >Apps</a
+                            >
+                            <a
+                                href="/admin"
+                                style="color: var(--text-primary)"
+                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                >Admin Console</a
+                            >
+                            <a
+                                href="/"
+                                style="color: var(--text-primary)"
+                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                >Sign-Out</a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!--<header
+                class="flex flex-col md:flex-row justify-between items-center mb-12"
+            >
+                <div>
+                    <h1 class="text-4xl font-extrabold tracking-tight mb-2">
+                        API Product Explorer
+                    </h1>
+                    <p class="text-lg text-gray-700 dark:text-gray-300">
+                        Explore and discover our suite of modern APIs for
+                        various business needs.
+                    </p>
+                </div>
+                <button
+                    id="theme-toggle"
+                    class="mt-4 md:mt-0 p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600 transition-transform transform hover:scale-110"
+                >
+                    <svg
+                        id="sun-icon"
+                        class="h-6 w-6 text-yellow-500 dark:hidden"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                        />
+                    </svg>
+                    <svg
+                        id="moon-icon"
+                        class="h-6 w-6 text-indigo-400 hidden dark:block"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                        />
+                    </svg>
+                </button>
+            </header>-->
+
+            <!-- Search and Filter Controls -->
+            <div class="flex flex-col md:flex-col gap-4 mb-8">
+                <input
+                    id="search-input"
+                    type="text"
+                    placeholder="Search by API name..."
+                    class="flex-1 p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 outline-none transition-all duration-200"
+                />
+
+                <div class="flex items-center space-x-2 overflow-x-auto pb-2">
+                    <button
+                        data-type="All"
+                        class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-blue-500 text-white shadow-md hover:bg-blue-600 active:bg-blue-700"
+                    >
+                        All
+                    </button>
+                    <button
+                        data-type="MCP"
+                        class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300"
+                    >
+                        MCP
+                    </button>
+                    <button
+                        data-type="REST"
+                        class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300"
+                    >
+                        REST
+                    </button>
+                    <button
+                        data-type="GraphQL"
+                        class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300"
+                    >
+                        GraphQL
+                    </button>
+                    <button
+                        data-type="gRPC"
+                        class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300"
+                    >
+                        gRPC
+                    </button>
+                </div>
+            </div>
+
+            <!-- API Products Grouped by Topic -->
+            <div id="product-container" class="space-y-12">
+                <!-- Products will be dynamically injected here by JavaScript -->
+            </div>
+
+            <!-- Footer -->
+            <footer class="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>
+                    &copy; 2025-2026 Apigee Agentic Portal. All rights reserved.
+                </p>
+            </footer>
+        </div>
+
+        <script>
+            // Sample data for API products
+            const products = [
+                {
+                    id: 110,
+                    name: "Customer MCP Server",
+                    type: "MCP",
+                    topic: "Customer",
+                    description:
+                        "Access and manage detailed customer profiles, including contact information and purchase history.",
+                    tags: ["Analytics", "CRM", "Profiles"],
+                },
+                {
+                    id: 111,
+                    name: "Customer Loyalty MCP Server",
+                    type: "MCP",
+                    topic: "Customer",
+                    description:
+                        "An MCP server for customers to access their loyalty and points information.",
+                    tags: ["Analytics", "CRM", "Profiles"],
+                },
+                {
+                    id: 1,
+                    name: "Customer Data API",
+                    type: "REST",
+                    topic: "Customer",
+                    description:
+                        "Access and manage detailed customer profiles, including contact information and purchase history.",
+                    tags: ["Analytics", "CRM", "Profiles"],
+                },
+                {
+                    id: 2,
+                    name: "Sales Forecast API",
+                    type: "GraphQL",
+                    topic: "Sales",
+                    description:
+                        "Predict future sales trends using machine learning models based on historical data.",
+                    tags: ["AI", "Predictive", "Planning"],
+                },
+                {
+                    id: 3,
+                    name: "Financial Reporting API",
+                    type: "REST",
+                    topic: "Financial",
+                    description:
+                        "Retrieve comprehensive financial reports, balance sheets, and profit-and-loss statements.",
+                    tags: ["Accounting", "Reporting", "Auditing"],
+                },
+                {
+                    id: 4,
+                    name: "Inventory Management API",
+                    type: "MCP",
+                    topic: "Supply Chain",
+                    description:
+                        "Update and query real-time inventory levels across multiple warehouses and stores.",
+                    tags: ["Logistics", "Warehouse", "Stock"],
+                },
+                {
+                    id: 5,
+                    name: "User Authentication API",
+                    type: "gRPC",
+                    topic: "Customer",
+                    description:
+                        "Securely authenticate users and manage access tokens with a high-performance protocol.",
+                    tags: ["Security", "Identity", "Auth"],
+                },
+                {
+                    id: 6,
+                    name: "Order Fulfillment API",
+                    type: "MCP",
+                    topic: "Supply Chain",
+                    description:
+                        "Streamline the order-to-delivery process, from order confirmation to shipping tracking.",
+                    tags: ["Fulfillment", "Shipping", "Logistics"],
+                },
+                {
+                    id: 7,
+                    name: "Payment Gateway API",
+                    type: "REST",
+                    topic: "Financial",
+                    description:
+                        "Process payments securely and integrate with major payment providers.",
+                    tags: ["Payments", "Transactions", "E-commerce"],
+                },
+                {
+                    id: 8,
+                    name: "Lead Generation API",
+                    type: "GraphQL",
+                    topic: "Sales",
+                    description:
+                        "Find and qualify new business leads based on industry, size, and location criteria.",
+                    tags: ["Marketing", "Leads", "Prospects"],
+                },
+                {
+                    id: 9,
+                    name: "Customer Support API",
+                    type: "gRPC",
+                    topic: "Customer",
+                    description:
+                        "Integrate customer support tools and communication channels for efficient service.",
+                    tags: ["Service", "Help Desk", "Tickets"],
+                },
+            ];
+
+            // API Type Icons
+            const apiIcons = {
+                REST: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-rest" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5L12 2z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>`,
+                GraphQL: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-graphql" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="2" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"></line></svg>`,
+                MCP: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-mcp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path></svg>`,
+                gRPC: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-grpc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="12" y1="9" x2="12" y2="15"></line></svg>`,
+            };
+
+            // Main elements
+            const searchInput = document.getElementById("search-input");
+            const filterButtons = document.querySelectorAll(".filter-btn");
+            const productContainer =
+                document.getElementById("product-container");
+
+            let activeTypeFilter = "All";
+
+            const themeToggle = document.getElementById("theme-toggle");
+            const savedTheme = localStorage.getItem("theme") || "dark";
+            setTheme(savedTheme);
+
+            function toggleTheme() {
+                const currentTheme = document.body.getAttribute("data-theme");
+                const newTheme = currentTheme === "light" ? "dark" : "light";
+
+                setTheme(newTheme);
+            }
+
+            function setTheme(newTheme) {
+                const lightIcon = document.querySelector(".theme-icon-light");
+                const darkIcon = document.querySelector(".theme-icon-dark");
+
+                document.body.setAttribute("data-theme", newTheme);
+                localStorage.setItem("theme", newTheme);
+
+                if (newTheme === "dark") {
+                    lightIcon.style.display = "none";
+                    darkIcon.style.display = "block";
+                } else {
+                    lightIcon.style.display = "block";
+                    darkIcon.style.display = "none";
+                }
+            }
+
+            const dropdownButton = document.getElementById(
+                "account-dropdown-button",
+            );
+            const dropdownMenu = document.getElementById(
+                "account-dropdown-menu",
+            );
+
+            // --- Dropdown Logic ---
+            dropdownButton.addEventListener("click", () => {
+                const isExpanded =
+                    dropdownButton.getAttribute("aria-expanded") === "true" ||
+                    false;
+                dropdownButton.setAttribute("aria-expanded", !isExpanded);
+                if (dropdownMenu.classList.contains("hidden")) {
+                    dropdownMenu.classList.remove("hidden");
+                    // Trigger a reflow to ensure the transition runs
+                    dropdownMenu.offsetHeight;
+                    dropdownMenu.classList.add("opacity-100", "translate-y-0");
+                    dropdownMenu.classList.remove("opacity-0", "translate-y-2");
+                } else {
+                    dropdownMenu.classList.remove(
+                        "opacity-100",
+                        "translate-y-0",
+                    );
+                    dropdownMenu.classList.add("opacity-0", "translate-y-2");
+                    setTimeout(() => {
+                        dropdownMenu.classList.add("hidden");
+                    }, 200); // Match transition duration
+                }
+            });
+
+            // Close dropdown if user clicks outside
+            window.addEventListener("click", (event) => {
+                if (
+                    !dropdownButton.contains(event.target) &&
+                    !dropdownMenu.contains(event.target)
+                ) {
+                    dropdownMenu.classList.add(
+                        "hidden",
+                        "opacity-0",
+                        "translate-y-2",
+                    );
+                    dropdownMenu.classList.remove(
+                        "opacity-100",
+                        "translate-y-0",
+                    );
+                    dropdownButton.setAttribute("aria-expanded", "false");
+                }
+            });
+
+            // Function to render a single product card
+            const createProductCard = (product) => {
+                const card = document.createElement("div");
+                card.className =
+                    "bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md dark:shadow-xl hover:shadow-lg dark:hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1";
+
+                const tagsHtml = product.tags
+                    .map(
+                        (tag) =>
+                            `<span class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold px-2 py-1 rounded-full">${tag}</span>`,
+                    )
+                    .join("");
+
+                card.innerHTML = `
+                <div class="flex items-start justify-between mb-4">
+                    ${apiIcons[product.type]}
+                    <span class="text-sm font-bold px-3 py-1 rounded-full ${product.type === "REST" ? "bg-orange-500 text-white" : product.type === "GraphQL" ? "bg-pink-500 text-white" : product.type === "MCP" ? "bg-blue-500 text-white" : "bg-purple-500 text-white"}">${product.type}</span>
+                </div>
+                <h3 class="text-2xl font-semibold mb-2">${product.name}</h3>
+                <p class="text-gray-500 dark:text-gray-400 mb-4">${product.description}</p>
+                <div class="flex flex-wrap gap-2 mb-4">
+                    ${tagsHtml}
+                </div>
+                <button onclick="viewDetails(${product.id})" class="mt-auto px-4 py-2 text-sm font-medium text-white bg-gray-900 dark:bg-gray-700 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200">View Details</button>
+            `;
+                return card;
+            };
+
+            // This function would typically show a modal or navigate to a new page
+            const viewDetails = (id) => {
+                console.log("View details for product ID:", id);
+                // In a real application, you would handle the details view here.
+            };
+
+            // Expose the function to the global scope so it can be called from the HTML
+            window.viewDetails = viewDetails;
+
+            // Function to render all products, grouped by topic
+            const renderProducts = (filteredProducts) => {
+                // Clear the container first
+                productContainer.innerHTML = "";
+
+                // Group products by topic
+                const groupedByTopic = filteredProducts.reduce(
+                    (acc, product) => {
+                        const topic = product.topic;
+                        if (!acc[topic]) {
+                            acc[topic] = [];
+                        }
+                        acc[topic].push(product);
+                        return acc;
+                    },
+                    {},
+                );
+
+                // Create and append a section for each topic
+                Object.keys(groupedByTopic).forEach((topic) => {
+                    const topicSection = document.createElement("div");
+                    topicSection.className = "topic-section";
+                    topicSection.innerHTML = `<h2 class="text-3xl font-bold mb-6">${topic}</h2>`;
+
+                    const cardsContainer = document.createElement("div");
+                    cardsContainer.className =
+                        "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6";
+
+                    groupedByTopic[topic].forEach((product) => {
+                        const card = createProductCard(product);
+                        cardsContainer.appendChild(card);
+                    });
+
+                    topicSection.appendChild(cardsContainer);
+                    productContainer.appendChild(topicSection);
+                });
+
+                // Show a message if no products are found
+                if (filteredProducts.length === 0) {
+                    productContainer.innerHTML = `<p class="text-center text-lg text-gray-500 dark:text-gray-400">No products found for this query.</p>`;
+                }
+            };
+
+            // Function to filter and render products
+            const filterAndRender = () => {
+                const query = searchInput.value.toLowerCase();
+                const filtered = products.filter((product) => {
+                    const matchesSearch = product.name
+                        .toLowerCase()
+                        .includes(query);
+                    const matchesType =
+                        activeTypeFilter === "All" ||
+                        product.type === activeTypeFilter;
+                    return matchesSearch && matchesType;
+                });
+                renderProducts(filtered);
+            };
+
+            // Event Listeners
+            searchInput.addEventListener("input", filterAndRender);
+            filterButtons.forEach((button) => {
+                button.addEventListener("click", () => {
+                    // Update active filter and re-render
+                    activeTypeFilter = button.dataset.type;
+
+                    // Update button styles
+                    filterButtons.forEach((btn) => {
+                        if (btn.dataset.type === activeTypeFilter) {
+                            btn.classList.remove(
+                                "bg-gray-200",
+                                "text-gray-700",
+                                "dark:bg-gray-700",
+                                "dark:text-gray-200",
+                                "dark:hover:bg-gray-600",
+                                "hover:bg-gray-300",
+                            );
+                            btn.classList.add(
+                                "bg-blue-500",
+                                "text-white",
+                                "shadow-md",
+                                "hover:bg-blue-600",
+                                "active:bg-blue-700",
+                            );
+                        } else {
+                            btn.classList.remove(
+                                "bg-blue-500",
+                                "text-white",
+                                "shadow-md",
+                                "hover:bg-blue-600",
+                                "active:bg-blue-700",
+                            );
+                            btn.classList.add(
+                                "bg-gray-200",
+                                "text-gray-700",
+                                "dark:bg-gray-700",
+                                "dark:text-gray-200",
+                                "dark:hover:bg-gray-600",
+                                "hover:bg-gray-300",
+                            );
+                        }
+                    });
+
+                    filterAndRender();
+                });
+            });
+
+            // Initial render on page load
+            document.addEventListener("DOMContentLoaded", () => {
+                filterAndRender();
+            });
+        </script>
+    </body>
+</html>

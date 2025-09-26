@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Apigee Agentic Portal</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            a:link {
+                color: var(--text-primary);
+            }
+
+            /* visited link */
+            a:visited {
+                color: var(--text-primary);
+            }
+
+            /* mouse over link */
+            a:hover {
+                color: var(--text-primary);
+            }
+
+            /* selected link */
+            a:active {
+                color: var(--text-primary);
+            }
+
+            :root {
+                /* Light mode colors */
+                --bg-primary: #ffffff;
+                --bg-secondary: #f8fafc;
+                --bg-tertiary: #f1f5f9;
+                --text-primary: #0f172a;
+                --text-secondary: #475569;
+                --text-tertiary: #94a3b8;
+                --border: #e2e8f0;
+                --shadow: rgba(0, 0, 0, 0.05);
+                --accent: #3b82f6;
+                --accent-hover: #2563eb;
+                --user-bg: #3b82f6;
+                --user-text: #ffffff;
+                --ai-bg: #f1f5f9;
+                --ai-text: #0f172a;
+                --input-bg: #ffffff;
+                --header-bg: rgba(255, 255, 255, 0.8);
+            }
+
+            [data-theme="dark"] {
+                /* Dark mode colors */
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-tertiary: #334155;
+                --text-primary: #f8fafc;
+                --text-secondary: #cbd5e1;
+                --text-tertiary: #64748b;
+                --border: #334155;
+                --shadow: rgba(0, 0, 0, 0.3);
+                --accent: #60a5fa;
+                --accent-hover: #3b82f6;
+                --user-bg: #3b82f6;
+                --user-text: #ffffff;
+                --ai-bg: #1e293b;
+                --ai-text: #f8fafc;
+                --input-bg: #1e293b;
+                --header-bg: rgba(15, 23, 42, 0.8);
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter",
+                    system-ui, sans-serif;
+                background-color: var(--bg-primary);
+                color: var(--text-primary);
+                transition:
+                    background-color 0.3s ease,
+                    color 0.3s ease;
+                line-height: 1.5;
+                font-size: 16px;
+            }
+
+            .app-container {
+                max-width: 900px;
+                margin: 0 auto;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                background-color: var(--bg-primary);
+            }
+
+            .header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 16px 24px;
+                border-bottom: 1px solid var(--border);
+                background-color: var(--header-bg);
+                backdrop-filter: blur(8px);
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+
+            .header-left {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .logo {
+                width: 32px;
+                height: 32px;
+                background: var(--accent);
+                border-radius: 6px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: 600;
+                font-size: 14px;
+            }
+
+            .app-title {
+                font-size: 18px;
+                font-weight: 600;
+                color: var(--text-primary);
+            }
+
+            .theme-toggle {
+                background: none;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                color: var(--text-secondary);
+                transition: all 0.2s ease;
+            }
+
+            .theme-toggle:hover {
+                background-color: var(--bg-secondary);
+                color: var(--text-primary);
+            }
+
+            .chat-container {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+
+            .messages {
+                flex: 1;
+                overflow-y: auto;
+                padding: 24px;
+                scroll-behavior: smooth;
+            }
+
+            .messages::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            .messages::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            .messages::-webkit-scrollbar-thumb {
+                background: var(--border);
+                border-radius: 2px;
+            }
+
+            .message {
+                margin-bottom: 24px;
+                display: flex;
+                gap: 12px;
+                opacity: 0;
+                animation: fadeInUp 0.4s ease-out forwards;
+            }
+
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(8px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .message.user {
+                flex-direction: row-reverse;
+            }
+
+            .avatar {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                font-weight: 600;
+                flex-shrink: 0;
+                margin-top: 2px;
+            }
+
+            .avatar.user {
+                background: var(--user-bg);
+                color: var(--user-text);
+            }
+
+            .avatar.ai {
+                background: var(--bg-secondary);
+                color: var(--text-secondary);
+                border: 1px solid var(--border);
+            }
+
+            .message-content {
+                max-width: calc(100% - 48px);
+                background: var(--ai-bg);
+                color: var(--ai-text);
+                padding: 12px 26px;
+                border-radius: 12px;
+                font-size: 15px;
+                line-height: 1.6;
+                border: 1px solid var(--border);
+            }
+
+            .message.user .message-content {
+                background: var(--user-bg);
+                color: var(--user-text);
+                border: none;
+            }
+
+            .typing-indicator {
+                display: none;
+                align-items: center;
+                gap: 12px;
+                margin: 0 24px 24px 24px;
+            }
+
+            .typing-dots {
+                display: flex;
+                gap: 4px;
+                padding: 12px 16px;
+                background: var(--ai-bg);
+                border-radius: 12px;
+                border: 1px solid var(--border);
+            }
+
+            .typing-dot {
+                width: 6px;
+                height: 6px;
+                background: var(--text-tertiary);
+                border-radius: 50%;
+                animation: pulse 1.5s ease-in-out infinite;
+            }
+
+            .typing-dot:nth-child(2) {
+                animation-delay: 0.2s;
+            }
+
+            .typing-dot:nth-child(3) {
+                animation-delay: 0.4s;
+            }
+
+            @keyframes pulse {
+                0%,
+                60%,
+                100% {
+                    opacity: 0.3;
+                    transform: scale(0.8);
+                }
+                30% {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+
+            .input-area {
+                padding: 16px 24px;
+                border-top: 1px solid var(--border);
+                background: var(--bg-primary);
+            }
+
+            .input-container {
+                display: flex;
+                gap: 12px;
+                align-items: flex-end;
+                max-width: 100%;
+            }
+
+            .message-input {
+                flex: 1;
+                background: var(--input-bg);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 12px 16px;
+                font-size: 15px;
+                color: var(--text-primary);
+                resize: none;
+                outline: none;
+                transition: all 0.2s ease;
+                min-height: 44px;
+                max-height: 120px;
+                font-family: inherit;
+                line-height: 1.4;
+                overflow: hidden;
+            }
+
+            .message-input::placeholder {
+                color: var(--text-tertiary);
+            }
+
+            .message-input:focus {
+                border-color: var(--accent);
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            }
+
+            .send-button {
+                background: var(--accent);
+                border: none;
+                border-radius: 10px;
+                width: 44px;
+                height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                color: white;
+                transition: all 0.2s ease;
+                flex-shrink: 0;
+            }
+
+            .send-button:hover:not(:disabled) {
+                background: var(--accent-hover);
+                transform: translateY(-1px);
+            }
+
+            .send-button:active {
+                transform: translateY(0);
+            }
+
+            .send-button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+            .welcome-message {
+                text-align: center;
+                color: var(--text-secondary);
+                font-size: 15px;
+                margin: 60px 20px;
+                line-height: 1.6;
+            }
+
+            .welcome-title {
+                font-size: 20px;
+                font-weight: 600;
+                color: var(--text-primary);
+                margin-bottom: 8px;
+            }
+
+            @media (max-width: 768px) {
+                .header {
+                    padding: 12px 16px;
+                }
+
+                .messages {
+                    padding: 16px;
+                }
+
+                .input-area {
+                    padding: 12px 16px;
+                }
+
+                .message-content {
+                    max-width: calc(100% - 48px);
+                    font-size: 14px;
+                }
+
+                .welcome-message {
+                    margin: 40px 16px;
+                }
+            }
+        </style>
+        <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+    </head>
+    <body>
+        <div class="app-container">
+            <!--<div class="header">
+                <div class="header-left">
+                    <div class="logo">A</div>
+                    <div class="app-title">Apigee Agentic Portal</div>
+                </div>
+                <button
+                    class="theme-toggle"
+                    id="themeToggle"
+                    aria-label="Toggle theme"
+                >
+                    <svg
+                        id="lightIcon"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <circle cx="12" cy="12" r="5" />
+                        <path
+                            d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
+                        />
+                    </svg>
+                    <svg
+                        id="darkIcon"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        style="display: none"
+                    >
+                        <path
+                            d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+                        />
+                    </svg>
+                </button>
+            </div>-->
+
+            <div class="chat-container">
+                <div class="messages" id="messages">
+                    <div class="welcome-message">
+                        <div class="welcome-title">
+                            This feature is coming soon!
+                        </div>
+                        In the meantime you can use the <b>Chat</b> feature to
+                        view and change resources.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            class ChatInterface {
+                oauthMessage = {};
+
+                constructor() {
+                    this.initTheme();
+                }
+
+                initTheme() {
+                    const savedTheme = localStorage.getItem("theme") || "light";
+                    this.setTheme(savedTheme);
+                }
+
+                setTheme(theme) {
+                    document.documentElement.setAttribute("data-theme", theme);
+                    localStorage.setItem("theme", theme);
+                }
+
+                toggleTheme() {
+                    const currentTheme =
+                        document.documentElement.getAttribute("data-theme");
+                    const newTheme = currentTheme === "dark" ? "light" : "dark";
+                    this.setTheme(newTheme);
+                }
+            }
+
+            new ChatInterface();
+        </script>
+    </body>
+</html>

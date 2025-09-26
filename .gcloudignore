@@ -6,4 +6,4 @@ build
 temp
 proxies
 .env
-agent
+/agent

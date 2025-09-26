@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="en" class="light">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>App Subscription Manager</title>
+        <link rel="icon" type="image/x-icon" href="/favicon.png" />
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                /* Dark mode colors */
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-tertiary: #334155;
+                --text-primary: #f8fafc;
+                --text-secondary: #cbd5e1;
+                --text-tertiary: #64748b;
+                --text-title: rgb(129, 140, 248, 1);
+                --border: #334155;
+                --shadow: rgba(0, 0, 0, 0.3);
+                --accent: #60a5fa;
+                --accent-hover: #3b82f6;
+                --user-bg: #3b82f6;
+                --user-text: #ffffff;
+                --ai-bg: #1e293b;
+                --ai-text: #f8fafc;
+                --input-bg: #1e293b;
+                --header-bg: rgba(15, 23, 42, 0.8);
+            }
+
+            [data-theme="light"] {
+                /* Light mode colors */
+                --bg-primary: #ffffff;
+                --bg-secondary: #f8fafc;
+                --bg-tertiary: #f1f5f9;
+                --text-primary: #0f172a;
+                --text-secondary: #475569;
+                --text-tertiary: #94a3b8;
+                --text-title: rgb(79, 70, 229, 1);
+                --border: #e2e8f0;
+                --shadow: rgba(0, 0, 0, 0.05);
+                --accent: #3b82f6;
+                --accent-hover: #2563eb;
+                --user-bg: #3b82f6;
+                --user-text: #ffffff;
+                --ai-bg: #f1f5f9;
+                --ai-text: #0f172a;
+                --input-bg: #ffffff;
+                --header-bg: rgba(255, 255, 255, 0.8);
+            }
+            body {
+                font-family: "Inter", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                transition: all 0.3s ease;
+            }
+
+            /* Custom scrollbar for better aesthetics */
+            ::-webkit-scrollbar {
+                width: 8px;
+            }
+            ::-webkit-scrollbar-track {
+                background-color: #f1f5f9;
+            }
+            .dark ::-webkit-scrollbar-track {
+                background-color: #1e293b;
+            }
+            ::-webkit-scrollbar-thumb {
+                background-color: #cbd5e1;
+                border-radius: 10px;
+            }
+            .dark ::-webkit-scrollbar-thumb {
+                background-color: #475569;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background-color: #94a3b8;
+            }
+            .dark ::-webkit-scrollbar-thumb:hover {
+                background-color: #64748b;
+            }
+            /* Simple transition for all elements */
+            * {
+                transition:
+                    background-color 0.2s ease-in-out,
+                    color 0.2s ease-in-out,
+                    border-color 0.2s ease-in-out;
+            }
+            a:link {
+                color: var(--text-primary);
+                text-decoration: none;
+            }
+
+            /* visited link */
+            a:visited {
+                color: var(--text-primary);
+            }
+
+            /* mouse over link */
+            a:hover {
+                color: var(--text-primary);
+            }
+
+            /* selected link */
+            a:active {
+                color: var(--text-primary);
+            }
+            .menu-item:hover {
+                background-color: var(--bg-tertiary);
+                color: var(--text-primary);
+            }
+        </style>
+        <script>
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ["Inter", "sans-serif"],
+                        },
+                    },
+                },
+            };
+        </script>
+    </head>
+    <body class="antialiased">
+        <div id="app" class="min-h-screen px-4">
+            <div class="max-w-7xl mx-auto">
+                <!-- Header -->
+                <header class="flex justify-between items-center py-6">
+                    <div class="text-2xl font-bold tracking-tight">
+                        <a href="/">
+                            <span style="color: var(--text-title)">Apigee</span>
+                            Agentic Portal
+                        </a>
+                    </div>
+
+                    <div style="display: flex">
+                        <a
+                            href="/explore"
+                            class="relative top-1.5 px-2 md:px-5 font-bold right-0 text-lg"
+                            >APIs</a
+                        >
+
+                        <a
+                            href="/agent"
+                            class="relative top-1.5 px-2 md:px-5 font-bold right-0 text-lg"
+                            >AI Agent</a
+                        >
+
+                        <button
+                            class="px-2 theme-toggle"
+                            onclick="toggleTheme()"
+                        >
+                            <svg
+                                class="theme-icon-light"
+                                width="20"
+                                height="20"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                                />
+                            </svg>
+                            <svg
+                                class="theme-icon-dark"
+                                width="20"
+                                height="20"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                style="display: none"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                                />
+                            </svg>
+                        </button>
+
+                        <!-- Account Dropdown -->
+                        <div class="relative">
+                            <button
+                                id="account-dropdown-button"
+                                style="background-color: var(--bg-tertiary)"
+                                class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-full p-2 transition duration-150 ease-in-out"
+                            >
+                                <svg
+                                    class="h-6 w-6 text-gray-500 dark:text-gray-400"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <g
+                                        id="SVGRepo_bgCarrier"
+                                        stroke-width="0"
+                                    ></g>
+                                    <g
+                                        id="SVGRepo_tracerCarrier"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    ></g>
+                                    <g id="SVGRepo_iconCarrier">
+                                        <path
+                                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+                                        ></path>
+                                    </g>
+                                </svg>
+                                <span
+                                    style="color: var(--text-secondary)"
+                                    class="font-medium text-gray-900 dark:text-white hidden md:inline"
+                                    >Account</span
+                                >
+                                <svg
+                                    class="h-4 w-4 text-gray-500 dark:text-gray-400"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M19 9l-7 7-7-7"
+                                    />
+                                </svg>
+                            </button>
+
+                            <!-- Dropdown Menu -->
+                            <div
+                                id="account-dropdown-menu"
+                                style="background-color: var(--bg-secondary)"
+                                class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 z-10 opacity-0 dropdown-menu"
+                            >
+                                <a
+                                    href="/apps"
+                                    style="color: var(--text-primary)"
+                                    class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                    >Apps</a
+                                >
+                                <a
+                                    href="/admin"
+                                    style="color: var(--text-primary)"
+                                    class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                    >Admin Console</a
+                                >
+                                <a
+                                    href="/"
+                                    style="color: var(--text-primary)"
+                                    class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                    >Sign-Out</a
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </header>
+                <!-- Action Bar -->
+                <div class="flex justify-between mb-6">
+                    <h1
+                        class="text-4xl font-bold tracking-tight"
+                        style="color: var(--text-primary)"
+                    >
+                        My Apps
+                    </h1>
+
+                    <button
+                        id="create-new-btn"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 flex items-center space-x-2"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                        >
+                            <path
+                                fill-rule="evenodd"
+                                d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                                clip-rule="evenodd"
+                            />
+                        </svg>
+                        <span>New App</span>
+                    </button>
+                </div>
+
+                <!-- Subscriptions Grid -->
+                <div
+                    id="subscriptions-grid"
+                    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                    <!-- Subscription cards will be inserted here -->
+                </div>
+
+                <div id="empty-state" class="hidden text-center py-16">
+                    <svg
+                        class="mx-auto h-12 w-12 text-slate-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                    >
+                        <path
+                            vector-effect="non-scaling-stroke"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2z"
+                        />
+                    </svg>
+                    <h3
+                        class="mt-2 text-sm font-semibold text-slate-900 dark:text-white"
+                    >
+                        No subscriptions
+                    </h3>
+                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                        Get started by creating a new subscription.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit/Create Modal -->
+        <div
+            id="modal"
+            class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+            <div
+                id="modal-content"
+                class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl transform transition-all opacity-0 scale-95"
+            >
+                <div
+                    class="px-6 py-4 border-b border-slate-200 dark:border-slate-700"
+                >
+                    <h2
+                        id="modal-title"
+                        class="text-xl font-semibold text-slate-900 dark:text-white"
+                    ></h2>
+                </div>
+                <div class="p-6 max-h-[70vh] overflow-y-auto">
+                    <form id="subscription-form">
+                        <input type="hidden" id="subscription-id" />
+
+                        <!-- Name -->
+                        <div class="mb-6">
+                            <label
+                                for="subscription-name"
+                                class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+                                >Subscription Name</label
+                            >
+                            <input
+                                type="text"
+                                id="subscription-name"
+                                class="w-full bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="e.g., My Awesome App"
+                                required
+                            />
+                        </div>
+
+                        <!-- Credentials -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+                                    >Client ID</label
+                                >
+                                <input
+                                    type="text"
+                                    id="client-id"
+                                    class="w-full bg-slate-200 dark:bg-slate-900/50 border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                                    readonly
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+                                    >Client Secret</label
+                                >
+                                <div class="relative">
+                                    <input
+                                        type="password"
+                                        id="client-secret"
+                                        class="w-full bg-slate-200 dark:bg-slate-900/50 border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                                        readonly
+                                    />
+                                    <button
+                                        type="button"
+                                        id="toggle-secret-btn"
+                                        class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-500 hover:text-indigo-500"
+                                    >
+                                        <svg
+                                            id="eye-icon-open"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            class="h-5 w-5"
+                                            viewBox="0 0 20 20"
+                                            fill="currentColor"
+                                        >
+                                            <path
+                                                d="M10 12a2 2 0 100-4 2 2 0 000 4z"
+                                            />
+                                            <path
+                                                fill-rule="evenodd"
+                                                d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                                                clip-rule="evenodd"
+                                            />
+                                        </svg>
+                                        <svg
+                                            id="eye-icon-closed"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            class="h-5 w-5 hidden"
+                                            viewBox="0 0 20 20"
+                                            fill="currentColor"
+                                        >
+                                            <path
+                                                fill-rule="evenodd"
+                                                d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
+                                                clip-rule="evenodd"
+                                            />
+                                            <path
+                                                d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.742L2.303 6.546A10.048 10.048 0 01.458 10c1.274 4.057 5.022 7 9.542 7 .847 0 1.669-.105 2.454-.303z"
+                                            />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- API Toggles -->
+                        <div>
+                            <h3
+                                class="text-lg font-medium text-slate-900 dark:text-white mb-3"
+                            >
+                                Enabled APIs
+                            </h3>
+                            <div id="api-toggles-container" class="space-y-3">
+                                <!-- API toggles will be generated here -->
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div
+                    class="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 rounded-b-xl flex justify-end items-center space-x-3"
+                >
+                    <button
+                        id="cancel-btn"
+                        class="px-4 py-2 rounded-lg bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-100 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        id="save-btn"
+                        type="submit"
+                        form="subscription-form"
+                        class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75"
+                    >
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div
+            id="delete-modal"
+            class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+            <div
+                id="delete-modal-content"
+                class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md transform transition-all opacity-0 scale-95 p-6 text-center"
+            >
+                <div
+                    class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 sm:mx-0 sm:h-10 sm:w-10"
+                >
+                    <svg
+                        class="h-6 w-6 text-red-600 dark:text-red-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                        ></path>
+                    </svg>
+                </div>
+                <h3
+                    class="text-lg font-semibold text-slate-900 dark:text-white mt-4"
+                >
+                    Delete Subscription
+                </h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                    Are you sure you want to delete this subscription? This
+                    action cannot be undone.
+                </p>
+                <div class="mt-6 flex justify-center space-x-3">
+                    <button
+                        id="cancel-delete-btn"
+                        class="px-4 py-2 rounded-lg bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-100 dark:hover:bg-slate-600"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        id="confirm-delete-btn"
+                        class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold"
+                    >
+                        Confirm Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const themeToggle = document.getElementById("theme-toggle");
+
+            const savedTheme = localStorage.getItem("theme") || "dark";
+            setTheme(savedTheme);
+
+            function toggleTheme() {
+                const currentTheme = document.body.getAttribute("data-theme");
+                const newTheme = currentTheme === "light" ? "dark" : "light";
+
+                setTheme(newTheme);
+            }
+
+            function setTheme(newTheme) {
+                const lightIcon = document.querySelector(".theme-icon-light");
+                const darkIcon = document.querySelector(".theme-icon-dark");
+
+                document.body.setAttribute("data-theme", newTheme);
+                localStorage.setItem("theme", newTheme);
+
+                if (newTheme === "dark") {
+                    lightIcon.style.display = "none";
+                    darkIcon.style.display = "block";
+                } else {
+                    lightIcon.style.display = "block";
+                    darkIcon.style.display = "none";
+                }
+            }
+
+            const dropdownButton = document.getElementById(
+                "account-dropdown-button",
+            );
+            const dropdownMenu = document.getElementById(
+                "account-dropdown-menu",
+            );
+
+            // --- Dropdown Logic ---
+            dropdownButton.addEventListener("click", () => {
+                const isExpanded =
+                    dropdownButton.getAttribute("aria-expanded") === "true" ||
+                    false;
+                dropdownButton.setAttribute("aria-expanded", !isExpanded);
+                if (dropdownMenu.classList.contains("hidden")) {
+                    dropdownMenu.classList.remove("hidden");
+                    // Trigger a reflow to ensure the transition runs
+                    dropdownMenu.offsetHeight;
+                    dropdownMenu.classList.add("opacity-100", "translate-y-0");
+                    dropdownMenu.classList.remove("opacity-0", "translate-y-2");
+                } else {
+                    dropdownMenu.classList.remove(
+                        "opacity-100",
+                        "translate-y-0",
+                    );
+                    dropdownMenu.classList.add("opacity-0", "translate-y-2");
+                    setTimeout(() => {
+                        dropdownMenu.classList.add("hidden");
+                    }, 200); // Match transition duration
+                }
+            });
+
+            // Close dropdown if user clicks outside
+            window.addEventListener("click", (event) => {
+                if (
+                    !dropdownButton.contains(event.target) &&
+                    !dropdownMenu.contains(event.target)
+                ) {
+                    dropdownMenu.classList.add(
+                        "hidden",
+                        "opacity-0",
+                        "translate-y-2",
+                    );
+                    dropdownMenu.classList.remove(
+                        "opacity-100",
+                        "translate-y-0",
+                    );
+                    dropdownButton.setAttribute("aria-expanded", "false");
+                }
+            });
+
+            const subscriptionsGrid =
+                document.getElementById("subscriptions-grid");
+            const modal = document.getElementById("modal");
+            const modalContent = document.getElementById("modal-content");
+            const modalTitle = document.getElementById("modal-title");
+            const createNewBtn = document.getElementById("create-new-btn");
+            const cancelBtn = document.getElementById("cancel-btn");
+            const saveBtn = document.getElementById("save-btn");
+            const subscriptionForm =
+                document.getElementById("subscription-form");
+            const subscriptionIdInput =
+                document.getElementById("subscription-id");
+            const subscriptionNameInput =
+                document.getElementById("subscription-name");
+            const clientIdInput = document.getElementById("client-id");
+            const clientSecretInput = document.getElementById("client-secret");
+            const apiTogglesContainer = document.getElementById(
+                "api-toggles-container",
+            );
+            const toggleSecretBtn =
+                document.getElementById("toggle-secret-btn");
+            const eyeIconOpen = document.getElementById("eye-icon-open");
+            const eyeIconClosed = document.getElementById("eye-icon-closed");
+            const emptyState = document.getElementById("empty-state");
+
+            const deleteModal = document.getElementById("delete-modal");
+            const deleteModalContent = document.getElementById(
+                "delete-modal-content",
+            );
+            const cancelDeleteBtn =
+                document.getElementById("cancel-delete-btn");
+            const confirmDeleteBtn =
+                document.getElementById("confirm-delete-btn");
+            let subscriptionToDeleteId = null;
+
+            const AVAILABLE_APIS = [
+                "Identity API",
+                "Payments API",
+                "Storage API",
+                "Analytics API",
+                "Notifications API",
+                "Geocoding API",
+            ];
+
+            // --- Mock Data & State ---
+            let state = {
+                subscriptions: [],
+            };
+
+            // --- Utility Functions ---
+            const generateId = () => `sub_${crypto.randomUUID()}`;
+            const generateSecret = () =>
+                `sk_${crypto.randomUUID().replace(/-/g, "")}`;
+
+            // --- Rendering ---
+            const renderSubscriptions = () => {
+                subscriptionsGrid.innerHTML = "";
+                if (state.subscriptions.length === 0) {
+                    emptyState.classList.remove("hidden");
+                    subscriptionsGrid.classList.add("hidden");
+                } else {
+                    emptyState.classList.add("hidden");
+                    subscriptionsGrid.classList.remove("hidden");
+                    state.subscriptions.forEach((sub) => {
+                        const enabledApiCount = sub.apis.filter(
+                            (api) => api.enabled,
+                        ).length;
+                        const card = document.createElement("div");
+                        card.className =
+                            "p-6 rounded-xl shadow-md flex flex-col justify-between";
+                        card.style = "background-color: var(--bg-secondary);";
+                        card.innerHTML = `
+                        <div>
+                            <h3 style="color: var(--text-primary);" class="text-lg font-bold mb-2">${sub.name}</h3>
+                            <p style="color: var(--text-secondary);" class="text-sm">
+                                <span style="color: var(--text-title)" class="font-semibold">${enabledApiCount}</span> of ${sub.apis.length} APIs enabled
+                            </p>
+                        </div>
+                        <div class="mt-6 flex justify-end space-x-3">
+                            <button data-id="${sub.id}" class="edit-btn font-semibold">Edit</button>
+                            <button data-id="${sub.id}" class="delete-btn font-semibold text-red-500 hover:text-red-400">Delete</button>
+                        </div>
+                    `;
+                        subscriptionsGrid.appendChild(card);
+                    });
+                }
+            };
+
+            const renderApiToggles = (apis) => {
+                apiTogglesContainer.innerHTML = "";
+                apis.forEach((api) => {
+                    const toggleWrapper = document.createElement("div");
+                    toggleWrapper.className =
+                        "flex items-center justify-between bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg";
+                    toggleWrapper.innerHTML = `
+                    <span class="text-sm font-medium">${api.name}</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" data-api-name="${api.name}" class="sr-only peer api-toggle" ${api.enabled ? "checked" : ""}>
+                        <div class="w-11 h-6 bg-slate-300 dark:bg-slate-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                `;
+                    apiTogglesContainer.appendChild(toggleWrapper);
+                });
+            };
+
+            // --- Modal Logic ---
+            const openModal = () => {
+                modal.classList.remove("hidden");
+                setTimeout(() => {
+                    modalContent.classList.remove("opacity-0", "scale-95");
+                    modalContent.classList.add("opacity-100", "scale-100");
+                }, 10);
+            };
+
+            const closeModal = () => {
+                modalContent.classList.remove("opacity-100", "scale-100");
+                modalContent.classList.add("opacity-0", "scale-95");
+                setTimeout(() => {
+                    modal.classList.add("hidden");
+                }, 200);
+            };
+
+            const openDeleteModal = () => {
+                deleteModal.classList.remove("hidden");
+                setTimeout(() => {
+                    deleteModalContent.classList.remove(
+                        "opacity-0",
+                        "scale-95",
+                    );
+                    deleteModalContent.classList.add(
+                        "opacity-100",
+                        "scale-100",
+                    );
+                }, 10);
+            };
+
+            const closeDeleteModal = () => {
+                deleteModalContent.classList.remove("opacity-100", "scale-100");
+                deleteModalContent.classList.add("opacity-0", "scale-95");
+                setTimeout(() => {
+                    deleteModal.classList.add("hidden");
+                    subscriptionToDeleteId = null;
+                }, 200);
+            };
+
+            // --- Data Persistence ---
+            const saveData = () => {
+                localStorage.setItem(
+                    "appSubscriptions",
+                    JSON.stringify(state.subscriptions),
+                );
+            };
+
+            const loadData = () => {
+                const data = localStorage.getItem("appSubscriptions");
+                if (data) {
+                    state.subscriptions = JSON.parse(data);
+                } else {
+                    // Add some default data if nothing is in localStorage
+                    state.subscriptions = [
+                        {
+                            id: generateId(),
+                            name: "Production API Key",
+                            clientId: "prod_9a8b7c6d5e4f3g2h1i0j",
+                            clientSecret: generateSecret(),
+                            apis: AVAILABLE_APIS.map((name, i) => ({
+                                name,
+                                enabled: i < 3,
+                            })),
+                        },
+                        {
+                            id: generateId(),
+                            name: "Staging Environment",
+                            clientId: "stage_1k2j3l4k5j6h7g8f9e0d",
+                            clientSecret: generateSecret(),
+                            apis: AVAILABLE_APIS.map((name) => ({
+                                name,
+                                enabled: true,
+                            })),
+                        },
+                    ];
+                    saveData();
+                }
+            };
+
+            // --- Event Handlers ---
+            createNewBtn.addEventListener("click", () => {
+                modalTitle.textContent = "Create New Subscription";
+                subscriptionIdInput.value = "";
+                subscriptionNameInput.value = "";
+                clientIdInput.value = generateId();
+                clientSecretInput.value = generateSecret();
+                clientSecretInput.type = "password";
+                eyeIconOpen.classList.remove("hidden");
+                eyeIconClosed.classList.add("hidden");
+
+                const defaultApis = AVAILABLE_APIS.map((name) => ({
+                    name,
+                    enabled: false,
+                }));
+                renderApiToggles(defaultApis);
+                openModal();
+            });
+
+            subscriptionsGrid.addEventListener("click", (e) => {
+                const target = e.target;
+                const subId = target.dataset.id;
+                if (!subId) return;
+
+                if (target.classList.contains("edit-btn")) {
+                    const sub = state.subscriptions.find((s) => s.id === subId);
+                    if (sub) {
+                        modalTitle.textContent = "Edit Subscription";
+                        subscriptionIdInput.value = sub.id;
+                        subscriptionNameInput.value = sub.name;
+                        clientIdInput.value = sub.clientId;
+                        clientSecretInput.value = sub.clientSecret;
+                        clientSecretInput.type = "password";
+                        eyeIconOpen.classList.remove("hidden");
+                        eyeIconClosed.classList.add("hidden");
+
+                        renderApiToggles(sub.apis);
+                        openModal();
+                    }
+                } else if (target.classList.contains("delete-btn")) {
+                    subscriptionToDeleteId = subId;
+                    openDeleteModal();
+                }
+            });
+
+            cancelBtn.addEventListener("click", closeModal);
+            modal.addEventListener("click", (e) => {
+                if (e.target === modal) closeModal();
+            });
+
+            subscriptionForm.addEventListener("submit", (e) => {
+                e.preventDefault();
+                const id = subscriptionIdInput.value;
+                const name = subscriptionNameInput.value;
+                const clientId = clientIdInput.value;
+                const clientSecret = clientSecretInput.value;
+
+                const enabledApis = [];
+                document.querySelectorAll(".api-toggle").forEach((toggle) => {
+                    enabledApis.push({
+                        name: toggle.dataset.apiName,
+                        enabled: toggle.checked,
+                    });
+                });
+
+                if (id) {
+                    // Editing existing
+                    const index = state.subscriptions.findIndex(
+                        (s) => s.id === id,
+                    );
+                    if (index !== -1) {
+                        state.subscriptions[index] = {
+                            ...state.subscriptions[index],
+                            name,
+                            apis: enabledApis,
+                        };
+                    }
+                } else {
+                    // Creating new
+                    state.subscriptions.push({
+                        id: generateId(),
+                        name,
+                        clientId,
+                        clientSecret,
+                        apis: enabledApis,
+                    });
+                }
+
+                saveData();
+                renderSubscriptions();
+                closeModal();
+            });
+
+            toggleSecretBtn.addEventListener("click", () => {
+                const isPassword = clientSecretInput.type === "password";
+                clientSecretInput.type = isPassword ? "text" : "password";
+                eyeIconOpen.classList.toggle("hidden", isPassword);
+                eyeIconClosed.classList.toggle("hidden", !isPassword);
+            });
+
+            // Delete confirmation handlers
+            cancelDeleteBtn.addEventListener("click", closeDeleteModal);
+            deleteModal.addEventListener("click", (e) => {
+                if (e.target === deleteModal) closeDeleteModal();
+            });
+
+            confirmDeleteBtn.addEventListener("click", () => {
+                if (subscriptionToDeleteId) {
+                    state.subscriptions = state.subscriptions.filter(
+                        (s) => s.id !== subscriptionToDeleteId,
+                    );
+                    saveData();
+                    renderSubscriptions();
+                    closeDeleteModal();
+                }
+            });
+
+            // --- Initialisation ---
+            const init = () => {
+                loadData();
+                renderSubscriptions();
+            };
+
+            init();
+        </script>
+    </body>
+</html>
