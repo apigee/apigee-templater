@@ -132,12 +132,17 @@
         <div id="app" class="min-h-screen px-4">
             <div class="max-w-7xl mx-auto">
                 <!-- Header -->
-                <header class="flex justify-between items-center py-6">
+                <header
+                    class="flex justify-between items-center py-6"
+                    style="white-space: nowrap"
+                >
                     <div class="text-2xl font-bold tracking-tight">
                         <a href="/">
                             <span style="color: var(--text-title)">Apigee</span>
-                            Agentic Portal
-                        </a>
+                            <span class="hidden md:inline"
+                                >Agentic Portal</span
+                            ></a
+                        >
                     </div>
 
                     <div style="display: flex">
@@ -266,6 +271,7 @@
                         </div>
                     </div>
                 </header>
+
                 <!-- Action Bar -->
                 <div class="flex justify-between mb-6">
                     <h1

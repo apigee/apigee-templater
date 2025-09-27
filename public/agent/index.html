@@ -387,11 +387,14 @@
     <body class="">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <!-- Header -->
-            <header class="flex justify-between items-center py-6">
+            <header
+                class="flex justify-between items-center py-6"
+                style="white-space: nowrap"
+            >
                 <div class="text-2xl font-bold tracking-tight">
                     <a href="/">
                         <span style="color: var(--text-title)">Apigee</span>
-                        Agentic Portal</a
+                        <span class="hidden md:inline">Agentic Portal</span></a
                     >
                 </div>
 
@@ -661,27 +664,40 @@
                     this.themeToggle = document.getElementById("themeToggle");
                     this.lightIcon = document.getElementById("lightIcon");
                     this.darkIcon = document.getElementById("darkIcon");
+                    this.config = {};
 
-                    // this.initTheme();
                     this.setupEventListeners();
                     this.autoResizeTextarea();
                     this.startSession();
-                    this.onAuthorizationCode();
                 }
 
                 async startSession() {
-                    let sessionResponse = await fetch(
-                        "http://127.0.0.1:8000/apps/apigee_templater_agent/users/u_123/sessions/s_abc",
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                        },
-                    );
+                    let configResponse = await fetch("/config");
+                    if (configResponse.status == 200) {
+                        this.config = await configResponse.json();
+                    } else
+                        console.error(
+                            "Could not load agent config: " +
+                                configResponse.status,
+                        );
 
-                    let responseText = await sessionResponse.text();
-                    // console.log(responseText);
+                    if (this.config.mcpUserUrl) {
+                        let sessionResponse = await fetch(
+                            this.config.mcpUserUrl +
+                                "/apps/apigee_user_agent/users/u_123/sessions/s_abc",
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                            },
+                        );
+
+                        let responseText = await sessionResponse.text();
+                        // console.log(responseText);
+
+                        await this.onAuthorizationCode();
+                    }
                 }
 
                 initTheme() {
@@ -692,14 +708,6 @@
                 setTheme(theme) {
                     document.documentElement.setAttribute("data-theme", theme);
                     localStorage.setItem("theme", theme);
-
-                    // if (theme === "dark") {
-                    //     this.lightIcon.style.display = "none";
-                    //     this.darkIcon.style.display = "block";
-                    // } else {
-                    //     this.lightIcon.style.display = "block";
-                    //     this.darkIcon.style.display = "none";
-                    // }
                 }
 
                 toggleTheme() {
@@ -713,9 +721,6 @@
                     this.sendButton.addEventListener("click", () =>
                         this.sendMessage(),
                     );
-                    // this.themeToggle.addEventListener("click", () =>
-                    //     this.toggleTheme(),
-                    // );
 
                     this.messageInput.addEventListener("keydown", (e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
@@ -777,36 +782,42 @@
 
                 async generateResponse(userMessage) {
                     try {
-                        let newResponse = await fetch(
-                            "http://localhost:8000/run",
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                    app_name: "apigee_templater_agent",
-                                    user_id: "u_123",
-                                    session_id: "s_abc",
-                                    new_message: {
-                                        role: "user",
-                                        parts: [
-                                            {
-                                                text: userMessage,
-                                            },
-                                        ],
+                        if (this.config.mcpUserUrl) {
+                            let newResponse = await fetch(
+                                this.config.mcpUserUrl + "/run",
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
                                     },
-                                    streaming: false,
-                                }),
-                            },
-                        );
+                                    body: JSON.stringify({
+                                        app_name: "apigee_user_agent",
+                                        user_id: "u_123",
+                                        session_id: "s_abc",
+                                        new_message: {
+                                            role: "user",
+                                            parts: [
+                                                {
+                                                    text: userMessage,
+                                                },
+                                            ],
+                                        },
+                                        streaming: false,
+                                    }),
+                                },
+                            );
 
-                        if (newResponse.status == 200) {
-                            let responseJson = await newResponse.json();
-                            this.processResponse(responseJson);
+                            if (newResponse.status == 200) {
+                                let responseJson = await newResponse.json();
+                                this.processResponse(responseJson);
+                            } else {
+                                console.log(
+                                    "Error calling ADK: " + newResponse.status,
+                                );
+                            }
                         } else {
-                            console.log(
-                                "Error calling ADK: " + newResponse.status,
+                            console.error(
+                                "Cannot call agent, no user agent URL configured.",
                             );
                         }
                     } catch (e) {
@@ -888,56 +899,54 @@
                 }
 
                 async onAuthorizationCode() {
-                    let code = localStorage.getItem("authorization_code");
-                    let auth_response_rui =
-                        localStorage.getItem("auth_response_uri");
-                    this.oauthMessage = JSON.parse(
-                        localStorage.getItem("oauthMessage"),
-                    );
-                    this.oauthMessage["args"]["authConfig"][
-                        "exchangedAuthCredential"
-                    ]["oauth2"]["auth_response_uri"] = auth_response_rui;
-                    if (code) {
-                        let authRequestFunctionCallId = this.oauthMessage["id"];
-                        let oauthResponseBody = {
-                            app_name: "apigee_templater_agent",
-                            user_id: "u_123",
-                            session_id: "s_abc",
-                            new_message: {
-                                role: "user",
-                                parts: [
-                                    {
-                                        functionResponse: {
-                                            id: authRequestFunctionCallId,
-                                            name: "adk_request_credential",
-                                            response:
-                                                this.oauthMessage["args"][
-                                                    "authConfig"
-                                                ],
-                                        },
-                                    },
-                                ],
-                            },
-                            streaming: false,
-                        };
-                        console.log(oauthResponseBody);
-
-                        let newResponse = await fetch(
-                            "http://localhost:8000/run",
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify(oauthResponseBody),
-                            },
-                        );
-
-                        if (newResponse.status == 200) {
-                            let responseJson = await newResponse.json();
-                            this.processResponse(responseJson);
-                        }
-                    }
+                    // let code = localStorage.getItem("authorization_code");
+                    // let auth_response_rui =
+                    //     localStorage.getItem("auth_response_uri");
+                    // this.oauthMessage = JSON.parse(
+                    //     localStorage.getItem("oauthMessage"),
+                    // );
+                    // this.oauthMessage["args"]["authConfig"][
+                    //     "exchangedAuthCredential"
+                    // ]["oauth2"]["auth_response_uri"] = auth_response_rui;
+                    // if (code) {
+                    //     let authRequestFunctionCallId = this.oauthMessage["id"];
+                    //     let oauthResponseBody = {
+                    //         app_name: "apigee_user_agent",
+                    //         user_id: "u_123",
+                    //         session_id: "s_abc",
+                    //         new_message: {
+                    //             role: "user",
+                    //             parts: [
+                    //                 {
+                    //                     functionResponse: {
+                    //                         id: authRequestFunctionCallId,
+                    //                         name: "adk_request_credential",
+                    //                         response:
+                    //                             this.oauthMessage["args"][
+                    //                                 "authConfig"
+                    //                             ],
+                    //                     },
+                    //                 },
+                    //             ],
+                    //         },
+                    //         streaming: false,
+                    //     };
+                    //     // console.log(oauthResponseBody);
+                    //     let newResponse = await fetch(
+                    //         this.config.mcpUserUrl + "/run",
+                    //         {
+                    //             method: "POST",
+                    //             headers: {
+                    //                 "Content-Type": "application/json",
+                    //             },
+                    //             body: JSON.stringify(oauthResponseBody),
+                    //         },
+                    //     );
+                    //     if (newResponse.status == 200) {
+                    //         let responseJson = await newResponse.json();
+                    //         this.processResponse(responseJson);
+                    //     }
+                    // }
                 }
             }
 

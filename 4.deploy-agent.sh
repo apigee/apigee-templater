@@ -5,6 +5,7 @@ sed -i "s,^APIGEE_TEMPLATER_MCP_URL=.*,APIGEE_TEMPLATER_MCP_URL=$SERVICE_URL/mcp
 
 cd agent
 source .venv/bin/activate
+# deploy apigee templater agent
 adk deploy cloud_run \
 --project=$PROJECT_ID \
 --region=$REGION \
@@ -13,4 +14,14 @@ adk deploy cloud_run \
 --allow_origins="*" \
 --with_ui \
 "./apigee_templater_agent"
+
+# deploy apigee user agent
+adk deploy cloud_run \
+--project=$PROJECT_ID \
+--region=$REGION \
+--service_name="apigee-user-agent" \
+--app_name="apigee_user_agent" \
+--allow_origins="*" \
+--with_ui \
+"./apigee_user_agent"
 cd ..
