@@ -343,13 +343,13 @@
             .welcome-message {
                 text-align: center;
                 color: var(--text-secondary);
-                font-size: 15px;
+                font-size: 24px;
                 margin: 60px 20px;
                 line-height: 1.6;
             }
 
             .welcome-title {
-                font-size: 20px;
+                font-size: 32px;
                 font-weight: 600;
                 color: var(--text-primary);
                 margin-bottom: 8px;
@@ -401,7 +401,7 @@
 
                 <div style="display: flex; align-items: center">
                     <a
-                        href="/explore"
+                        href="/tools"
                         class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
                         >Tools</a
                     >
@@ -547,10 +547,11 @@
                         <div class="messages" id="messages">
                             <div class="welcome-message">
                                 <div class="welcome-title">
-                                    Welcome to Apigee Agentic Portal
+                                    Your Apigee Agent Says "Hi!"
                                 </div>
                                 I'm here to help you with creating and managing
-                                API templates, features & proxies.
+                                API subscriptions, credentials & discovering
+                                tools to use.
                             </div>
                         </div>
 
@@ -570,6 +571,7 @@
                                     id="messageInput"
                                     placeholder="Message Apigee..."
                                     rows="1"
+                                    autofocus
                                 ></textarea>
                                 <button
                                     class="send-button"

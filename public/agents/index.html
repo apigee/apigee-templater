@@ -84,7 +84,7 @@
 
                 <div style="display: flex; align-items: center">
                     <a
-                        href="/explore"
+                        href="/tools"
                         class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
                         >Tools</a
                     >
@@ -236,6 +236,7 @@
                     <div class="grid md:grid-cols-2 gap-8">
                         <!-- APIGEE AGENT Card -->
                         <div
+                            style="background-color: var(--bg-secondary)"
                             class="card-hover bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 transition duration-300"
                         >
                             <div class="flex items-start space-x-6">
@@ -264,9 +265,7 @@
                                     >
                                         Apigee Agent
                                     </h3>
-                                    <p
-                                        class="text-gray-600 dark:text-gray-300 mb-6"
-                                    >
+                                    <p class="mb-6">
                                         Focuses on discovering agentic tools,
                                         managing subscriptions & account
                                         information, as well as viewing
@@ -284,6 +283,7 @@
 
                         <!-- APIGEE ADMIN AGENT Card -->
                         <div
+                            style="background-color: var(--bg-secondary)"
                             class="card-hover bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 transition duration-300"
                         >
                             <div class="flex items-start space-x-6">
@@ -345,9 +345,7 @@
                                     >
                                         Apigee Admin Agent
                                     </h3>
-                                    <p
-                                        class="text-gray-600 dark:text-gray-300 mb-6"
-                                    >
+                                    <p class="mb-6">
                                         Helps business users create tools,
                                         features & templates, as well as
                                         publishing and monitoring tool analytics
@@ -697,10 +695,10 @@
 
             // API Type Icons
             const apiIcons = {
-                REST: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-rest" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5L12 2z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>`,
-                GraphQL: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-graphql" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="2" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"></line></svg>`,
-                MCP: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-mcp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path></svg>`,
-                gRPC: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-grpc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="12" y1="9" x2="12" y2="15"></line></svg>`,
+                A2A: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-rest" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5L12 2z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>`,
+                ADK2: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-graphql" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="2" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"></line></svg>`,
+                Agentspace: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-mcp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path></svg>`,
+                ADK: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-grpc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="12" y1="9" x2="12" y2="15"></line></svg>`,
             };
 
             // Main elements

@@ -358,13 +358,13 @@
             .welcome-message {
                 text-align: center;
                 color: var(--text-secondary);
-                font-size: 15px;
+                font-size: 24px;
                 margin: 60px 20px;
                 line-height: 1.6;
             }
 
             .welcome-title {
-                font-size: 20px;
+                font-size: 34px;
                 font-weight: 600;
                 color: var(--text-primary);
                 margin-bottom: 8px;
@@ -400,9 +400,7 @@
             <div class="chat-container">
                 <div class="messages" id="messages">
                     <div class="welcome-message">
-                        <div class="welcome-title">
-                            Welcome to Apigee Agentic Portal
-                        </div>
+                        <div class="welcome-title">Apigee Admin Agent</div>
                         I'm here to help you with creating and managing API
                         templates, features & proxies.
                     </div>
@@ -424,6 +422,7 @@
                             id="messageInput"
                             placeholder="Message Apigee..."
                             rows="1"
+                            autofocus
                         ></textarea>
                         <button
                             class="send-button"
@@ -460,6 +459,7 @@
                     this.themeToggle = document.getElementById("themeToggle");
                     this.lightIcon = document.getElementById("lightIcon");
                     this.darkIcon = document.getElementById("darkIcon");
+                    this.config = {};
 
                     this.initTheme();
                     this.setupEventListeners();
@@ -469,8 +469,17 @@
                 }
 
                 async startSession() {
+                    let configResponse = await fetch("/config");
+                    if (configResponse.status == 200) {
+                        this.config = await configResponse.json();
+                    } else
+                        console.error(
+                            "Could not load agent config: " +
+                                configResponse.status,
+                        );
                     let sessionResponse = await fetch(
-                        "http://127.0.0.1:8000/apps/apigee_templater_agent/users/u_123/sessions/s_abc",
+                        this.config.mcpAdminUrl +
+                            "/apps/apigee_templater_agent/users/u_123/sessions/s_abc",
                         {
                             method: "POST",
                             headers: {
@@ -577,7 +586,7 @@
                 async generateResponse(userMessage) {
                     try {
                         let newResponse = await fetch(
-                            "http://localhost:8000/run",
+                            this.config.mcpAdminUrl + "/run",
                             {
                                 method: "POST",
                                 headers: {
