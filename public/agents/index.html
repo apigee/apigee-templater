@@ -1,13 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Apigee Agentic Portal - Explore</title>
+        <title>Apigee Agentic Portal</title>
         <link rel="icon" type="image/x-icon" href="/favicon.png" />
-        <!-- Tailwind CSS -->
         <script src="https://cdn.tailwindcss.com"></script>
         <script src="https://www.gstatic.com/firebasejs/8.0/firebase.js"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
         <style>
             :root {
                 /* Dark mode colors */
@@ -57,52 +62,14 @@
                 transition: all 0.3s ease;
             }
 
-            a:link {
-                color: var(--text-primary);
-                text-decoration: none;
-            }
-
-            /* visited link */
-            a:visited {
-                color: var(--text-primary);
-            }
-
-            /* mouse over link */
-            a:hover {
-                color: var(--text-primary);
-            }
-
-            /* selected link */
-            a:active {
-                color: var(--text-primary);
-            }
-            /* Custom styles for the API type icons */
-            .icon-rest {
-                color: #f97316;
-            } /* Orange-500 */
-            .icon-graphql {
-                color: #ec4899;
-            } /* Pink-500 */
-            .icon-mcp {
-                color: #3b82f6;
-            } /* Blue-500 */
-            .icon-grpc {
-                color: #a855f7;
-            } /* Purple-500 */
-
-            .card-icon {
-                width: 48px;
-                height: 48px;
-            }
-
             .menu-item:hover {
                 background-color: var(--bg-tertiary);
                 color: var(--text-primary);
             }
         </style>
     </head>
-    <body class="transition-colors duration-300">
-        <div class="container mx-auto px-4 max-w-7xl">
+    <body class="">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <!-- Header -->
             <header
                 class="flex justify-between items-center py-6"
@@ -257,62 +224,208 @@
                 </div>
             </header>
 
-            <!-- Search and Filter Controls -->
-            <h2
-                class="my-12 text-4xl font-bold mb-8 border-b border-indigo-200 dark:border-indigo-800 pb-3"
-            >
-                Tools
-            </h2>
-            <div class="flex flex-col md:flex-col gap-4 mb-8">
-                <input
-                    id="search-input"
-                    type="text"
-                    placeholder="Search by tool name..."
-                    style="
-                        background-color: var(--bg-primary);
-                        color: var(--text-primary);
-                    "
-                    class="flex-1 p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 outline-none transition-all duration-200"
-                />
+            <main class="space-y-12 mt-6 sm:mt-12">
+                <!-- Primary Agents Showcase -->
+                <section class="mb-4">
+                    <h2
+                        class="text-4xl font-bold mb-8 border-b border-indigo-200 dark:border-indigo-800 pb-3"
+                    >
+                        Apigee Agents
+                    </h2>
 
-                <div class="flex items-center space-x-2 overflow-x-auto pb-2">
-                    <button
-                        data-type="All"
-                        class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-blue-500 text-white shadow-md hover:bg-blue-600 active:bg-blue-700"
-                    >
-                        All
-                    </button>
-                    <button
-                        data-type="MCP"
-                        class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300"
-                    >
-                        MCP
-                    </button>
-                    <button
-                        data-type="REST"
-                        class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300"
-                    >
-                        REST
-                    </button>
-                    <button
-                        data-type="GraphQL"
-                        class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300"
-                    >
-                        GraphQL
-                    </button>
-                    <button
-                        data-type="gRPC"
-                        class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300"
-                    >
-                        gRPC
-                    </button>
-                </div>
-            </div>
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <!-- APIGEE AGENT Card -->
+                        <div
+                            class="card-hover bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 transition duration-300"
+                        >
+                            <div class="flex items-start space-x-6">
+                                <!-- Icon: Data Stream / Performance -->
+                                <div
+                                    class="flex-shrink-0 p-4 bg-indigo-100 dark:bg-indigo-900 rounded-full text-indigo-600 dark:text-indigo-300"
+                                >
+                                    <svg
+                                        class="w-10 h-10"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        stroke-width="1.5"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M3 13.5l6-6 6 6 6-6M3 21h18M3 3h18"
+                                        />
+                                    </svg>
+                                </div>
+                                <div class="flex-grow">
+                                    <h3
+                                        class="text-2xl font-semibold mb-2 text-indigo-600 dark:text-indigo-400"
+                                    >
+                                        Apigee Agent
+                                    </h3>
+                                    <p
+                                        class="text-gray-600 dark:text-gray-300 mb-6"
+                                    >
+                                        Focuses on discovering agentic tools,
+                                        managing subscriptions & account
+                                        information, as well as viewing
+                                        analytics and usage data.
+                                    </p>
+                                    <a
+                                        href="/agent"
+                                        class="inline-block px-6 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg hover:bg-indigo-700 transition duration-200 shadow-md shadow-indigo-500/50"
+                                    >
+                                        Open Agent &rarr;
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
 
-            <!-- API Products Grouped by Topic -->
-            <div id="product-container" class="space-y-12">
-                <!-- Products will be dynamically injected here by JavaScript -->
-            </div>
+                        <!-- APIGEE ADMIN AGENT Card -->
+                        <div
+                            class="card-hover bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 transition duration-300"
+                        >
+                            <div class="flex items-start space-x-6">
+                                <!-- Icon: Settings / Administration -->
+                                <div
+                                    class="flex-shrink-0 p-4 bg-purple-100 dark:bg-purple-900 rounded-full text-purple-600 dark:text-purple-300"
+                                >
+                                    <svg
+                                        class="nav-icon w-10 h-10"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <g
+                                            id="SVGRepo_bgCarrier"
+                                            stroke-width="0"
+                                        ></g>
+                                        <g
+                                            id="SVGRepo_tracerCarrier"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        ></g>
+                                        <g id="SVGRepo_iconCarrier">
+                                            <rect
+                                                x="3"
+                                                y="11"
+                                                width="18"
+                                                height="10"
+                                                rx="2"
+                                            ></rect>
+                                            <circle
+                                                cx="12"
+                                                cy="5"
+                                                r="2"
+                                            ></circle>
+                                            <path d="M12 7v4"></path>
+                                            <line
+                                                x1="8"
+                                                y1="16"
+                                                x2="8"
+                                                y2="16"
+                                            ></line>
+                                            <line
+                                                x1="16"
+                                                y1="16"
+                                                x2="16"
+                                                y2="16"
+                                            ></line>
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div class="flex-grow">
+                                    <h3
+                                        class="text-2xl font-semibold mb-2 text-purple-600 dark:text-purple-400"
+                                    >
+                                        Apigee Admin Agent
+                                    </h3>
+                                    <p
+                                        class="text-gray-600 dark:text-gray-300 mb-6"
+                                    >
+                                        Helps business users create tools,
+                                        features & templates, as well as
+                                        publishing and monitoring tool analytics
+                                        usage data.
+                                    </p>
+                                    <a
+                                        href="/admin"
+                                        class="inline-block px-6 py-2 bg-purple-600 text-white font-medium text-sm rounded-lg hover:bg-purple-700 transition duration-200 shadow-md shadow-purple-500/50"
+                                    >
+                                        Open Agent &rarr;
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Additional Agents List -->
+                <section>
+                    <h2
+                        class="text-4xl font-bold mb-8 border-b border-indigo-200 dark:border-indigo-800 pb-3"
+                    >
+                        Agent Registry
+                    </h2>
+                    <p class="text-gray-500 dark:text-gray-400 mb-8 max-w-2xl">
+                        Explore specialized agents designed for focused tasks to
+                        enhance security, optimize costs, and streamline
+                        development processes.
+                    </p>
+
+                    <div class="flex flex-col md:flex-col gap-4 mb-8">
+                        <input
+                            id="search-input"
+                            type="text"
+                            placeholder="Search by tool name..."
+                            style="
+                                background-color: var(--bg-primary);
+                                color: var(--text-primary);
+                            "
+                            class="flex-1 p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 outline-none transition-all duration-200"
+                        />
+
+                        <div
+                            class="flex items-center space-x-2 overflow-x-auto pb-2"
+                        >
+                            <button
+                                data-type="All"
+                                class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-blue-500 text-white shadow-md hover:bg-blue-600 active:bg-blue-700"
+                            >
+                                All
+                            </button>
+                            <button
+                                data-type="Agentspace"
+                                class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300"
+                            >
+                                Agentspace
+                            </button>
+                            <button
+                                data-type="A2A"
+                                class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300"
+                            >
+                                A2A
+                            </button>
+                            <button
+                                data-type="ADK"
+                                class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300"
+                            >
+                                ADK
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- API Products Grouped by Topic -->
+                    <div id="product-container" class="space-y-12">
+                        <!-- Products will be dynamically injected here by JavaScript -->
+                    </div>
+                </section>
+            </main>
 
             <!-- Footer -->
             <footer class="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -327,7 +440,6 @@
             const themeToggle = document.getElementById("theme-toggle");
             const savedTheme = localStorage.getItem("theme") || "dark";
             setTheme(savedTheme);
-
             function toggleTheme() {
                 const currentTheme = document.body.getAttribute("data-theme");
                 const newTheme = currentTheme === "light" ? "dark" : "light";
@@ -484,8 +596,8 @@
             const products = [
                 {
                     id: 110,
-                    name: "Customer MCP Server",
-                    type: "MCP",
+                    name: "Customer A2A Server",
+                    type: "A2A",
                     topic: "Customer",
                     description:
                         "Access and manage detailed customer profiles, including contact information and purchase history.",
@@ -493,17 +605,17 @@
                 },
                 {
                     id: 111,
-                    name: "Customer Loyalty MCP Server",
-                    type: "MCP",
+                    name: "Customer Loyalty A2A Server",
+                    type: "A2A",
                     topic: "Customer",
                     description:
-                        "An MCP server for customers to access their loyalty and points information.",
+                        "An A2A server for customers to access their loyalty and points information.",
                     tags: ["Analytics", "CRM", "Profiles"],
                 },
                 {
                     id: 1,
-                    name: "Customer Data API",
-                    type: "REST",
+                    name: "Customer Data ADK Agent",
+                    type: "ADK",
                     topic: "Customer",
                     description:
                         "Access and manage detailed customer profiles, including contact information and purchase history.",
@@ -511,8 +623,8 @@
                 },
                 {
                     id: 2,
-                    name: "Sales Forecast API",
-                    type: "GraphQL",
+                    name: "Sales Forecast Agentspace",
+                    type: "Agentspace",
                     topic: "Sales",
                     description:
                         "Predict future sales trends using machine learning models based on historical data.",
@@ -520,8 +632,8 @@
                 },
                 {
                     id: 3,
-                    name: "Financial Reporting API",
-                    type: "REST",
+                    name: "Financial Reporting Agentspace",
+                    type: "Agentspace",
                     topic: "Financial",
                     description:
                         "Retrieve comprehensive financial reports, balance sheets, and profit-and-loss statements.",
@@ -529,8 +641,8 @@
                 },
                 {
                     id: 4,
-                    name: "Inventory Management API",
-                    type: "MCP",
+                    name: "Inventory Management ADK",
+                    type: "ADK",
                     topic: "Supply Chain",
                     description:
                         "Update and query real-time inventory levels across multiple warehouses and stores.",
@@ -538,8 +650,8 @@
                 },
                 {
                     id: 5,
-                    name: "User Authentication API",
-                    type: "gRPC",
+                    name: "User Authentication ADK",
+                    type: "ADK",
                     topic: "Customer",
                     description:
                         "Securely authenticate users and manage access tokens with a high-performance protocol.",
@@ -547,8 +659,8 @@
                 },
                 {
                     id: 6,
-                    name: "Order Fulfillment API",
-                    type: "MCP",
+                    name: "Order Fulfillment A2A",
+                    type: "A2A",
                     topic: "Supply Chain",
                     description:
                         "Streamline the order-to-delivery process, from order confirmation to shipping tracking.",
@@ -556,8 +668,8 @@
                 },
                 {
                     id: 7,
-                    name: "Payment Gateway API",
-                    type: "REST",
+                    name: "Payment Gateway Agentspace",
+                    type: "Agentspace",
                     topic: "Financial",
                     description:
                         "Process payments securely and integrate with major payment providers.",
@@ -565,8 +677,8 @@
                 },
                 {
                     id: 8,
-                    name: "Lead Generation API",
-                    type: "GraphQL",
+                    name: "Lead Generation A2A",
+                    type: "A2A",
                     topic: "Sales",
                     description:
                         "Find and qualify new business leads based on industry, size, and location criteria.",
@@ -574,8 +686,8 @@
                 },
                 {
                     id: 9,
-                    name: "Customer Support API",
-                    type: "gRPC",
+                    name: "Customer Support ADK",
+                    type: "ADK",
                     topic: "Customer",
                     description:
                         "Integrate customer support tools and communication channels for efficient service.",
@@ -616,7 +728,7 @@
                 card.innerHTML = `
                 <div class="flex items-start justify-between mb-4">
                     ${apiIcons[product.type]}
-                    <span class="text-sm font-bold px-3 py-1 rounded-full ${product.type === "REST" ? "bg-orange-500 text-white" : product.type === "GraphQL" ? "bg-pink-500 text-white" : product.type === "MCP" ? "bg-blue-500 text-white" : "bg-purple-500 text-white"}">${product.type}</span>
+                    <span class="text-sm font-bold px-3 py-1 rounded-full ${product.type === "A2A" ? "bg-orange-500 text-white" : product.type === "Agentspace" ? "bg-pink-500 text-white" : product.type === "ADK" ? "bg-blue-500 text-white" : "bg-purple-500 text-white"}">${product.type}</span>
                 </div>
                 <h3 class="text-2xl font-semibold mb-2">${product.name}</h3>
                 <p class="text-gray-500 dark:text-gray-400 mb-4">${product.description}</p>
