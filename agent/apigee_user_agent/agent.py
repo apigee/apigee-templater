@@ -13,8 +13,8 @@ from google.adk.auth import AuthCredential
 from google.adk.auth import AuthCredentialTypes
 from google.adk.auth import OAuth2Auth
 
-apigeeUserMcpServer = os.environ.get(
-    "APIGEE_USER_MCP_URL", "http://localhost:8080/user/mcp"
+apigeeUserMcpServer = (
+    os.environ.get("APIGEE_TEMPLATER_MCP_URL", "http://localhost:8080") + "/user/mcp"
 )
 
 root_agent = Agent(

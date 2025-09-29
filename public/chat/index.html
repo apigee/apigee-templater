@@ -478,7 +478,7 @@
                                 configResponse.status,
                         );
                     let sessionResponse = await fetch(
-                        this.config.mcpAdminUrl +
+                        this.config.apigeeAgentUrl +
                             "/apps/apigee_templater_agent/users/u_123/sessions/s_abc",
                         {
                             method: "POST",
@@ -586,7 +586,7 @@
                 async generateResponse(userMessage) {
                     try {
                         let newResponse = await fetch(
-                            this.config.mcpAdminUrl + "/run",
+                            this.config.apigeeAgentUrl + "/run",
                             {
                                 method: "POST",
                                 headers: {

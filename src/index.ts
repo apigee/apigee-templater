@@ -48,8 +48,7 @@ fs.mkdirSync(rootStorageDir + "temp", { recursive: true });
 app.get("/config", (req, res) => {
   res.json({
     serviceUrl: process.env.SERVICE_URL,
-    mcpAdminUrl: process.env.MCP_ADMIN_URL,
-    mcpUserUrl: process.env.MCP_USER_URL,
+    apigeeAgentUrl: process.env.APIGEE_AGENT_URL,
     authApiKey: process.env.AUTH_API_KEY,
     authDomain: process.env.AUTH_DOMAIN,
   });

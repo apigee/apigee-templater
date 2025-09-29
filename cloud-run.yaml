@@ -19,6 +19,12 @@ spec:
               value: /mnt/data/
             - name: SERVICE_URL
               value: SERVICE_URL_
+            - name: APIGEE_AGENT_URL
+              value:
+            - name: AUTH_API_KEY
+              value:
+            - name: AUTH_DOMAIN
+              value:
             - name: DEPLOY_DATE
               value: DEPLOY_DATE_
       volumes:

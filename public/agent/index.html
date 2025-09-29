@@ -547,7 +547,7 @@
                         <div class="messages" id="messages">
                             <div class="welcome-message">
                                 <div class="welcome-title">
-                                    Your Apigee Agent Says "Hi!"
+                                    Apigee Portal Agent
                                 </div>
                                 I'm here to help you with creating and managing
                                 API subscriptions, credentials & discovering
@@ -785,9 +785,9 @@
                                 configResponse.status,
                         );
 
-                    if (this.config.mcpUserUrl) {
+                    if (this.config.apigeeAgentUrl) {
                         let sessionResponse = await fetch(
-                            this.config.mcpUserUrl +
+                            this.config.apigeeAgentUrl +
                                 "/apps/apigee_user_agent/users/u_123/sessions/s_abc",
                             {
                                 method: "POST",
@@ -886,9 +886,9 @@
 
                 async generateResponse(userMessage) {
                     try {
-                        if (this.config.mcpUserUrl) {
+                        if (this.config.apigeeAgentUrl) {
                             let newResponse = await fetch(
-                                this.config.mcpUserUrl + "/run",
+                                this.config.apigeeAgentUrl + "/run",
                                 {
                                     method: "POST",
                                     headers: {
@@ -1037,7 +1037,7 @@
                     //     };
                     //     // console.log(oauthResponseBody);
                     //     let newResponse = await fetch(
-                    //         this.config.mcpUserUrl + "/run",
+                    //         this.config.apigeeAgentUrl + "/run",
                     //         {
                     //             method: "POST",
                     //             headers: {
