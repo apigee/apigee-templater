@@ -11,6 +11,6 @@ gcloud run deploy apigee-templater-agent \
 --source . \
 --region $GOOGLE_CLOUD_LOCATION \
 --project $GOOGLE_CLOUD_PROJECT \
---allow-unauthenticated --min 1 \
+--allow-unauthenticated --cpu-boost --cpu 4 --memory 4Gi \
 --set-env-vars="GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT,GOOGLE_CLOUD_LOCATION=$GOOGLE_CLOUD_LOCATION,GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET,APIGEE_TEMPLATER_MCP_URL=$APIGEE_TEMPLATER_MCP_URL"
 cd ..

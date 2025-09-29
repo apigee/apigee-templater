@@ -35,6 +35,7 @@
   "homepage": "https://github.com/apigee/apigee-templater#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.3",
+    "apigee-portal-module": "^0.3.0",
     "arg": "^5.0.2",
     "chalk": "^5.6.0",
     "cors": "^2.8.5",

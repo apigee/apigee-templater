@@ -86,7 +86,7 @@
             .app-container {
                 max-width: 900px;
                 margin: 0 auto;
-                height: calc(100vh - 124px);
+                height: 100vh;
                 display: flex;
                 flex-direction: column;
                 background-color: var(--bg-primary);
@@ -371,6 +371,10 @@
             }
 
             @media (max-width: 768px) {
+                .app-container {
+                    height: calc(100vh - 124px);
+                }
+
                 .header {
                     padding: 12px 16px;
                 }
@@ -460,12 +464,13 @@
                     this.lightIcon = document.getElementById("lightIcon");
                     this.darkIcon = document.getElementById("darkIcon");
                     this.config = {};
+                    this.user_email = localStorage.getItem("user_email");
+                    this.user_session = "s_abc";
 
                     this.initTheme();
                     this.setupEventListeners();
                     this.autoResizeTextarea();
                     this.startSession();
-                    this.onAuthorizationCode();
                 }
 
                 async startSession() {
@@ -479,7 +484,7 @@
                         );
                     let sessionResponse = await fetch(
                         this.config.apigeeAgentUrl +
-                            "/apps/apigee_templater_agent/users/u_123/sessions/s_abc",
+                            `/apps/apigee_templater_agent/users/${this.user_email}/sessions/${this.user_session}`,
                         {
                             method: "POST",
                             headers: {
@@ -490,6 +495,10 @@
 
                     let responseText = await sessionResponse.text();
                     // console.log(responseText);
+                    // this.generateResponse(
+                    //     "Describe yourself and give some sample requests.",
+                    // );
+                    this.onAuthorizationCode();
                 }
 
                 initTheme() {
@@ -594,8 +603,8 @@
                                 },
                                 body: JSON.stringify({
                                     app_name: "apigee_templater_agent",
-                                    user_id: "u_123",
-                                    session_id: "s_abc",
+                                    user_id: this.user_email,
+                                    session_id: this.user_session,
                                     new_message: {
                                         role: "user",
                                         parts: [
@@ -699,18 +708,20 @@
                     let code = localStorage.getItem("authorization_code");
                     let auth_response_rui =
                         localStorage.getItem("auth_response_uri");
-                    this.oauthMessage = JSON.parse(
-                        localStorage.getItem("oauthMessage"),
-                    );
-                    this.oauthMessage["args"]["authConfig"][
-                        "exchangedAuthCredential"
-                    ]["oauth2"]["auth_response_uri"] = auth_response_rui;
-                    if (code) {
+                    let oauthMessage = localStorage.getItem("oauthMessage");
+                    if (oauthMessage && code) {
+                        this.oauthMessage = JSON.parse(
+                            localStorage.getItem("oauthMessage"),
+                        );
+                        this.oauthMessage["args"]["authConfig"][
+                            "exchangedAuthCredential"
+                        ]["oauth2"]["auth_response_uri"] = auth_response_rui;
+
                         let authRequestFunctionCallId = this.oauthMessage["id"];
                         let oauthResponseBody = {
                             app_name: "apigee_templater_agent",
-                            user_id: "u_123",
-                            session_id: "s_abc",
+                            user_id: this.user_email,
+                            session_id: this.user_session,
                             new_message: {
                                 role: "user",
                                 parts: [
@@ -731,7 +742,7 @@
                         console.log(oauthResponseBody);
 
                         let newResponse = await fetch(
-                            "http://localhost:8000/run",
+                            this.config.apigeeAgentUrl + "/run",
                             {
                                 method: "POST",
                                 headers: {

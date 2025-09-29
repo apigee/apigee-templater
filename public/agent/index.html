@@ -71,7 +71,7 @@
             .app-container {
                 max-width: 900px;
                 margin: 0 auto;
-                height: calc(100vh - 158px);
+                height: calc(100vh - 118px);
                 display: flex;
                 flex-direction: column;
                 background-color: var(--bg-primary);
@@ -356,6 +356,10 @@
             }
 
             @media (max-width: 768px) {
+                .app-container {
+                    height: calc(100vh - 160px);
+                }
+
                 .header {
                     padding: 12px 16px;
                 }
@@ -630,6 +634,8 @@
             // USER
             let config = {};
             let user = undefined;
+            let user_email = "";
+            let user_session = "s_abc";
             setUser();
             fetch("/config")
                 .then((response) => {
@@ -647,6 +653,7 @@
                     firebase.auth().onAuthStateChanged((newUser) => {
                         if (newUser) {
                             user = newUser;
+                            user_email = newUser.email;
                             localStorage.setItem("user_email", user.email);
                             setUser();
                         } else {
@@ -692,7 +699,7 @@
             }
 
             function setUser() {
-                let user_email = localStorage.getItem("user_email");
+                user_email = localStorage.getItem("user_email");
                 if (user_email) {
                     document.getElementById("account_button").style.display =
                         "block";
@@ -788,7 +795,7 @@
                     if (this.config.apigeeAgentUrl) {
                         let sessionResponse = await fetch(
                             this.config.apigeeAgentUrl +
-                                "/apps/apigee_user_agent/users/u_123/sessions/s_abc",
+                                `/apps/apigee_user_agent/users/${user_email}/sessions/${user_session}`,
                             {
                                 method: "POST",
                                 headers: {
@@ -798,6 +805,9 @@
                         );
 
                         let responseText = await sessionResponse.text();
+                        this.generateResponse(
+                            "Describe yourself and give some sample requests.",
+                        );
                     }
                 }
 
@@ -893,8 +903,8 @@
                                     },
                                     body: JSON.stringify({
                                         app_name: "apigee_user_agent",
-                                        user_id: "u_123",
-                                        session_id: "s_abc",
+                                        user_id: user_email,
+                                        session_id: user_session,
                                         new_message: {
                                             role: "user",
                                             parts: [
