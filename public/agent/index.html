@@ -71,7 +71,7 @@
             .app-container {
                 max-width: 900px;
                 margin: 0 auto;
-                height: calc(100vh - 120px);
+                height: calc(100vh - 158px);
                 display: flex;
                 flex-direction: column;
                 background-color: var(--bg-primary);
@@ -343,7 +343,7 @@
             .welcome-message {
                 text-align: center;
                 color: var(--text-secondary);
-                font-size: 24px;
+                font-size: 18px;
                 margin: 60px 20px;
                 line-height: 1.6;
             }
@@ -798,9 +798,6 @@
                         );
 
                         let responseText = await sessionResponse.text();
-                        // console.log(responseText);
-
-                        await this.onAuthorizationCode();
                     }
                 }
 
@@ -1000,57 +997,6 @@
 
                 scrollToBottom() {
                     this.messages.scrollTop = this.messages.scrollHeight;
-                }
-
-                async onAuthorizationCode() {
-                    // let code = localStorage.getItem("authorization_code");
-                    // let auth_response_rui =
-                    //     localStorage.getItem("auth_response_uri");
-                    // this.oauthMessage = JSON.parse(
-                    //     localStorage.getItem("oauthMessage"),
-                    // );
-                    // this.oauthMessage["args"]["authConfig"][
-                    //     "exchangedAuthCredential"
-                    // ]["oauth2"]["auth_response_uri"] = auth_response_rui;
-                    // if (code) {
-                    //     let authRequestFunctionCallId = this.oauthMessage["id"];
-                    //     let oauthResponseBody = {
-                    //         app_name: "apigee_user_agent",
-                    //         user_id: "u_123",
-                    //         session_id: "s_abc",
-                    //         new_message: {
-                    //             role: "user",
-                    //             parts: [
-                    //                 {
-                    //                     functionResponse: {
-                    //                         id: authRequestFunctionCallId,
-                    //                         name: "adk_request_credential",
-                    //                         response:
-                    //                             this.oauthMessage["args"][
-                    //                                 "authConfig"
-                    //                             ],
-                    //                     },
-                    //                 },
-                    //             ],
-                    //         },
-                    //         streaming: false,
-                    //     };
-                    //     // console.log(oauthResponseBody);
-                    //     let newResponse = await fetch(
-                    //         this.config.apigeeAgentUrl + "/run",
-                    //         {
-                    //             method: "POST",
-                    //             headers: {
-                    //                 "Content-Type": "application/json",
-                    //             },
-                    //             body: JSON.stringify(oauthResponseBody),
-                    //         },
-                    //     );
-                    //     if (newResponse.status == 200) {
-                    //         let responseJson = await newResponse.json();
-                    //         this.processResponse(responseJson);
-                    //     }
-                    // }
                 }
             }
 
