@@ -7,6 +7,7 @@
         <link rel="icon" type="image/x-icon" href="/favicon.png" />
         <!-- Tailwind CSS -->
         <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://www.gstatic.com/firebasejs/8.0/firebase.js"></script>
         <style>
             :root {
                 /* Dark mode colors */
@@ -114,55 +115,34 @@
                     >
                 </div>
 
-                <div style="display: flex">
+                <div style="display: flex; align-items: center">
                     <a
                         href="/explore"
-                        class="relative top-1.5 px-2 md:px-5 font-bold right-0 text-lg"
-                        >APIs</a
+                        class="relative px-2 md:px-5 font-bold right-0 text-lg"
+                        >Tools</a
                     >
 
                     <a
                         href="/agent"
-                        class="relative top-1.5 px-2 md:px-5 font-bold right-0 text-lg"
-                        >AI Agent</a
+                        class="relative px-2 md:px-5 font-bold right-0 text-lg"
+                        >Agents</a
                     >
 
-                    <button class="px-2 theme-toggle" onclick="toggleTheme()">
-                        <svg
-                            class="theme-icon-light"
-                            width="20"
-                            height="20"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                            />
-                        </svg>
-                        <svg
-                            class="theme-icon-dark"
-                            width="20"
-                            height="20"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            style="display: none"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                            />
-                        </svg>
+                    <button
+                        id="sign_in_button"
+                        style="display: none"
+                        onclick="signInWithGoogle()"
+                        class="relative px-2 md:px-5 font-bold right-0 text-lg"
+                    >
+                        Sign in
                     </button>
 
                     <!-- Account Dropdown -->
-                    <div class="relative">
+                    <div
+                        id="account_button"
+                        style="display: none"
+                        class="relative"
+                    >
                         <button
                             id="account-dropdown-button"
                             style="background-color: var(--bg-tertiary)"
@@ -224,70 +204,69 @@
                                 class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
                                 >Admin Console</a
                             >
-                            <a
-                                href="/"
-                                style="color: var(--text-primary)"
+                            <button
+                                onclick="signOut()"
+                                style="
+                                    color: var(--text-primary);
+                                    width: 100%;
+                                    text-align: left;
+                                "
                                 class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
-                                >Sign-Out</a
                             >
+                                Sign-Out
+                            </button>
                         </div>
                     </div>
+
+                    <button
+                        class="relativepx-2 md:px-5 theme-toggle"
+                        onclick="toggleTheme()"
+                    >
+                        <svg
+                            class="theme-icon-light"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                            />
+                        </svg>
+                        <svg
+                            class="theme-icon-dark"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            style="display: none"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                            />
+                        </svg>
+                    </button>
                 </div>
             </header>
-
-            <!--<header
-                class="flex flex-col md:flex-row justify-between items-center mb-12"
-            >
-                <div>
-                    <h1 class="text-4xl font-extrabold tracking-tight mb-2">
-                        API Product Explorer
-                    </h1>
-                    <p class="text-lg text-gray-700 dark:text-gray-300">
-                        Explore and discover our suite of modern APIs for
-                        various business needs.
-                    </p>
-                </div>
-                <button
-                    id="theme-toggle"
-                    class="mt-4 md:mt-0 p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600 transition-transform transform hover:scale-110"
-                >
-                    <svg
-                        id="sun-icon"
-                        class="h-6 w-6 text-yellow-500 dark:hidden"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                        />
-                    </svg>
-                    <svg
-                        id="moon-icon"
-                        class="h-6 w-6 text-indigo-400 hidden dark:block"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                        />
-                    </svg>
-                </button>
-            </header>-->
 
             <!-- Search and Filter Controls -->
             <div class="flex flex-col md:flex-col gap-4 mb-8">
                 <input
                     id="search-input"
                     type="text"
-                    placeholder="Search by API name..."
+                    placeholder="Search by tool name..."
+                    style="
+                        background-color: var(--bg-primary);
+                        color: var(--text-primary);
+                    "
                     class="flex-1 p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 outline-none transition-all duration-200"
                 />
 
@@ -339,6 +318,163 @@
         </div>
 
         <script>
+            // THEME
+            const themeToggle = document.getElementById("theme-toggle");
+            const savedTheme = localStorage.getItem("theme") || "dark";
+            setTheme(savedTheme);
+
+            function toggleTheme() {
+                const currentTheme = document.body.getAttribute("data-theme");
+                const newTheme = currentTheme === "light" ? "dark" : "light";
+
+                setTheme(newTheme);
+            }
+
+            function setTheme(newTheme) {
+                const lightIcon = document.querySelector(".theme-icon-light");
+                const darkIcon = document.querySelector(".theme-icon-dark");
+
+                document.body.setAttribute("data-theme", newTheme);
+                localStorage.setItem("theme", newTheme);
+
+                if (newTheme === "dark") {
+                    lightIcon.style.display = "none";
+                    darkIcon.style.display = "block";
+                } else {
+                    lightIcon.style.display = "block";
+                    darkIcon.style.display = "none";
+                }
+            }
+
+            // USER
+            let config = {};
+            let user = undefined;
+            setUser();
+            fetch("/config")
+                .then((response) => {
+                    if (response.status == 200) return response.json();
+                    else
+                        console.error("Could not load app config from server.");
+                })
+                .then((appConfig) => {
+                    config = appConfig;
+                    firebase.initializeApp({
+                        apiKey: config.authApiKey,
+                        authDomain: config.authDomain,
+                    });
+
+                    firebase.auth().onAuthStateChanged((newUser) => {
+                        if (newUser) {
+                            user = newUser;
+                            localStorage.setItem("user_email", user.email);
+                            setUser();
+                        } else {
+                            setUser();
+                        }
+                    });
+                });
+
+            // login with google function
+            function signInWithGoogle() {
+                var provider = new firebase.auth.GoogleAuthProvider();
+                firebase
+                    .auth()
+                    .signInWithPopup(provider)
+                    .then((result) => {
+                        var credential = result.credential;
+                        // This gives you a Google Access Token. You can use it to access the Google API.
+                        var token = credential.accessToken;
+                        // The signed-in user info.
+                        var user = result.user;
+                    })
+                    .catch((error) => {
+                        // Handle Errors here.
+                        var errorCode = error.code;
+                        var errorMessage = error.message;
+                        // The email of the user's account used.
+                        var email = error.email;
+                        // The firebase.auth.AuthCredential type that was used.
+                        var credential = error.credential;
+                        console.error(error);
+                        // ...
+                    });
+            }
+
+            function signOut() {
+                localStorage.removeItem("user_email");
+                firebase
+                    .auth()
+                    .signOut()
+                    .then(function () {
+                        window.location.href = "/";
+                    });
+            }
+
+            function setUser() {
+                let user_email = localStorage.getItem("user_email");
+                if (user_email) {
+                    document.getElementById("account_button").style.display =
+                        "block";
+                    document.getElementById("sign_in_button").style.display =
+                        "none";
+                } else {
+                    document.getElementById("account_button").style.display =
+                        "none";
+                    document.getElementById("sign_in_button").style.display =
+                        "block";
+                }
+            }
+
+            const dropdownButton = document.getElementById(
+                "account-dropdown-button",
+            );
+            const dropdownMenu = document.getElementById(
+                "account-dropdown-menu",
+            );
+
+            // --- Dropdown Logic ---
+            dropdownButton.addEventListener("click", () => {
+                const isExpanded =
+                    dropdownButton.getAttribute("aria-expanded") === "true" ||
+                    false;
+                dropdownButton.setAttribute("aria-expanded", !isExpanded);
+                if (dropdownMenu.classList.contains("hidden")) {
+                    dropdownMenu.classList.remove("hidden");
+                    // Trigger a reflow to ensure the transition runs
+                    dropdownMenu.offsetHeight;
+                    dropdownMenu.classList.add("opacity-100", "translate-y-0");
+                    dropdownMenu.classList.remove("opacity-0", "translate-y-2");
+                } else {
+                    dropdownMenu.classList.remove(
+                        "opacity-100",
+                        "translate-y-0",
+                    );
+                    dropdownMenu.classList.add("opacity-0", "translate-y-2");
+                    setTimeout(() => {
+                        dropdownMenu.classList.add("hidden");
+                    }, 200); // Match transition duration
+                }
+            });
+
+            // Close dropdown if user clicks outside
+            window.addEventListener("click", (event) => {
+                if (
+                    !dropdownButton.contains(event.target) &&
+                    !dropdownMenu.contains(event.target)
+                ) {
+                    dropdownMenu.classList.add(
+                        "hidden",
+                        "opacity-0",
+                        "translate-y-2",
+                    );
+                    dropdownMenu.classList.remove(
+                        "opacity-100",
+                        "translate-y-0",
+                    );
+                    dropdownButton.setAttribute("aria-expanded", "false");
+                }
+            });
+
             // Sample data for API products
             const products = [
                 {
@@ -458,93 +594,17 @@
 
             let activeTypeFilter = "All";
 
-            const themeToggle = document.getElementById("theme-toggle");
-            const savedTheme = localStorage.getItem("theme") || "dark";
-            setTheme(savedTheme);
-
-            function toggleTheme() {
-                const currentTheme = document.body.getAttribute("data-theme");
-                const newTheme = currentTheme === "light" ? "dark" : "light";
-
-                setTheme(newTheme);
-            }
-
-            function setTheme(newTheme) {
-                const lightIcon = document.querySelector(".theme-icon-light");
-                const darkIcon = document.querySelector(".theme-icon-dark");
-
-                document.body.setAttribute("data-theme", newTheme);
-                localStorage.setItem("theme", newTheme);
-
-                if (newTheme === "dark") {
-                    lightIcon.style.display = "none";
-                    darkIcon.style.display = "block";
-                } else {
-                    lightIcon.style.display = "block";
-                    darkIcon.style.display = "none";
-                }
-            }
-
-            const dropdownButton = document.getElementById(
-                "account-dropdown-button",
-            );
-            const dropdownMenu = document.getElementById(
-                "account-dropdown-menu",
-            );
-
-            // --- Dropdown Logic ---
-            dropdownButton.addEventListener("click", () => {
-                const isExpanded =
-                    dropdownButton.getAttribute("aria-expanded") === "true" ||
-                    false;
-                dropdownButton.setAttribute("aria-expanded", !isExpanded);
-                if (dropdownMenu.classList.contains("hidden")) {
-                    dropdownMenu.classList.remove("hidden");
-                    // Trigger a reflow to ensure the transition runs
-                    dropdownMenu.offsetHeight;
-                    dropdownMenu.classList.add("opacity-100", "translate-y-0");
-                    dropdownMenu.classList.remove("opacity-0", "translate-y-2");
-                } else {
-                    dropdownMenu.classList.remove(
-                        "opacity-100",
-                        "translate-y-0",
-                    );
-                    dropdownMenu.classList.add("opacity-0", "translate-y-2");
-                    setTimeout(() => {
-                        dropdownMenu.classList.add("hidden");
-                    }, 200); // Match transition duration
-                }
-            });
-
-            // Close dropdown if user clicks outside
-            window.addEventListener("click", (event) => {
-                if (
-                    !dropdownButton.contains(event.target) &&
-                    !dropdownMenu.contains(event.target)
-                ) {
-                    dropdownMenu.classList.add(
-                        "hidden",
-                        "opacity-0",
-                        "translate-y-2",
-                    );
-                    dropdownMenu.classList.remove(
-                        "opacity-100",
-                        "translate-y-0",
-                    );
-                    dropdownButton.setAttribute("aria-expanded", "false");
-                }
-            });
-
             // Function to render a single product card
             const createProductCard = (product) => {
                 const card = document.createElement("div");
                 card.className =
                     "bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md dark:shadow-xl hover:shadow-lg dark:hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1";
+                card.style = "background-color: var(--bg-tertiary);";
 
                 const tagsHtml = product.tags
                     .map(
                         (tag) =>
-                            `<span class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold px-2 py-1 rounded-full">${tag}</span>`,
+                            `<span class="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-full">${tag}</span>`,
                     )
                     .join("");
 
@@ -558,7 +618,7 @@
                 <div class="flex flex-wrap gap-2 mb-4">
                     ${tagsHtml}
                 </div>
-                <button onclick="viewDetails(${product.id})" class="mt-auto px-4 py-2 text-sm font-medium text-white bg-gray-900 dark:bg-gray-700 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200">View Details</button>
+                <button onclick="viewDetails(${product.id})" style="background-color: var(--accent);" class="mt-auto px-4 py-2 text-sm font-medium text-white bg-gray-900 dark:bg-gray-700 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200">View Details</button>
             `;
                 return card;
             };

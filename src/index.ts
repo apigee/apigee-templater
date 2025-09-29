@@ -50,6 +50,8 @@ app.get("/config", (req, res) => {
     serviceUrl: process.env.SERVICE_URL,
     mcpAdminUrl: process.env.MCP_ADMIN_URL,
     mcpUserUrl: process.env.MCP_USER_URL,
+    authApiKey: process.env.AUTH_API_KEY,
+    authDomain: process.env.AUTH_DOMAIN,
   });
 });
 app.post("/templates", restService.templateCreate);

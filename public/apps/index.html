@@ -6,6 +6,7 @@
         <title>App Subscription Manager</title>
         <link rel="icon" type="image/x-icon" href="/favicon.png" />
         <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://www.gstatic.com/firebasejs/8.0/firebase.js"></script>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
@@ -145,58 +146,34 @@
                         >
                     </div>
 
-                    <div style="display: flex">
+                    <div style="display: flex; align-items: center">
                         <a
                             href="/explore"
-                            class="relative top-1.5 px-2 md:px-5 font-bold right-0 text-lg"
-                            >APIs</a
+                            class="relative px-2 md:px-5 font-bold right-0 text-lg"
+                            >Tools</a
                         >
 
                         <a
                             href="/agent"
-                            class="relative top-1.5 px-2 md:px-5 font-bold right-0 text-lg"
-                            >AI Agent</a
+                            class="relative px-2 md:px-5 font-bold right-0 text-lg"
+                            >Agents</a
                         >
 
                         <button
-                            class="px-2 theme-toggle"
-                            onclick="toggleTheme()"
+                            id="sign_in_button"
+                            style="display: none"
+                            onclick="signInWithGoogle()"
+                            class="relative px-2 md:px-5 font-bold right-0 text-lg"
                         >
-                            <svg
-                                class="theme-icon-light"
-                                width="20"
-                                height="20"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                                />
-                            </svg>
-                            <svg
-                                class="theme-icon-dark"
-                                width="20"
-                                height="20"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                style="display: none"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                                />
-                            </svg>
+                            Sign in
                         </button>
 
                         <!-- Account Dropdown -->
-                        <div class="relative">
+                        <div
+                            id="account_button"
+                            style="display: none"
+                            class="relative"
+                        >
                             <button
                                 id="account-dropdown-button"
                                 style="background-color: var(--bg-tertiary)"
@@ -261,17 +238,58 @@
                                     class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
                                     >Admin Console</a
                                 >
-                                <a
-                                    href="/"
-                                    style="color: var(--text-primary)"
+                                <button
+                                    onclick="signOut()"
+                                    style="
+                                        color: var(--text-primary);
+                                        width: 100%;
+                                        text-align: left;
+                                    "
                                     class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
-                                    >Sign-Out</a
                                 >
+                                    Sign-Out
+                                </button>
                             </div>
                         </div>
+
+                        <button
+                            class="relativepx-2 md:px-5 theme-toggle"
+                            onclick="toggleTheme()"
+                        >
+                            <svg
+                                class="theme-icon-light"
+                                width="20"
+                                height="20"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                                />
+                            </svg>
+                            <svg
+                                class="theme-icon-dark"
+                                width="20"
+                                height="20"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                style="display: none"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                                />
+                            </svg>
+                        </button>
                     </div>
                 </header>
-
                 <!-- Action Bar -->
                 <div class="flex justify-between mb-6">
                     <h1
@@ -344,6 +362,7 @@
         >
             <div
                 id="modal-content"
+                style=""
                 class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl transform transition-all opacity-0 scale-95"
             >
                 <div
@@ -368,14 +387,14 @@
                             <input
                                 type="text"
                                 id="subscription-name"
-                                class="w-full bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                class="w-full bg-slate-100 dark:bg-slate-700 text-slate-700 border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 placeholder="e.g., My Awesome App"
                                 required
                             />
                         </div>
 
                         <!-- Credentials -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-1 gap-4 mb-6">
                             <div>
                                 <label
                                     class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
@@ -530,6 +549,7 @@
         </div>
 
         <script>
+            // THEME
             const themeToggle = document.getElementById("theme-toggle");
 
             const savedTheme = localStorage.getItem("theme") || "dark";
@@ -555,6 +575,85 @@
                 } else {
                     lightIcon.style.display = "block";
                     darkIcon.style.display = "none";
+                }
+            }
+
+            // USER
+            let config = {};
+            let user = undefined;
+            setUser();
+            fetch("/config")
+                .then((response) => {
+                    if (response.status == 200) return response.json();
+                    else
+                        console.error("Could not load app config from server.");
+                })
+                .then((appConfig) => {
+                    config = appConfig;
+                    firebase.initializeApp({
+                        apiKey: config.authApiKey,
+                        authDomain: config.authDomain,
+                    });
+
+                    firebase.auth().onAuthStateChanged((newUser) => {
+                        if (newUser) {
+                            user = newUser;
+                            localStorage.setItem("user_email", user.email);
+                            setUser();
+                        } else {
+                            setUser();
+                        }
+                    });
+                });
+
+            // login with google function
+            function signInWithGoogle() {
+                var provider = new firebase.auth.GoogleAuthProvider();
+                firebase
+                    .auth()
+                    .signInWithPopup(provider)
+                    .then((result) => {
+                        var credential = result.credential;
+                        // This gives you a Google Access Token. You can use it to access the Google API.
+                        var token = credential.accessToken;
+                        // The signed-in user info.
+                        var user = result.user;
+                    })
+                    .catch((error) => {
+                        // Handle Errors here.
+                        var errorCode = error.code;
+                        var errorMessage = error.message;
+                        // The email of the user's account used.
+                        var email = error.email;
+                        // The firebase.auth.AuthCredential type that was used.
+                        var credential = error.credential;
+                        console.error(error);
+                        // ...
+                    });
+            }
+
+            function signOut() {
+                localStorage.removeItem("user_email");
+                firebase
+                    .auth()
+                    .signOut()
+                    .then(function () {
+                        window.location.href = "/";
+                    });
+            }
+
+            function setUser() {
+                let user_email = localStorage.getItem("user_email");
+                if (user_email) {
+                    document.getElementById("account_button").style.display =
+                        "block";
+                    document.getElementById("sign_in_button").style.display =
+                        "none";
+                } else {
+                    document.getElementById("account_button").style.display =
+                        "none";
+                    document.getElementById("sign_in_button").style.display =
+                        "block";
                 }
             }
 
@@ -677,7 +776,7 @@
                         ).length;
                         const card = document.createElement("div");
                         card.className =
-                            "p-6 rounded-xl shadow-md flex flex-col justify-between";
+                            "p-6 rounded-xl shadow-md flex flex-col justify-between  transition-all duration-300 transform hover:-translate-y-1";
                         card.style = "background-color: var(--bg-secondary);";
                         card.innerHTML = `
                         <div>
@@ -703,7 +802,7 @@
                     toggleWrapper.className =
                         "flex items-center justify-between bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg";
                     toggleWrapper.innerHTML = `
-                    <span class="text-sm font-medium">${api.name}</span>
+                    <span class="text-sm font-medium text-slate-700">${api.name}</span>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" data-api-name="${api.name}" class="sr-only peer api-toggle" ${api.enabled ? "checked" : ""}>
                         <div class="w-11 h-6 bg-slate-300 dark:bg-slate-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
