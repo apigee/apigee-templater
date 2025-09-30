@@ -464,9 +464,11 @@
                     this.lightIcon = document.getElementById("lightIcon");
                     this.darkIcon = document.getElementById("darkIcon");
                     this.config = {};
+                    this.isTyping = false;
                     this.user_email = localStorage.getItem("user_email");
-                    this.user_session =
-                        "s_" + Math.floor(Math.random() * 10000).toString();
+                    this.user_session = "s_abc";
+                    // this.user_session =
+                    //     "s_" + Math.floor(Math.random() * 10000).toString();
 
                     this.initTheme();
                     this.setupEventListeners();
@@ -499,7 +501,8 @@
                     // this.generateResponse(
                     //     "Describe yourself and give some sample requests.",
                     // );
-                    this.onAuthorizationCode();
+                    let authCodeResult = await this.onAuthorizationCode();
+                    if (!authCodeResult) this.onAuthorizationCode();
                 }
 
                 initTheme() {
@@ -594,11 +597,13 @@
                 }
 
                 async generateResponse(userMessage) {
+                    let result = true;
                     try {
                         let newResponse = await fetch(
                             this.config.apigeeAgentUrl + "/run",
                             {
                                 method: "POST",
+                                signal: AbortSignal.timeout(5000),
                                 headers: {
                                     "Content-Type": "application/json",
                                 },
@@ -628,12 +633,15 @@
                             );
                         }
                     } catch (e) {
+                        result = false;
                         this.hideTypingIndicator();
-                        await this.typeMessage(
-                            "Unfortunately I can't connect to my service right now, maybe take a break and try again later?",
-                            "ai",
-                        );
+                        // await this.typeMessage(
+                        //     "Unfortunately I can't connect to my service right now, maybe take a break and try again later?",
+                        //     "ai",
+                        // );
                     }
+
+                    return result;
                 }
 
                 async processResponse(agentResponse) {
@@ -679,6 +687,13 @@
                 }
 
                 async typeMessage(text, sender) {
+                    if (this.isTyping) {
+                        this.isTyping = false;
+                        await new Promise((resolve) =>
+                            setTimeout(resolve, 200),
+                        );
+                    }
+
                     const messageDiv = document.createElement("div");
                     messageDiv.className = `message ${sender}`;
 
@@ -692,13 +707,15 @@
                     messageDiv.appendChild(avatar);
                     messageDiv.appendChild(content);
                     this.messages.appendChild(messageDiv);
-
+                    this.isTyping = true;
                     for (let i = 0; i <= text.length; i++) {
                         // content.textContent = text.substring(0, i);
                         content.innerHTML = marked.parse(text.substring(0, i));
                         this.scrollToBottom();
                         await new Promise((resolve) => setTimeout(resolve, 20));
+                        if (!this.isTyping) break;
                     }
+                    this.isTyping = false;
                 }
 
                 scrollToBottom() {
@@ -710,54 +727,73 @@
                     let auth_response_rui =
                         localStorage.getItem("auth_response_uri");
                     let oauthMessage = localStorage.getItem("oauthMessage");
+                    let result = true;
                     if (oauthMessage && code) {
-                        this.oauthMessage = JSON.parse(
-                            localStorage.getItem("oauthMessage"),
-                        );
-                        this.oauthMessage["args"]["authConfig"][
-                            "exchangedAuthCredential"
-                        ]["oauth2"]["auth_response_uri"] = auth_response_rui;
+                        try {
+                            this.oauthMessage = JSON.parse(
+                                localStorage.getItem("oauthMessage"),
+                            );
+                            this.oauthMessage["args"]["authConfig"][
+                                "exchangedAuthCredential"
+                            ]["oauth2"]["auth_response_uri"] =
+                                auth_response_rui;
 
-                        let authRequestFunctionCallId = this.oauthMessage["id"];
-                        let oauthResponseBody = {
-                            app_name: "apigee_templater_agent",
-                            user_id: this.user_email,
-                            session_id: this.user_session,
-                            new_message: {
-                                role: "user",
-                                parts: [
-                                    {
-                                        functionResponse: {
-                                            id: authRequestFunctionCallId,
-                                            name: "adk_request_credential",
-                                            response:
-                                                this.oauthMessage["args"][
-                                                    "authConfig"
-                                                ],
+                            let authRequestFunctionCallId =
+                                this.oauthMessage["id"];
+                            let oauthResponseBody = {
+                                app_name: "apigee_templater_agent",
+                                user_id: this.user_email,
+                                session_id: this.user_session,
+                                new_message: {
+                                    role: "user",
+                                    parts: [
+                                        {
+                                            functionResponse: {
+                                                id: authRequestFunctionCallId,
+                                                name: "adk_request_credential",
+                                                response:
+                                                    this.oauthMessage["args"][
+                                                        "authConfig"
+                                                    ],
+                                            },
                                         },
-                                    },
-                                ],
-                            },
-                            streaming: false,
-                        };
-                        console.log(oauthResponseBody);
-
-                        let newResponse = await fetch(
-                            this.config.apigeeAgentUrl + "/run",
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
+                                    ],
                                 },
-                                body: JSON.stringify(oauthResponseBody),
-                            },
-                        );
+                                streaming: false,
+                            };
+                            console.log(oauthResponseBody);
 
-                        if (newResponse.status == 200) {
-                            let responseJson = await newResponse.json();
-                            this.processResponse(responseJson);
+                            let newResponse = await fetch(
+                                this.config.apigeeAgentUrl + "/run",
+                                {
+                                    method: "POST",
+                                    signal: AbortSignal.timeout(5000),
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify(oauthResponseBody),
+                                },
+                            );
+
+                            if (newResponse.status == 200) {
+                                let responseJson = await newResponse.json();
+                                this.processResponse(responseJson);
+                            }
+                        } catch (e) {
+                            result = false;
+                        }
+                    } else {
+                        let result = await this.generateResponse(
+                            "Give a short overview of your capabilities.",
+                        );
+                        if (!result) {
+                            this.generateResponse(
+                                "Give a short overview of your capabilities.",
+                            );
                         }
                     }
+
+                    return result;
                 }
             }
 

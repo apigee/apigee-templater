@@ -7,6 +7,11 @@ import { ApigeeTemplaterService } from "./lib/service.js";
 import { McpService } from "./lib/mcp-admin.js";
 import { McpUserService } from "./lib/mcp-user.js";
 import { RestService } from "./lib/rest.js";
+import {
+  PortalService,
+  type Error,
+  type ApiHubApis,
+} from "apigee-portal-module";
 
 const rootStorageDir = process.env.STORAGE_DIR
   ? process.env.STORAGE_DIR
@@ -52,6 +57,30 @@ app.get("/config", (req, res) => {
     authApiKey: process.env.AUTH_API_KEY,
     authDomain: process.env.AUTH_DOMAIN,
   });
+});
+app.get("/apis", async (req, res) => {
+  let projectRegions = process.env.APIGEE_PROJECT_REGIONS
+    ? process.env.APIGEE_PROJECT_REGIONS.split(",")
+    : [];
+  let apis: ApiHubApis = {
+    apis: [],
+  };
+  for (let projectRegion of projectRegions) {
+    let projectParts = projectRegion.split(":");
+    if (
+      projectParts &&
+      projectParts.length == 2 &&
+      projectParts[0] &&
+      projectParts[1]
+    ) {
+      let portalService = new PortalService(projectParts[0], projectParts[1]);
+      let projectApis = await portalService.getApis();
+      if (projectApis && projectApis.length == 2 && projectApis[0])
+        apis.apis = apis.apis.concat(projectApis[0].apis);
+    }
+  }
+
+  res.send(apis);
 });
 app.post("/templates", restService.templateCreate);
 app.put("/templates/:template", restService.templateUpdate);

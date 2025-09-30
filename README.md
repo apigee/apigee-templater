@@ -1,5 +1,5 @@
-# Apigee Templater v3
-Apigee Templater is a [Node.js](https://nodejs.org/) tool written in [Typescript](https://www.typescriptlang.org/) providing assisted & streamlined Apigee proxy authoring through the use of **template** and **feature** definitions.
+# Apigee Business Templater
+Apigee Business Templater is a [Node.js](https://nodejs.org/) tool written in [Typescript](https://www.typescriptlang.org/) providing assisted & streamlined Apigee proxy authoring through the use of **template** and **feature** definitions. It is especially useful for Apigee non-experts, for example domain or business teams, to create, publish and manage APIs, without needing to be Apigee proxy developers.
 
 ## Concepts
 
@@ -38,22 +38,22 @@ Apigee Templater provides **REST**, **MCP** and **CLI** interfaces to build, man
 - Test the [Apigee Templater Agent](https://apigee-templater-agent-609874082793.europe-west1.run.app) built with [ADK](https://google.github.io/adk-docs/) and using the Apigee Templater MCP server to create templates and add / remove features.
 - Run the unit tests for the above flow after cloning the repository with `npm i && npm run test`.
 ## CLI
-You can use the **apigee-templater** CLI locally or using npx, using either **apigee-templater** or **geet** as command.
+You can use the **apigee-templater** CLI locally or using npx, using either **apigee-templater** or **abt** as command.
 ```sh
 # install
 npm i -g apigee-templater
 
 # list commands
-geet -h
+abt -h
 
 # get a description of the proxy Gemini-v1 from Apigee org apigee-prod13
-geet -i apigee-prod13:Gemini-v1 -t $(gcloud auth print-access-token)
+abt -i apigee-prod13:Gemini-v1 -t $(gcloud auth print-access-token)
 
 # export the Apigee proxy Gemini-v1 from the org apigee-prod13 as a yaml proxy file
-geet -i apigee-prod13:Gemini-v1 -o Gemini-v1.yaml -t $(gcloud auth print-access-token)
+abt -i apigee-prod13:Gemini-v1 -o Gemini-v1.yaml -t $(gcloud auth print-access-token)
 
 # build the AI Template into a proxy zip that can be deployed to Apigee (-f format is not needed since .zip can only mean the apigee proxy format).
-geet -i AI-API-v1 -o AI-API-v1.zip
+abt -i AI-API-v1 -o AI-API-v1.zip
 ```
 ## REST & MCP server
 After cloning this repository you can start the REST & MCP server like this.

@@ -1,6 +1,6 @@
 {
   "name": "apigee-templater",
-  "version": "3.0.30",
+  "version": "3.0.31",
   "description": "Provides tooling for the templating and conversion of Apigee proxies between XML zip, JSON, and Yaml, and providing conversion services through REST, CLI and MCP.",
   "main": "index.js",
   "directories": {
@@ -20,7 +20,7 @@
     "dist/"
   ],
   "bin": {
-    "geet": "./dist/bin/apigee-templater.js",
+    "abt": "./dist/bin/apigee-templater.js",
     "apigee-templater": "./dist/bin/apigee-templater.js"
   },
   "keywords": [
