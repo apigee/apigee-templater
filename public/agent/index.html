@@ -635,7 +635,8 @@
             let config = {};
             let user = undefined;
             let user_email = "";
-            let user_session = "s_abc";
+            let user_session =
+                "s_" + Math.floor(Math.random() * 10000).toString();
             setUser();
             fetch("/config")
                 .then((response) => {
