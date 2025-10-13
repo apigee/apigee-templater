@@ -10,7 +10,9 @@ import { RestService } from "./lib/rest.js";
 import {
   PortalService,
   type Error,
-  type ApiHubApis,
+  type ApiHubApi,
+  type ApiHubApiVersion,
+  type ApiHubApiVersionSpecContents,
 } from "apigee-portal-module";
 
 const rootStorageDir = process.env.STORAGE_DIR
@@ -62,8 +64,9 @@ app.get("/apis", async (req, res) => {
   let projectRegions = process.env.APIGEE_PROJECT_REGIONS
     ? process.env.APIGEE_PROJECT_REGIONS.split(",")
     : [];
-  let apis: ApiHubApis = {
+  let result: { apis: ApiHubApi[]; versions: ApiHubApiVersion[] } = {
     apis: [],
+    versions: [],
   };
   for (let projectRegion of projectRegions) {
     let projectParts = projectRegion.split(":");
@@ -75,13 +78,60 @@ app.get("/apis", async (req, res) => {
     ) {
       let portalService = new PortalService(projectParts[0], projectParts[1]);
       let projectApis = await portalService.getApis();
-      if (projectApis && projectApis.length == 2 && projectApis[0])
-        apis.apis = apis.apis.concat(projectApis[0].apis);
+      if (projectApis.data && projectApis.data.length > 0) {
+        result.apis = result.apis.concat(projectApis.data);
+
+        for (let api of result.apis) {
+          let versions = await portalService.getApiVersions(
+            api.name,
+            `attributes.projects/${projectParts[0]}}/locations/${projectParts[1]}/attributes/portal-publish-flag.string_values.values:True`,
+          );
+          if (versions && versions.data && versions.data.length > 0)
+            result.versions = result.versions.concat(versions.data);
+        }
+      }
     }
   }
 
-  res.send(apis);
+  res.send(result);
 });
+
+app.get("/api-spec", async (req, res) => {
+  let result: any | undefined = undefined;
+  let projectRegions = process.env.APIGEE_PROJECT_REGIONS
+    ? process.env.APIGEE_PROJECT_REGIONS.split(",")
+    : [];
+  let versionName = req.query.version?.toString()
+    ? req.query.version.toString()
+    : "";
+
+  console.log(versionName);
+
+  let portalService = new PortalService();
+
+  let versionResult: { data: any; error: Error } =
+    await portalService.getApiVersionSpecs(versionName);
+  console.log(versionResult);
+  if (
+    versionResult.data &&
+    versionResult.data.specs &&
+    versionResult.data.specs.length &&
+    versionResult.data.specs.length > 0
+  ) {
+    let specResult: { data: ApiHubApiVersionSpecContents; error: Error } =
+      await portalService.getApiVersionSpecContents(
+        versionResult.data.specs[0]["name"],
+      );
+
+    if (specResult.data) {
+      result = specResult.data;
+    }
+  }
+
+  if (result) res.send(result);
+  else res.status(404).send("Spec not found");
+});
+
 app.post("/templates", restService.templateCreate);
 app.put("/templates/:template", restService.templateUpdate);
 app.get("/templates", restService.templatesList);

@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Apigee Agentic Portal - Explore</title>
+        <link rel="icon" type="image/x-icon" href="/favicon.png" />
+        <!-- Tailwind CSS -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://www.gstatic.com/firebasejs/8.0/firebase.js"></script>
+        <style>
+            :root {
+                /* Dark mode colors */
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-tertiary: #334155;
+                --text-primary: #f8fafc;
+                --text-secondary: #cbd5e1;
+                --text-tertiary: #64748b;
+                --text-title: rgb(129, 140, 248, 1);
+                --border: #334155;
+                --shadow: rgba(0, 0, 0, 0.3);
+                --accent: #60a5fa;
+                --accent-hover: #3b82f6;
+                --user-bg: #3b82f6;
+                --user-text: #ffffff;
+                --ai-bg: #1e293b;
+                --ai-text: #f8fafc;
+                --input-bg: #1e293b;
+                --header-bg: rgba(15, 23, 42, 0.8);
+            }
+
+            [data-theme="light"] {
+                /* Light mode colors */
+                --bg-primary: #ffffff;
+                --bg-secondary: #f8fafc;
+                --bg-tertiary: #f1f5f9;
+                --text-primary: #0f172a;
+                --text-secondary: #475569;
+                --text-tertiary: #94a3b8;
+                --text-title: rgb(79, 70, 229, 1);
+                --border: #e2e8f0;
+                --shadow: rgba(0, 0, 0, 0.05);
+                --accent: #3b82f6;
+                --accent-hover: #2563eb;
+                --user-bg: #3b82f6;
+                --user-text: #ffffff;
+                --ai-bg: #f1f5f9;
+                --ai-text: #0f172a;
+                --input-bg: #ffffff;
+                --header-bg: rgba(255, 255, 255, 0.8);
+            }
+            body {
+                font-family: "Inter", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                transition: all 0.3s ease;
+            }
+
+            a:link {
+                color: var(--text-primary);
+                text-decoration: none;
+            }
+
+            /* visited link */
+            a:visited {
+                color: var(--text-primary);
+            }
+
+            /* mouse over link */
+            a:hover {
+                color: var(--text-primary);
+            }
+
+            /* selected link */
+            a:active {
+                color: var(--text-primary);
+            }
+            /* Custom styles for the API type icons */
+            .icon-rest {
+                color: #f97316;
+            } /* Orange-500 */
+            .icon-graphql {
+                color: #ec4899;
+            } /* Pink-500 */
+            .icon-mcp {
+                color: #3b82f6;
+            } /* Blue-500 */
+            .icon-grpc {
+                color: #a855f7;
+            } /* Purple-500 */
+
+            .card-icon {
+                width: 48px;
+                height: 48px;
+            }
+
+            .menu-item:hover {
+                background-color: var(--bg-tertiary);
+                color: var(--text-primary);
+            }
+
+            /* Define the custom rotation animation */
+            @keyframes spin-grow {
+                0% {
+                    transform: rotate(0deg) scale(0.9);
+                    opacity: 0.5;
+                    box-shadow: 0 0 10px rgba(79, 70, 229, 0.5); /* Indigo glow */
+                }
+                50% {
+                    transform: rotate(180deg) scale(1.05);
+                    opacity: 1;
+                    box-shadow: 0 0 30px rgba(236, 72, 153, 0.8); /* Pink glow */
+                }
+                100% {
+                    transform: rotate(360deg) scale(0.9);
+                    opacity: 0.5;
+                    box-shadow: 0 0 10px rgba(79, 70, 229, 0.5);
+                }
+            }
+        </style>
+    </head>
+    <body class="transition-colors duration-300">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+            <!-- Header -->
+            <header
+                class="flex justify-between items-center py-6"
+                style="white-space: nowrap"
+            >
+                <div class="text-2xl font-bold tracking-tight">
+                    <a href="/">
+                        <span style="color: var(--text-title)">Apigee</span>
+                        <span class="hidden md:inline">Agentic Portal</span></a
+                    >
+                </div>
+
+                <div style="display: flex; align-items: center">
+                    <a
+                        href="/tools"
+                        class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
+                        >Tools</a
+                    >
+
+                    <a
+                        href="/agents"
+                        class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
+                        >Agents</a
+                    >
+
+                    <a
+                        id="sign_in_button"
+                        style="display: none"
+                        href="/signin"
+                        class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
+                        >Sign in</a
+                    >
+
+                    <!-- Account Dropdown -->
+                    <div
+                        id="account_button"
+                        style="display: none"
+                        class="relative"
+                    >
+                        <button
+                            id="account-dropdown-button"
+                            style="background-color: var(--bg-tertiary)"
+                            class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-full p-2 transition duration-150 ease-in-out"
+                        >
+                            <svg
+                                class="h-6 w-6 text-gray-500 dark:text-gray-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                                <g
+                                    id="SVGRepo_tracerCarrier"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                ></g>
+                                <g id="SVGRepo_iconCarrier">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+                                    ></path>
+                                </g>
+                            </svg>
+                            <span
+                                style="color: var(--text-secondary)"
+                                class="font-medium text-gray-900 dark:text-white hidden md:inline"
+                                >Account</span
+                            >
+                            <svg
+                                class="h-4 w-4 text-gray-500 dark:text-gray-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 9l-7 7-7-7"
+                                />
+                            </svg>
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div
+                            id="account-dropdown-menu"
+                            style="background-color: var(--bg-secondary)"
+                            class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 z-10 opacity-0 dropdown-menu"
+                        >
+                            <a
+                                href="/apps"
+                                style="color: var(--text-primary)"
+                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                >Apps</a
+                            >
+                            <a
+                                href="/admin"
+                                style="color: var(--text-primary)"
+                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                                >Admin Console</a
+                            >
+                            <button
+                                onclick="signOut()"
+                                style="
+                                    color: var(--text-primary);
+                                    width: 100%;
+                                    text-align: left;
+                                "
+                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                            >
+                                Sign-Out
+                            </button>
+                        </div>
+                    </div>
+
+                    <button
+                        class="relative pl-4 theme-toggle"
+                        onclick="toggleTheme()"
+                    >
+                        <svg
+                            class="theme-icon-light"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                            />
+                        </svg>
+                        <svg
+                            class="theme-icon-dark"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            style="display: none"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                            />
+                        </svg>
+                    </button>
+                </div>
+            </header>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+        <div id="app"></div>
+        <script>
+            // THEME
+            const themeToggle = document.getElementById("theme-toggle");
+            const savedTheme = localStorage.getItem("theme") || "dark";
+            setTheme(savedTheme);
+
+            function toggleTheme() {
+                const currentTheme = document.body.getAttribute("data-theme");
+                const newTheme = currentTheme === "light" ? "dark" : "light";
+
+                setTheme(newTheme);
+            }
+
+            function setTheme(newTheme) {
+                const lightIcon = document.querySelector(".theme-icon-light");
+                const darkIcon = document.querySelector(".theme-icon-dark");
+
+                document.body.setAttribute("data-theme", newTheme);
+                localStorage.setItem("theme", newTheme);
+
+                if (newTheme === "dark") {
+                    lightIcon.style.display = "none";
+                    darkIcon.style.display = "block";
+                } else {
+                    lightIcon.style.display = "block";
+                    darkIcon.style.display = "none";
+                }
+            }
+
+            // USER
+            let config = {};
+            let user = undefined;
+            setUser();
+            fetch("/config")
+                .then((response) => {
+                    if (response.status == 200) return response.json();
+                    else
+                        console.error("Could not load app config from server.");
+                })
+                .then((appConfig) => {
+                    config = appConfig;
+                    firebase.initializeApp({
+                        apiKey: config.authApiKey,
+                        authDomain: config.authDomain,
+                    });
+
+                    firebase.auth().onAuthStateChanged((newUser) => {
+                        if (newUser) {
+                            user = newUser;
+                            localStorage.setItem("user_email", user.email);
+                            setUser();
+                        } else {
+                            setUser();
+                        }
+                    });
+                });
+
+            function signOut() {
+                localStorage.removeItem("user_email");
+                firebase
+                    .auth()
+                    .signOut()
+                    .then(function () {
+                        window.location.href = "/";
+                    });
+            }
+
+            function setUser() {
+                let user_email = localStorage.getItem("user_email");
+                if (user_email) {
+                    document.getElementById("account_button").style.display =
+                        "block";
+                    document.getElementById("sign_in_button").style.display =
+                        "none";
+                } else {
+                    document.getElementById("account_button").style.display =
+                        "none";
+                    document.getElementById("sign_in_button").style.display =
+                        "block";
+                }
+            }
+
+            const dropdownButton = document.getElementById(
+                "account-dropdown-button",
+            );
+            const dropdownMenu = document.getElementById(
+                "account-dropdown-menu",
+            );
+
+            // --- Dropdown Logic ---
+            dropdownButton.addEventListener("click", () => {
+                const isExpanded =
+                    dropdownButton.getAttribute("aria-expanded") === "true" ||
+                    false;
+                dropdownButton.setAttribute("aria-expanded", !isExpanded);
+                if (dropdownMenu.classList.contains("hidden")) {
+                    dropdownMenu.classList.remove("hidden");
+                    // Trigger a reflow to ensure the transition runs
+                    dropdownMenu.offsetHeight;
+                    dropdownMenu.classList.add("opacity-100", "translate-y-0");
+                    dropdownMenu.classList.remove("opacity-0", "translate-y-2");
+                } else {
+                    dropdownMenu.classList.remove(
+                        "opacity-100",
+                        "translate-y-0",
+                    );
+                    dropdownMenu.classList.add("opacity-0", "translate-y-2");
+                    setTimeout(() => {
+                        dropdownMenu.classList.add("hidden");
+                    }, 200); // Match transition duration
+                }
+            });
+
+            // Close dropdown if user clicks outside
+            window.addEventListener("click", (event) => {
+                if (
+                    !dropdownButton.contains(event.target) &&
+                    !dropdownMenu.contains(event.target)
+                ) {
+                    dropdownMenu.classList.add(
+                        "hidden",
+                        "opacity-0",
+                        "translate-y-2",
+                    );
+                    dropdownMenu.classList.remove(
+                        "opacity-100",
+                        "translate-y-0",
+                    );
+                    dropdownButton.setAttribute("aria-expanded", "false");
+                }
+            });
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const toolId = urlParams.get("id");
+            const toolType = urlParams.get("type");
+
+            fetch("/api-spec?version=" + toolId).then((response) => {
+                if (response.status === 200) {
+                    response.json().then((versionInfo) => {
+                        console.log(versionInfo);
+                        let spec = atob(versionInfo.contents);
+
+                        if (toolType == "REST") {
+                            Scalar.createApiReference("#app", {
+                                // The URL of the OpenAPI/Swagger document
+                                // url: "https://registry.scalar.com/@scalar/apis/galaxy/latest?format=json",
+                                content: spec,
+                                // Avoid CORS issues
+                                proxyUrl: "https://proxy.scalar.com",
+                                showToolbar: "never",
+                                customCss: `
+                                .light-mode {
+                                  --scalar-color-1: #121212;
+                                  --scalar-color-2: rgba(0, 0, 0, 0.6);
+                                  --scalar-color-3: rgba(0, 0, 0, 0.4);
+                                  --scalar-color-accent: #0a85d1;
+                                  --scalar-background-1: #1e293b;
+                                  --scalar-background-2: #f6f5f4;
+                                  --scalar-background-3: #334155;
+                                  --scalar-background-accent: #5369d20f;
+                                  --scalar-border-color: rgba(0, 0, 0, 0.08);
+                                }
+                                .dark-mode {
+                                  --scalar-color-1: rgba(255, 255, 255, 0.81);
+                                  --scalar-color-2: rgba(255, 255, 255, 0.443);
+                                  --scalar-color-3: rgba(255, 255, 255, 0.282);
+                                  --scalar-color-accent: #8ab4f8;
+                                  --scalar-background-1: #0f172a;
+                                  --scalar-background-2: #1e293b;
+                                  --scalar-background-3: #334155;
+                                  --scalar-background-accent: #8ab4f81f;
+                                }
+                              `,
+                            });
+                        } else {
+                            let elem = document.getElementById("app");
+                            if (elem)
+                                elem.innerHTML =
+                                    "Documentation for type " +
+                                    toolType +
+                                    " not supported.";
+                        }
+                    });
+                } else {
+                    let elem = document.getElementById("app");
+                    if (elem) elem.innerHTML = "No documentation found.";
+                }
+            });
+        </script>
+    </body>
+</html>
