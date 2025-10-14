@@ -380,10 +380,6 @@ export class cli {
         if (proxy)
           outputPath = await this.converter.proxyToApigeeZip(proxy, removeDir);
         if (proxy && outputPath) {
-          console.log(
-            `${chalk.bold(chalk.magentaBright("> Proxy written to " + outputPath))}`,
-          );
-
           if (options.output.toLowerCase().endsWith(".dir")) {
             // remove zip
             fs.rmSync(outputPath);
@@ -400,6 +396,10 @@ export class cli {
             fs.copyFileSync(outputPath, options.output);
             fs.rmSync(outputPath);
           }
+
+          console.log(
+            `${chalk.bold(chalk.magentaBright("> Proxy written to " + options.output))}`,
+          );
         } else {
           console.log(
             `${chalk.bold(chalk.redBright("> Error, could not write proxy zip."))}`,

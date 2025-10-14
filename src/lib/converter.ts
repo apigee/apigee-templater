@@ -148,6 +148,13 @@ export class ApigeeConverter {
       if (responsePostFlow && responsePostFlow.steps.length > 0)
         newEndpoint.flows.push(responsePostFlow);
 
+      let responseEventFlow = this.flowXmlToJson(
+        "EventFlow",
+        "Response",
+        proxyJson["ProxyEndpoint"],
+      );
+      if (responseEventFlow) newEndpoint.flows.push(responseEventFlow);
+
       // default fault rule
       if (proxyJson["ProxyEndpoint"]["DefaultFaultRule"]) {
         let defaultFaultRule = this.flowXmlNodeToJson(
@@ -303,8 +310,7 @@ export class ApigeeConverter {
           "Response",
           targetJson["TargetEndpoint"],
         );
-        if (eventFlow && eventFlow.steps.length > 0)
-          newTarget.flows.push(eventFlow);
+        if (eventFlow) newTarget.flows.push(eventFlow);
         newProxy.targets.push(newTarget);
       }
 
@@ -376,7 +382,16 @@ export class ApigeeConverter {
         };
 
         for (let flow of endpoint.flows) {
-          if (!flow.condition && flow.steps.length > 0 && flow.mode) {
+          if (!flow.condition && flow.mode) {
+            if (!endpointXml["ProxyEndpoint"][flow.name]) {
+              endpointXml["ProxyEndpoint"][flow.name] = {
+                _attributes: {
+                  name: flow.name,
+                },
+                Response: {},
+              };
+            }
+
             endpointXml["ProxyEndpoint"][flow.name][flow.mode] =
               this.flowJsonToXml(flow);
           }
@@ -524,9 +539,16 @@ export class ApigeeConverter {
           Request: {},
           Response: {},
         };
+        targetXml["TargetEndpoint"]["EventFlow"] = {
+          _attributes: {
+            name: "EventFlow",
+            "content-type": "text/event-stream",
+          },
+          Response: {},
+        };
 
         for (let flow of target.flows) {
-          if (!flow.condition && flow.steps.length > 0 && flow.mode) {
+          if (!flow.condition && flow.mode) {
             targetXml["TargetEndpoint"][flow.name][flow.mode] =
               this.flowJsonToXml(flow);
           }

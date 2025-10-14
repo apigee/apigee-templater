@@ -1,0 +1,43 @@
+name: SSE-Test-v1
+type: proxy
+description: ""
+endpoints:
+  - name: default
+    basePath: /v1/brightdata
+    routes:
+      - name: default
+        target: default
+    flows: []
+    faultRules: []
+targets:
+  - name: default
+    url: https://mcp.brightdata.com
+    flows:
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Test
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL:
+        _text: https://mcp.brightdata.com
+policies:
+  - name: JS-Test
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-Test
+        DisplayName:
+          _text: JS-Test
+        Properties: {}
+        ResourceURL:
+          _text: jsc://Resource-1.js
+resources:
+  - name: Resource-1.js
+    type: jsc
+    content: ""
