@@ -158,7 +158,7 @@ export class ApigeeConverter {
       // default fault rule
       if (proxyJson["ProxyEndpoint"]["DefaultFaultRule"]) {
         let defaultFaultRule = this.flowXmlNodeToJson(
-          proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["_attributes"]["name"],
+          "",
           "",
           proxyJson["ProxyEndpoint"]["DefaultFaultRule"],
         );
@@ -233,9 +233,10 @@ export class ApigeeConverter {
         });
         let policyJson = JSON.parse(policyJsonString);
         let newPolicy = new Policy();
-        newPolicy.type = Object.keys(policyJson)[1] ?? "";
+        newPolicy.type = this.policyGetType(policyJson);
         newPolicy.name = policyJson[newPolicy.type]["_attributes"]["name"];
         if (policyJson["_declaration"]) delete policyJson["_declaration"];
+        if (policyJson["_comment"]) delete policyJson["_comment"];
         // policyJson = this.cleanXmlJson(policyJson);
         newPolicy.content = policyJson;
         newProxy.policies.push(newPolicy);
@@ -330,6 +331,138 @@ export class ApigeeConverter {
             newFile.type = resType;
             newFile.content = fs.readFileSync(
               inputPath + "/apiproxy/resources/" + resType + "/" + resFile,
+              "utf8",
+            );
+            newProxy.resources.push(newFile);
+          }
+        }
+      }
+    }
+
+    return newProxy;
+  }
+
+  public async apigeeSharedFlowZipToProxy(
+    name: string,
+    inputFilePath: string,
+  ): Promise<Proxy> {
+    return new Promise((resolve, reject) => {
+      let tempOutputDir = this.tempPath + name;
+      yauzl.open(inputFilePath, { lazyEntries: true }, (err, zipfile) => {
+        if (err) throw err;
+        zipfile.readEntry();
+        zipfile.on("entry", (entry) => {
+          const fullPath = path.join(tempOutputDir, entry.fileName);
+          if (/\/$/.test(entry.fileName)) {
+            // Entry is a directory
+            fs.mkdirSync(fullPath, { recursive: true });
+            zipfile.readEntry();
+          } else {
+            // Entry is a file
+            fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+            zipfile.openReadStream(entry, (err, readStream) => {
+              if (err) throw err;
+              const writeStream = fs.createWriteStream(fullPath);
+              readStream.pipe(writeStream);
+              readStream.on("end", () => {
+                zipfile.readEntry();
+              });
+            });
+          }
+        });
+        zipfile.on("close", () => {
+          // proxies
+          let newProxy: Proxy = this.apigeeSharedFlowFolderToProxy(
+            name,
+            tempOutputDir,
+          );
+          fs.rmSync(tempOutputDir, { recursive: true });
+          resolve(newProxy);
+        });
+      });
+    });
+  }
+
+  public apigeeSharedFlowFolderToProxy(name: string, inputPath: string): Proxy {
+    let sharedFlows: string[] = fs.readdirSync(
+      inputPath + "/sharedflowbundle/sharedflows",
+    );
+    let newProxy = new Proxy();
+    newProxy.name = name;
+    for (let flow of sharedFlows) {
+      let newEndpoint = new ProxyEndpoint();
+      let proxyPath = path.join(
+        inputPath,
+        "sharedflowbundle/sharedflows",
+        flow,
+      );
+      let flowContents = fs.readFileSync(proxyPath, "utf8");
+
+      let sharedFlowJsonString = xmljs.xml2json(flowContents, {
+        compact: true,
+        spaces: 2,
+      });
+      let sharedFlowJson = JSON.parse(sharedFlowJsonString);
+
+      newEndpoint.name = sharedFlowJson["SharedFlow"]["_attributes"]["name"];
+
+      // flows
+      let sharedFlow = this.flowXmlToJson("PreFlow", "SharedFlow", {
+        PreFlow: sharedFlowJson,
+      });
+      if (sharedFlow && sharedFlow.steps.length > 0) {
+        // set to Request for now, make a parameter in the future...
+        sharedFlow.mode = "Request";
+        newEndpoint.flows.push(sharedFlow);
+      }
+
+      // push endpoint
+      newProxy.endpoints.push(newEndpoint);
+
+      // policies
+      let policies: string[] = [];
+      if (fs.existsSync(inputPath + "/sharedflowbundle/policies"))
+        policies = fs.readdirSync(inputPath + "/sharedflowbundle/policies");
+      for (let policy of policies) {
+        let policyContents = fs.readFileSync(
+          inputPath + "/sharedflowbundle/policies/" + policy,
+          "utf8",
+        );
+        let policyJsonString = xmljs.xml2json(policyContents, {
+          compact: true,
+          spaces: 2,
+        });
+        let policyJson = JSON.parse(policyJsonString);
+        let newPolicy = new Policy();
+        newPolicy.type = this.policyGetType(policyJson);
+        newPolicy.name = policyJson[newPolicy.type]["_attributes"]["name"];
+        if (policyJson["_declaration"]) delete policyJson["_declaration"];
+        if (policyJson["_comment"]) delete policyJson["_comment"];
+        // policyJson = this.cleanXmlJson(policyJson);
+        newPolicy.content = policyJson;
+        newProxy.policies.push(newPolicy);
+      }
+
+      // resources
+      if (fs.existsSync(inputPath + "/sharedflowbundle/resources")) {
+        let resTypes: string[] = fs.readdirSync(
+          inputPath + "/sharedflowbundle/resources",
+        );
+        for (let resType of resTypes) {
+          let resFiles: string[] = fs.readdirSync(
+            inputPath + "/sharedflowbundle/resources/" + resType,
+          );
+
+          for (let resFile of resFiles) {
+            let newFile = new Resource();
+            newFile.name = resFile;
+            newFile.type = resType;
+            newFile.content = fs.readFileSync(
+              inputPath +
+                "/sharedflowbundle/resources/" +
+                resType +
+                "/" +
+                resFile,
               "utf8",
             );
             newProxy.resources.push(newFile);
@@ -693,6 +826,18 @@ export class ApigeeConverter {
       }
     }
     return result;
+  }
+
+  public policyGetType(sourceDoc: any): string {
+    let type = "";
+
+    for (let node of Object.keys(sourceDoc)) {
+      if (!node.startsWith("_")) {
+        type = node;
+        break;
+      }
+    }
+    return type;
   }
 
   public templateApplyFeature(template: Template, feature: Feature): Template {

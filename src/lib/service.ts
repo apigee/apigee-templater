@@ -641,6 +641,49 @@ export class ApigeeTemplaterService {
     });
   }
 
+  public async apigeeSharedFlowGet(
+    sharedFlowName: string,
+    apigeeOrg: string,
+    token: string,
+  ): Promise<string | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let response = await fetch(
+        `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}`,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        let latestRevisionId = responseBody.latestRevisionId;
+        if (!latestRevisionId) resolve(undefined);
+
+        let url = `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}/revisions/${latestRevisionId}?format=bundle`;
+        response = await fetch(url, {
+          headers: {
+            Authorization: token,
+          },
+        });
+        if (response.status == 200) {
+          let arrayBuffer = await response.arrayBuffer();
+          fs.writeFileSync(
+            this.tempPath + sharedFlowName + ".zip",
+            Buffer.from(arrayBuffer),
+          );
+          resolve(this.tempPath + sharedFlowName + ".zip");
+        } else {
+          resolve(undefined);
+        }
+      } else {
+        console.log(" > Apigee proxy GET response: " + response.status);
+        resolve(undefined);
+      }
+    });
+  }
+
   // imports an apigee proxy as template
   public async apigeeProxyImportTemplate(
     proxyName: string,

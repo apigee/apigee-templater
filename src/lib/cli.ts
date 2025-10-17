@@ -24,6 +24,11 @@ import * as YAML from "yaml";
 import { ApigeeConverter } from "./converter.js";
 import { Proxy, Feature, Template } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
+import { GoogleAuth } from "google-auth-library";
+
+const auth = new GoogleAuth({
+  scopes: "https://www.googleapis.com/auth/cloud-platform",
+});
 
 import { stdin } from "process";
 
@@ -247,6 +252,10 @@ export class cli {
       // this is an apigee proxy reference
       let pieces = options.input.split(":");
       if (pieces && pieces.length > 1 && pieces[0] && pieces[1]) {
+        if (!options.token) {
+          let token = await auth.getAccessToken();
+          if (token) options.token = token;
+        }
         let apigeePath = await this.apigeeService.apigeeProxyGet(
           pieces[1],
           pieces[0],
@@ -258,6 +267,21 @@ export class cli {
             apigeePath,
           );
           fs.rmSync(apigeePath);
+        } else {
+          // try shared flows
+          let sharedFlowPath = await this.apigeeService.apigeeSharedFlowGet(
+            pieces[1],
+            pieces[0],
+            "Bearer " + options.token,
+          );
+
+          if (sharedFlowPath) {
+            proxy = await this.converter.apigeeSharedFlowZipToProxy(
+              options.name,
+              sharedFlowPath,
+            );
+            fs.rmSync(sharedFlowPath);
+          }
         }
       }
     } else if (fs.existsSync(options.input)) {
@@ -280,6 +304,10 @@ export class cli {
 
     if (!template && !proxy && !feature) {
       // as a last test, maybe the input is an apigee org and we can get a proxy list
+      if (!options.token) {
+        let token = await auth.getAccessToken();
+        if (token) options.token = token;
+      }
       let proxyList = await this.apigeeService.apigeeProxiesList(
         options.input,
         `Bearer ${options.token}`,
@@ -427,6 +455,10 @@ export class cli {
             let pieces = options.output.split(":");
             let lastRevision = "";
             // export to apigee
+            if (!options.token) {
+              let token = await auth.getAccessToken();
+              if (token) options.token = token;
+            }
             if (pieces && pieces.length > 1 && pieces[0]) {
               lastRevision = await this.apigeeService.apigeeProxyExport(
                 options.name,

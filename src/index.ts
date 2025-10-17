@@ -132,6 +132,32 @@ app.get("/api-spec", async (req, res) => {
   else res.status(404).send("Spec not found");
 });
 
+app.get("/apps/:email", async (req, res) => {
+  let projectRegions = process.env.APIGEE_PROJECT_REGIONS
+    ? process.env.APIGEE_PROJECT_REGIONS.split(",")
+    : [];
+  let result: { apis: ApiHubApi[]; versions: ApiHubApiVersion[] } = {
+    apis: [],
+    versions: [],
+  };
+
+  let email = req.params.email;
+
+  for (let projectRegion of projectRegions) {
+    let projectParts = projectRegion.split(":");
+    if (
+      projectParts &&
+      projectParts.length == 2 &&
+      projectParts[0] &&
+      projectParts[1]
+    ) {
+      let portalService = new PortalService(projectParts[0], projectParts[1]);
+
+      let apps = await portalService.getApps(email);
+    }
+  }
+});
+
 app.post("/templates", restService.templateCreate);
 app.put("/templates/:template", restService.templateUpdate);
 app.get("/templates", restService.templatesList);

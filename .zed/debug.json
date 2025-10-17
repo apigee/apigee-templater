@@ -22,9 +22,9 @@
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
     "args": [
       "-i",
-      "./test/proxies/SSE-Test-v1.zip",
+      "apigee-prod13:avenue-llm-v1",
       "-o",
-      "./test/proxies/SSE-Test-v1.yaml"
+      "./test/proxies/Avenue-LLM-v1.yaml"
     ]
   }
 ]
