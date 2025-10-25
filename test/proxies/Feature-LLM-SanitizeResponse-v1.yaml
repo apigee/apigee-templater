@@ -1,0 +1,46 @@
+name: Feature-LLM-SanitizeResponse-v1
+type: proxy
+description: Proxy for Feature-LLM-SanitizeResponse-v1
+parameters:
+  - name: TEMPLATE_ID
+    description: Configuration input for TEMPLATE_ID
+    default: projects/apigee-prod13/locations/europe-west1/templates/default-ma-template
+    examples: []
+endpoints:
+  - name: default
+    basePath: /feature-llm-sanitizeresponse-v1
+    routes:
+      - name: default
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: SMR-SanitizeResponse
+    faultRules: []
+targets: []
+policies:
+  - name: SMR-SanitizeResponse
+    type: SanitizeModelResponse
+    content:
+      SanitizeModelResponse:
+        _attributes:
+          async: "false"
+          continueOnError: "false"
+          enabled: "true"
+          name: SMR-SanitizeResponse
+        IgnoreUnresolvedVariables:
+          _text: "false"
+        DisplayName:
+          _text: SMR-SanitizeResponse
+        ModelArmor:
+          TemplateName:
+            _text: "{propertyset.model-armor.TEMPLATE_ID}"
+        UserPromptSource:
+          _text: "{jsonPath('$.contents[-1].parts[-1].text',request.content,true)}"
+        LLMResponseSource:
+          _text: "{jsonPath('$.candidates[-1].content.parts[-1].text',response.content,tr\
+            ue)}"
+resources:
+  - name: model-armor.properties
+    type: properties
+    content: TEMPLATE_ID=projects/apigee-prod13/locations/europe-west1/templates/default-ma-template

@@ -16,6 +16,7 @@ import {
   Resource,
   Feature,
   Template,
+  Parameter,
 } from "./interfaces.js";
 
 export class ApigeeConverter {
@@ -268,6 +269,20 @@ export class ApigeeConverter {
             targetJson["TargetEndpoint"]["HTTPTargetConnection"]["URL"][
               "_text"
             ];
+        // Google Access Token
+        if (
+          targetJson["TargetEndpoint"]["HTTPTargetConnection"] &&
+          targetJson["TargetEndpoint"]["HTTPTargetConnection"][
+            "Authentication"
+          ] &&
+          targetJson["TargetEndpoint"]["HTTPTargetConnection"][
+            "Authentication"
+          ]["GoogleAccessToken"]
+        ) {
+          newTarget.auth = "GoogleAccessToken";
+          newTarget.scopes = ["https://www.googleapis.com/auth/cloud-platform"];
+        }
+        // save original target XML
         if (targetJson["TargetEndpoint"]["HTTPTargetConnection"]) {
           let targetXml = targetJson["TargetEndpoint"]["HTTPTargetConnection"];
           // targetXml = this.cleanXmlJson(targetXml);
@@ -334,6 +349,32 @@ export class ApigeeConverter {
               "utf8",
             );
             newProxy.resources.push(newFile);
+
+            // if propertyset, add as parameters
+            if (resType === "properties") {
+              let props = newFile.content.split("\n");
+              for (let prop of props) {
+                let propPieces = prop.split("=");
+                if (
+                  propPieces &&
+                  propPieces.length >= 1 &&
+                  propPieces[0] &&
+                  newProxy.parameters.findIndex(
+                    (x) => x.name === propPieces[0],
+                  ) === -1
+                ) {
+                  newProxy.parameters.push({
+                    name: propPieces[0],
+                    description: "Configuration input for " + propPieces[0],
+                    default:
+                      propPieces.length == 2 && propPieces[1]
+                        ? propPieces[1]
+                        : "",
+                    examples: [],
+                  });
+                }
+              }
+            }
           }
         }
       }
@@ -658,6 +699,24 @@ export class ApigeeConverter {
           };
         }
 
+        // GoogleAccessToken
+        if (
+          target.auth === "GoogleAccessToken" &&
+          targetXml["TargetEndpoint"]["HTTPTargetConnection"]
+        ) {
+          targetXml["TargetEndpoint"]["HTTPTargetConnection"][
+            "Authentication"
+          ] = {
+            GoogleAccessToken: {
+              Scopes: {
+                Scope: {
+                  _text: "https://www.googleapis.com/auth/cloud-platform",
+                },
+              },
+            },
+          };
+        }
+
         targetXml["TargetEndpoint"]["PreFlow"] = {
           _attributes: {
             name: "PreFlow",
@@ -840,8 +899,62 @@ export class ApigeeConverter {
     return type;
   }
 
-  public templateApplyFeature(template: Template, feature: Feature): Template {
-    if (!template.features.includes(feature.name)) {
+  public templateCreate(
+    name: string,
+    basePath: string | undefined,
+    targetUrl: string | undefined,
+    auth: string = "",
+    aud: string = "",
+    scopes: string[] = [],
+  ): Template {
+    let tempName = name.replaceAll(" ", "-");
+    let newTemplate: Template = {
+      name: tempName,
+      type: "template",
+      description: "API template for " + name,
+      features: [],
+      parameters: [],
+      endpoints: [],
+      targets: [],
+    };
+
+    if (basePath) {
+      newTemplate.endpoints.push({
+        name: "default",
+        basePath: basePath,
+        routes: [
+          {
+            name: "default",
+          },
+        ],
+      });
+    }
+
+    if (targetUrl) {
+      let newTarget: Target = {
+        name: "default",
+        url: targetUrl,
+      };
+      if (auth) newTarget.auth = auth;
+      if (scopes) newTarget.scopes = scopes;
+      if (aud) newTarget.aud = aud;
+
+      newTemplate.targets.push(newTarget);
+
+      if (newTemplate.endpoints[0] && newTemplate.endpoints[0].routes[0])
+        newTemplate.endpoints[0].routes[0].target = "default";
+    }
+
+    return newTemplate;
+  }
+
+  public templateApplyFeature(
+    template: Template,
+    feature: Feature,
+    featurePath: string,
+    parameters: { [key: string]: string } = {},
+  ): Template {
+    if (!template.features.includes(featurePath)) {
       if (feature.endpoints && feature.endpoints.length > 0) {
         for (let endpoint of feature.endpoints) {
           if (endpoint.name != "default") {
@@ -857,22 +970,43 @@ export class ApigeeConverter {
       if (feature.targets && feature.targets.length > 0) {
         for (let target of feature.targets) {
           if (target.name != "default") {
-            let templateTarget: Target = new Target();
-            templateTarget.name = target.name;
-            templateTarget.url = target.url;
+            let templateTarget: Target = {
+              name: target.name,
+              url: target.url,
+            };
+            if (target.auth) templateTarget.auth = target.auth;
+            if (target.scopes) templateTarget.scopes = target.scopes;
+            if (target.aud) templateTarget.aud = target.aud;
             template.targets.push(templateTarget);
           }
         }
       }
 
-      template.features.push(feature.name);
+      template.features.push(featurePath);
+
+      // add parameters with feature name
+      if (feature.parameters.length > 0) {
+        for (let parameter of feature.parameters) {
+          // set default if one was passed in
+          if (parameters[parameter.name])
+            parameter.default = parameters[parameter.name] ?? parameter.default;
+          parameter.name = feature.name + "." + parameter.name;
+          if (parameters[parameter.name])
+            parameter.default = parameters[parameter.name] ?? parameter.default;
+          template.parameters.push(parameter);
+        }
+      }
     }
 
     return template;
   }
 
-  public templateRemoveFeature(template: Template, feature: Feature): Template {
-    if (template.features.includes(feature.name)) {
+  public templateRemoveFeature(
+    template: Template,
+    feature: Feature,
+    featurePath: string,
+  ): Template {
+    if (template.features.includes(featurePath)) {
       if (feature.endpoints && feature.endpoints.length > 0) {
         for (let endpoint of feature.endpoints) {
           if (endpoint.name != "default") {
@@ -895,298 +1029,18 @@ export class ApigeeConverter {
         }
       }
 
-      let index = template.features.indexOf(feature.name);
+      let index = template.features.indexOf(featurePath);
       if (index != -1) template.features.splice(index, 1);
-    }
 
-    return template;
-  }
-
-  public proxyApplyFeature(
-    proxy: Proxy,
-    feature: Feature,
-    parameters: { [key: string]: string } = {},
-  ): Proxy {
-    // merge endpoint flows
-    for (let featureFlow of feature.endpointFlows) {
-      for (let endpoint of proxy.endpoints) {
-        let foundFlow = false;
-        for (let proxyFlow of endpoint.flows) {
-          if (
-            proxyFlow.name == featureFlow.name &&
-            proxyFlow.mode == featureFlow.mode &&
-            proxyFlow.condition == featureFlow.condition
-          ) {
-            foundFlow = true;
-            proxyFlow.steps = featureFlow.steps.concat(proxyFlow.steps);
-            break;
-          }
-        }
-
-        if (!foundFlow) {
-          endpoint.flows.push(featureFlow);
-        }
+      for (let parameter of feature.parameters) {
+        let index = template.parameters.findIndex(
+          (x) => x.name === feature.name + "." + parameter.name,
+        );
+        if (index != -1) template.parameters.splice(index, 1);
       }
     }
 
-    // merge target flows
-    for (let featureFlow of feature.targetFlows) {
-      for (let target of proxy.targets) {
-        let foundFlow = false;
-        for (let targetFlow of target.flows) {
-          if (
-            targetFlow.name == featureFlow.name &&
-            targetFlow.mode == featureFlow.mode &&
-            targetFlow.condition == featureFlow.condition
-          ) {
-            foundFlow = true;
-            targetFlow.steps = featureFlow.steps.concat(targetFlow.steps);
-            break;
-          }
-        }
-
-        if (!foundFlow) {
-          target.flows.push(featureFlow);
-        }
-      }
-    }
-
-    // if feature has endpoints
-    if (feature.endpoints && feature.endpoints.length > 0) {
-      proxy.endpoints = proxy.endpoints.concat(feature.endpoints);
-    }
-
-    // if feature has targets
-    if (feature.targets && feature.targets.length > 0) {
-      proxy.targets = proxy.targets.concat(feature.targets);
-    }
-
-    // merge policies
-    if (feature.policies && feature.policies.length > 0)
-      proxy.policies = proxy.policies.concat(
-        this.featureReplaceParameters(feature.policies, feature, parameters),
-      );
-
-    // merge resources
-    if (feature.resources && feature.resources.length > 0)
-      proxy.resources = proxy.resources.concat(
-        this.featureReplaceParameters(feature.resources, feature, parameters),
-      );
-
-    return proxy;
-  }
-
-  public proxyToTemplate(proxy: Proxy): Template {
-    let template = new Template();
-
-    template.name = proxy.name;
-    template.description = proxy.description;
-    for (let proxyEndpoint of proxy.endpoints) {
-      let templateEndpoint = new Endpoint();
-      templateEndpoint.name = proxyEndpoint.name;
-      templateEndpoint.basePath = proxyEndpoint.basePath;
-      templateEndpoint.routes = proxyEndpoint.routes;
-      template.endpoints.push(templateEndpoint);
-    }
-    for (let proxyTarget of proxy.targets) {
-      let templateTarget = new Target();
-      templateTarget.name = proxyTarget.name;
-      templateTarget.url = proxyTarget.url;
-      template.targets.push(templateTarget);
-    }
     return template;
-  }
-
-  // public jsonRemoveFeature(proxy: Proxy, feature: Feature): Proxy {
-  //   // remove endpoint flow steps
-  //   for (let featureFlow of feature.endpointFlows) {
-  //     for (let endpoint of proxy.endpoints) {
-  //       let flowsToRemove: Flow[] = [];
-  //       for (let proxyFlow of endpoint.flows) {
-  //         if (
-  //           proxyFlow.name == featureFlow.name &&
-  //           proxyFlow.mode == featureFlow.mode &&
-  //           proxyFlow.condition == featureFlow.condition
-  //         ) {
-  //           for (let step of featureFlow.steps) {
-  //             let index = proxyFlow.steps.findIndex(
-  //               (x) => x.name === step.name,
-  //             );
-  //             if (index != -1) {
-  //               proxyFlow.steps.splice(index, 1);
-  //             }
-  //           }
-
-  //           if (proxyFlow.steps.length === 0) flowsToRemove.push(proxyFlow);
-  //         }
-  //       }
-
-  //       for (let removeFlow of flowsToRemove) {
-  //         let index = endpoint.flows.findIndex(
-  //           (x) =>
-  //             x.name === removeFlow.name &&
-  //             x.mode === removeFlow.mode &&
-  //             x.condition == removeFlow.condition,
-  //         );
-  //         if (index != -1) endpoint.flows.splice(index, 1);
-  //       }
-  //     }
-  //   }
-
-  //   // remove target flows
-  //   for (let featureFlow of feature.targetFlows) {
-  //     for (let target of proxy.targets) {
-  //       let flowsToRemove: Flow[] = [];
-  //       for (let targetFlow of target.flows) {
-  //         if (
-  //           targetFlow.name == featureFlow.name &&
-  //           targetFlow.mode == featureFlow.mode &&
-  //           targetFlow.condition == featureFlow.condition
-  //         ) {
-  //           for (let step of featureFlow.steps) {
-  //             let index = targetFlow.steps.findIndex(
-  //               (x) => x.name === step.name,
-  //             );
-  //             if (index != -1) {
-  //               targetFlow.steps.splice(index, 1);
-  //             }
-  //           }
-
-  //           if (targetFlow.steps.length === 0) flowsToRemove.push(targetFlow);
-  //         }
-  //       }
-
-  //       for (let removeFlow of flowsToRemove) {
-  //         let index = target.flows.findIndex(
-  //           (x) =>
-  //             x.name === removeFlow.name &&
-  //             x.mode === removeFlow.mode &&
-  //             x.condition == removeFlow.condition,
-  //         );
-  //         if (index != -1) target.flows.splice(index, 1);
-  //       }
-  //     }
-  //   }
-
-  //   // remove feature endpoints if there are any
-  //   if (feature.endpoints && feature.endpoints.length > 0) {
-  //     for (let endpoint of feature.endpoints) {
-  //       let index = proxy.endpoints.findIndex(
-  //         (x) => x.name === endpoint.name && x.path === endpoint.path,
-  //       );
-  //       if (index != -1) proxy.endpoints.splice(index, 1);
-  //     }
-  //   }
-
-  //   // remove feature targets if there are any
-  //   if (feature.targets && feature.targets.length > 0) {
-  //     for (let target of feature.targets) {
-  //       let index = proxy.targets.findIndex((x) => x.name === target.name);
-  //       if (index != -1) proxy.targets.splice(index, 1);
-  //     }
-  //   }
-
-  //   // remove policies
-  //   for (let policy of feature.policies) {
-  //     let index = proxy.policies.findIndex((x) => x.name === policy.name);
-  //     if (index != -1) {
-  //       proxy.policies.splice(index, 1);
-  //     }
-  //   }
-
-  //   // remove resources
-  //   if (feature.resources) {
-  //     for (let resource of feature.resources) {
-  //       let index = proxy.resources.findIndex((x) => x.name === resource.name);
-  //       if (index != -1) {
-  //         proxy.resources.splice(index, 1);
-  //       }
-  //     }
-  //   }
-
-  //   let index = proxy.features.findIndex((x) => x === feature.name);
-  //   if (index != -1) proxy.features.splice(index, 1);
-
-  //   return proxy;
-  // }
-
-  public featureReplaceParameters(
-    input: any,
-    feature: Feature,
-    parameters: { [key: string]: string } = {},
-  ): any {
-    let inputString = JSON.stringify(input);
-
-    for (let parameter of feature.parameters) {
-      let paramValue = parameter.default;
-      if (parameters[parameter.name])
-        paramValue = parameters[parameter.name] ?? "";
-      inputString = inputString.replaceAll(parameter.name, paramValue);
-    }
-
-    return JSON.parse(inputString);
-  }
-
-  public proxyToFeature(proxy: Proxy): Feature {
-    let newFeature = new Feature();
-    newFeature.name = proxy.name;
-
-    let defaultEndpoint = proxy.endpoints.find((x) => x.name == "default");
-    let defaultTarget = proxy.targets.find((x) => x.name == "default");
-
-    if (defaultEndpoint) newFeature.endpointFlows = defaultEndpoint.flows;
-    if (defaultTarget) newFeature.targetFlows = defaultTarget.flows;
-
-    for (let endpoint of proxy.endpoints)
-      if (endpoint.name != "default") newFeature.endpoints.push(endpoint);
-
-    for (let target of proxy.targets)
-      if (target.name != "default") newFeature.targets.push(target);
-
-    newFeature.policies = proxy.policies;
-    newFeature.resources = proxy.resources;
-
-    return newFeature;
-  }
-
-  public templateCreate(
-    name: string,
-    basePath: string | undefined,
-    targetUrl: string | undefined,
-  ): Template {
-    let tempName = name.replaceAll(" ", "-");
-    let newTemplate: Template = {
-      name: tempName,
-      type: "template",
-      description: "API template for " + name,
-      features: [],
-      endpoints: [],
-      targets: [],
-    };
-
-    if (basePath) {
-      newTemplate.endpoints.push({
-        name: "default",
-        basePath: basePath,
-        routes: [
-          {
-            name: "default",
-          },
-        ],
-      });
-    }
-
-    if (targetUrl) {
-      newTemplate.targets.push({
-        name: "default",
-        url: targetUrl,
-      });
-
-      if (newTemplate.endpoints[0] && newTemplate.endpoints[0].routes[0])
-        newTemplate.endpoints[0].routes[0].target = "default";
-    }
-
-    return newTemplate;
   }
 
   public templateToProxy(
@@ -1197,14 +1051,51 @@ export class ApigeeConverter {
     let proxy: Proxy = new Proxy();
     proxy.name = template.name;
     proxy.description = template.description;
-    // proxy.endpoints = template.endpoints;
-    // proxy.targets = template.targets;
+    proxy.parameters = template.parameters;
 
+    // replace any runtime parameters
+    this.proxyUpdateParameters(proxy, parameters);
+
+    // first apply features with targets & endpoints
     for (let feature of features) {
-      proxy = this.proxyApplyFeature(proxy, feature, parameters);
+      if (feature.endpoints.length > 0 || feature.targets.length > 0) {
+        proxy = this.proxyApplyFeature(proxy, feature, parameters);
+      }
+    }
+
+    // now apply features with just policies
+    for (let feature of features) {
+      if (feature.endpoints.length === 0 && feature.targets.length === 0) {
+        proxy = this.proxyApplyFeature(proxy, feature, parameters);
+      }
     }
 
     return proxy;
+  }
+
+  public templateUpdateParamters(
+    template: Template,
+    parameters: { [key: string]: string } = {},
+  ) {
+    for (let proxyParameter of template.parameters) {
+      for (let key of Object.keys(parameters)) {
+        if (
+          proxyParameter.default.includes("{" + key + "}") &&
+          parameters[key]
+        ) {
+          proxyParameter.default = proxyParameter.default.replaceAll(
+            "{" + key + "}",
+            parameters[key],
+          );
+        } else if (
+          (proxyParameter.name === key ||
+            proxyParameter.name.endsWith("." + key)) &&
+          parameters[key]
+        ) {
+          proxyParameter.default = parameters[key];
+        }
+      }
+    }
   }
 
   public templateToStringArray(template: Template): string[] {
@@ -1244,38 +1135,33 @@ export class ApigeeConverter {
   }
 
   public templateToString(template: Template): string {
-    // let result = "";
-    // if (template.name) result = `Name: ${template.name}`;
-    // if (template.description) result += `Description: ${template.description}`;
-
-    // if (template.features && template.features.length > 0) {
-    //   result += `\nFeatures:`;
-    //   for (let feature of template.features) {
-    //     result += `\n - ${feature}`;
-    //   }
-    // } else {
-    //   result += `\nFeatures: none`;
-    // }
-
-    // if (template.endpoints && template.endpoints.length > 0) {
-    //   result += `\nEndpoints:`;
-    //   for (let endpoint of template.endpoints) {
-    //     result += `\n - ${endpoint.basePath}`;
-    //   }
-    // } else {
-    //   result += `\nEndpoints: none`;
-    // }
-
-    // if (template.targets && template.targets.length > 0) {
-    //   result += `\nTargets:`;
-    //   for (let target of template.targets) {
-    //     result += `\n - ${target.name} - ${target.url}`;
-    //   }
-    // } else {
-    //   result += `\nTargets: none`;
-    // }
     let result = this.templateToStringArray(template);
     return result.join("\n");
+  }
+
+  public featureUpdateParameters(
+    feature: Feature,
+    parameters: { [key: string]: string } = {},
+  ) {
+    for (let featureParameter of feature.parameters) {
+      for (let key of Object.keys(parameters)) {
+        if (
+          featureParameter.default.includes("{" + key + "}") &&
+          parameters[key]
+        ) {
+          featureParameter.default = featureParameter.default.replaceAll(
+            "{" + key + "}",
+            parameters[key],
+          );
+        } else if (
+          (featureParameter.name === key ||
+            featureParameter.name.endsWith("." + key)) &&
+          parameters[key]
+        ) {
+          featureParameter.default = parameters[key];
+        }
+      }
+    }
   }
 
   public featureToStringArray(feature: Feature): string[] {
@@ -1365,6 +1251,245 @@ export class ApigeeConverter {
   public featureToString(feature: Feature): string {
     let result = this.featureToStringArray(feature);
     return result.join("\n");
+  }
+
+  public proxyApplyFeature(
+    proxy: Proxy,
+    feature: Feature,
+    parameters: { [key: string]: string } = {},
+  ): Proxy {
+    // merge endpoint flows
+    for (let featureFlow of feature.endpointFlows) {
+      for (let endpoint of proxy.endpoints) {
+        let foundFlow = false;
+        for (let proxyFlow of endpoint.flows) {
+          if (
+            proxyFlow.name == featureFlow.name &&
+            proxyFlow.mode == featureFlow.mode &&
+            proxyFlow.condition == featureFlow.condition
+          ) {
+            foundFlow = true;
+            proxyFlow.steps = featureFlow.steps.concat(proxyFlow.steps);
+            break;
+          }
+        }
+
+        if (!foundFlow) {
+          endpoint.flows.push(featureFlow);
+        }
+      }
+    }
+
+    // merge target flows
+    for (let featureFlow of feature.targetFlows) {
+      for (let target of proxy.targets) {
+        let foundFlow = false;
+        for (let targetFlow of target.flows) {
+          if (
+            targetFlow.name == featureFlow.name &&
+            targetFlow.mode == featureFlow.mode &&
+            targetFlow.condition == featureFlow.condition
+          ) {
+            foundFlow = true;
+            targetFlow.steps = featureFlow.steps.concat(targetFlow.steps);
+            break;
+          }
+        }
+
+        if (!foundFlow) {
+          target.flows.push(featureFlow);
+        }
+      }
+    }
+
+    // if feature has endpoints
+    if (feature.endpoints && feature.endpoints.length > 0) {
+      proxy.endpoints = proxy.endpoints.concat(feature.endpoints);
+    }
+
+    // if feature has targets
+    if (feature.targets && feature.targets.length > 0) {
+      proxy.targets = proxy.targets.concat(feature.targets);
+    }
+
+    // merge policies
+    if (feature.policies && feature.policies.length > 0) {
+      for (let policy of feature.policies) {
+        let policyIndex = proxy.policies.findIndex(
+          (x) => x.name === policy.name,
+        );
+        if (policyIndex === -1) {
+          proxy.policies.push(
+            this.featureReplaceParameters(
+              policy,
+              feature,
+              proxy.parameters,
+              parameters,
+            ),
+          );
+        } else {
+          console.log(
+            `\n!! Conflict detected in proxy apply feature - policy "${policy.name}" already exists, overwriting...\n`,
+          );
+          proxy.policies[policyIndex] = this.featureReplaceParameters(
+            policy,
+            feature,
+            proxy.parameters,
+            parameters,
+          );
+        }
+      }
+    }
+
+    // merge resources
+    if (feature.resources && feature.resources.length > 0) {
+      for (let resource of feature.resources) {
+        let resourceIndex = proxy.resources.findIndex(
+          (x) => x.name === resource.name,
+        );
+        if (resourceIndex === -1) {
+          proxy.resources.push(
+            this.featureReplaceParameters(
+              resource,
+              feature,
+              proxy.parameters,
+              parameters,
+            ),
+          );
+        } else {
+          console.log(
+            `\n!! Conflict detected in proxy apply feature - resource "${resource.name}" already exists, overwriting...\n`,
+          );
+          proxy.resources[resourceIndex] = this.featureReplaceParameters(
+            resource,
+            feature,
+            proxy.parameters,
+            parameters,
+          );
+        }
+      }
+    }
+
+    return proxy;
+  }
+
+  public proxyToTemplate(proxy: Proxy): Template {
+    let template = new Template();
+
+    template.name = proxy.name;
+    template.description = proxy.description;
+    template.parameters = proxy.parameters;
+
+    for (let proxyEndpoint of proxy.endpoints) {
+      let templateEndpoint = new Endpoint();
+      templateEndpoint.name = proxyEndpoint.name;
+      templateEndpoint.basePath = proxyEndpoint.basePath;
+      templateEndpoint.routes = proxyEndpoint.routes;
+      template.endpoints.push(templateEndpoint);
+    }
+    for (let proxyTarget of proxy.targets) {
+      let templateTarget = new Target();
+      templateTarget.name = proxyTarget.name;
+      templateTarget.url = proxyTarget.url;
+      template.targets.push(templateTarget);
+    }
+    return template;
+  }
+
+  public featureReplaceParameters(
+    input: any,
+    feature: Feature,
+    proxyParameters: Parameter[] = [],
+    parameters: { [key: string]: string } = {},
+  ): any {
+    let inputString = JSON.stringify(input);
+    for (var i = 0; i < feature.parameters.length; i++) {
+      let parameter = feature.parameters[i];
+      if (parameter) {
+        let paramValue = parameter.default;
+
+        let proxyParam = proxyParameters.find(
+          (x) => x.name === feature.name + "." + parameter.name,
+        );
+        if (proxyParam && proxyParam.default) paramValue = proxyParam.default;
+
+        if (parameters[feature.name + "." + parameter.name])
+          paramValue = parameters[feature.name + "." + parameter.name] ?? "";
+        else if (parameters[parameter.name])
+          paramValue = parameters[parameter.name] ?? "";
+
+        if (
+          input["type"] &&
+          input["type"] === "properties" &&
+          input["content"]
+        ) {
+          // this is a propertyset file, replace individual lines
+          let lines = input["content"].split("\n");
+          for (var p = 0; p < lines.length; p++) {
+            if (lines[i].startsWith(parameter.name + "=")) {
+              lines[i] = parameter.name + "=" + paramValue;
+              break;
+            }
+          }
+          input["content"] = lines.join("\n");
+          inputString = JSON.stringify(input);
+        } else {
+          // this is a string resource, replace string
+          inputString = inputString.replaceAll(parameter.name, paramValue);
+        }
+      }
+    }
+
+    return JSON.parse(inputString);
+  }
+
+  public proxyToFeature(proxy: Proxy): Feature {
+    let newFeature = new Feature();
+    newFeature.name = proxy.name;
+    newFeature.description = proxy.description;
+    newFeature.parameters = proxy.parameters;
+
+    let defaultEndpoint = proxy.endpoints.find((x) => x.name == "default");
+    let defaultTarget = proxy.targets.find((x) => x.name == "default");
+
+    if (defaultEndpoint) newFeature.endpointFlows = defaultEndpoint.flows;
+    if (defaultTarget) newFeature.targetFlows = defaultTarget.flows;
+
+    for (let endpoint of proxy.endpoints)
+      if (endpoint.name != "default") newFeature.endpoints.push(endpoint);
+
+    for (let target of proxy.targets)
+      if (target.name != "default") newFeature.targets.push(target);
+
+    newFeature.policies = proxy.policies;
+    newFeature.resources = proxy.resources;
+
+    return newFeature;
+  }
+
+  public proxyUpdateParameters(
+    proxy: Proxy,
+    parameters: { [key: string]: string } = {},
+  ) {
+    for (let proxyParameter of proxy.parameters) {
+      for (let key of Object.keys(parameters)) {
+        if (
+          proxyParameter.default.includes("{" + key + "}") &&
+          parameters[key]
+        ) {
+          proxyParameter.default = proxyParameter.default.replaceAll(
+            "{" + key + "}",
+            parameters[key],
+          );
+        } else if (
+          (proxyParameter.name === key ||
+            proxyParameter.name.endsWith("." + key)) &&
+          parameters[key]
+        ) {
+          proxyParameter.default = parameters[key];
+        }
+      }
+    }
   }
 
   public proxyToStringArray(proxy: Proxy): string[] {

@@ -239,6 +239,17 @@ export class cli {
     let template: Template | undefined = undefined;
     let feature: Feature | undefined = undefined;
     let proxy: Proxy | undefined = undefined;
+    let startDir = process.cwd();
+    // parse parameters
+    let inputParameters: { [key: string]: string } = {};
+    if (options.parameters) {
+      let paramPairs = options.parameters.split(",");
+      for (let paramPair of paramPairs) {
+        let paramPieces = paramPair.split("=");
+        if (paramPieces.length == 2 && paramPieces[0] && paramPieces[1])
+          inputParameters[paramPieces[0]] = paramPieces[1];
+      }
+    }
 
     if (!options.input) {
       // create new template
@@ -283,6 +294,8 @@ export class cli {
             fs.rmSync(sharedFlowPath);
           }
         }
+
+        if (proxy) proxy.description = "Proxy for " + proxy.name;
       }
     } else if (fs.existsSync(options.input)) {
       let file = await this.loadFile(options.name, options.input);
@@ -295,6 +308,9 @@ export class cli {
         );
         return;
       }
+      // change working directory so that path resolutions will work
+      let dirName = path.dirname(options.input);
+      process.chdir(dirName);
     } else {
       // try to load it from remote repositories
       template = await this.apigeeService.templateGet(options.input);
@@ -331,24 +347,48 @@ export class cli {
       return;
     } else {
       if (options.applyFeature) {
+        process.chdir(startDir);
+        if (!options.output) options.output = options.input;
+        let relativePath = options.applyFeature;
+        if (fs.existsSync(options.applyFeature)) {
+          // this is a path, get relative path
+          relativePath = path.relative(
+            path.dirname(options.output),
+            options.applyFeature,
+          );
+        }
         let applyFeature = await this.apigeeService.featureGet(
           options.applyFeature,
         );
+
         if (template && applyFeature)
           template = this.converter.templateApplyFeature(
             template,
             applyFeature,
+            relativePath,
+            inputParameters,
           );
         else if (proxy && applyFeature)
           proxy = this.converter.proxyApplyFeature(proxy, applyFeature);
       } else if (options.removeFeature) {
+        process.chdir(startDir);
+        if (!options.output) options.output = options.input;
+        let relativePath = options.removeFeature;
+        if (fs.existsSync(options.removeFeature)) {
+          // this is a path, get relative path
+          relativePath = path.relative(
+            path.dirname(options.output),
+            options.removeFeature,
+          );
+        }
         let removeFeature = await this.apigeeService.featureGet(
-          options.applyFeature,
+          options.removeFeature,
         );
         if (template && removeFeature)
           template = this.converter.templateRemoveFeature(
             template,
             removeFeature,
+            relativePath,
           );
       }
 
@@ -377,16 +417,6 @@ export class cli {
         );
         return;
       }
-      // parse parameters
-      let templateParameters: { [key: string]: string } = {};
-      if (options.parameters) {
-        let paramPairs = options.parameters.split(",");
-        for (let paramPair of paramPairs) {
-          let paramPieces = paramPair.split("=");
-          if (paramPieces.length == 2 && paramPieces[0] && paramPieces[1])
-            templateParameters[paramPieces[0]] = paramPieces[1];
-        }
-      }
 
       // write output
       if (
@@ -399,9 +429,10 @@ export class cli {
           proxy = await this.apigeeService.templateObjectToProxy(
             template,
             this.converter,
-            templateParameters,
+            inputParameters,
           );
         }
+        process.chdir(startDir);
         let removeDir = options.output.toLowerCase().endsWith(".dir")
           ? false
           : true;
@@ -439,9 +470,10 @@ export class cli {
           proxy = await this.apigeeService.templateObjectToProxy(
             template,
             this.converter,
-            templateParameters,
+            inputParameters,
           );
         }
+        process.chdir(startDir);
         if (proxy) {
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(proxy, null, 2));
@@ -502,8 +534,10 @@ export class cli {
         if (proxy) {
           template = this.converter.proxyToTemplate(proxy);
         }
+        process.chdir(startDir);
 
         if (template) {
+          this.converter.templateUpdateParamters(template, inputParameters);
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(template, null, 2));
           } else if (options.output.toLowerCase().endsWith(".yaml")) {
@@ -521,8 +555,9 @@ export class cli {
         if (proxy) {
           feature = this.converter.proxyToFeature(proxy);
         }
-
+        process.chdir(startDir);
         if (feature) {
+          this.converter.featureUpdateParameters(feature, inputParameters);
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(feature, null, 2));
           } else if (options.output.toLowerCase().endsWith(".yaml")) {

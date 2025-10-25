@@ -399,7 +399,11 @@ export class ApigeeTemplaterService {
         );
         return undefined;
       } else {
-        template = converter.templateApplyFeature(template, feature);
+        template = converter.templateApplyFeature(
+          template,
+          feature,
+          featureName,
+        );
       }
 
       fs.writeFileSync(
@@ -432,7 +436,11 @@ export class ApigeeTemplaterService {
         );
         return undefined;
       } else {
-        template = converter.templateRemoveFeature(template, feature);
+        template = converter.templateRemoveFeature(
+          template,
+          feature,
+          feature.name,
+        );
       }
 
       fs.writeFileSync(
@@ -473,10 +481,12 @@ export class ApigeeTemplaterService {
     templateName: string,
     endpointName: string,
     basePath: string,
-    converter: ApigeeConverter,
     targetName?: string,
     targetUrl?: string,
     targetRouteRule?: string,
+    targetAuth: string = "",
+    targetAud: string = "",
+    targetScopes: string[] = [],
   ): Promise<Template | undefined> {
     return new Promise(async (resolve) => {
       let template: Template | undefined = undefined;
@@ -499,6 +509,9 @@ export class ApigeeTemplaterService {
             template.targets.push({
               name: targetName,
               url: targetUrl,
+              auth: targetAuth,
+              aud: targetAud,
+              scopes: targetScopes,
             });
           }
         }
@@ -554,6 +567,11 @@ export class ApigeeTemplaterService {
         for (let featureName of template.features) {
           let feature = await this.featureGet(featureName);
           if (feature) features.push(feature);
+          else {
+            // abort, could not load feature
+            console.error(`Could not load feature ${feature}, aborting...`);
+            resolve(undefined);
+          }
         }
 
         proxy = converter.templateToProxy(template, features, parameters);

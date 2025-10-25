@@ -363,7 +363,6 @@ export class McpService {
             proxyName,
             endpointName,
             basePath,
-            this.converter,
             targetName,
             targetUrl,
             targetRouteRule,

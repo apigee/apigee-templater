@@ -3,6 +3,7 @@ export class Template {
   type: string = "template";
   description: string = "";
   features: string[] = [];
+  parameters: Parameter[] = [];
   endpoints: Endpoint[] = [];
   targets: Target[] = [];
 }
@@ -11,6 +12,7 @@ export class Proxy {
   name: string = "";
   type: string = "proxy";
   description: string = "";
+  parameters: Parameter[] = [];
   endpoints: ProxyEndpoint[] = [];
   targets: ProxyTarget[] = [];
   policies: Policy[] = [];
@@ -57,6 +59,9 @@ export class Step {
 export class Target {
   name: string = "";
   url: string = "";
+  auth?: string;
+  scopes?: string[];
+  aud?: string;
 }
 
 export class ProxyTarget extends Target {

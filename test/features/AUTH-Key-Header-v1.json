@@ -1,5 +1,5 @@
 {
-  "name": "Auth-Key-Header-v1",
+  "name": "AUTH-Key-Header-v1",
   "type": "feature",
   "description": "Adds API key authentication using the x-api-key header",
   "parameters": [

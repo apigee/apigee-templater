@@ -1,0 +1,421 @@
+name: AI-Gateway-v1
+type: proxy
+description: API template for AI-Gateway-v1
+parameters:
+  - name: MODEL-Gemini-v1.PROJECT_ID
+    description: Configuration input for PROJECT_ID
+    default: bap-emea-apigee-5
+    examples: []
+  - name: MODEL-Gemini-v1.REGION
+    description: Configuration input for REGION
+    default: europe-west1
+    examples: []
+  - name: MODEL-Gemini-v1.MODEL_ID
+    description: Configuration input for MODEL_ID
+    default: gemini-2.5-flash
+    examples: []
+  - name: MODEL-Mistral-v1.PROJECT_ID
+    description: Configuration input for PROJECT_ID
+    default: bap-emea-apigee-5
+    examples: []
+  - name: MODEL-Mistral-v1.REGION
+    description: Configuration input for REGION
+    default: europe-west1
+    examples: []
+  - name: MODEL-Mistral-v1.MODEL_ID
+    description: Configuration input for MODEL_ID
+    default: mistral-large-2411
+    examples: []
+  - name: Feature-LLM-MaskRequest-v1.PROJECT_ID
+    description: Configuration input for PROJECT_ID
+    default: bap-emea-apigee-5
+    examples: []
+  - name: Feature-LLM-SanitizeRequest-v1.TEMPLATE_ID
+    description: Configuration input for TEMPLATE_ID
+    default: projects/bap-emea-apigee-5/locations/europe-west1/templates/default-ma-template
+    examples: []
+  - name: Feature-LLM-SanitizeResponse-v1.TEMPLATE_ID
+    description: Configuration input for TEMPLATE_ID
+    default: projects/bap-emea-apigee-5/locations/europe-west1/templates/default-ma-template
+    examples: []
+endpoints:
+  - name: gemini
+    basePath: /v1/gemini
+    routes:
+      - name: default
+        target: gemini
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: SUP-SanitizeRequest
+          - name: RF-ArmorFault
+            condition: SanitizeUserPrompt.SUP-SanitizeRequest.filterMatchState =
+              "MATCH_FOUND"
+          - name: JS-LogModelArmor
+          - name: SUP-SanitizeRequest
+          - name: RF-ArmorFault
+            condition: SanitizeUserPrompt.SUP-SanitizeRequest.filterMatchState =
+              "MATCH_FOUND"
+          - name: JS-LogModelArmor
+          - name: SC-SensitiveDataProtection
+          - name: JS-SetMaskedRequest
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: SMR-SanitizeResponse
+    faultRules: []
+  - name: mistral
+    basePath: /v1/mistral
+    routes:
+      - name: default
+        target: mistral
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: SUP-SanitizeRequest
+          - name: RF-ArmorFault
+            condition: SanitizeUserPrompt.SUP-SanitizeRequest.filterMatchState =
+              "MATCH_FOUND"
+          - name: JS-LogModelArmor
+          - name: SUP-SanitizeRequest
+          - name: RF-ArmorFault
+            condition: SanitizeUserPrompt.SUP-SanitizeRequest.filterMatchState =
+              "MATCH_FOUND"
+          - name: JS-LogModelArmor
+          - name: SC-SensitiveDataProtection
+          - name: JS-SetMaskedRequest
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: SMR-SanitizeResponse
+    faultRules: []
+targets:
+  - name: gemini
+    url: https://{propertyset.gemini.REGION}-aiplatform.googleapis.com/v1/projects/{propertyset.gemini.PROJECT_ID}/locations/{propertyset.gemini.REGION}/publishers/google/models/{propertyset.gemini.MODEL_ID}:generateContent
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+    aud: ""
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL:
+        _text: https://{propertyset.gemini.REGION}-aiplatform.googleapis.com/v1/projects/{propertyset.gemini.PROJECT_ID}/locations/{propertyset.gemini.REGION}/publishers/google/models/{propertyset.gemini.MODEL_ID}:generateContent
+      Authentication:
+        GoogleAccessToken:
+          Scopes:
+            Scope:
+              _text: https://www.googleapis.com/auth/cloud-platform
+  - name: mistral
+    url: https://{propertyset.config.REGION}-aiplatform.googleapis.com/v1/projects/{propertyset.config.PROJECT_ID}/locations/{propertyset.config.REGION}/publishers/mistralai/models/{propertyset.config.MODEL_ID}:rawPredict
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+    aud: ""
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL:
+        _text: https://{propertyset.config.REGION}-aiplatform.googleapis.com/v1/projects/{propertyset.config.PROJECT_ID}/locations/{propertyset.config.REGION}/publishers/mistralai/models/{propertyset.config.MODEL_ID}:rawPredict
+      Authentication:
+        GoogleAccessToken:
+          Scopes:
+            Scope:
+              _text: https://www.googleapis.com/auth/cloud-platform
+policies:
+  - name: JS-SetMaskedRequest
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetMaskedRequest
+        DisplayName:
+          _text: JS-SetMaskedRequest
+        Properties: {}
+        ResourceURL:
+          _text: jsc://SetRequest.js
+  - name: SC-SensitiveDataProtection
+    type: ServiceCallout
+    content:
+      ServiceCallout:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: SC-SensitiveDataProtection
+        DisplayName:
+          _text: SC-SensitiveDataProtection
+        Properties: {}
+        Request:
+          _attributes:
+            clearPayload: "true"
+            variable: myRequest
+          IgnoreUnresolvedVariables:
+            _text: "false"
+          Set:
+            Verb:
+              _text: POST
+            Payload:
+              _attributes:
+                contentType: application/json
+              _text: "
+
+                \        {
+
+                \          \"item\": {
+
+                \            \"value\":
+                \"{jsonPath('$.contents[-1].parts[-1].text',request.content,tru\
+                e)}\"
+
+                \          },
+
+                \          \"deidentifyConfig\":{
+
+                \            \"infoTypeTransformations\":{
+
+                \              \"transformations\":[
+
+                \                {
+
+                \                  \"infoTypes\":[
+
+                \                    {
+
+                \                      \"name\":\"EMAIL_ADDRESS\"
+
+                \                    }
+
+                \                  ],
+
+                \                  \"primitiveTransformation\":{
+
+                \                    \"characterMaskConfig\":{
+
+                \                      \"maskingCharacter\":\"*\",
+
+                \                      \"reverseOrder\":false,
+
+                \                      \"charactersToIgnore\":[
+
+                \                        {
+
+                \                          \"charactersToSkip\":\"@\"
+
+                \                        }
+
+                \                      ]
+
+                \                    }
+
+                \                  }
+
+                \                },
+
+                \                {
+
+                \                  \"infoTypes\":[
+
+                \                    {
+
+                \                      \"name\":\"PHONE_NUMBER\"
+
+                \                    }
+
+                \                  ],
+
+                \                  \"primitiveTransformation\":{
+
+                \                    \"replaceConfig\":{
+
+                \                      \"newValue\":{
+
+                \                        \"stringValue\":\"[telephone-number]\"
+
+                \                      }
+
+                \                    }
+
+                \                  }
+
+                \                }
+
+                \              ]
+
+                \            }
+
+                \          },
+
+                \          \"inspectConfig\": {
+
+                \            \"infoTypes\": [
+
+                \              {
+
+                \                \"name\": \"PHONE_NUMBER\"
+
+                \              },
+
+                \              {
+
+                \                \"name\":\"EMAIL_ADDRESS\"
+
+                \              }
+
+                \            ],
+
+                \            \"minLikelihood\": \"POSSIBLE\",
+
+                \            \"limits\": {
+
+                \              \"maxFindingsPerItem\": 0
+
+                \            },
+
+                \            \"includeQuote\": true
+
+                \          }
+
+                \        }
+
+                \      "
+        Response:
+          _text: sensitiveDataProtectionResponse
+        HTTPTargetConnection:
+          Properties: {}
+          URL:
+            _text: https://dlp.googleapis.com/v2/projects/{propertyset.dlp.bap-emea-apigee-5}/content:deidentify
+          Authentication:
+            GoogleAccessToken:
+              Scopes:
+                Scope:
+                  _text: https://www.googleapis.com/auth/cloud-platform
+  - name: JS-LogModelArmor
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-LogModelArmor
+        DisplayName:
+          _text: JS-LogModelArmor
+        Properties: {}
+        ResourceURL:
+          _text: jsc://log-modal-armor.js
+  - name: RF-ArmorFault
+    type: RaiseFault
+    content:
+      RaiseFault:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: RF-ArmorFault
+        DisplayName:
+          _text: RF-ArmorFault
+        Properties: {}
+        FaultResponse:
+          Set:
+            Headers: {}
+            Payload:
+              _attributes:
+                contentType: text/plain
+            StatusCode:
+              _text: "500"
+            ReasonPhrase:
+              _text: Server Error
+        IgnoreUnresolvedVariables:
+          _text: "true"
+  - name: SUP-SanitizeRequest
+    type: SanitizeUserPrompt
+    content:
+      SanitizeUserPrompt:
+        _attributes:
+          async: "false"
+          continueOnError: "false"
+          enabled: "true"
+          name: SUP-SanitizeRequest
+        IgnoreUnresolvedVariables:
+          _text: "false"
+        DisplayName:
+          _text: SUP-SanitizeRequest
+        ModelArmor:
+          TemplateName:
+            _text: "{propertyset.model-armor.projects/bap-emea-apigee-5/locations/europe-we\
+              st1/templates/default-ma-template}"
+        UserPromptSource:
+          _text: "{jsonPath('$.contents[-1].parts[-1].text',request.content,true)}"
+  - name: SMR-SanitizeResponse
+    type: SanitizeModelResponse
+    content:
+      SanitizeModelResponse:
+        _attributes:
+          async: "false"
+          continueOnError: "false"
+          enabled: "true"
+          name: SMR-SanitizeResponse
+        IgnoreUnresolvedVariables:
+          _text: "false"
+        DisplayName:
+          _text: SMR-SanitizeResponse
+        ModelArmor:
+          TemplateName:
+            _text: "{propertyset.model-armor.projects/bap-emea-apigee-5/locations/europe-we\
+              st1/templates/default-ma-template}"
+        UserPromptSource:
+          _text: "{jsonPath('$.contents[-1].parts[-1].text',request.content,true)}"
+        LLMResponseSource:
+          _text: "{jsonPath('$.candidates[-1].content.parts[-1].text',response.content,tr\
+            ue)}"
+resources:
+  - name: gemini.properties
+    type: properties
+    content: |-
+      PROJECT_ID=bap-emea-apigee-5
+      REGION=europe-west1
+      MODEL_ID=gemini-2.5-flash
+  - name: mistral.properties
+    type: properties
+    content: |-
+      PROJECT_ID=bap-emea-apigee-5
+      REGION=europe-west1
+      MODEL_ID=mistral-large-2411
+  - name: SetRequest.js
+    type: jsc
+    content: |-
+      var requestObj = request.content.asJSON;
+      print("request json: "+ JSON.stringify(requestObj));
+
+      var maskedResponseObj = JSON.parse(context.getVariable("sensitiveDataProtectionResponse.content"));
+      print("sdp response json: "+ JSON.stringify(maskedResponseObj));
+
+      if (maskedResponseObj["item"] && maskedResponseObj["item"]["value"] && requestObj && requestObj["contents"] && requestObj["contents"].length > 0) {
+        requestObj["contents"][requestObj["contents"].length - 1]["parts"][requestObj["contents"][requestObj["contents"].length - 1]["parts"].length - 1]["text"] = maskedResponseObj["item"]["value"];
+      }
+
+      print("changed request json: "+ JSON.stringify(requestObj));
+
+      context.setVariable("request.content", JSON.stringify(requestObj));
+  - name: dlp.properties
+    type: properties
+    content: PROJECT_ID=bap-emea-apigee-5
+  - name: log-modal-armor.js
+    type: jsc
+    content: >-
+      var mainfo =
+      context.getVariable("SanitizeUserPrompt.SUP-SanitizeRequest");
+
+
+      if (mainfo) print(JSON.stringify(mainfo));
+
+      else print("No MA info found");
+  - name: model-armor.properties
+    type: properties
+    content: TEMPLATE_ID=projects/bap-emea-apigee-5/locations/europe-west1/templates/default-ma-template

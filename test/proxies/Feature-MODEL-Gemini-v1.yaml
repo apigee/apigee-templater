@@ -1,0 +1,50 @@
+name: MODEL-Gemini-v1
+type: proxy
+description: Proxy for Feature-MODEL-Gemini-v1
+parameters:
+  - name: PROJECT_ID
+    description: Configuration input for PROJECT_ID
+    default: apigee-prod13
+    examples: []
+  - name: REGION
+    description: Configuration input for REGION
+    default: europe-west1
+    examples: []
+  - name: MODEL_ID
+    description: Configuration input for MODEL_ID
+    default: gemini-2.5-flash
+    examples: []
+endpoints:
+  - name: gemini
+    basePath: /v1/gemini
+    routes:
+      - name: default
+        target: gemini
+    flows: []
+    faultRules: []
+targets:
+  - name: gemini
+    url: https://{propertyset.gemini.REGION}-aiplatform.googleapis.com/v1/projects/{propertyset.gemini.PROJECT_ID}/locations/{propertyset.gemini.REGION}/publishers/google/models/{propertyset.gemini.MODEL_ID}:generateContent
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+    aud: ""
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL:
+        _text: https://{propertyset.gemini.REGION}-aiplatform.googleapis.com/v1/projects/{propertyset.gemini.PROJECT_ID}/locations/{propertyset.gemini.REGION}/publishers/google/models/{propertyset.gemini.MODEL_ID}:generateContent
+      Authentication:
+        GoogleAccessToken:
+          Scopes:
+            Scope:
+              _text: https://www.googleapis.com/auth/cloud-platform
+policies: []
+resources:
+  - name: gemini.properties
+    type: properties
+    content: |-
+      PROJECT_ID=apigee-prod13
+      REGION=europe-west1
+      MODEL_ID=gemini-2.5-flash

@@ -22,9 +22,11 @@
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
     "args": [
       "-i",
-      "apigee-prod13:avenue-llm-v1",
+      "./test/templates/AI-Gateway-v1.yaml",
       "-o",
-      "./test/proxies/Avenue-LLM-v1.yaml"
+      "./test/proxies/AI-Gateway-v1.yaml",
+      "-f",
+      "proxy"
     ]
   }
 ]

@@ -1,0 +1,50 @@
+name: MODEL-Mistral-v1
+type: proxy
+description: Proxy for Feature-MODEL-Misral-v1
+parameters:
+  - name: PROJECT_ID
+    description: Configuration input for PROJECT_ID
+    default: apigee-prod13
+    examples: []
+  - name: REGION
+    description: Configuration input for REGION
+    default: europe-west1
+    examples: []
+  - name: MODEL_ID
+    description: Configuration input for MODEL_ID
+    default: mistral-large-2411
+    examples: []
+endpoints:
+  - name: mistral
+    basePath: /v1/mistral
+    routes:
+      - name: default
+        target: mistral
+    flows: []
+    faultRules: []
+targets:
+  - name: mistral
+    url: https://{propertyset.config.REGION}-aiplatform.googleapis.com/v1/projects/{propertyset.config.PROJECT_ID}/locations/{propertyset.config.REGION}/publishers/mistralai/models/{propertyset.config.MODEL_ID}:rawPredict
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+    aud: ""
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL:
+        _text: https://{propertyset.config.REGION}-aiplatform.googleapis.com/v1/projects/{propertyset.config.PROJECT_ID}/locations/{propertyset.config.REGION}/publishers/mistralai/models/{propertyset.config.MODEL_ID}:rawPredict
+      Authentication:
+        GoogleAccessToken:
+          Scopes:
+            Scope:
+              _text: https://www.googleapis.com/auth/cloud-platform
+policies: []
+resources:
+  - name: mistral.properties
+    type: properties
+    content: |-
+      PROJECT_ID=apigee-prod13
+      REGION=europe-west1
+      MODEL_ID=mistral-large-2411
