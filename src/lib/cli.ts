@@ -130,32 +130,30 @@ export class cli {
             return input.replace(/ /g, "-");
           },
         });
-      }
-    }
 
-    if (!options.input) {
-      if (!options.basePath) {
-        questions.push({
-          type: "input",
-          name: "basePath",
-          message: "Which base path should be used, or none for now?",
-          default: options.name ? "/" + options.name : "/v1/coolapi",
-          transformer: (input: string) => {
-            return input.replace(/ /g, "-");
-          },
-        });
-      }
+        if (!options.basePath) {
+          questions.push({
+            type: "input",
+            name: "basePath",
+            message: "Which base path should be used, or none for now?",
+            default: options.name ? "/" + options.name : "/v1/coolapi",
+            transformer: (input: string) => {
+              return input.replace(/ /g, "-");
+            },
+          });
+        }
 
-      if (!options.targetUrl) {
-        questions.push({
-          type: "input",
-          name: "targetUrl",
-          message: "Do you want to add a target url to receive traffic?",
-          default: "https://httpbin.org",
-          transformer: (input: string) => {
-            return input.replace(/ /g, "-");
-          },
-        });
+        if (!options.targetUrl) {
+          questions.push({
+            type: "input",
+            name: "targetUrl",
+            message: "Do you want to add a target url to receive traffic?",
+            default: "https://httpbin.org",
+            transformer: (input: string) => {
+              return input.replace(/ /g, "-");
+            },
+          });
+        }
       }
     }
 

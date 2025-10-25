@@ -1,70 +1,7 @@
 name: AI-Gateway-v1
 type: template
 description: API template for AI-Gateway-v1
-features:
-  - ../features/MODEL-Gemini-v1.yaml
-  - ../features/MODEL-Mistral-v1.yaml
-  - ../features/LLM-MaskRequest-v1.yaml
-  - ../features/LLM-SanitizeRequest-v1.yaml
-  - ../features/LLM-SanitizeResponse-v1.yaml
-parameters:
-  - name: MODEL-Gemini-v1.PROJECT_ID
-    description: Configuration input for PROJECT_ID
-    default: bap-emea-apigee-5
-    examples: []
-  - name: MODEL-Gemini-v1.REGION
-    description: Configuration input for REGION
-    default: europe-west1
-    examples: []
-  - name: MODEL-Gemini-v1.MODEL_ID
-    description: Configuration input for MODEL_ID
-    default: gemini-2.5-flash
-    examples: []
-  - name: MODEL-Mistral-v1.PROJECT_ID
-    description: Configuration input for PROJECT_ID
-    default: bap-emea-apigee-5
-    examples: []
-  - name: MODEL-Mistral-v1.REGION
-    description: Configuration input for REGION
-    default: europe-west1
-    examples: []
-  - name: MODEL-Mistral-v1.MODEL_ID
-    description: Configuration input for MODEL_ID
-    default: mistral-large-2411
-    examples: []
-  - name: Feature-LLM-MaskRequest-v1.PROJECT_ID
-    description: Configuration input for PROJECT_ID
-    default: bap-emea-apigee-5
-    examples: []
-  - name: Feature-LLM-SanitizeRequest-v1.TEMPLATE_ID
-    description: Configuration input for TEMPLATE_ID
-    default: projects/{PROJECT_ID}/locations/{REGION}/templates/default-ma-template
-    examples: []
-  - name: Feature-LLM-SanitizeResponse-v1.TEMPLATE_ID
-    description: Configuration input for TEMPLATE_ID
-    default: projects/{PROJECT_ID}/locations/{REGION}/templates/default-ma-template
-    examples: []
-endpoints:
-  - name: gemini
-    basePath: /v1/gemini
-    routes:
-      - name: default
-        target: gemini
-  - name: mistral
-    basePath: /v1/mistral
-    routes:
-      - name: default
-        target: mistral
-targets:
-  - name: gemini
-    url: https://{propertyset.gemini.REGION}-aiplatform.googleapis.com/v1/projects/{propertyset.gemini.PROJECT_ID}/locations/{propertyset.gemini.REGION}/publishers/google/models/{propertyset.gemini.MODEL_ID}:generateContent
-    auth: GoogleAccessToken
-    scopes:
-      - https://www.googleapis.com/auth/cloud-platform
-    aud: ""
-  - name: mistral
-    url: https://{propertyset.config.REGION}-aiplatform.googleapis.com/v1/projects/{propertyset.config.PROJECT_ID}/locations/{propertyset.config.REGION}/publishers/mistralai/models/{propertyset.config.MODEL_ID}:rawPredict
-    auth: GoogleAccessToken
-    scopes:
-      - https://www.googleapis.com/auth/cloud-platform
-    aud: ""
+features: []
+parameters: []
+endpoints: []
+targets: []

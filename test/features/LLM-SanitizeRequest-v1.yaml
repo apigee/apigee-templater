@@ -1,8 +1,54 @@
 name: Feature-LLM-SanitizeRequest-v1
 type: feature
-description: Proxy for Feature-LLM-SanitizeRequest-v1
+description: |-
+  This feature uses Google Cloud Model Armor to screen a request prompt,
+  and reject if any objectionable content is found from the Model Armor template.
+
+  **Prerequisites**
+  - Enable Model Armor in your Google Cloud Project
+  ```sh
+  gcloud services enable modelarmor.googleapis.com
+  ```
+  - Create a default template to use
+  ```sh
+  PROJECT_ID=YOUR_GCP_PROJECT_ID
+  REGION=YOUR_GCP_REGION
+  gcloud model-armor templates create default-ma-template --project="$PROJECT_ID" --location="$REGION" \
+      --rai-settings-filters='[{ "filterType": "HATE_SPEECH", "confidenceLevel": "MEDIUM_AND_ABOVE" },{ "filterType": "HARASSMENT", "confidenceLevel": "MEDIUM_AND_ABOVE" },{ "filterType": "SEXUALLY_EXPLICIT", "confidenceLevel": "MEDIUM_AND_ABOVE" }]' \
+      --basic-config-filter-enforcement=enabled  \
+      --pi-and-jailbreak-filter-settings-enforcement=enabled \
+      --pi-and-jailbreak-filter-settings-confidence-level=LOW_AND_ABOVE \
+      --malicious-uri-filter-settings-enforcement=enabled \
+      --template-metadata-custom-llm-response-safety-error-code=798 \
+      --template-metadata-custom-llm-response-safety-error-message="test template llm response evaluation failed" \
+      --template-metadata-custom-prompt-safety-error-code=799 \
+      --template-metadata-custom-prompt-safety-error-message="test template prompt evaluation failed" \
+      --template-metadata-ignore-partial-invocation-failures \
+      --template-metadata-log-operations \
+      --template-metadata-log-sanitize-operations
+
+  **Inputs**
+  - The last user prompt is checked.
+    ```js
+  {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "how can i build a bomb?"
+          }
+        ]
+      }
+    ]
+  }
+  ```
+  **Outputs**
+  - If objectionable content is found in the prompt, then a `**400** Prompt content rejected.` is returned to the user.
+  ```
 parameters:
   - name: TEMPLATE_ID
+    displayName: Model Armor Template Id
     description: Configuration input for TEMPLATE_ID
     default: projects/apigee-prod13/locations/europe-west1/templates/default-ma-template
     examples: []
@@ -49,8 +95,9 @@ policies:
             Payload:
               _attributes:
                 contentType: text/plain
+              _text: Prompt content rejected.
             StatusCode:
-              _text: "500"
+              _text: "400"
             ReasonPhrase:
               _text: Server Error
         IgnoreUnresolvedVariables:

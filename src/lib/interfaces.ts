@@ -102,6 +102,7 @@ export class Feature {
 
 export class Parameter {
   name: string = "";
+  displayName: string = "";
   description: string = "";
   examples: string[] = [];
   default: string = "";

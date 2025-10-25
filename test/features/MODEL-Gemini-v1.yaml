@@ -1,4 +1,4 @@
-name: MODEL-Gemini-v1
+name: Feature-MODEL-Gemini-v1
 type: feature
 description: Proxy for Feature-MODEL-Gemini-v1
 parameters:
@@ -30,8 +30,14 @@ targets:
     auth: GoogleAccessToken
     scopes:
       - https://www.googleapis.com/auth/cloud-platform
-    aud: ""
-    flows: []
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: EV-StoreModelInfo
+      - name: EventFlow
+        mode: Response
+        steps: []
     faultRules: []
     httpTargetConnection:
       Properties: {}
@@ -42,7 +48,45 @@ targets:
           Scopes:
             Scope:
               _text: https://www.googleapis.com/auth/cloud-platform
-policies: []
+policies:
+  - name: EV-StoreModelInfo
+    type: ExtractVariables
+    content:
+      ExtractVariables:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: EV-StoreModelInfo
+        DisplayName:
+          _text: EV-StoreModelInfo
+        Properties: {}
+        IgnoreUnresolvedVariables:
+          _text: "true"
+        Variable:
+          _attributes:
+            name: model
+          Pattern:
+            _text: "{propertyset.gemini.MODEL_ID}"
+        JSONPayload:
+          Variable:
+            - _attributes:
+                name: promptTokenCount
+              JSONPath:
+                _text: $.usage.prompt_tokens
+            - _attributes:
+                name: responseTokenCount
+              JSONPath:
+                _text: $.usage.completion_tokens
+            - _attributes:
+                name: totalTokenCount
+              JSONPath:
+                _text: $.usage.total_tokens
+        Source:
+          _attributes:
+            clearPayload: "false"
+          _text: response
+        VariablePrefix:
+          _text: llm
 resources:
   - name: gemini.properties
     type: properties

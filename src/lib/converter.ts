@@ -365,6 +365,7 @@ export class ApigeeConverter {
                 ) {
                   newProxy.parameters.push({
                     name: propPieces[0],
+                    displayName: propPieces[0],
                     description: "Configuration input for " + propPieces[0],
                     default:
                       propPieces.length == 2 && propPieces[1]

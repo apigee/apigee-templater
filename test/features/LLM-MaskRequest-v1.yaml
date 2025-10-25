@@ -1,8 +1,51 @@
 name: Feature-LLM-MaskRequest-v1
 type: feature
-description: Proxy for Feature-LLM-MaskRequest-v1
+description: |-
+  This feature masks PII data email addresses and telephone numbers from
+  incoming prompt requests using GCP Data Loss Prevention.
+
+  **Prerequisites**
+  - Enable DLP in your GCP project. You can do this with this command:
+  ```sh
+  gcloud services enable dlp.googleapis.com
+  ```
+
+  **Inputs**
+  - The last user prompt in this format will be masked using DLP. Sample input:
+  ```js
+  {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "can you remember my email address test@example.com and telephone number 801-417-4399 for me?"
+          }
+        ]
+      }
+    ]
+  }
+  ```
+
+  **Outputs**
+  - The request payload is directly changed with the masked data so that the PII data is removed directly upon entry. Sample output:
+  ```js
+  {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "can you remember my email address ****@********** and telephone number ***-***-**** for me?"
+          }
+        ]
+      }
+    ]
+  }
+  ```
 parameters:
   - name: PROJECT_ID
+    displayName: DLP Project Id
     description: Configuration input for PROJECT_ID
     default: apigee-prod13
     examples: []
