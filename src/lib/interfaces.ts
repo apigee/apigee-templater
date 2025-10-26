@@ -88,6 +88,7 @@ export class Feature {
   name: string = "";
   type: string = "feature";
   description: string = "";
+  priority?: number;
   parameters: Parameter[] = [];
   endpointFlows: Flow[] = [];
   targetFlows: Flow[] = [];

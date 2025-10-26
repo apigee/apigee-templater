@@ -1,0 +1,40 @@
+name: HTTP-CORS-v1
+type: feature
+description: Proxy for HTTP-CORS-v1
+parameters: []
+endpointFlows: []
+targetFlows:
+  - name: PreFlow
+    mode: Request
+    steps:
+      - name: CORS-AddCors
+endpoints: []
+targets: []
+policies:
+  - name: CORS-AddCors
+    type: CORS
+    content:
+      CORS:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: CORS-AddCors
+        DisplayName:
+          _text: CORS-AddCors
+        AllowOrigins:
+          _text: "{request.header.origin}"
+        AllowMethods:
+          _text: GET, PUT, POST, DELETE
+        AllowHeaders:
+          _text: origin, x-requested-with, accept, content-type
+        ExposeHeaders:
+          _text: "*"
+        MaxAge:
+          _text: "3628800"
+        AllowCredentials:
+          _text: "false"
+        GeneratePreflightResponse:
+          _text: "true"
+        IgnoreUnresolvedVariables:
+          _text: "true"
+resources: []

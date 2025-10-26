@@ -1057,6 +1057,13 @@ export class ApigeeConverter {
     // replace any runtime parameters
     this.proxyUpdateParameters(proxy, parameters);
 
+    // sort features by priority
+    features.sort((a, b) => {
+      let aPrio = a.priority ?? 1000;
+      let bPrio = b.priority ?? 1000;
+      return bPrio - aPrio;
+    });
+
     // first apply features with targets & endpoints
     for (let feature of features) {
       if (feature.endpoints.length > 0 || feature.targets.length > 0) {
