@@ -156,22 +156,10 @@ export class ApigeeConverter {
       );
       if (responseEventFlow) newEndpoint.flows.push(responseEventFlow);
 
-      // default fault rule
-      if (proxyJson["ProxyEndpoint"]["DefaultFaultRule"]) {
-        let defaultFaultRule = this.flowXmlNodeToJson(
-          "",
-          "",
-          proxyJson["ProxyEndpoint"]["DefaultFaultRule"],
-        );
-        if (proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["Condition"])
-          defaultFaultRule.condition =
-            proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["Condition"][
-              "_text"
-            ];
-
-        if (defaultFaultRule && defaultFaultRule.steps.length > 0)
-          newEndpoint.defaultFaultRule = defaultFaultRule;
-      }
+      // conditional flows
+      let conditionalFlows = this.flowsXmlToJson(proxyJson["ProxyEndpoint"]);
+      if (conditionalFlows.length > 0)
+        newEndpoint.flows = newEndpoint.flows.concat(conditionalFlows);
 
       // fault rules
       if (
@@ -556,6 +544,7 @@ export class ApigeeConverter {
           Response: {},
         };
 
+        let conditionalFlows: Flow[] = [];
         for (let flow of endpoint.flows) {
           if (!flow.condition && flow.mode) {
             if (!endpointXml["ProxyEndpoint"][flow.name]) {
@@ -569,6 +558,52 @@ export class ApigeeConverter {
 
             endpointXml["ProxyEndpoint"][flow.name][flow.mode] =
               this.flowJsonToXml(flow);
+          } else if (flow.condition) {
+            conditionalFlows.push(flow);
+          }
+        }
+        if (
+          conditionalFlows.length === 1 &&
+          conditionalFlows[0] &&
+          conditionalFlows[0].mode
+        ) {
+          endpointXml["ProxyEndpoint"]["Flows"] = {
+            Flow: {
+              _attributes: {
+                name: conditionalFlows[0]?.name,
+              },
+              Condition: {
+                _text: conditionalFlows[0]?.condition,
+              },
+            },
+          };
+          endpointXml["ProxyEndpoint"]["Flows"]["Flow"][
+            conditionalFlows[0].mode
+          ] = this.flowJsonToXml(conditionalFlows[0]);
+        } else if (conditionalFlows.length > 1) {
+          for (let conditionalFlow of conditionalFlows) {
+            if (!endpointXml["ProxyEndpoint"]["Flows"])
+              endpointXml["ProxyEndpoint"]["Flows"] = {
+                Flow: [],
+              };
+
+            let flow = endpointXml["ProxyEndpoint"]["Flows"]["Flow"].find(
+              (x: any) => x["_attributes"]["name"] === conditionalFlow.name,
+            );
+            if (!flow) {
+              flow = {
+                _attributes: {
+                  name: conditionalFlows[0]?.name,
+                },
+                Condition: {
+                  _text: conditionalFlows[0]?.condition,
+                },
+              };
+            }
+            if (conditionalFlow.mode)
+              flow[conditionalFlow.mode] = this.flowJsonToXml(
+                conditionalFlows[0],
+              );
           }
         }
 
@@ -816,6 +851,55 @@ export class ApigeeConverter {
     });
   }
 
+  public flowsXmlToJson(sourceDoc: any): Flow[] {
+    let resultFlows: Flow[] = [];
+
+    if (
+      sourceDoc &&
+      sourceDoc["Flows"] &&
+      sourceDoc["Flows"]["Flow"] &&
+      sourceDoc["Flows"]["Flow"].length
+    ) {
+      for (let flow of sourceDoc["Flows"]["Flow"]) {
+        let newFlows = this.flowsNodeToJson(flow);
+        if (newFlows.length > 0) resultFlows = resultFlows.concat(newFlows);
+      }
+    } else if (sourceDoc && sourceDoc["Flows"] && sourceDoc["Flows"]["Flow"]) {
+      let newFlows = this.flowsNodeToJson(sourceDoc["Flows"]["Flow"]);
+      if (newFlows.length > 0) resultFlows = resultFlows.concat(newFlows);
+    }
+
+    return resultFlows;
+  }
+
+  public flowsNodeToJson(sourceDoc: any): Flow[] {
+    let name: string = sourceDoc["_attributes"]["name"];
+    let resultFlows: Flow[] = [];
+
+    let resultRequestFlow = this.flowXmlNodeToJson(
+      name,
+      "Request",
+      sourceDoc["Request"],
+    );
+    if (resultRequestFlow && resultRequestFlow.steps.length > 0) {
+      if (sourceDoc["Condition"] && sourceDoc["Condition"]["_text"])
+        resultRequestFlow.condition = sourceDoc["Condition"]["_text"];
+      resultFlows.push(resultRequestFlow);
+    }
+    let resultResponseFlow = this.flowXmlNodeToJson(
+      name,
+      "Response",
+      sourceDoc["Response"],
+    );
+    if (resultResponseFlow && resultResponseFlow.steps.length > 0) {
+      if (sourceDoc["Condition"] && sourceDoc["Condition"]["_text"])
+        resultResponseFlow.condition = sourceDoc["Condition"]["_text"];
+      resultFlows.push(resultResponseFlow);
+    }
+
+    return resultFlows;
+  }
+
   public flowXmlToJson(
     type: string,
     mode: string,
@@ -830,6 +914,7 @@ export class ApigeeConverter {
 
   public flowXmlNodeToJson(name: string, mode: string, sourceDoc: any): Flow {
     let resultFlow: Flow = new Flow(name, mode);
+
     if (sourceDoc && sourceDoc["Step"] && sourceDoc["Step"].length > 0) {
       for (let step of sourceDoc["Step"]) {
         let newStep = new Step();
@@ -1145,6 +1230,42 @@ export class ApigeeConverter {
   public templateToString(template: Template): string {
     let result = this.templateToStringArray(template);
     return result.join("\n");
+  }
+
+  public featureToProxy(feature: Feature): Proxy {
+    let newProxy = new Proxy();
+    newProxy.name = feature.name;
+    newProxy.description = feature.description;
+    newProxy.parameters = feature.parameters;
+
+    if (feature.endpointFlows.length > 0) {
+      let defaultEndpoint = new ProxyEndpoint();
+      defaultEndpoint.name = "default";
+      defaultEndpoint.basePath = "/not/used";
+      defaultEndpoint.routes.push({
+        name: "default",
+      });
+
+      if (feature.targetFlows.length > 0 && defaultEndpoint.routes[0])
+        defaultEndpoint.routes[0].target = "default";
+      defaultEndpoint.flows = feature.endpointFlows;
+      newProxy.endpoints.push(defaultEndpoint);
+    }
+
+    if (feature.targetFlows.length > 0) {
+      let defaultTarget = new ProxyTarget();
+      defaultTarget.name = "default";
+      defaultTarget.flows = feature.targetFlows;
+      defaultTarget.url = "https://notused.com";
+      newProxy.targets.push(defaultTarget);
+    }
+
+    newProxy.endpoints = newProxy.endpoints.concat(feature.endpoints);
+    newProxy.targets = newProxy.targets.concat(feature.targets);
+    newProxy.policies = feature.policies;
+    newProxy.resources = feature.resources;
+
+    return newProxy;
   }
 
   public featureUpdateParameters(

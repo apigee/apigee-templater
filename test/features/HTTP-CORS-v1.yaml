@@ -2,7 +2,13 @@ name: HTTP-CORS-v1
 type: feature
 description: Proxy for HTTP-CORS-v1
 parameters: []
-endpointFlows: []
+endpointFlows:
+  - name: OptionsPreFlight
+    mode: Request
+    condition: request.verb == "OPTIONS" AND request.header.origin != null AND
+      request.header.Access-Control-Request-Method != null
+    steps:
+      - name: CORS-AddCors
 targetFlows:
   - name: PreFlow
     mode: Request

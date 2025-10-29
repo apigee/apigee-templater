@@ -100,6 +100,7 @@ export class cli {
       options.output = options.output.replace(".js", ".json");
     if (options.output.endsWith(".yml"))
       options.output = options.output.replace(".yml", ".yaml");
+    if (options.output.includes(":")) options.format = "proxy";
 
     if (!options.name) {
       if (options.output) {
@@ -429,6 +430,8 @@ export class cli {
             this.converter,
             inputParameters,
           );
+        } else if (feature) {
+          proxy = this.converter.featureToProxy(feature);
         }
         process.chdir(startDir);
         let removeDir = options.output.toLowerCase().endsWith(".dir")
@@ -470,7 +473,10 @@ export class cli {
             this.converter,
             inputParameters,
           );
+        } else if (feature) {
+          proxy = this.converter.featureToProxy(feature);
         }
+
         process.chdir(startDir);
         if (proxy) {
           if (options.output.toLowerCase().endsWith(".json")) {
