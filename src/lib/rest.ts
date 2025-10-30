@@ -49,14 +49,18 @@ export class RestService {
         if (responseType == "application/yaml") {
           fs.writeFileSync(
             this.apigeeService.templatesPath + name + ".yaml",
-            YAML.stringify(templateResult, { aliasDuplicateObjects: false }),
+            YAML.stringify(templateResult, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            }),
           );
           res.setHeader("Content-Type", "application/yaml");
-          res
-            .status(201)
-            .send(
-              YAML.stringify(templateResult, { aliasDuplicateObjects: false }),
-            );
+          res.status(201).send(
+            YAML.stringify(templateResult, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            }),
+          );
         } else {
           fs.writeFileSync(
             this.apigeeService.templatesPath + name + ".json",
@@ -75,9 +79,12 @@ export class RestService {
         // Apigee proxy json input, yaml or zip output
         if (responseType == "application/yaml") {
           res.setHeader("Content-Type", "application/yaml");
-          res
-            .status(201)
-            .send(YAML.stringify(req.body, { aliasDuplicateObjects: false }));
+          res.status(201).send(
+            YAML.stringify(req.body, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            }),
+          );
         } else if (responseType == "application/octet-stream") {
           let remplateResult = await this.converter.proxyToApigeeZip(req.body);
           let zipOutputFile = fs.readFileSync(remplateResult);
@@ -96,9 +103,12 @@ export class RestService {
         this.apigeeService.templateImport(proxy);
         if (responseType == "application/yaml") {
           res.setHeader("Content-Type", "application/yaml");
-          res
-            .status(201)
-            .send(YAML.stringify(proxy, { aliasDuplicateObjects: false }));
+          res.status(201).send(
+            YAML.stringify(proxy, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            }),
+          );
         } else if (responseType == "application/octet-stream") {
           let templateResult = await this.converter.proxyToApigeeZip(proxy);
           let zipOutputFile = fs.readFileSync(templateResult);
@@ -146,6 +156,7 @@ export class RestService {
             res.status(201).send(
               YAML.stringify(templateResult, {
                 aliasDuplicateObjects: false,
+                blockQuote: "literal",
               }),
             );
           } else {
@@ -278,9 +289,12 @@ export class RestService {
         this.apigeeService.templateImport(req.body);
         if (responseType == "application/yaml") {
           res.setHeader("Content-Type", "application/yaml");
-          res
-            .status(201)
-            .send(YAML.stringify(req.body, { aliasDuplicateObjects: false }));
+          res.status(201).send(
+            YAML.stringify(req.body, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            }),
+          );
         } else {
           res.setHeader("Content-Type", "application/json");
           res.status(201).send(JSON.stringify(req.body, null, 2));
@@ -294,9 +308,12 @@ export class RestService {
         this.apigeeService.templateImport(proxy);
         if (responseType == "application/yaml") {
           res.setHeader("Content-Type", "application/yaml");
-          res
-            .status(201)
-            .send(YAML.stringify(proxy, { aliasDuplicateObjects: false }));
+          res.status(201).send(
+            YAML.stringify(proxy, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            }),
+          );
         } else {
           res.setHeader("Content-Type", "application/json");
           res.status(201).send(JSON.stringify(proxy, null, 2));
@@ -325,9 +342,12 @@ export class RestService {
         format == "yml"
       ) {
         res.setHeader("Content-Type", "application/yaml");
-        res
-          .status(200)
-          .send(YAML.stringify(proxy, { aliasDuplicateObjects: false }));
+        res.status(200).send(
+          YAML.stringify(proxy, {
+            aliasDuplicateObjects: false,
+            blockQuote: "literal",
+          }),
+        );
       } else if (
         responseType == "application/octet-stream" ||
         format == "zip" ||
@@ -380,9 +400,12 @@ export class RestService {
     if (feature) {
       if (responseType == "application/yaml") {
         res.setHeader("Content-Type", "application/yaml");
-        res
-          .status(201)
-          .send(YAML.stringify(feature, { aliasDuplicateObjects: false }));
+        res.status(201).send(
+          YAML.stringify(feature, {
+            aliasDuplicateObjects: false,
+            blockQuote: "literal",
+          }),
+        );
       } else {
         res.setHeader("Content-Type", "application/json");
         res.status(201).send(JSON.stringify(feature, null, 2));
@@ -410,9 +433,12 @@ export class RestService {
         this.apigeeService.featureImport(req.body);
         if (responseType == "application/yaml") {
           res.setHeader("Content-Type", "application/yaml");
-          res
-            .status(201)
-            .send(YAML.stringify(req.body, { aliasDuplicateObjects: false }));
+          res.status(201).send(
+            YAML.stringify(req.body, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            }),
+          );
         } else {
           res.setHeader("Content-Type", "application/json");
           res.status(201).send(JSON.stringify(req.body, null, 2));
@@ -426,9 +452,12 @@ export class RestService {
         this.apigeeService.featureImport(feature);
         if (responseType == "application/yaml") {
           res.setHeader("Content-Type", "application/yaml");
-          res
-            .status(201)
-            .send(YAML.stringify(feature, { aliasDuplicateObjects: false }));
+          res.status(201).send(
+            YAML.stringify(feature, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            }),
+          );
         } else {
           res.setHeader("Content-Type", "application/json");
           res.status(201).send(JSON.stringify(feature, null, 2));
@@ -547,9 +576,12 @@ export class RestService {
         this.apigeeService.featureImport(newFeature);
         if (responseType == "application/yaml") {
           res.setHeader("Content-Type", "application/yaml");
-          res
-            .status(201)
-            .send(YAML.stringify(newFeature, { aliasDuplicateObjects: false }));
+          res.status(201).send(
+            YAML.stringify(newFeature, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            }),
+          );
         } else {
           res.setHeader("Content-Type", "application/json");
           res.status(201).send(JSON.stringify(newFeature, null, 2));
@@ -563,9 +595,12 @@ export class RestService {
         newFeature = this.apigeeService.featureImport(req.body);
         if (responseType == "application/yaml") {
           res.setHeader("Content-Type", "application/yaml");
-          res
-            .status(201)
-            .send(YAML.stringify(newFeature, { aliasDuplicateObjects: false }));
+          res.status(201).send(
+            YAML.stringify(newFeature, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            }),
+          );
         } else {
           res.status(201).send(JSON.stringify(newFeature, null, 2));
         }
@@ -577,9 +612,12 @@ export class RestService {
         newFeature = this.apigeeService.featureImport(YAML.parse(req.body));
         if (responseType == "application/yaml") {
           res.setHeader("Content-Type", "application/yaml");
-          res
-            .status(201)
-            .send(YAML.stringify(newFeature, { aliasDuplicateObjects: false }));
+          res.status(201).send(
+            YAML.stringify(newFeature, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            }),
+          );
         } else {
           res.setHeader("Content-Type", "application/json");
           res.status(201).send(JSON.stringify(newFeature, null, 2));
@@ -618,7 +656,10 @@ export class RestService {
               return res
                 .status(201)
                 .send(
-                  YAML.stringify(newFeature, { aliasDuplicateObjects: false }),
+                  YAML.stringify(newFeature, {
+                    aliasDuplicateObjects: false,
+                    blockQuote: "literal",
+                  }),
                 );
             } else {
               res.setHeader("Content-Type", "application/json");

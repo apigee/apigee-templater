@@ -22,9 +22,11 @@
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
     "args": [
       "-i",
-      "apigee-prod13:Feature-LLM-TokenQuota-v1",
+      "./test/features/LLM-ExtractPrompt-v1.yaml",
       "-o",
-      "./test/features/LLM-TokenQuota-v1.yaml"
+      "./temp.local.yaml",
+      "-f",
+      "feature"
     ]
   }
 ]

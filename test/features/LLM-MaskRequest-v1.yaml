@@ -1,6 +1,6 @@
 name: Feature-LLM-MaskRequest-v1
 type: feature
-description: |-
+description: |
   This feature masks PII data email addresses and telephone numbers from
   incoming prompt requests using GCP Data Loss Prevention.
 

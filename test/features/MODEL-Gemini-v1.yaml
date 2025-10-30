@@ -1,19 +1,31 @@
-name: Feature-MODEL-Gemini-v1
+name: MODEL-Gemini-v1
 type: feature
-description: Proxy for Feature-MODEL-Gemini-v1
+description: |
+  This feature adds an endpoints with basepath at v1/gemini, and proxies
+  requests to the Vertex AI Gemini endpoint in a configured region.
+
+  ## Proxy inputs
+  None.
 parameters:
   - name: PROJECT_ID
-    description: Configuration input for PROJECT_ID
+    displayName: PROJECT_ID
+    description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
     default: apigee-prod13
     examples: []
   - name: REGION
-    description: Configuration input for REGION
+    displayName: REGION
+    description: The GCP region that should be used for the Vertex AI Gemini endpoint.
     default: europe-west1
-    examples: []
+    examples:
+      - europe-west1
+      - us-east1
   - name: MODEL_ID
-    description: Configuration input for MODEL_ID
+    displayName: MODEL_ID
+    description: The Gemini model to use for the request.
     default: gemini-2.5-flash
-    examples: []
+    examples:
+      - gemini-2.5-flash
+      - gemini-2.5-pro
 endpointFlows: []
 targetFlows: []
 endpoints:
@@ -22,7 +34,11 @@ endpoints:
     routes:
       - name: default
         target: gemini
-    flows: []
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: EV-ExtractPrompt
     faultRules: []
 targets:
   - name: gemini
@@ -49,6 +65,31 @@ targets:
             Scope:
               _text: https://www.googleapis.com/auth/cloud-platform
 policies:
+  - name: EV-ExtractPrompt
+    type: ExtractVariables
+    content:
+      ExtractVariables:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: EV-ExtractPrompt
+        DisplayName:
+          _text: EV-ExtractPrompt
+        Properties: {}
+        IgnoreUnresolvedVariables:
+          _text: "true"
+        JSONPayload:
+          Variable:
+            _attributes:
+              name: promptInput
+            JSONPath:
+              _text: $.contents[-1].parts[-1].text
+        Source:
+          _attributes:
+            clearPayload: "false"
+          _text: request
+        VariablePrefix:
+          _text: llm
   - name: EV-StoreModelInfo
     type: ExtractVariables
     content:

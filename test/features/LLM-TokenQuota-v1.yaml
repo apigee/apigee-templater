@@ -1,39 +1,27 @@
 name: LLM-TokenQuota-v1
-type: proxy
-priority: 150
-description: |-
+type: feature
+description: |
   This feature estimates the token length of an input prompt, checks
   the quota in the target pre-flow, and then updates the token in the target
   post-flow.
+priority: 150
 parameters: []
-endpoints:
-  - name: default
-    basePath: /not/used
-    routes:
-      - name: default
-        target: default
-    flows: []
-    faultRules: []
-targets:
-  - name: default
-    url: https://notused.com
-    flows:
-      - name: PreFlow
-        mode: Request
-        steps:
-          - name: JS-EstimateTokens
-          - name: Q-CheckQuota
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: Q-UpdateQuota
-      - name: EventFlow
-        mode: Response
-        steps: []
-    faultRules: []
-    httpTargetConnection:
-      URL:
-        _text: https://notused.com
+endpointFlows: []
+targetFlows:
+  - name: PreFlow
+    mode: Request
+    steps:
+      - name: JS-EstimateTokens
+      - name: Q-CheckQuota
+  - name: PostFlow
+    mode: Response
+    steps:
+      - name: Q-UpdateQuota
+  - name: EventFlow
+    mode: Response
+    steps: []
+endpoints: []
+targets: []
 policies:
   - name: JS-EstimateTokens
     type: Javascript

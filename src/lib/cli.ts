@@ -485,7 +485,10 @@ export class cli {
           } else if (options.output.toLowerCase().endsWith(".yaml")) {
             fs.writeFileSync(
               options.output,
-              YAML.stringify(proxy, { aliasDuplicateObjects: false }),
+              YAML.stringify(proxy, {
+                aliasDuplicateObjects: false,
+                blockQuote: "literal",
+              }),
             );
           } else if (options.output.toLowerCase().includes(":")) {
             let outputPath = await this.converter.proxyToApigeeZip(proxy);
@@ -551,7 +554,10 @@ export class cli {
           } else if (options.output.toLowerCase().endsWith(".yaml")) {
             fs.writeFileSync(
               options.output,
-              YAML.stringify(template, { aliasDuplicateObjects: false }),
+              YAML.stringify(template, {
+                aliasDuplicateObjects: false,
+                blockQuote: "literal",
+              }),
             );
           }
 
@@ -571,7 +577,10 @@ export class cli {
           } else if (options.output.toLowerCase().endsWith(".yaml")) {
             fs.writeFileSync(
               options.output,
-              YAML.stringify(feature, { aliasDuplicateObjects: false }),
+              YAML.stringify(feature, {
+                aliasDuplicateObjects: false,
+                blockQuote: "literal",
+              }),
             );
           }
 

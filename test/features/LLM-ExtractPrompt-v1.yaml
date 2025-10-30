@@ -1,17 +1,70 @@
-name: Feature-LLM-ExtractPrompt-v1
+name: LLM-ExtractPrompt-v1
 type: feature
-description: Proxy for Feature-LLM-ExtractPrompt-v1
+description: |
+  This feature tries to extract the user prompt the last entry in the `contents.parts`
+  request collection. If an input prompt is found, then the number of tokens is estimated
+  using a local javascript method.
+
+  ## Prerequisites
+  None.
+
+  ## Inputs
+  - User prompt request content in this format:
+    ```json
+    {
+      "contents": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "text": "why is the sky blue?"
+            }
+          ]
+        }
+      ]
+    }
+    ```
+
+  ## Outputs
+  - If a prompt is found, it is written to the Apigee variable **llm.inputPrompt**.
+  - If a prompt is found, the estimated token length is written to the Apigee variable **llm.promptEstimatedTokenCount**.
 parameters: []
 endpointFlows:
   - name: PreFlow
     mode: Request
     steps:
-      - name: JS-ExtractPrompt
+      - name: EV-ExtractPrompt
+      - name: JS-EstimateTokens
 targetFlows: []
 endpoints: []
 targets: []
 policies:
-  - name: JS-ExtractPrompt
+  - name: EV-ExtractPrompt
+    type: ExtractVariables
+    content:
+      ExtractVariables:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: EV-ExtractPrompt
+        DisplayName:
+          _text: EV-ExtractPrompt
+        Properties: {}
+        IgnoreUnresolvedVariables:
+          _text: "true"
+        JSONPayload:
+          Variable:
+            _attributes:
+              name: promptInput
+            JSONPath:
+              _text: $.contents[-1].parts[-1].text
+        Source:
+          _attributes:
+            clearPayload: "false"
+          _text: request
+        VariablePrefix:
+          _text: llm
+  - name: JS-EstimateTokens
     type: Javascript
     content:
       Javascript:
@@ -19,30 +72,31 @@ policies:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
-          name: JS-ExtractPrompt
+          name: JS-EstimateTokens
         DisplayName:
-          _text: JS-ExtractPrompt
+          _text: JS-EstimateTokens
         Properties: {}
         ResourceURL:
-          _text: jsc://ExtractPrompt.js
+          _text: jsc://estimate-tokens.js
 resources:
-  - name: ExtractPrompt.js
+  - name: estimate-tokens.js
     type: jsc
-    content: >-
-      var requestObj = request.content.asJSON;
+    content: |-
+      var promptInput = context.getVariable("llm.promptInput");
+      if (promptInput) {
+        var word_count = promptInput.split(" ").length;
+        var char_count = promptInput.length;
 
-      print("json: "+ JSON.stringify(requestObj))
+        var tokens_count_word_est = word_count / 0.75;
+        var tokens_count_char_est = char_count / 4.0;
 
-      context.setVariable("PROMPT_INPUT", getLatestUserText(requestObj));
+        var result = 0;
 
+        if (tokens_count_word_est > tokens_count_char_est)
+          result = tokens_count_word_est;
+        else if (tokens_count_char_est > tokens_count_word_est)
+          result = tokens_count_word_est;
 
-      function getLatestUserText(json){
-        // Find all objects in the contents array where the role is "user"
-        const userConversations = json.contents.filter(item => item.role === 'user');
-
-        // Get the last item from the filtered array
-        const lastUserConversation = userConversations[userConversations.length - 1];
-
-        // Return the text from the parts array of the last item
-        return lastUserConversation.parts[lastUserConversation.parts.length -1].text;
-      };
+        context.setVariable("llm.promptEstimatedTokenCount", result);
+        context.setVariable("quota.weight", result);
+      }

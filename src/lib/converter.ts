@@ -348,17 +348,6 @@ export class ApigeeConverter {
                   if (sandbox.proxy["priority"])
                     newProxy.priority = sandbox.proxy["priority"];
                 }
-
-                // let manifestObject = JSON.parse(manifestContent);
-                // if (manifestObject && manifestObject["description"]) {
-                //   newProxy.description = manifestObject["description"];
-                // }
-                // if (manifestObject && manifestObject["parameters"]) {
-                //   newProxy.parameters = manifestObject["parameters"];
-                // }
-                // if (manifestObject && manifestObject["priority"]) {
-                //   newProxy.priority = manifestObject["priority"];
-                // }
               }
             } else {
               let newFile = new Resource();
@@ -1285,17 +1274,18 @@ export class ApigeeConverter {
     newProxy.parameters = feature.parameters;
     if (feature.priority) newProxy.priority = feature.priority;
 
-    let defaultEndpoint = new ProxyEndpoint();
-    defaultEndpoint.name = "default";
-    defaultEndpoint.basePath = "/not/used";
-    defaultEndpoint.routes.push({
-      name: "default",
-    });
+    let defaultEndpoint: ProxyEndpoint | undefined = undefined;
 
-    if (feature.targetFlows.length > 0 && defaultEndpoint.routes[0])
-      defaultEndpoint.routes[0].target = "default";
-    defaultEndpoint.flows = feature.endpointFlows;
-    newProxy.endpoints.push(defaultEndpoint);
+    if (feature.endpoints.length === 0 || feature.endpointFlows.length > 0) {
+      defaultEndpoint = new ProxyEndpoint();
+      defaultEndpoint.name = "default";
+      defaultEndpoint.basePath = "/not/used";
+      defaultEndpoint.routes.push({
+        name: "default",
+      });
+      defaultEndpoint.flows = feature.endpointFlows;
+      newProxy.endpoints.push(defaultEndpoint);
+    }
 
     if (feature.targetFlows.length > 0) {
       let defaultTarget = new ProxyTarget();
@@ -1303,6 +1293,8 @@ export class ApigeeConverter {
       defaultTarget.flows = feature.targetFlows;
       defaultTarget.url = "https://notused.com";
       newProxy.targets.push(defaultTarget);
+      if (defaultEndpoint && defaultEndpoint.routes[0])
+        defaultEndpoint.routes[0].target = "default";
     }
 
     newProxy.endpoints = newProxy.endpoints.concat(feature.endpoints);
