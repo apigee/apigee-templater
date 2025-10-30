@@ -22,9 +22,9 @@
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
     "args": [
       "-i",
-      "./test/features/AUTH-Key-Header-v1.yaml",
+      "apigee-prod13:Feature-LLM-TokenQuota-v1",
       "-o",
-      "apigee-prod13:Feature-AUTH-Key-Header-v1"
+      "./test/features/LLM-TokenQuota-v1.yaml"
     ]
   }
 ]

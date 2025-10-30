@@ -294,7 +294,8 @@ export class cli {
           }
         }
 
-        if (proxy) proxy.description = "Proxy for " + proxy.name;
+        if (proxy && !proxy.description)
+          proxy.description = "Proxy for " + proxy.name;
       }
     } else if (fs.existsSync(options.input)) {
       let file = await this.loadFile(options.name, options.input);
@@ -523,6 +524,9 @@ export class cli {
                 "Bearer " + options.token,
               );
             }
+
+            // delete proxy zip
+            fs.rmSync(outputPath);
           }
 
           console.log(
@@ -647,11 +651,11 @@ const helpCommands = [
   },
   {
     name: "--applyFeature, -a",
-    description: "A feature name to apply to a template.",
+    description: "A feature name or path to apply to a template.",
   },
   {
     name: "--removeFeature, -r",
-    description: "A feature name to remove from a template",
+    description: "A feature name or path to remove from a template",
   },
   {
     name: "--basePath, -b",

@@ -1,0 +1,160 @@
+name: LLM-TokenQuota-v1
+type: proxy
+priority: 150
+description: |-
+  This feature estimates the token length of an input prompt, checks
+  the quota in the target pre-flow, and then updates the token in the target
+  post-flow.
+parameters: []
+endpoints:
+  - name: default
+    basePath: /not/used
+    routes:
+      - name: default
+        target: default
+    flows: []
+    faultRules: []
+targets:
+  - name: default
+    url: https://notused.com
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: JS-EstimateTokens
+          - name: Q-CheckQuota
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: Q-UpdateQuota
+      - name: EventFlow
+        mode: Response
+        steps: []
+    faultRules: []
+    httpTargetConnection:
+      URL:
+        _text: https://notused.com
+policies:
+  - name: JS-EstimateTokens
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-EstimateTokens
+        DisplayName:
+          _text: JS-EstimateTokens
+        Properties: {}
+        ResourceURL:
+          _text: jsc://estimate-tokens.js
+  - name: Q-CheckQuota
+    type: Quota
+    content:
+      Quota:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: Q-CheckQuota
+        DisplayName:
+          _text: Q-CheckQuota
+        Properties: {}
+        Identifier:
+          _attributes:
+            ref: client_id
+        Allow:
+          _attributes:
+            countRef: quota.limit
+        Interval:
+          _attributes:
+            ref: quota.interval
+        TimeUnit:
+          _attributes:
+            ref: quota.timeunit
+        MessageWeight:
+          _attributes:
+            ref: llm.totalTokenCount
+        Distributed:
+          _text: "true"
+        Synchronous:
+          _text: "true"
+        CountOnly:
+          _text: "true"
+        SharedName:
+          _text: token-quota
+  - name: Q-UpdateQuota
+    type: Quota
+    content:
+      Quota:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: Q-UpdateQuota
+          type: calendar
+        DisplayName:
+          _text: Q-UpdateQuota
+        Properties: {}
+        Allow:
+          _attributes:
+            count: "2000"
+            countRef: request.header.allowed_quota
+        Interval:
+          _attributes:
+            ref: request.header.quota_count
+          _text: "1"
+        Distributed:
+          _text: "false"
+        Synchronous:
+          _text: "false"
+        TimeUnit:
+          _attributes:
+            ref: request.header.quota_timeout
+          _text: month
+        StartTime:
+          _text: 2013-08-21 10:00:00
+        AsynchronousConfiguration:
+          SyncIntervalInSeconds:
+            _text: "20"
+          SyncMessageCount:
+            _text: "5"
+resources:
+  - name: estimate-tokens.js
+    type: jsc
+    content: >-
+      var promptInput = context.getVariable("llm.promptInput");
+
+
+      if (!promptInput) {
+        // try to get from request
+        var requestObject = request.content.asJSON;
+
+        if (requestObject["contents"] && requestObject["contents"].length > 0) {
+          var lastContentsObject = requestObject["contents"][requestObject["contents"].length - 1];
+          if (lastContentsObject && lastContentsObject["parts"] && lastContentsObject["parts"].length > 0) {
+            promptInput = lastContentsObject["parts"][lastContentsObject["parts"].length - 1]["text"];
+          }
+        }
+      }
+
+
+      print(promptInput);
+
+
+      if (promptInput) {
+        var word_count = promptInput.split(" ").length;
+        var char_count = promptInput.length;
+
+        var tokens_count_word_est = word_count / 0.75;
+        var tokens_count_char_est = char_count / 4.0;
+
+        var result = 0;
+
+        if (tokens_count_word_est > tokens_count_char_est)
+          result = tokens_count_word_est;
+        else if (tokens_count_char_est > tokens_count_word_est)
+          result = tokens_count_word_est;
+
+        context.setVariable("llm.promptTokenCount", result);
+        context.setVariable("quota.weight", result);
+      }

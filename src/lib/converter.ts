@@ -3,6 +3,7 @@ import yauzl from "yauzl";
 import yazl from "yazl";
 import path from "path";
 import fs from "fs";
+import vm from "vm";
 import {
   Proxy,
   Endpoint,
@@ -329,38 +330,70 @@ export class ApigeeConverter {
           );
 
           for (let resFile of resFiles) {
-            let newFile = new Resource();
-            newFile.name = resFile;
-            newFile.type = resType;
-            newFile.content = fs.readFileSync(
-              inputPath + "/apiproxy/resources/" + resType + "/" + resFile,
-              "utf8",
-            );
-            newProxy.resources.push(newFile);
+            if (resFile === "templater-manifest.js") {
+              let manifestContent = fs.readFileSync(
+                inputPath + "/apiproxy/resources/" + resType + "/" + resFile,
+                "utf8",
+              );
+              if (manifestContent) {
+                const sandbox = { proxy: undefined };
+                vm.createContext(sandbox);
+                vm.runInContext(manifestContent, sandbox);
 
-            // if propertyset, add as parameters
-            if (resType === "properties") {
-              let props = newFile.content.split("\n");
-              for (let prop of props) {
-                let propPieces = prop.split("=");
-                if (
-                  propPieces &&
-                  propPieces.length >= 1 &&
-                  propPieces[0] &&
-                  newProxy.parameters.findIndex(
-                    (x) => x.name === propPieces[0],
-                  ) === -1
-                ) {
-                  newProxy.parameters.push({
-                    name: propPieces[0],
-                    displayName: propPieces[0],
-                    description: "Configuration input for " + propPieces[0],
-                    default:
-                      propPieces.length == 2 && propPieces[1]
-                        ? propPieces[1]
-                        : "",
-                    examples: [],
-                  });
+                if (sandbox.proxy) {
+                  if (sandbox.proxy["description"])
+                    newProxy.description = sandbox.proxy["description"];
+                  if (sandbox.proxy["parameters"])
+                    newProxy.parameters = sandbox.proxy["parameters"];
+                  if (sandbox.proxy["priority"])
+                    newProxy.priority = sandbox.proxy["priority"];
+                }
+
+                // let manifestObject = JSON.parse(manifestContent);
+                // if (manifestObject && manifestObject["description"]) {
+                //   newProxy.description = manifestObject["description"];
+                // }
+                // if (manifestObject && manifestObject["parameters"]) {
+                //   newProxy.parameters = manifestObject["parameters"];
+                // }
+                // if (manifestObject && manifestObject["priority"]) {
+                //   newProxy.priority = manifestObject["priority"];
+                // }
+              }
+            } else {
+              let newFile = new Resource();
+              newFile.name = resFile;
+              newFile.type = resType;
+              newFile.content = fs.readFileSync(
+                inputPath + "/apiproxy/resources/" + resType + "/" + resFile,
+                "utf8",
+              );
+              newProxy.resources.push(newFile);
+
+              // if propertyset, add as parameters
+              if (resType === "properties") {
+                let props = newFile.content.split("\n");
+                for (let prop of props) {
+                  let propPieces = prop.split("=");
+                  if (
+                    propPieces &&
+                    propPieces.length >= 1 &&
+                    propPieces[0] &&
+                    newProxy.parameters.findIndex(
+                      (x) => x.name === propPieces[0],
+                    ) === -1
+                  ) {
+                    newProxy.parameters.push({
+                      name: propPieces[0],
+                      displayName: propPieces[0],
+                      description: "Configuration input for " + propPieces[0],
+                      default:
+                        propPieces.length == 2 && propPieces[1]
+                          ? propPieces[1]
+                          : "",
+                      examples: [],
+                    });
+                  }
                 }
               }
             }
@@ -841,6 +874,19 @@ export class ApigeeConverter {
         );
       }
 
+      // preserve documentation as resources
+      fs.mkdirSync(tempFilePath + "/apiproxy/resources/jsc", {
+        recursive: true,
+      });
+      fs.writeFileSync(
+        tempFilePath + "/apiproxy/resources/jsc/templater-manifest.js",
+        `var proxy=${JSON.stringify(input, null, 2)};`,
+      );
+      zipfile.addFile(
+        tempFilePath + "/apiproxy/resources/jsc/templater-manifest.js",
+        "apiproxy/resources/jsc/templater-manifest.js",
+      );
+
       zipfile.outputStream
         .pipe(fs.createWriteStream(tempFilePath + ".zip"))
         .on("close", function () {
@@ -1144,8 +1190,8 @@ export class ApigeeConverter {
 
     // sort features by priority
     features.sort((a, b) => {
-      let aPrio = a.priority ?? 1000;
-      let bPrio = b.priority ?? 1000;
+      let aPrio = a.priority ?? 100;
+      let bPrio = b.priority ?? 100;
       return bPrio - aPrio;
     });
 
@@ -1237,20 +1283,19 @@ export class ApigeeConverter {
     newProxy.name = feature.name;
     newProxy.description = feature.description;
     newProxy.parameters = feature.parameters;
+    if (feature.priority) newProxy.priority = feature.priority;
 
-    if (feature.endpointFlows.length > 0) {
-      let defaultEndpoint = new ProxyEndpoint();
-      defaultEndpoint.name = "default";
-      defaultEndpoint.basePath = "/not/used";
-      defaultEndpoint.routes.push({
-        name: "default",
-      });
+    let defaultEndpoint = new ProxyEndpoint();
+    defaultEndpoint.name = "default";
+    defaultEndpoint.basePath = "/not/used";
+    defaultEndpoint.routes.push({
+      name: "default",
+    });
 
-      if (feature.targetFlows.length > 0 && defaultEndpoint.routes[0])
-        defaultEndpoint.routes[0].target = "default";
-      defaultEndpoint.flows = feature.endpointFlows;
-      newProxy.endpoints.push(defaultEndpoint);
-    }
+    if (feature.targetFlows.length > 0 && defaultEndpoint.routes[0])
+      defaultEndpoint.routes[0].target = "default";
+    defaultEndpoint.flows = feature.endpointFlows;
+    newProxy.endpoints.push(defaultEndpoint);
 
     if (feature.targetFlows.length > 0) {
       let defaultTarget = new ProxyTarget();
@@ -1577,6 +1622,7 @@ export class ApigeeConverter {
     newFeature.name = proxy.name;
     newFeature.description = proxy.description;
     newFeature.parameters = proxy.parameters;
+    if (proxy.priority) newFeature.priority = proxy.priority;
 
     let defaultEndpoint = proxy.endpoints.find((x) => x.name == "default");
     let defaultTarget = proxy.targets.find((x) => x.name == "default");

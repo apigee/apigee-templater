@@ -11,6 +11,7 @@ export class Template {
 export class Proxy {
   name: string = "";
   type: string = "proxy";
+  priority?: number;
   description: string = "";
   parameters: Parameter[] = [];
   endpoints: ProxyEndpoint[] = [];

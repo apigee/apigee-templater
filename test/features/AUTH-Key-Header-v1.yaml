@@ -1,16 +1,7 @@
 name: AUTH-Key-Header-v1
 type: feature
-priority: 1
-description: |-
-  Adds API key authentication using the x-api-key header
-parameters:
-  - name: API_KEY_HEADER_NAME
-    displayName: API Key Header
-    description: The header name to use for the API key
-    examples:
-      - x-api-key
-      - x-apikey
-    default: x-api-key
+description: Proxy for AUTH-Key-Header-v1
+parameters: []
 endpointFlows:
   - name: PreFlow
     mode: Request
@@ -19,10 +10,38 @@ endpointFlows:
         condition: request.verb != "OPTIONS"
       - name: AM-RemoveKey
         condition: request.verb != "OPTIONS"
+      - name: AM-LoadQuota
+        condition: request.verb != "OPTIONS"
 targetFlows: []
 endpoints: []
 targets: []
 policies:
+  - name: AM-LoadQuota
+    type: AssignMessage
+    content:
+      AssignMessage:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-LoadQuota
+        DisplayName:
+          _text: AM-LoadQuota
+        Properties: {}
+        AssignVariable:
+          - Name:
+              _text: quota.limit
+            Ref:
+              _text: verifyapikey.VA-VerifyKey.apiproduct.developer.quota.limit
+          - Name:
+              _text: quota.interval
+            Ref:
+              _text: verifyapikey.VA-VerifyKey.apiproduct.developer.quota.interval
+          - Name:
+              _text: quota.timeunit
+            Ref:
+              _text: verifyapikey.VA-VerifyKey.apiproduct.developer.quota.timeunit
+        IgnoreUnresolvedVariables:
+          _text: "true"
   - name: AM-RemoveKey
     type: AssignMessage
     content:
