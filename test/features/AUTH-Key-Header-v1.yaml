@@ -1,7 +1,25 @@
 name: AUTH-Key-Header-v1
 type: feature
-description: Proxy for AUTH-Key-Header-v1
-parameters: []
+description: |
+  This feature applies API key header authentication and authorization to the proxy flow.
+
+  ## Prerequisites
+  None.
+
+  ## Inputs
+  - An API product configured for the current proxy, optionally with quota information.
+
+  ## Outputs
+  - If the key is not found in the configured header, or is not valid for the current call, then a fault is raised with response code 401.
+  - If quota information is found, it is loaded into the **Apigee variables quota.limit, quota.interval, and quota.timeunit**.
+priority: 1
+parameters:
+  - name: API_KEY_HEADER_NAME
+    description: The header where the api key is checked.
+    default: x-api-key
+    examples:
+      - x-api-key
+      - x-apikey
 endpointFlows:
   - name: PreFlow
     mode: Request
@@ -57,7 +75,7 @@ policies:
           Headers:
             Header:
               _attributes:
-                name: API_KEY_HEADER_NAME
+                name: "{API_KEY_HEADER_NAME}"
         IgnoreUnresolvedVariables:
           _text: "true"
         AssignTo:
@@ -78,5 +96,5 @@ policies:
         Properties: {}
         APIKey:
           _attributes:
-            ref: request.header.API_KEY_HEADER_NAME
+            ref: request.header.{API_KEY_HEADER_NAME}
 resources: []

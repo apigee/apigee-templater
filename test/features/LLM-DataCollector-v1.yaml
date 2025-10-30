@@ -1,6 +1,6 @@
 name: LLM-DataCollector-v1
 type: feature
-description: |-
+description: |
   Adds LLM data to data collectors. This feature does not fail if properites are not found,
   however the data collectors must be created in your Apigee org before using it.
 
@@ -49,23 +49,23 @@ policies:
                 ref: llm.model
                 default: ""
             DataCollector:
-              _text: llm_model
+              _text: dc_llm_model
           - Collect:
               _attributes:
                 ref: llm.promptTokenCount
                 default: "0"
             DataCollector:
-              _text: llm_prompt_token_count
+              _text: dc_llm_prompt_token_count
           - Collect:
               _attributes:
                 ref: llm.responseTokenCount
                 default: "0"
             DataCollector:
-              _text: llm_response_token_count
+              _text: dc_llm_response_token_count
           - Collect:
               _attributes:
                 ref: llm.totalTokenCount
                 default: "0"
             DataCollector:
-              _text: llm_total_token_count
+              _text: dc_llm_total_token_count
 resources: []

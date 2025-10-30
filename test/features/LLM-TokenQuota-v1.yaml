@@ -1,6 +1,6 @@
 name: LLM-TokenQuota-v1
 type: feature
-description: |
+description: |-
   This feature estimates the token length of an input prompt, checks
   the quota in the target pre-flow, and then updates the token in the target
   post-flow.
@@ -11,7 +11,6 @@ targetFlows:
   - name: PreFlow
     mode: Request
     steps:
-      - name: JS-EstimateTokens
       - name: Q-CheckQuota
   - name: PostFlow
     mode: Response
@@ -23,20 +22,6 @@ targetFlows:
 endpoints: []
 targets: []
 policies:
-  - name: JS-EstimateTokens
-    type: Javascript
-    content:
-      Javascript:
-        _attributes:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-EstimateTokens
-        DisplayName:
-          _text: JS-EstimateTokens
-        Properties: {}
-        ResourceURL:
-          _text: jsc://estimate-tokens.js
   - name: Q-CheckQuota
     type: Quota
     content:
@@ -62,7 +47,7 @@ policies:
             ref: quota.timeunit
         MessageWeight:
           _attributes:
-            ref: llm.totalTokenCount
+            ref: llm.promptEstimatedTokenCount
         Distributed:
           _text: "true"
         Synchronous:
@@ -106,43 +91,4 @@ policies:
             _text: "20"
           SyncMessageCount:
             _text: "5"
-resources:
-  - name: estimate-tokens.js
-    type: jsc
-    content: >-
-      var promptInput = context.getVariable("llm.promptInput");
-
-
-      if (!promptInput) {
-        // try to get from request
-        var requestObject = request.content.asJSON;
-
-        if (requestObject["contents"] && requestObject["contents"].length > 0) {
-          var lastContentsObject = requestObject["contents"][requestObject["contents"].length - 1];
-          if (lastContentsObject && lastContentsObject["parts"] && lastContentsObject["parts"].length > 0) {
-            promptInput = lastContentsObject["parts"][lastContentsObject["parts"].length - 1]["text"];
-          }
-        }
-      }
-
-
-      print(promptInput);
-
-
-      if (promptInput) {
-        var word_count = promptInput.split(" ").length;
-        var char_count = promptInput.length;
-
-        var tokens_count_word_est = word_count / 0.75;
-        var tokens_count_char_est = char_count / 4.0;
-
-        var result = 0;
-
-        if (tokens_count_word_est > tokens_count_char_est)
-          result = tokens_count_word_est;
-        else if (tokens_count_char_est > tokens_count_word_est)
-          result = tokens_count_word_est;
-
-        context.setVariable("llm.promptTokenCount", result);
-        context.setVariable("quota.weight", result);
-      }
+resources: []

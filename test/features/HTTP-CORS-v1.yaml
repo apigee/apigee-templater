@@ -1,7 +1,34 @@
 name: HTTP-CORS-v1
 type: feature
-description: Proxy for HTTP-CORS-v1
-parameters: []
+description: |
+  This feature adds CORS handling to a proxy, with parameters for the allowed origins, methods and headers,
+  and allowing developer portal web applications to also access API endpoints for 'Try It Out' features.
+
+  ## Prerequisites
+  None.
+
+  ## Inputs
+  None.
+
+  ## Outputs
+  - The allowed headers are set according to the configuration, enabling CORS requests to be answered for allowed requests.
+parameters:
+  - name: ALLOWED_ORIGINS
+    description: The allowed origins of clients.
+    default: "*"
+    examples:
+      - "*"
+      - "{request.header.origin}"
+  - name: ALLOWED_HEADERS
+    description: The allowed headers for clients to send.
+    default: "origin, x-requested-with, accept, content-type"
+    examples:
+      - "origin, x-requested-with, accept, content-type"
+  - name: ALLOWED_METHODS
+    description: The allowed methods for clients to use.
+    default: "GET, PUT, POST, DELETE"
+    examples:
+      - "GET, PUT, POST, DELETE"
 endpointFlows:
   - name: OptionsPreFlight
     mode: Request
@@ -28,11 +55,11 @@ policies:
         DisplayName:
           _text: CORS-AddCors
         AllowOrigins:
-          _text: "{request.header.origin}"
+          _text: "{ALLOWED_ORIGINS}"
         AllowMethods:
-          _text: GET, PUT, POST, DELETE
+          _text: "{ALLOWED_METHODS}"
         AllowHeaders:
-          _text: origin, x-requested-with, accept, content-type
+          _text: "{ALLOWED_HEADERS}"
         ExposeHeaders:
           _text: "*"
         MaxAge:

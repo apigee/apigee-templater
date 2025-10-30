@@ -4,21 +4,63 @@ description: |
   This feature adds an endpoints with basepath at v1/gemini, and proxies
   requests to the Vertex AI Gemini endpoint in a configured region.
 
-  ## Proxy inputs
-  None.
+  ## Prerequisites
+  - Vertex AI is enabled in the GCP Project.
+    ```sh
+    gcloud services enable aiplatform.googleapis.com
+    ```
+
+  ## Inputs
+  - Request prompt input in the form:
+    ```js
+    {
+      "contents": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "text": "why is the sky blue?"
+            }
+          ]
+        }
+      ]
+    }
+    ```
+
+    ## Outputs
+    - Stores successful prompt token count in the **Apigee variable llm.promptTokenCount**
+    - Stores successful response token count in the **Apigee variable llm.responseTokenCount**
+    - Stores successful total token count in the **Apigee variable llm.totalTokenCount**
+    - Normal response from Gemini, something like this:
+      ```js
+      {
+        "candidates": [
+          {
+            "content": {
+              "role": "model",
+              "parts": [
+                {
+                  "text": "The sky is blue because of a phenomenon called **Rayleigh scattering**. Here's a breakdown of why this happens:\n\n**1. Sunlight is White (but Actually Made of Colors):**\n\n* Sunlight might look white to us, but it's actually composed of all the colors of the rainbow – red, orange, yellow, green, blue, indigo, and violet. You can see this when sunlight passes through a prism or raindrops, creating a rainbow.\n\n**2. Sunlight Enters the Earth's Atmosphere:**\n\n* As sunlight travels through space and reaches Earth, it enters our atmosphere. Our atmosphere is made up mostly of nitrogen and oxygen molecules.\n\n**3. Light Interacts with Air Molecules:**\n\n* When sunlight hits these tiny air molecules, it gets scattered in different directions.  This scattering is called **Rayleigh scattering**, named after the British physicist Lord Rayleigh who explained it.\n\n**4. Rayleigh Scattering Favors Shorter Wavelengths:**\n\n* **Here's the key:** Rayleigh scattering is much more effective at scattering **shorter wavelengths** of light than longer wavelengths.\n    * **Shorter wavelengths:**  Blue and violet light have shorter wavelengths.\n    * **Longer wavelengths:** Red and orange light have longer wavelengths.\n\n* Think of it like this: Imagine throwing a small ball (blue light) and a large ball (red light) at a bunch of small obstacles (air molecules). The small ball is much more likely to be deflected in many directions, while the large ball is more likely to go straight through or be deflected less.\n\n**5. Blue Light is Scattered More:**\n\n* Because blue and violet light have shorter wavelengths, they are scattered much more by the air molecules than red and orange light.\n\n**6. We See the Scattered Blue Light:**\n\n* When you look up at the sky on a clear day, you are seeing this scattered blue light.  Blue light is scattered in all directions by the atmosphere, and some of this scattered blue light reaches your eyes from all over the sky.\n\n**Why not Violet then?**\n\nViolet light is scattered even *more* than blue light because it has an even shorter wavelength. However, the sky appears blue to us, not violet, for a couple of reasons:\n\n* **Sunlight Intensity:**  The sun actually emits slightly less violet light than blue light in the visible spectrum.\n* **Our Eyes Are Less Sensitive to Violet:**  Our eyes are more sensitive to blue than violet.\n* **Scattering at Higher Altitudes:** Some violet light is scattered away higher in the atmosphere before it reaches us.\n\n**In Summary:**\n\nThe sky is blue because:\n\n* Sunlight is made of all colors.\n* Air molecules scatter sunlight.\n* Rayleigh scattering is more effective at scattering shorter wavelengths (blue and violet).\n* We see the scattered blue light when we look up at the sky.\n\n**Think about sunsets and sunrises:**\n\nWhen the sun is low on the horizon, the sunlight has to travel through much more of the atmosphere to reach your eyes.  During this longer journey:\n\n* **Most of the blue light is scattered away** before it reaches you.\n* **The longer wavelengths like red and orange** are scattered less and can travel through the atmosphere to reach your eyes.\n\nThis is why sunsets and sunrises often appear red and orange – you're seeing the longer wavelengths of light that haven't been scattered away."
+                }
+              ]
+            }
+          }
+        ]
+      }
+      ```
 parameters:
   - name: PROJECT_ID
     displayName: PROJECT_ID
     description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
-    default: apigee-prod13
-    examples: []
+    default: "{organization.name}"
+    examples:
+      - "{organization.name}"
   - name: REGION
     displayName: REGION
     description: The GCP region that should be used for the Vertex AI Gemini endpoint.
-    default: europe-west1
+    default: "{system.region.name}"
     examples:
-      - europe-west1
-      - us-east1
+      - "{system.region.name}"
   - name: MODEL_ID
     displayName: MODEL_ID
     description: The Gemini model to use for the request.
@@ -34,15 +76,11 @@ endpoints:
     routes:
       - name: default
         target: gemini
-    flows:
-      - name: PreFlow
-        mode: Request
-        steps:
-          - name: EV-ExtractPrompt
+    flows: []
     faultRules: []
 targets:
   - name: gemini
-    url: https://{propertyset.gemini.REGION}-aiplatform.googleapis.com/v1/projects/{propertyset.gemini.PROJECT_ID}/locations/{propertyset.gemini.REGION}/publishers/google/models/{propertyset.gemini.MODEL_ID}:generateContent
+    url: https://{REGION}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/{REGION}/publishers/google/models/{MODEL_ID}:generateContent
     auth: GoogleAccessToken
     scopes:
       - https://www.googleapis.com/auth/cloud-platform
@@ -58,38 +96,13 @@ targets:
     httpTargetConnection:
       Properties: {}
       URL:
-        _text: https://{propertyset.gemini.REGION}-aiplatform.googleapis.com/v1/projects/{propertyset.gemini.PROJECT_ID}/locations/{propertyset.gemini.REGION}/publishers/google/models/{propertyset.gemini.MODEL_ID}:generateContent
+        _text: https://{REGION}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/{REGION}/publishers/google/models/{MODEL_ID}:generateContent
       Authentication:
         GoogleAccessToken:
           Scopes:
             Scope:
               _text: https://www.googleapis.com/auth/cloud-platform
 policies:
-  - name: EV-ExtractPrompt
-    type: ExtractVariables
-    content:
-      ExtractVariables:
-        _attributes:
-          continueOnError: "false"
-          enabled: "true"
-          name: EV-ExtractPrompt
-        DisplayName:
-          _text: EV-ExtractPrompt
-        Properties: {}
-        IgnoreUnresolvedVariables:
-          _text: "true"
-        JSONPayload:
-          Variable:
-            _attributes:
-              name: promptInput
-            JSONPath:
-              _text: $.contents[-1].parts[-1].text
-        Source:
-          _attributes:
-            clearPayload: "false"
-          _text: request
-        VariablePrefix:
-          _text: llm
   - name: EV-StoreModelInfo
     type: ExtractVariables
     content:
@@ -103,13 +116,12 @@ policies:
         Properties: {}
         IgnoreUnresolvedVariables:
           _text: "true"
-        Variable:
-          _attributes:
-            name: model
-          Pattern:
-            _text: "{propertyset.gemini.MODEL_ID}"
         JSONPayload:
           Variable:
+            - _attributes:
+                name: model
+              JSONPath:
+                _text: $.modelVersion
             - _attributes:
                 name: promptTokenCount
               JSONPath:
@@ -128,10 +140,4 @@ policies:
           _text: response
         VariablePrefix:
           _text: llm
-resources:
-  - name: gemini.properties
-    type: properties
-    content: |-
-      PROJECT_ID=apigee-prod13
-      REGION=europe-west1
-      MODEL_ID=gemini-2.5-flash
+resources: []

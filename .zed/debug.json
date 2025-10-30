@@ -22,11 +22,11 @@
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
     "args": [
       "-i",
-      "./test/features/LLM-ExtractPrompt-v1.yaml",
+      "./test/templates/AI-Gateway-v1.yaml",
       "-o",
-      "./temp.local.yaml",
+      "test.local.yaml",
       "-f",
-      "feature"
+      "proxy"
     ]
   }
 ]

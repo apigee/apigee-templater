@@ -28,7 +28,7 @@ description: |
   ```
 
   **Outputs**
-  - The request payload is directly changed with the masked data so that the PII data is removed directly upon entry. Sample output:
+  - The request payload is directly changed with the masked data. Sample output:
   ```js
   {
     "contents": [
@@ -36,7 +36,7 @@ description: |
         "role": "user",
         "parts": [
           {
-            "text": "can you remember my email address ****@********** and telephone number ***-***-**** for me?"
+            "text": "can you remember my email address ****@********** and telephone number [telephone-number] for me?"
           }
         ]
       }
@@ -47,8 +47,9 @@ parameters:
   - name: PROJECT_ID
     displayName: DLP Project Id
     description: Configuration input for PROJECT_ID
-    default: apigee-prod13
-    examples: []
+    default: "{organization.name}"
+    examples:
+      - "{organization.name}"
 endpointFlows:
   - name: PreFlow
     mode: Request
@@ -222,7 +223,7 @@ policies:
         HTTPTargetConnection:
           Properties: {}
           URL:
-            _text: https://dlp.googleapis.com/v2/projects/{propertyset.dlp.PROJECT_ID}/content:deidentify
+            _text: https://dlp.googleapis.com/v2/projects/{PROJECT_ID}/content:deidentify
           Authentication:
             GoogleAccessToken:
               Scopes:
@@ -245,6 +246,3 @@ resources:
       print("changed request json: "+ JSON.stringify(requestObj));
 
       context.setVariable("request.content", JSON.stringify(requestObj));
-  - name: dlp.properties
-    type: properties
-    content: PROJECT_ID=apigee-prod13

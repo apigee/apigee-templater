@@ -47,10 +47,22 @@ description: |-
   - If objectionable content is found in the prompt, then a `**400** Prompt content rejected.` is returned to the user.
   ```
 parameters:
+  - name: PROJECT_ID
+    displayName: Model Armor GCP Project Id
+    description: Configuration input for PROJECT_ID
+    default: "{organization.name}"
+    examples:
+      - "{organization.name}"
+  - name: REGION
+    displayName: Model Armor GCP region
+    description: Configuration input for REGION
+    default: "{system.region.name}"
+    examples:
+      - "{system.region.name}"
   - name: TEMPLATE_ID
     displayName: Model Armor Template Id
     description: Configuration input for TEMPLATE_ID
-    default: projects/apigee-prod13/locations/europe-west1/templates/default-ma-template
+    default: projects/{PROJECT_ID}/locations/{REGION}/templates/default-ma-template
     examples: []
 endpointFlows:
   - name: PreFlow
@@ -117,20 +129,15 @@ policies:
           _text: SUP-SanitizeRequest
         ModelArmor:
           TemplateName:
-            _text: "{propertyset.model-armor.TEMPLATE_ID}"
+            _text: "{TEMPLATE_ID}"
         UserPromptSource:
           _text: "{jsonPath('$.contents[-1].parts[-1].text',request.content,true)}"
 resources:
   - name: log-modal-armor.js
     type: jsc
-    content: >-
-      var mainfo =
-      context.getVariable("SanitizeUserPrompt.SUP-SanitizeRequest");
-
-
-      if (mainfo) print(JSON.stringify(mainfo));
-
-      else print("No MA info found");
-  - name: model-armor.properties
-    type: properties
-    content: TEMPLATE_ID=projects/apigee-prod13/locations/europe-west1/templates/default-ma-template
+    content: |
+      var mainfo = context.getVariable("SanitizeUserPrompt.SUP-SanitizeRequest");
+      if (mainfo)
+        print(JSON.stringify(mainfo));
+      else
+        print("No MA info found");

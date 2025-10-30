@@ -368,8 +368,13 @@ export class cli {
             relativePath,
             inputParameters,
           );
-        else if (proxy && applyFeature)
-          proxy = this.converter.proxyApplyFeature(proxy, applyFeature);
+        else if (proxy && applyFeature) {
+          proxy = this.converter.proxyApplyFeature(
+            proxy,
+            applyFeature,
+            inputParameters,
+          );
+        }
       } else if (options.removeFeature) {
         process.chdir(startDir);
         if (!options.output) options.output = options.input;
@@ -432,7 +437,7 @@ export class cli {
             inputParameters,
           );
         } else if (feature) {
-          proxy = this.converter.featureToProxy(feature);
+          proxy = this.converter.featureToProxy(feature, inputParameters);
         }
         process.chdir(startDir);
         let removeDir = options.output.toLowerCase().endsWith(".dir")
@@ -475,7 +480,7 @@ export class cli {
             inputParameters,
           );
         } else if (feature) {
-          proxy = this.converter.featureToProxy(feature);
+          proxy = this.converter.featureToProxy(feature, inputParameters);
         }
 
         process.chdir(startDir);

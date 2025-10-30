@@ -760,7 +760,13 @@ export class ApigeeTemplaterService {
         if (!latestRevisionId) resolve("");
         else resolve(latestRevisionId);
       } else {
-        console.log(" > Apigee proxy EXPORT response: " + response.status);
+        let responseText = await response.text();
+        console.log(
+          "> Apigee proxy EXPORT error: " +
+            response.status +
+            ", " +
+            responseText,
+        );
         resolve("");
       }
     });
