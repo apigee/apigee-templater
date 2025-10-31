@@ -19,7 +19,8 @@ aft -o AI-Gateway-v1.yaml
 aft -i AI-Gateway-v1.yaml -a MODEL-Gemini-v1.yaml
 aft -i AI-Gateway-v1.yaml -a MODEL-Mistral-v1.yaml
 aft -i AI-Gateway-v1.yaml -a AUTH-Key-Header-v1.yaml
-# we could reference the features as file paths, or if no path is given it is attempted to fetch them from the repository/features directory in this repository.
+# we could reference the features as file paths, or if no path is given it is attempted
+# to fetch them from the repository/features directory in this repository.
 ```
 
 You'll notice now that our `AI-Gateway-v1.yaml` file includes the configuration parameters from the three features, as well as the endpoints. This is a **Template** file which when deployed will merge all features into a complete **User Proxy**.
