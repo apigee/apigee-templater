@@ -16,9 +16,9 @@ npm update apigee-templater -g
 # create an empty template, -o means output file
 aft -o AI-Gateway-v1.yaml
 # apply Gemini and Mistral features, -i means input file and -a means apply feature
-aft -i AI-Gateway-v1.yaml -a MODEL-Gemini-v1.yaml
-aft -i AI-Gateway-v1.yaml -a MODEL-Mistral-v1.yaml
-aft -i AI-Gateway-v1.yaml -a AUTH-Key-Header-v1.yaml
+aft -i AI-Gateway-v1.yaml -a MODEL-Gemini-v1
+aft -i AI-Gateway-v1.yaml -a MODEL-Mistral-v1
+aft -i AI-Gateway-v1.yaml -a AUTH-Key-Header-v1
 # we could reference the features as file paths, or if no path is given it is attempted
 # to fetch them from the repository/features directory in this repository.
 ```
