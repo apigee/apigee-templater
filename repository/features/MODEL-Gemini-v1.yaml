@@ -25,6 +25,7 @@ description: |
         }
       ]
     }
+    ```
 
     ## Outputs
     - Stores successful prompt token count in the **Apigee variable llm.promptTokenCount**
@@ -47,7 +48,6 @@ description: |
         ]
       }
       ```
-    ```
 parameters:
   - name: PROJECT_ID
     displayName: PROJECT_ID

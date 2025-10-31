@@ -1,4 +1,4 @@
-name: Feature-LLM-SanitizeRequest-v1
+name: LLM-SanitizeRequest-v1
 type: feature
 description: |-
   This feature uses Google Cloud Model Armor to screen a request prompt,
@@ -62,7 +62,7 @@ parameters:
   - name: TEMPLATE_ID
     displayName: Model Armor Template Id
     description: Configuration input for TEMPLATE_ID
-    default: projects/{PROJECT_ID}/locations/{REGION}/templates/default-ma-template
+    default: projects/{organization.name}/locations/{system.region.name}/templates/default-ma-template
     examples: []
 endpointFlows:
   - name: PreFlow
@@ -129,15 +129,16 @@ policies:
           _text: SUP-SanitizeRequest
         ModelArmor:
           TemplateName:
-            _text: "{TEMPLATE_ID}"
+            _text: projects/{organization.name}/locations/{system.region.name}/templates/default-ma-template
         UserPromptSource:
-          _text: "{jsonPath('$.contents[-1].parts[-1].text',request.content,true)}"
+          _text: "{jsonPath('$.messages[-1].content',request.content,true)}"
 resources:
   - name: log-modal-armor.js
     type: jsc
     content: |
-      var mainfo = context.getVariable("SanitizeUserPrompt.SUP-SanitizeRequest");
-      if (mainfo)
-        print(JSON.stringify(mainfo));
-      else
-        print("No MA info found");
+      // this needs to be fixed with correct variable if logging is wanted
+      // var mainfo = context.getVariable("SanitizeUserPrompt.SUP-SanitizeRequest");
+      // if (mainfo)
+      //  print(JSON.stringify(mainfo));
+      // else
+      print("No MA info found");

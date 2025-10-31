@@ -12,10 +12,12 @@ targetFlows:
     mode: Request
     steps:
       - name: Q-CheckQuota
+        condition: quota.limit != null
   - name: PostFlow
     mode: Response
     steps:
       - name: Q-UpdateQuota
+        condition: quota.limit != null
   - name: EventFlow
     mode: Response
     steps: []

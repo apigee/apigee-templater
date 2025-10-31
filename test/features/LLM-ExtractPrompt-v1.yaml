@@ -33,37 +33,11 @@ endpointFlows:
   - name: PreFlow
     mode: Request
     steps:
-      - name: EV-ExtractPrompt
       - name: JS-EstimateTokens
 targetFlows: []
 endpoints: []
 targets: []
 policies:
-  - name: EV-ExtractPrompt
-    type: ExtractVariables
-    content:
-      ExtractVariables:
-        _attributes:
-          continueOnError: "false"
-          enabled: "true"
-          name: EV-ExtractPrompt
-        DisplayName:
-          _text: EV-ExtractPrompt
-        Properties: {}
-        IgnoreUnresolvedVariables:
-          _text: "true"
-        JSONPayload:
-          Variable:
-            _attributes:
-              name: promptInput
-            JSONPath:
-              _text: $.contents[-1].parts[-1].text
-        Source:
-          _attributes:
-            clearPayload: "false"
-          _text: request
-        VariablePrefix:
-          _text: llm
   - name: JS-EstimateTokens
     type: Javascript
     content:
@@ -82,7 +56,20 @@ resources:
   - name: estimate-tokens.js
     type: jsc
     content: |-
-      var promptInput = context.getVariable("llm.promptInput");
+      var promptInput = "";
+      var requestObject = request.content.asJSON;
+      if (requestObject["contents"]) {
+        // gemini format
+        const userConversations = requestObject.contents.filter(item => item.role === 'user');
+        const lastUserConversation = userConversations[userConversations.length - 1];
+        promptInput = lastUserConversation.parts[lastUserConversation.parts.length - 1].text;
+      } else if (requestObject["messages"]) {
+        // openapi format
+        const userConversations = requestObject.messages.filter(item => item.role === 'user');
+        promptInput = userConversations[userConversations.length - 1].content;
+      }
+
+      context.setVariable("llm.promptInput", promptInput);
       if (promptInput) {
         var word_count = promptInput.split(" ").length;
         var char_count = promptInput.length;

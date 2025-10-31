@@ -17,7 +17,6 @@
 import arg from "arg";
 import fs from "fs";
 import path from "path";
-import { performance } from "perf_hooks";
 import inquirer from "inquirer";
 import chalk from "chalk";
 import * as YAML from "yaml";
@@ -473,6 +472,12 @@ export class cli {
           return;
         }
       } else if (options.output && options.format == "proxy") {
+        if (options.output.includes(":") && !inputParameters["PROJECT_ID"]) {
+          // set PROJECT_ID with included project
+          let pieces = options.output.split(":");
+          if (pieces.length >= 1 && pieces[0])
+            inputParameters["PROJECT_ID"] = pieces[0];
+        }
         if (template) {
           proxy = await this.apigeeService.templateObjectToProxy(
             template,
@@ -495,7 +500,7 @@ export class cli {
                 blockQuote: "literal",
               }),
             );
-          } else if (options.output.toLowerCase().includes(":")) {
+          } else if (options.output.includes(":")) {
             let outputPath = await this.converter.proxyToApigeeZip(proxy);
             let pieces = options.output.split(":");
             let lastRevision = "";
