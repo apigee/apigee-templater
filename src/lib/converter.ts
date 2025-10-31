@@ -361,29 +361,40 @@ export class ApigeeConverter {
 
               // if propertyset, add as parameters
               if (resType === "properties") {
+                let newPropertiesContent = "";
                 let props = newFile.content.split("\n");
                 for (let prop of props) {
-                  let propPieces = prop.split("=");
-                  if (
-                    propPieces &&
-                    propPieces.length >= 1 &&
-                    propPieces[0] &&
-                    newProxy.parameters.findIndex(
-                      (x) => x.name === propPieces[0],
-                    ) === -1
-                  ) {
-                    newProxy.parameters.push({
-                      name: propPieces[0],
-                      displayName: propPieces[0],
-                      description: "Configuration input for " + propPieces[0],
-                      default:
-                        propPieces.length == 2 && propPieces[1]
-                          ? propPieces[1]
-                          : "",
-                      examples: [],
-                    });
+                  if (prop) {
+                    let propPieces = prop.split("=");
+                    if (
+                      propPieces &&
+                      propPieces.length >= 1 &&
+                      propPieces[0] &&
+                      newProxy.parameters.findIndex(
+                        (x) => x.name === propPieces[0],
+                      ) === -1
+                    ) {
+                      newProxy.parameters.push({
+                        name: propPieces[0],
+                        displayName: propPieces[0],
+                        description: "Configuration input for " + propPieces[0],
+                        default:
+                          propPieces.length == 2 && propPieces[1]
+                            ? propPieces[1]
+                            : "",
+                        examples: [],
+                      });
+                    }
+
+                    // set value to use parameter in the future
+                    if (propPieces && propPieces.length >= 1) {
+                      newPropertiesContent +=
+                        propPieces[0] + "={" + propPieces[0] + "}\n";
+                    }
                   }
                 }
+
+                newFile.content = newPropertiesContent;
               }
             }
           }

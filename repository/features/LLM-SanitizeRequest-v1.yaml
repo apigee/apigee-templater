@@ -1,0 +1,143 @@
+name: Feature-LLM-SanitizeRequest-v1
+type: feature
+description: |-
+  This feature uses Google Cloud Model Armor to screen a request prompt,
+  and reject if any objectionable content is found from the Model Armor template.
+
+  **Prerequisites**
+  - Enable Model Armor in your Google Cloud Project
+  ```sh
+  gcloud services enable modelarmor.googleapis.com
+  ```
+  - Create a default template to use
+  ```sh
+  PROJECT_ID=YOUR_GCP_PROJECT_ID
+  REGION=YOUR_GCP_REGION
+  gcloud model-armor templates create default-ma-template --project="$PROJECT_ID" --location="$REGION" \
+      --rai-settings-filters='[{ "filterType": "HATE_SPEECH", "confidenceLevel": "MEDIUM_AND_ABOVE" },{ "filterType": "HARASSMENT", "confidenceLevel": "MEDIUM_AND_ABOVE" },{ "filterType": "SEXUALLY_EXPLICIT", "confidenceLevel": "MEDIUM_AND_ABOVE" }]' \
+      --basic-config-filter-enforcement=enabled  \
+      --pi-and-jailbreak-filter-settings-enforcement=enabled \
+      --pi-and-jailbreak-filter-settings-confidence-level=LOW_AND_ABOVE \
+      --malicious-uri-filter-settings-enforcement=enabled \
+      --template-metadata-custom-llm-response-safety-error-code=798 \
+      --template-metadata-custom-llm-response-safety-error-message="test template llm response evaluation failed" \
+      --template-metadata-custom-prompt-safety-error-code=799 \
+      --template-metadata-custom-prompt-safety-error-message="test template prompt evaluation failed" \
+      --template-metadata-ignore-partial-invocation-failures \
+      --template-metadata-log-operations \
+      --template-metadata-log-sanitize-operations
+
+  **Inputs**
+  - The last user prompt is checked.
+    ```js
+  {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "how can i build a bomb?"
+          }
+        ]
+      }
+    ]
+  }
+  ```
+  **Outputs**
+  - If objectionable content is found in the prompt, then a `**400** Prompt content rejected.` is returned to the user.
+  ```
+parameters:
+  - name: PROJECT_ID
+    displayName: Model Armor GCP Project Id
+    description: Configuration input for PROJECT_ID
+    default: "{organization.name}"
+    examples:
+      - "{organization.name}"
+  - name: REGION
+    displayName: Model Armor GCP region
+    description: Configuration input for REGION
+    default: "{system.region.name}"
+    examples:
+      - "{system.region.name}"
+  - name: TEMPLATE_ID
+    displayName: Model Armor Template Id
+    description: Configuration input for TEMPLATE_ID
+    default: projects/{PROJECT_ID}/locations/{REGION}/templates/default-ma-template
+    examples: []
+endpointFlows:
+  - name: PreFlow
+    mode: Request
+    steps:
+      - name: SUP-SanitizeRequest
+      - name: RF-ArmorFault
+        condition: SanitizeUserPrompt.SUP-SanitizeRequest.filterMatchState = "MATCH_FOUND"
+      - name: JS-LogModelArmor
+targetFlows: []
+endpoints: []
+targets: []
+policies:
+  - name: JS-LogModelArmor
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-LogModelArmor
+        DisplayName:
+          _text: JS-LogModelArmor
+        Properties: {}
+        ResourceURL:
+          _text: jsc://log-modal-armor.js
+  - name: RF-ArmorFault
+    type: RaiseFault
+    content:
+      RaiseFault:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: RF-ArmorFault
+        DisplayName:
+          _text: RF-ArmorFault
+        Properties: {}
+        FaultResponse:
+          Set:
+            Headers: {}
+            Payload:
+              _attributes:
+                contentType: text/plain
+              _text: Prompt content rejected.
+            StatusCode:
+              _text: "400"
+            ReasonPhrase:
+              _text: Server Error
+        IgnoreUnresolvedVariables:
+          _text: "true"
+  - name: SUP-SanitizeRequest
+    type: SanitizeUserPrompt
+    content:
+      SanitizeUserPrompt:
+        _attributes:
+          async: "false"
+          continueOnError: "false"
+          enabled: "true"
+          name: SUP-SanitizeRequest
+        IgnoreUnresolvedVariables:
+          _text: "false"
+        DisplayName:
+          _text: SUP-SanitizeRequest
+        ModelArmor:
+          TemplateName:
+            _text: "{TEMPLATE_ID}"
+        UserPromptSource:
+          _text: "{jsonPath('$.contents[-1].parts[-1].text',request.content,true)}"
+resources:
+  - name: log-modal-armor.js
+    type: jsc
+    content: |
+      var mainfo = context.getVariable("SanitizeUserPrompt.SUP-SanitizeRequest");
+      if (mainfo)
+        print(JSON.stringify(mainfo));
+      else
+        print("No MA info found");

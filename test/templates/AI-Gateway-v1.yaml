@@ -3,20 +3,8 @@ type: template
 description: API template for AI-Gateway-v1
 features:
   - ../features/MODEL-Gemini-v1.yaml
-  - ../features/LLM-SanitizeRequest-v1.yaml
+  - ../features/MODEL-Mistral-v1.yaml
 parameters:
-  - name: AUTH-Key-Header-v1.API_KEY_HEADER_NAME
-    description: The header where the api key is checked.
-    default: x-api-key
-    examples:
-      - x-api-key
-      - x-apikey
-  - name: Feature-LLM-MaskRequest-v1.PROJECT_ID
-    displayName: DLP Project Id
-    description: Configuration input for PROJECT_ID
-    default: "{organization.name}"
-    examples:
-      - "{organization.name}"
   - name: MODEL-Gemini-v1.PROJECT_ID
     displayName: PROJECT_ID
     description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
@@ -36,32 +24,42 @@ parameters:
     examples:
       - gemini-2.5-flash
       - gemini-2.5-pro
-  - name: Feature-LLM-SanitizeRequest-v1.PROJECT_ID
-    displayName: Model Armor GCP Project Id
-    description: Configuration input for PROJECT_ID
+  - name: Feature-MODEL-Mistral-v1.PROJECT_ID
+    displayName: PROJECT_ID
+    description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
     default: "{organization.name}"
     examples:
       - "{organization.name}"
-  - name: Feature-LLM-SanitizeRequest-v1.REGION
-    displayName: Model Armor GCP region
-    description: Configuration input for REGION
-    default: "{system.region.name}"
+  - name: Feature-MODEL-Mistral-v1.REGION
+    displayName: REGION
+    description: The GCP region that should be used for the Vertex AI Gemini endpoint.
+    default: us-central1
     examples:
-      - "{system.region.name}"
-  - name: Feature-LLM-SanitizeRequest-v1.TEMPLATE_ID
-    displayName: Model Armor Template Id
-    description: Configuration input for TEMPLATE_ID
-    default: projects/{organization.name}/locations/{system.region.name}/templates/default-ma-template
-    examples: []
+      - us-central1
+  - name: Feature-MODEL-Mistral-v1.MODEL_ID
+    description: Configuration input for MODEL_ID
+    default: mistral-large-2411
+    examples:
+      - mistral-large-2411
 endpoints:
   - name: gemini
     basePath: /v1/gemini
     routes:
       - name: default
         target: gemini
+  - name: mistral
+    basePath: /v1/mistral
+    routes:
+      - name: default
+        target: mistral
 targets:
   - name: gemini
-    url: https://{propertyset.gemini.VERTEX_PATH}
+    url: https://{REGION}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/{REGION}/publishers/google/models/{MODEL_ID}:generateContent
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+  - name: mistral
+    url: https://{REGION}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/{REGION}/publishers/mistralai/models/{MODEL_ID}:rawPredict
     auth: GoogleAccessToken
     scopes:
       - https://www.googleapis.com/auth/cloud-platform

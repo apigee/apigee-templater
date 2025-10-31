@@ -1,0 +1,248 @@
+name: Feature-LLM-MaskRequest-v1
+type: feature
+description: |
+  This feature masks PII data email addresses and telephone numbers from
+  incoming prompt requests using GCP Data Loss Prevention.
+
+  **Prerequisites**
+  - Enable DLP in your GCP project. You can do this with this command:
+  ```sh
+  gcloud services enable dlp.googleapis.com
+  ```
+
+  **Inputs**
+  - The last user prompt in this format will be masked using DLP. Sample input:
+  ```js
+  {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "can you remember my email address test@example.com and telephone number 801-417-4399 for me?"
+          }
+        ]
+      }
+    ]
+  }
+  ```
+
+  **Outputs**
+  - The request payload is directly changed with the masked data. Sample output:
+  ```js
+  {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "can you remember my email address ****@********** and telephone number [telephone-number] for me?"
+          }
+        ]
+      }
+    ]
+  }
+  ```
+parameters:
+  - name: PROJECT_ID
+    displayName: DLP Project Id
+    description: Configuration input for PROJECT_ID
+    default: "{organization.name}"
+    examples:
+      - "{organization.name}"
+endpointFlows:
+  - name: PreFlow
+    mode: Request
+    steps:
+      - name: SC-SensitiveDataProtection
+      - name: JS-SetMaskedRequest
+targetFlows: []
+endpoints: []
+targets: []
+policies:
+  - name: JS-SetMaskedRequest
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetMaskedRequest
+        DisplayName:
+          _text: JS-SetMaskedRequest
+        Properties: {}
+        ResourceURL:
+          _text: jsc://SetRequest.js
+  - name: SC-SensitiveDataProtection
+    type: ServiceCallout
+    content:
+      ServiceCallout:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: SC-SensitiveDataProtection
+        DisplayName:
+          _text: SC-SensitiveDataProtection
+        Properties: {}
+        Request:
+          _attributes:
+            clearPayload: "true"
+            variable: myRequest
+          IgnoreUnresolvedVariables:
+            _text: "false"
+          Set:
+            Verb:
+              _text: POST
+            Payload:
+              _attributes:
+                contentType: application/json
+              _text: "
+
+                \        {
+
+                \          \"item\": {
+
+                \            \"value\":
+                \"{jsonPath('$.contents[-1].parts[-1].text',request.content,tru\
+                e)}\"
+
+                \          },
+
+                \          \"deidentifyConfig\":{
+
+                \            \"infoTypeTransformations\":{
+
+                \              \"transformations\":[
+
+                \                {
+
+                \                  \"infoTypes\":[
+
+                \                    {
+
+                \                      \"name\":\"EMAIL_ADDRESS\"
+
+                \                    }
+
+                \                  ],
+
+                \                  \"primitiveTransformation\":{
+
+                \                    \"characterMaskConfig\":{
+
+                \                      \"maskingCharacter\":\"*\",
+
+                \                      \"reverseOrder\":false,
+
+                \                      \"charactersToIgnore\":[
+
+                \                        {
+
+                \                          \"charactersToSkip\":\"@\"
+
+                \                        }
+
+                \                      ]
+
+                \                    }
+
+                \                  }
+
+                \                },
+
+                \                {
+
+                \                  \"infoTypes\":[
+
+                \                    {
+
+                \                      \"name\":\"PHONE_NUMBER\"
+
+                \                    }
+
+                \                  ],
+
+                \                  \"primitiveTransformation\":{
+
+                \                    \"replaceConfig\":{
+
+                \                      \"newValue\":{
+
+                \                        \"stringValue\":\"[telephone-number]\"
+
+                \                      }
+
+                \                    }
+
+                \                  }
+
+                \                }
+
+                \              ]
+
+                \            }
+
+                \          },
+
+                \          \"inspectConfig\": {
+
+                \            \"infoTypes\": [
+
+                \              {
+
+                \                \"name\": \"PHONE_NUMBER\"
+
+                \              },
+
+                \              {
+
+                \                \"name\":\"EMAIL_ADDRESS\"
+
+                \              }
+
+                \            ],
+
+                \            \"minLikelihood\": \"POSSIBLE\",
+
+                \            \"limits\": {
+
+                \              \"maxFindingsPerItem\": 0
+
+                \            },
+
+                \            \"includeQuote\": true
+
+                \          }
+
+                \        }
+
+                \      "
+        Response:
+          _text: sensitiveDataProtectionResponse
+        HTTPTargetConnection:
+          Properties: {}
+          URL:
+            _text: https://dlp.googleapis.com/v2/projects/{PROJECT_ID}/content:deidentify
+          Authentication:
+            GoogleAccessToken:
+              Scopes:
+                Scope:
+                  _text: https://www.googleapis.com/auth/cloud-platform
+resources:
+  - name: SetRequest.js
+    type: jsc
+    content: |-
+      var requestObj = request.content.asJSON;
+      print("request json: "+ JSON.stringify(requestObj));
+
+      var maskedResponseObj = JSON.parse(context.getVariable("sensitiveDataProtectionResponse.content"));
+      print("sdp response json: "+ JSON.stringify(maskedResponseObj));
+
+      if (maskedResponseObj["item"] && maskedResponseObj["item"]["value"] && requestObj && requestObj["contents"] && requestObj["contents"].length > 0) {
+        requestObj["contents"][requestObj["contents"].length - 1]["parts"][requestObj["contents"][requestObj["contents"].length - 1]["parts"].length - 1]["text"] = maskedResponseObj["item"]["value"];
+      }
+
+      print("changed request json: "+ JSON.stringify(requestObj));
+
+      context.setVariable("request.content", JSON.stringify(requestObj));

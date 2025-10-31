@@ -1,0 +1,102 @@
+name: LLM-ExtractPrompt-v1
+type: feature
+description: |
+  This feature tries to extract the user prompt the last entry in the `contents.parts`
+  request collection. If an input prompt is found, then the number of tokens is estimated
+  using a local javascript method.
+
+  ## Prerequisites
+  None.
+
+  ## Inputs
+  - User prompt request content in this format:
+    ```json
+    {
+      "contents": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "text": "why is the sky blue?"
+            }
+          ]
+        }
+      ]
+    }
+    ```
+
+  ## Outputs
+  - If a prompt is found, it is written to the Apigee variable **llm.inputPrompt**.
+  - If a prompt is found, the estimated token length is written to the Apigee variable **llm.promptEstimatedTokenCount**.
+parameters: []
+endpointFlows:
+  - name: PreFlow
+    mode: Request
+    steps:
+      - name: EV-ExtractPrompt
+      - name: JS-EstimateTokens
+targetFlows: []
+endpoints: []
+targets: []
+policies:
+  - name: EV-ExtractPrompt
+    type: ExtractVariables
+    content:
+      ExtractVariables:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: EV-ExtractPrompt
+        DisplayName:
+          _text: EV-ExtractPrompt
+        Properties: {}
+        IgnoreUnresolvedVariables:
+          _text: "true"
+        JSONPayload:
+          Variable:
+            _attributes:
+              name: promptInput
+            JSONPath:
+              _text: $.contents[-1].parts[-1].text
+        Source:
+          _attributes:
+            clearPayload: "false"
+          _text: request
+        VariablePrefix:
+          _text: llm
+  - name: JS-EstimateTokens
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-EstimateTokens
+        DisplayName:
+          _text: JS-EstimateTokens
+        Properties: {}
+        ResourceURL:
+          _text: jsc://estimate-tokens.js
+resources:
+  - name: estimate-tokens.js
+    type: jsc
+    content: |-
+      var promptInput = context.getVariable("llm.promptInput");
+      if (promptInput) {
+        var word_count = promptInput.split(" ").length;
+        var char_count = promptInput.length;
+
+        var tokens_count_word_est = word_count / 0.75;
+        var tokens_count_char_est = char_count / 4.0;
+
+        var result = 0;
+
+        if (tokens_count_word_est > tokens_count_char_est)
+          result = tokens_count_word_est;
+        else if (tokens_count_char_est > tokens_count_word_est)
+          result = tokens_count_word_est;
+
+        context.setVariable("llm.promptEstimatedTokenCount", result);
+        context.setVariable("quota.weight", result);
+      }
