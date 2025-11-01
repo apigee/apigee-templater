@@ -1,0 +1,25 @@
+name: PROXY-HttpBin-v1
+type: feature
+description: Proxy traffic from /v1/httpbin to https://httpbin.org.
+parameters: []
+endpointFlows: []
+targetFlows: []
+endpoints:
+  - name: httpbin
+    basePath: /v1/httpbin
+    routes:
+      - name: default
+        target: httpbin
+    flows: []
+    faultRules: []
+targets:
+  - name: httpbin
+    url: https://httpbin.org
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL:
+        _text: https://httpbin.org
+policies: []
+resources: []

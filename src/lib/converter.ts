@@ -78,6 +78,7 @@ export class ApigeeConverter {
     let proxies: string[] = fs.readdirSync(inputPath + "/apiproxy/proxies");
     let newProxy = new Proxy();
     newProxy.name = name;
+    newProxy.description = name;
     for (let proxy of proxies) {
       let newEndpoint = new ProxyEndpoint();
       let proxyPath = path.join(inputPath, "apiproxy/proxies", proxy);
@@ -1297,7 +1298,8 @@ export class ApigeeConverter {
     ) {
       defaultEndpoint = new ProxyEndpoint();
       defaultEndpoint.name = "default";
-      defaultEndpoint.basePath = "/not/used";
+      defaultEndpoint.basePath =
+        "/" + newProxy.name.toLowerCase().replaceAll(" ", "-");
       defaultEndpoint.routes.push({
         name: "default",
       });
@@ -1309,7 +1311,7 @@ export class ApigeeConverter {
       let defaultTarget = new ProxyTarget();
       defaultTarget.name = "default";
       defaultTarget.flows = newFeature.targetFlows;
-      defaultTarget.url = "https://notused.com";
+      defaultTarget.url = "https://httpbin.org";
       newProxy.targets.push(defaultTarget);
       if (defaultEndpoint && defaultEndpoint.routes[0])
         defaultEndpoint.routes[0].target = "default";

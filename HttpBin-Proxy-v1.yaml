@@ -1,0 +1,21 @@
+name: HttpBin-Proxy-v1
+type: template
+description: API template for HttpBin-Proxy-v1
+features:
+  - repository/features/PROXY-HttpBin-v1.yaml
+  - repository/features/DATA-HelloWorld-v1.yaml
+parameters:
+  - name: DATA-HelloWorld-v1.MESSAGE
+    displayName: MESSAGE
+    description: Configuration input for MESSAGE
+    default: Hello world!
+    examples: []
+endpoints:
+  - name: httpbin
+    basePath: /v1/httpbin
+    routes:
+      - name: default
+        target: httpbin
+targets:
+  - name: httpbin
+    url: https://httpbin.org

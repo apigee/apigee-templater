@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<APIProxy revision="1" name="Feature-PROXY-HttpBin-v1">
+  <DisplayName/>
+  <Description/>
+  <CreatedAt>1761973791237</CreatedAt>
+  <LastModifiedAt>1761973838902</LastModifiedAt>
+  <BasePaths>/v1/httpbin</BasePaths>
+  <ProxyEndpoints>
+    <ProxyEndpoint>httpbin</ProxyEndpoint>
+  </ProxyEndpoints>
+  <TargetEndpoints>
+    <TargetEndpoint>httpbin</TargetEndpoint>
+  </TargetEndpoints>
+</APIProxy>

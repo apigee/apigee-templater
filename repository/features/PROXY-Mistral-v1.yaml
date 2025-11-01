@@ -1,14 +1,15 @@
-name: MODEL-Gemini-v1
+name: PROXY-Mistral-v1
 type: feature
 description: |
-  This feature adds an endpoints with basepath at v1/gemini, and proxies
-  requests to the Vertex AI Gemini endpoint in a configured region.
+  This feature adds an endpoints with basepath at v1/mistral, and proxies
+  requests to the Vertex AI Mistral endpoint in a configured region.
 
   ## Prerequisites
   - Vertex AI is enabled in the GCP Project.
     ```sh
     gcloud services enable aiplatform.googleapis.com
     ```
+  - A Mistral model is enabled in the [Vertex AI Model Garden](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/mistral-medium-3).
 
   ## Inputs
   - Request prompt input in the form:
@@ -25,6 +26,7 @@ description: |
         }
       ]
     }
+    ```
 
     ## Outputs
     - Stores successful prompt token count in the **Apigee variable llm.promptTokenCount**
@@ -47,7 +49,6 @@ description: |
         ]
       }
       ```
-    ```
 parameters:
   - name: PROJECT_ID
     displayName: PROJECT_ID
@@ -57,36 +58,35 @@ parameters:
       - YOUR_PROJECT_ID
   - name: REGION
     displayName: REGION
-    description: The GCP region that should be used for the Vertex AI Gemini endpoint.
-    default: europe-west1
+    description: The GCP region that should be used for the Vertex AI endpoint.
+    default: europe-west4
     examples:
-      - europe-west1
-      - us-east1
+      - europe-west4
+      - us-central1
   - name: MODEL_ID
-    displayName: MODEL_ID
-    description: The Gemini model to use for the request.
-    default: gemini-2.5-flash
+    description: Configuration input for MODEL_ID
+    default: mistral-medium-3
     examples:
-      - gemini-2.5-flash
-      - gemini-2.5-pro
-  - name: GEMINI_PATH
-    displayName: GEMINI_PATH
-    description: Configuration input for GEMINI_PATH
-    default: europe-west1-aiplatform.googleapis.com/v1beta1/projects/apigee-prod13/locations/europe-west1/endpoints/openapi/chat/completions
+      - mistral-medium-3
+      - mistral-small-2503
+  - name: MISTRAL_PATH
+    displayName: MISTRAL_PATH
+    description: Configuration input for MISTRAL_PATH
+    default: europe-west4-aiplatform.googleapis.com/v1/projects/apigee-prod13/locations/europe-west4/publishers/mistralai/models/mistral-medium-3:rawPredict
     examples: []
 endpointFlows: []
 targetFlows: []
 endpoints:
-  - name: gemini
-    basePath: /v1/gemini
+  - name: mistral
+    basePath: /v1/mistral
     routes:
       - name: default
-        target: gemini
+        target: mistral
     flows: []
     faultRules: []
 targets:
-  - name: gemini
-    url: https://{propertyset.gemini.GEMINI_PATH}
+  - name: mistral
+    url: https://{propertyset.mistral.MISTRAL_PATH}
     auth: GoogleAccessToken
     scopes:
       - https://www.googleapis.com/auth/cloud-platform
@@ -98,7 +98,7 @@ targets:
       - name: PostFlow
         mode: Response
         steps:
-          - name: EV-StoreModelInfo
+          - name: EV-GetTokenCounts
       - name: EventFlow
         mode: Response
         steps: []
@@ -106,33 +106,32 @@ targets:
     httpTargetConnection:
       Properties: {}
       URL:
-        _text: https://{propertyset.gemini.GEMINI_PATH}
+        _text: https://{propertyset.mistral.MISTRAL_PATH}
       Authentication:
         GoogleAccessToken:
           Scopes:
             Scope:
               _text: https://www.googleapis.com/auth/cloud-platform
 policies:
-  - name: EV-StoreModelInfo
+  - name: EV-GetTokenCounts
     type: ExtractVariables
     content:
       ExtractVariables:
         _attributes:
           continueOnError: "false"
           enabled: "true"
-          name: EV-StoreModelInfo
+          name: EV-GetTokenCounts
         DisplayName:
-          _text: EV-StoreModelInfo
+          _text: EV-GetTokenCounts
         Properties: {}
         IgnoreUnresolvedVariables:
           _text: "true"
-        Variable:
-          _attributes:
-            name: model
-          Pattern:
-            _text: "{propertyset.gemini.MODEL_ID}"
         JSONPayload:
           Variable:
+            - _attributes:
+                name: model
+              JSONPath:
+                _text: $.model
             - _attributes:
                 name: promptTokenCount
               JSONPath:
@@ -170,18 +169,15 @@ resources:
     type: jsc
     content: |-
       var requestObject = request.content.asJSON;
-      var model = context.getVariable("propertyset.gemini.MODEL_ID");
+      var model = context.getVariable("propertyset.mistral.MODEL_ID");
 
       if (requestObject) {
-        if (model.startsWith("google/"))
-          requestObject["model"] = model;
-        else
-          requestObject["model"] = "\"google/" + model + "\"";
+        requestObject["model"] = model;
       }
 
       context.setVariable('request.content', JSON.stringify(requestObject));
-  - name: gemini.properties
+  - name: mistral.properties
     type: properties
     content: |
       MODEL_ID={MODEL_ID}
-      GEMINI_PATH={GEMINI_PATH}
+      MISTRAL_PATH={MISTRAL_PATH}

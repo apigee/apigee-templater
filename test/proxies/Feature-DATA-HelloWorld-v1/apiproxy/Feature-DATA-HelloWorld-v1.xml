@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<APIProxy revision="1" name="Feature-DATA-HelloWorld-v1">
+  <DisplayName/>
+  <Description/>
+  <CreatedAt>1761971865561</CreatedAt>
+  <LastModifiedAt>1761972582014</LastModifiedAt>
+  <BasePaths>/feature-data-helloworld-v1</BasePaths>
+  <Policies>
+    <Policy>JS-AddHelloWorld</Policy>
+  </Policies>
+  <ProxyEndpoints>
+    <ProxyEndpoint>default</ProxyEndpoint>
+  </ProxyEndpoints>
+  <Resources>
+    <Resource>jsc://hello-world.js</Resource>
+    <Resource>properties://helloworld.properties</Resource>
+  </Resources>
+  <TargetEndpoints>
+    <TargetEndpoint>default</TargetEndpoint>
+  </TargetEndpoints>
+</APIProxy>

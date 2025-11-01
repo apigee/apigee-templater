@@ -1,5 +1,12 @@
 # Apigee Feature Templater
-Apigee Feature Templater is a tool providing assisted & streamlined Apigee proxy authoring through the use of **Feature** and **Template** definitions in JSON or YAML format. It is especially useful for practioners who are not Apigee experts to create & configure advanced APIs, without needing detailed knowledge of the proxy logic.
+Apigee Feature Templater is an experimental tool providing assisted API authoring through the use of **Feature** and **Feature Template** definitions in JSON or YAML format, which can be created and managed through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers. This tool is **experimental** and explores a feature-based approach to API proxy building and configuration.
+
+## Workflow
+1. Apigee proxy developers develop and test technical feature proxies (names prefixed with **Feature-**) that provide individual, reusable functionalities. The tooling for this development uses all of the amazing existing Apigee tooling such as [apigeecli](https://github.com/apigee/apigeecli), [apigee-go-gen](https://github.com/apigee/apigee-go-gen), Apigee console, etc...
+
+2. The features are tested and published to a repository with documentation and parameter configuration information, making it easier for non-experts to understand the capabilities and use the features. A sample repository is in this repo in the [./repository](https://github.com/apigee/apigee-templater/tree/main/repository/features) directory.
+
+3. Practioners can use the CLI, MCP agents or web tools using the REST interface to build and publish APIs using the feature building-blocks.
 
 ## Getting started
 1. To begin let's install the tool in our local shell.
@@ -19,25 +26,138 @@ aft -o AI-Gateway-v1.yaml
 aft -i AI-Gateway-v1.yaml -a MODEL-Gemini-v1
 aft -i AI-Gateway-v1.yaml -a MODEL-Mistral-v1
 aft -i AI-Gateway-v1.yaml -a AUTH-Key-Header-v1
-# we could reference the features as file paths, or if no path is given it is attempted
-# to fetch them from the repository/features directory in this repository.
+# when applying features with -a, we can use file or https paths, or names from this
+# repo's ./repository directory.
 ```
 
-You'll notice now that our `AI-Gateway-v1.yaml` file includes the configuration parameters from the three features, as well as the endpoints. This is a **Template** file which when deployed will merge all features into a complete **User Proxy**.
+Notice now that our `AI-Gateway-v1.yaml` file includes the configuration parameters from the three features, as well as the endpoints. This is a **Feature Template** file which when deployed will merge all features into a complete proxy.
 
-3. Let's deploy the **Template** to an Apigee org.
+3. Deploy the **Template** to an Apigee org.
 
 ```sh
 PROJECT_ID=YOUR_PROJECT_ID
 aft -i AI-Gateway-v1.yaml -o $PROJECT_ID:AI-Gateway-v1 -t $(gcloud auth print-access-token)
 ```
 
-Now if you open the Apigee console and deploy the **AI-Gateway-v1** proxy to an Apigee environment, you can use both **Gemini** and **Mistral** at the `v1/gemini` and `v1/mistral` paths, each with API key authorization.
+Open the Apigee console and deploy the **AI-Gateway-v1** proxy to an Apigee environment, you can use both **Gemini** and **Mistral** at the `v1/gemini` and `v1/mistral` paths, each with API key authorization.
 
-You'll notice that we deployed an AI Gateway with no Apigee proxy configuration needed - the **Features** took care of all of the proxy configuration details. Since **Apigee Feature Templater** offers **CLI, REST and MCP** interfaces, this opens up API creation and configuration to a wide audience of API, AI & cloud practioners in the organization, while API teams can focus on resuable feature development.
+## Concepts
+### Features
+A feature JSON or YAML file models an individual functionality that can be reused in many proxies. A feature file also includes documentation, input parameter descriptions, as well as the complete feature logic, including resources and policies, completely self-contained. You can import/export Apigee proxies to feature files, making it easy to leverage the Apigee console or existing tooling for building features.
+
+### Example feature file
+A feature file can be created from an Apigee proxy ZIP, folder, or remote from an org. The `-f feature` at the end is important because it says convert the proxy format to a feature format with input parameter configuration, making it more reusable.
+```yaml
+# import extracted apigee proxy (from ./test/proxies/DATA-HelloWorld-v1)
+aft -i ./test/proxies/DATA-HelloWorld-v1 -o DATA-HelloWorld-v1.yaml -f feature
+# OR import from an Apigee org
+aft -i GCP_PROJECT_ID:Feature-DATA-HelloWorld-v1 -o DATA-HelloWorld-v1.yaml -f feature
+```
+The resulting example feature file contains all of the proxy logic, along with any propertysets converted into input parameters that can be configured. This feature takes a configurable message and adds it to the response payload, if it exists.
+```yaml
+name: DATA-HelloWorld-v1
+type: feature
+description: Proxy for DATA-HelloWorld-v1
+parameters:
+  - name: MESSAGE
+    displayName: MESSAGE
+    description: Configuration input for MESSAGE
+    default: Hello world!
+    examples: []
+endpointFlows:
+  - name: PostFlow
+    mode: Response
+    steps:
+      - name: JS-AddHelloWorld
+targetFlows: []
+endpoints: []
+targets: []
+policies:
+  - name: JS-AddHelloWorld
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-AddHelloWorld
+        DisplayName:
+          _text: JS-AddHelloWorld
+        Properties: {}
+        ResourceURL:
+          _text: jsc://hello-world.js
+resources:
+  - name: hello-world.js
+    type: jsc
+    content: |-
+      var responseObject = response.content.asJSON;
+
+      if (responseObject) {
+        var message = context.getVariable("request.queryparam.message");
+        if (!message)
+          message = context.getVariable("propertyset.helloworld.MESSAGE");
+        if (!message)
+          message = "Hello world!";
+        responseObject["message"] = message;
+        context.setVariable("response.content", JSON.stringify(responseObject))
+      }
+  - name: helloworld.properties
+    type: properties
+    content: |
+      MESSAGE={MESSAGE}
+```
+## Feature Templates
+Feature template files bundle multiple features with configuration parameters and documentation, making it easier to manage for proxy deployments.
+
+### Example feature template file
+An empty feature template file can be created using `aft -o FILENAME` which simply creates an empty output file. We could also add `-f feature`, however this is the default and is not needed for new files.
+
+```sh
+# create empty feature template file
+aft -o HttpBin-Proxy-v1.yaml
+
+# apply HttpBin and HelloWorld features, -i means input file, and is the default -o output if nothing else is set
+aft -i HttpBin-Proxy-v1.yaml -a ./repository/features/PROXY-HttpBin-v1.yaml
+aft -i HttpBin-Proxy-v1.yaml -a ./repository/features/DATA-HelloWorld-v1.yaml
+```
+Here is the resulting feature template file after applying the above features.
+```yaml
+name: HttpBin-Proxy-v1
+type: template
+description: API template for HttpBin-Proxy-v1
+features:
+  - repository/features/PROXY-HttpBin-v1.yaml
+  - repository/features/DATA-HelloWorld-v1.yaml
+parameters:
+  - name: DATA-HelloWorld-v1.MESSAGE
+    displayName: MESSAGE
+    description: Configuration input for MESSAGE
+    default: Hello world!
+    examples: []
+endpoints:
+  - name: httpbin
+    basePath: /v1/httpbin
+    routes:
+      - name: default
+        target: httpbin
+targets:
+  - name: httpbin
+    url: https://httpbin.org
+```
+This feature template file references two features, and also includes all parameters, endpoints and targets from all features into one bundle that can be deployed. If there would have been a conflict, it would have been output as a warning (with the last conflict winning).
+
+Export this feature template to an Apigee org, or convert to an Apigee zip and deploy via [apigeecli](https://github.com/apigee/apigeecli).
+
+```sh
+# export to an apigee org
+aft -i HttpBin-Proxy-v1.yaml -o GCP_PROJECT_ID:HttpBinProxy-v1 -t $(gcloud auth print-access-token)
+# export to an Apigee zip
+aft -i HttpBin-Proxy-v1.yaml -o HttpBinProxy-v1.zip
+```
 
 ## REST & MCP server
-After cloning this repository you can start the REST & MCP server like this.
+The above examples all use the `aft` CLI tool to work with features, however we can also use MCP or REST. After cloning this repository you can start the REST & MCP server using npm.
 ```sh
 # install dependencies
 npm i
