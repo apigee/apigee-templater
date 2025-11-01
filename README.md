@@ -23,8 +23,8 @@ npm update apigee-templater -g
 # create an empty template, -o means output file
 aft -o AI-Gateway-v1.yaml
 # apply Gemini and Mistral features, -i means input file and -a means apply feature
-aft -i AI-Gateway-v1.yaml -a MODEL-Gemini-v1
-aft -i AI-Gateway-v1.yaml -a MODEL-Mistral-v1
+aft -i AI-Gateway-v1.yaml -a PROXY-Gemini-v1
+aft -i AI-Gateway-v1.yaml -a PROXY-Mistral-v1
 aft -i AI-Gateway-v1.yaml -a AUTH-Key-Header-v1
 # when applying features with -a, we can use file or https paths, or names from this
 # repo's ./repository directory.
@@ -32,7 +32,7 @@ aft -i AI-Gateway-v1.yaml -a AUTH-Key-Header-v1
 
 Notice now that our `AI-Gateway-v1.yaml` file includes the configuration parameters from the three features, as well as the endpoints. This is a **Feature Template** file which when deployed will merge all features into a complete proxy.
 
-3. Deploy the **Template** to an Apigee org.
+3. Export the **Feature Template** to an Apigee org.
 
 ```sh
 PROJECT_ID=YOUR_PROJECT_ID
