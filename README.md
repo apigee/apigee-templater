@@ -1,14 +1,14 @@
 <p style="border-radius: 25px;" align="center"><img width="244" height="244" alt="image" src="https://github.com/user-attachments/assets/1226eb3c-c34f-4dbf-b318-be32cc99a2bb" /></p>
 
-Note: This is a new version (v3) with feature templating. The previous version v2 is available in the [v2 branch](https://github.com/apigee/apigee-templater/tree/v2).
+🚀 New experimental version v3 with **feature templating**. The previous version v2 is available in the [v2 branch](https://github.com/apigee/apigee-templater/tree/v2).
 
 # Apigee Feature Templater
-Apigee Feature Templater is **an experimental tool** providing assisted API authoring through the use of **Feature** and **Feature Template** definitions in JSON or YAML format, which can be created and managed through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers. This tool is **experimental** and explores a feature-based approach to API proxy building and configuration.
+Apigee Feature Templater is **an experimental tool** providing assisted API authoring through the use of **Feature** and **Feature Template** definitions in JSON or YAML formats created and managed through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers. This tool is **experimental** and explores a feature-based approach to API proxy building and configuration.
 
 ## Workflow
 1. Apigee proxy developers develop and test technical feature proxies (names prefixed with **Feature-**) that provide individual, reusable functionalities. The tooling for this development uses all of the amazing existing Apigee tooling such as [apigeecli](https://github.com/apigee/apigeecli), [apigee-go-gen](https://github.com/apigee/apigee-go-gen), Apigee console, etc...
 
-2. The features are tested and published to a repository with documentation and parameter configuration information, making it easier for non-experts to understand the capabilities and use the features. A sample repository is in this repo in the [./repository](https://github.com/apigee/apigee-templater/tree/main/repository/features) directory.
+2. The features are tested and published to a repository with documentation, metadata and parameter configuration information, making it easier for non-experts to understand the capabilities and use the features. A sample repository is in this repo in the [./repository](https://github.com/apigee/apigee-templater/tree/main/repository/features) directory.
 
 3. Practioners can use the CLI, MCP agents or web tools using the REST interface to build and publish APIs using the feature building-blocks.
 
@@ -30,8 +30,8 @@ aft -o AI-Gateway-v1.yaml
 aft -i AI-Gateway-v1.yaml -a PROXY-Gemini-v1
 aft -i AI-Gateway-v1.yaml -a PROXY-Mistral-v1
 aft -i AI-Gateway-v1.yaml -a AUTH-Key-Header-v1
-# when applying features with -a, we can use file or https paths, or names from this
-# repo's ./repository directory.
+# when applying features with -a, we can use file or https paths,
+# or names from the ./repository/features directory.
 ```
 
 Notice now that our `AI-Gateway-v1.yaml` file includes the configuration parameters from the three features, as well as the endpoints. This is a **Feature Template** file which when deployed will merge all features into a complete proxy.
