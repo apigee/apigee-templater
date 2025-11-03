@@ -4,10 +4,10 @@
 🚀 New experimental version v3. The previous version v2 is available in the [v2 branch](https://github.com/apigee/apigee-templater/tree/v2).
 
 # Apigee Feature Templater
-Apigee Feature Templater is **an experimental tool** providing assisted API authoring through the use of **Feature** and **Feature Template** definitions in JSON or YAML formats created and managed through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers. This tool is **experimental** and explores a feature-based approach to API proxy building and configuration.
+Apigee Feature Templater (or **aft**) is **an experimental tool** providing assisted API authoring through the use of **Feature** and **Feature Template** definitions in JSON or YAML formats created and managed through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers. This tool is **experimental** and explores a feature-based approach to API proxy building and configuration.
 
 ## Workflow
-1. Apigee proxy developers develop and test technical feature proxies (names prefixed with **Feature-**) that provide individual, reusable functionalities. The tooling for this development uses all of the amazing existing Apigee tooling such as [apigeecli](https://github.com/apigee/apigeecli), [apigee-go-gen](https://github.com/apigee/apigee-go-gen), Apigee console, etc...
+1. Apigee proxy experts develop and test technical feature proxies (names prefixed with **Feature-**) that provide individual, reusable functionalities. The tooling for this development uses all of the amazing existing Apigee tooling such as [apigeecli](https://github.com/apigee/apigeecli), [apigee-go-gen](https://github.com/apigee/apigee-go-gen), [apigelint](https://github.com/apigee/apigeelint), Apigee console, etc...
 
 2. The features are tested and published to a repository with documentation, metadata and parameter configuration information, making it easier for non-experts to understand the capabilities and use the features. A sample repository is in this repo in the [./repository](https://github.com/apigee/apigee-templater/tree/main/repository/features) directory.
 
