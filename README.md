@@ -1,4 +1,4 @@
-<p style="border-radius: 25px;" align="center"><img width="244" height="244" alt="Gemini_Generated_Image_eggxhdeggxhdeggx" src="https://github.com/user-attachments/assets/17d2497a-bd66-4a95-89fc-bbbd01f1a97d" />
+<p style="border-radius: 25px;" align="center"><img width="244" height="244" alt="Gemini_Generated_Image_gsazengsazengsaz (1)" src="https://github.com/user-attachments/assets/ee5bb165-d4bc-4ce3-a720-5e9c0be73b16" />
 </p>
 
 🚀 New experimental version v3 with **feature templating**. The previous version v2 is available in the [v2 branch](https://github.com/apigee/apigee-templater/tree/v2).
