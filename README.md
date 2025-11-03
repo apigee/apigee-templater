@@ -1,6 +1,6 @@
-<p style="border-radius: 25px;" align="center"><img width="671" height="670" alt="Gemini_Generated_Image_h2nytbh2nytbh2ny" src="https://github.com/user-attachments/assets/06230d91-7708-4e4d-91d3-bc2649044973" /><br>apigee feature templater</p>
+<p style="border-radius: 25px;" align="center"><img width="244" height="244" alt="Gemini_Generated_Image_h2nytbh2nytbh2ny" src="https://github.com/user-attachments/assets/06230d91-7708-4e4d-91d3-bc2649044973" /><br>apigee feature templater</p>
 
-🚀 New experimental version v3 with **feature templating**. The previous version v2 is available in the [v2 branch](https://github.com/apigee/apigee-templater/tree/v2).
+🚀 New experimental version v3. The previous version v2 is available in the [v2 branch](https://github.com/apigee/apigee-templater/tree/v2).
 
 # Apigee Feature Templater
 Apigee Feature Templater is **an experimental tool** providing assisted API authoring through the use of **Feature** and **Feature Template** definitions in JSON or YAML formats created and managed through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers. This tool is **experimental** and explores a feature-based approach to API proxy building and configuration.
