@@ -121,7 +121,8 @@ An empty feature template file can be created using `aft -o FILENAME` which simp
 # create empty feature template file
 aft -o HttpBin-Proxy-v1.yaml
 
-# apply HttpBin and HelloWorld features, -i means input file, and is the default -o output if nothing else is set
+# apply HttpBin and HelloWorld features, -i means input file,
+# and is the default -o output if nothing else is set
 aft -i HttpBin-Proxy-v1.yaml -a ./repository/features/PROXY-HttpBin-v1.yaml
 aft -i HttpBin-Proxy-v1.yaml -a ./repository/features/DATA-HelloWorld-v1.yaml
 ```
