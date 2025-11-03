@@ -6,6 +6,18 @@ export class Template {
   parameters: Parameter[] = [];
   endpoints: Endpoint[] = [];
   targets: Target[] = [];
+  tests?: Test[] = [];
+}
+
+export class Test {
+  description?: string = "";
+  proxy?: string = "";
+  endpoint: string = "";
+  headers?: string[] = [];
+  request?: string = "";
+  queryParams?: string[] = [];
+  variables?: string[] = [];
+  assertions: string[] = [];
 }
 
 export class Proxy {
@@ -18,6 +30,7 @@ export class Proxy {
   targets: ProxyTarget[] = [];
   policies: Policy[] = [];
   resources: Resource[] = [];
+  tests?: Test[] = [];
 }
 
 export class Endpoint {
@@ -90,6 +103,7 @@ export class Feature {
   type: string = "feature";
   description: string = "";
   priority?: number;
+  features?: string[] = [];
   parameters: Parameter[] = [];
   endpointFlows: Flow[] = [];
   targetFlows: Flow[] = [];
@@ -100,6 +114,7 @@ export class Feature {
 
   policies: Policy[] = [];
   resources: Resource[] = [];
+  tests?: Test[] = [];
 }
 
 export class Parameter {

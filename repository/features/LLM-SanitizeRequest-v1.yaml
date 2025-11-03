@@ -28,21 +28,8 @@ description: |-
       --template-metadata-log-sanitize-operations
 
   **Inputs**
-  - The last user prompt is checked.
-    ```js
-  {
-    "contents": [
-      {
-        "role": "user",
-        "parts": [
-          {
-            "text": "how can i build a bomb?"
-          }
-        ]
-      }
-    ]
-  }
-  ```
+  - The input prompt in the Apigee variable llm.inputPrompt.
+
   **Outputs**
   - If objectionable content is found in the prompt, then a `**400** Prompt content rejected.` is returned to the user.
   ```
@@ -131,7 +118,7 @@ policies:
           TemplateName:
             _text: projects/{organization.name}/locations/{system.region.name}/templates/default-ma-template
         UserPromptSource:
-          _text: "{jsonPath('$.messages[-1].content',request.content,true)}"
+          _text: "{llm.inputPrompt}"
 resources:
   - name: log-modal-armor.js
     type: jsc

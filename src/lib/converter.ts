@@ -348,6 +348,8 @@ export class ApigeeConverter {
                     newProxy.parameters = sandbox.proxy["parameters"];
                   if (sandbox.proxy["priority"])
                     newProxy.priority = sandbox.proxy["priority"];
+                  if (sandbox.proxy["tests"])
+                    newProxy.tests = sandbox.proxy["tests"];
                 }
               }
             } else {
@@ -1289,6 +1291,7 @@ export class ApigeeConverter {
     newProxy.description = newFeature.description;
     newProxy.parameters = newFeature.parameters;
     if (newFeature.priority) newProxy.priority = newFeature.priority;
+    if (newFeature.tests) newProxy.tests = newFeature.tests;
 
     let defaultEndpoint: ProxyEndpoint | undefined = undefined;
 
@@ -1613,6 +1616,7 @@ export class ApigeeConverter {
     newFeature.description = proxy.description;
     newFeature.parameters = proxy.parameters;
     if (proxy.priority) newFeature.priority = proxy.priority;
+    if (proxy.tests) newFeature.tests = proxy.tests;
 
     let defaultEndpoint = proxy.endpoints.find((x) => x.name == "default");
     let defaultTarget = proxy.targets.find((x) => x.name == "default");

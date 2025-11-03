@@ -1,33 +1,18 @@
 name: LLM-ExtractPrompt-v1
 type: feature
 description: |
-  This feature tries to extract the user prompt the last entry in the `contents.parts`
-  request collection. If an input prompt is found, then the number of tokens is estimated
-  using a local javascript method.
+  This feature tries to extract the last user prompt from both gemini as well as openapi prompt formats.
 
   ## Prerequisites
   None.
 
   ## Inputs
-  - User prompt request content in this format:
-    ```json
-    {
-      "contents": [
-        {
-          "role": "user",
-          "parts": [
-            {
-              "text": "why is the sky blue?"
-            }
-          ]
-        }
-      ]
-    }
-    ```
+  - User prompts are checked in both the contents.parts (gemini) and messages.content (openapi) structures.
 
   ## Outputs
   - If a prompt is found, it is written to the Apigee variable **llm.inputPrompt**.
   - If a prompt is found, the estimated token length is written to the Apigee variable **llm.promptEstimatedTokenCount**.
+priority: 10
 parameters: []
 endpointFlows:
   - name: PreFlow
@@ -58,15 +43,9 @@ resources:
     content: |-
       var promptInput = "";
       var requestObject = request.content.asJSON;
-      if (requestObject["contents"]) {
-        // gemini format
-        const userConversations = requestObject.contents.filter(item => item.role === 'user');
-        const lastUserConversation = userConversations[userConversations.length - 1];
-        promptInput = lastUserConversation.parts[lastUserConversation.parts.length - 1].text;
-      } else if (requestObject["messages"]) {
-        // openapi format
-        const userConversations = requestObject.messages.filter(item => item.role === 'user');
-        promptInput = userConversations[userConversations.length - 1].content;
+
+      if (requestObject) {
+        promptInput = getLastPrompt(requestObject);
       }
 
       context.setVariable("llm.promptInput", promptInput);
@@ -87,3 +66,51 @@ resources:
         context.setVariable("llm.promptEstimatedTokenCount", result);
         context.setVariable("quota.weight", result);
       }
+
+      function getLastPrompt(requestObject) {
+        var promptInput = "";
+        if (requestObject && requestObject["contents"]) {
+          // gemini format
+          var userConversations = requestObject.contents.filter(item => item.role === 'user');
+          if (userConversations.length > 0) {
+            var lastUserConversation = userConversations[userConversations.length - 1];
+            if (lastUserConversation && lastUserConversation.parts && lastUserConversation.parts.length > 0)
+              promptInput = lastUserConversation.parts[lastUserConversation.parts.length - 1].text;
+          }
+        } else if (requestObject && requestObject["messages"]) {
+          // openapi format
+          var userConversations = requestObject.messages.filter(item => item.role === 'user');
+          if (userConversations && userConversations.length > 0) {
+            var lastUserConversation = userConversations[userConversations.length - 1];
+            if (lastUserConversation.content && Array.isArray(lastUserConversation.content) && lastUserConversation.content.length > 0) {
+              // array of content
+              const contentTexts = lastUserConversation.content.filter(item => item.type === 'text');
+              if (contentTexts && contentTexts.length > 0) {
+                promptInput = contentTexts[contentTexts.length - 1].text;
+              }
+            } else if (lastUserConversation.content) {
+              promptInput = lastUserConversation.content;
+            }
+          }
+        }
+
+        return promptInput;
+      }
+tests:
+  - description: Simple openapi format
+    request: '{"messages": [{"role": "user", "content": "why is the sky blue?"}]}'
+    assertions:
+      - llm.promptInput==="why is the sky blue?"
+      - llm.promptEstimatedTokenCount===6.666666666666667
+  - description: Array openapi format
+    request:
+      '{"messages": [{"role": "user", "content": [{"type": "text", "text":
+      "why is the sky blue?"}]}]}'
+    assertions:
+      - llm.promptInput==="why is the sky blue?"
+      - llm.promptEstimatedTokenCount===6.666666666666667
+  - description: Gemini format
+    request: '{"contents": [{"role": "user", "parts": [{"text": "why is the sky blue?"}]}]}'
+    assertions:
+      - llm.promptInput==="why is the sky blue?"
+      - llm.promptEstimatedTokenCount===6.666666666666667

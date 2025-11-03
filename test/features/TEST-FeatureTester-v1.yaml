@@ -1,0 +1,95 @@
+name: TEST-FeatureTester-v1
+type: feature
+description: TEST-FeatureTester-v1
+features: []
+parameters: []
+endpointFlows: []
+targetFlows: []
+endpoints:
+  - name: tester
+    basePath: /v1/test
+    routes:
+      - name: default
+        target: tester
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: JS-SetTestData
+          - name: AM-SetPayload
+            condition: tester.content != null
+    faultRules: []
+targets:
+  - name: tester
+    url: ""
+    flows: []
+    faultRules: []
+    localTargetConnection:
+      APIProxy:
+        _text: "{tester.proxy}"
+      ProxyEndpoint:
+        _text: "{tester.endpoint}"
+policies:
+  - name: AM-SetPayload
+    type: AssignMessage
+    content:
+      AssignMessage:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetPayload
+        DisplayName:
+          _text: AM-SetPayload
+        Properties: {}
+        Set:
+          Payload:
+            _text: "\n      {tester.content}\n    "
+        IgnoreUnresolvedVariables:
+          _text: "true"
+        AssignTo:
+          _attributes:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: JS-SetTestData
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetTestData
+        DisplayName:
+          _text: JS-SetTestData
+        Properties: {}
+        ResourceURL:
+          _text: jsc://set-test.js
+resources:
+  - name: set-test.js
+    type: jsc
+    content: |-
+      var requestObject = request.content.asJSON;
+
+      if (requestObject) {
+        context.setVariable("tester.proxy", requestObject["proxy"]);
+        context.setVariable("tester.endpoint", requestObject["endpoint"]);
+        context.setVariable("tester.content", requestObject["request"]);
+        context.setVariable("request.content", requestObject["request"]);
+
+        if (requestObject["variables"]) {
+          // set variables
+          for (var i=0; i<requestObject["variables"].length; i++) {
+            var variable = requestObject["variables"][i];
+            var equalsIndex = variable.indexOf("=");
+            var variableName = variable.substring(0, equalsIndex);
+            print("Found variable name: " + variableName);
+            var value = variable.substring(equalsIndex + 1);
+            print("Found value: " + value);
+            context.setVariable(variableName, value);
+          }
+        }
+      } else {
+        print("No tester configuration found!")
+      }
+tests: []

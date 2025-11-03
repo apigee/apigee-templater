@@ -11,37 +11,12 @@ description: |
   ```
 
   **Inputs**
-  - The last user prompt in this format will be masked using DLP. Sample input:
-  ```js
-  {
-    "contents": [
-      {
-        "role": "user",
-        "parts": [
-          {
-            "text": "can you remember my email address test@example.com and telephone number 801-417-4399 for me?"
-          }
-        ]
-      }
-    ]
-  }
-  ```
+  - The user input prompt in the apigee variable llm.inputPrompt will be masked.
+  - llm.inputPrompt="can you remember my email address test@example.com and telephone number 801-417-4399 for me?"
 
   **Outputs**
-  - The request payload is directly changed with the masked data. Sample output:
-  ```js
-  {
-    "contents": [
-      {
-        "role": "user",
-        "parts": [
-          {
-            "text": "can you remember my email address ****@********** and telephone number [telephone-number] for me?"
-          }
-        ]
-      }
-    ]
-  }
+  - The request payload is directly changed with the masked data.
+  - llm.inputPrompt="can you remember my email address ****@********** and telephone number [telephone-number] for me?"
   ```
 parameters:
   - name: PROJECT_ID
@@ -104,8 +79,7 @@ policies:
                 \          \"item\": {
 
                 \            \"value\":
-                \"{jsonPath('$.contents[-1].parts[-1].text',request.content,tru\
-                e)}\"
+                \"{llm.inputPrompt}\"
 
                 \          },
 
@@ -233,16 +207,9 @@ resources:
   - name: SetRequest.js
     type: jsc
     content: |-
-      var requestObj = request.content.asJSON;
-      print("request json: "+ JSON.stringify(requestObj));
-
       var maskedResponseObj = JSON.parse(context.getVariable("sensitiveDataProtectionResponse.content"));
       print("sdp response json: "+ JSON.stringify(maskedResponseObj));
 
-      if (maskedResponseObj["item"] && maskedResponseObj["item"]["value"] && requestObj && requestObj["contents"] && requestObj["contents"].length > 0) {
-        requestObj["contents"][requestObj["contents"].length - 1]["parts"][requestObj["contents"][requestObj["contents"].length - 1]["parts"].length - 1]["text"] = maskedResponseObj["item"]["value"];
+      if (maskedResponseObj["item"] && maskedResponseObj["item"]["value"]) {
+        context.setVariable("llm.inputPrompt", maskedResponseObj["item"]["value"]);
       }
-
-      print("changed request json: "+ JSON.stringify(requestObj));
-
-      context.setVariable("request.content", JSON.stringify(requestObj));

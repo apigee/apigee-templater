@@ -1,5 +1,7 @@
+<p align="center"><img width="329" height="326" alt="image" src="https://github.com/user-attachments/assets/1226eb3c-c34f-4dbf-b318-be32cc99a2bb" /></p>
+
 # Apigee Feature Templater
-Apigee Feature Templater is an experimental tool providing assisted API authoring through the use of **Feature** and **Feature Template** definitions in JSON or YAML format, which can be created and managed through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers. This tool is **experimental** and explores a feature-based approach to API proxy building and configuration.
+Apigee Feature Templater is **an experimental tool** providing assisted API authoring through the use of **Feature** and **Feature Template** definitions in JSON or YAML format, which can be created and managed through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers. This tool is **experimental** and explores a feature-based approach to API proxy building and configuration.
 
 ## Workflow
 1. Apigee proxy developers develop and test technical feature proxies (names prefixed with **Feature-**) that provide individual, reusable functionalities. The tooling for this development uses all of the amazing existing Apigee tooling such as [apigeecli](https://github.com/apigee/apigeecli), [apigee-go-gen](https://github.com/apigee/apigee-go-gen), Apigee console, etc...
