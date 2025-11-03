@@ -1,5 +1,8 @@
 <p style="border-radius: 25px;" align="center"><img width="244" height="244" alt="image" src="https://github.com/user-attachments/assets/1226eb3c-c34f-4dbf-b318-be32cc99a2bb" /></p>
 
+<img width="244" height="244" alt="Gemini_Generated_Image_dipgh1dipgh1dipg" src="https://github.com/user-attachments/assets/73feaf8c-9179-4bf2-942d-f51a469d2454" />
+
+
 🚀 New experimental version v3 with **feature templating**. The previous version v2 is available in the [v2 branch](https://github.com/apigee/apigee-templater/tree/v2).
 
 # Apigee Feature Templater
