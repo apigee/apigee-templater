@@ -1,4 +1,5 @@
-<p style="border-radius: 25px;" align="center"><img width="244" height="244" alt="Gemini_Generated_Image_h2nytbh2nytbh2ny" src="https://github.com/user-attachments/assets/06230d91-7708-4e4d-91d3-bc2649044973" /><br><b>apigee feature templater v3</b></p>
+<p align="center"><img width="244" height="244" alt="Gemini_Generated_Image_62tjhy62tjhy62tj" src="https://github.com/user-attachments/assets/e977197c-f5c5-4593-bcc6-b60194280b74" />
+<br><b>apigee feature templater v3</b></p>
 
 🚀 New experimental version v3. The previous version v2 is available in the [v2 branch](https://github.com/apigee/apigee-templater/tree/v2).
 
