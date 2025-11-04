@@ -1,23 +1,11 @@
 name: Feature-LLM-SanitizeResponse-v1
 type: feature
-description: Proxy for Feature-LLM-SanitizeResponse-v1
+description: Feature-LLM-SanitizeResponse-v1
 parameters:
-  - name: PROJECT_ID
-    displayName: Model Armor GCP Project Id
-    description: Configuration input for PROJECT_ID
-    default: "{organization.name}"
-    examples:
-      - "{organization.name}"
-  - name: REGION
-    displayName: Model Armor GCP region
-    description: Configuration input for REGION
-    default: "{system.region.name}"
-    examples:
-      - "{system.region.name}"
   - name: TEMPLATE_ID
-    displayName: Model Armor Template Id
+    displayName: TEMPLATE_ID
     description: Configuration input for TEMPLATE_ID
-    default: projects/{PROJECT_ID}/locations/{REGION}/templates/default-ma-template
+    default: projects/apigee-prod13/locations/europe-west1/templates/default-ma-template
     examples: []
 endpointFlows:
   - name: PostFlow
@@ -43,11 +31,15 @@ policies:
           _text: SMR-SanitizeResponse
         ModelArmor:
           TemplateName:
-            _text: "{TEMPLATE_ID}"
+            _text: "{propertyset.model-armor.TEMPLATE_ID}"
         UserPromptSource:
           _text: "{jsonPath('$.contents[-1].parts[-1].text',request.content,true)}"
         LLMResponseSource:
-          _text:
-            "{jsonPath('$.candidates[-1].content.parts[-1].text',response.content,tr\
+          _text: "{jsonPath('$.candidates[-1].content.parts[-1].text',response.content,tr\
             ue)}"
-resources: []
+resources:
+  - name: model-armor.properties
+    type: properties
+    content: |
+      TEMPLATE_ID={TEMPLATE_ID}
+tests: []

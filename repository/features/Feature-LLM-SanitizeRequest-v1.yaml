@@ -1,4 +1,4 @@
-name: LLM-SanitizeRequest-v1
+name: Feature-LLM-SanitizeRequest-v1
 type: feature
 description: |-
   This feature uses Google Cloud Model Armor to screen a request prompt,
@@ -28,7 +28,7 @@ description: |-
       --template-metadata-log-sanitize-operations
 
   **Inputs**
-  - The input prompt in the Apigee variable llm.promptInput.
+  - The prompt to check in the **llm.promptInput** variable.
 
   **Outputs**
   - If objectionable content is found in the prompt, then a `**400** Prompt content rejected.` is returned to the user.
@@ -123,9 +123,9 @@ resources:
   - name: log-modal-armor.js
     type: jsc
     content: |
-      // this needs to be fixed with correct variable if logging is wanted
-      // var mainfo = context.getVariable("SanitizeUserPrompt.SUP-SanitizeRequest");
-      // if (mainfo)
-      //  print(JSON.stringify(mainfo));
-      // else
-      print("No MA info found");
+      var mainfo = context.getVariable("SanitizeUserPrompt.SUP-SanitizeRequest");
+      if (mainfo)
+        print(JSON.stringify(mainfo));
+      else
+        print("No MA info found");
+tests: []

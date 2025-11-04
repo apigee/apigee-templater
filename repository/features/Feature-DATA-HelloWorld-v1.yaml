@@ -1,6 +1,6 @@
-name: DATA-HelloWorld-v1
+name: Feature-DATA-HelloWorld-v1
 type: feature
-description: Proxy for DATA-HelloWorld-v1
+description: Feature-DATA-HelloWorld-v1
 parameters:
   - name: MESSAGE
     displayName: MESSAGE
@@ -49,3 +49,4 @@ resources:
     type: properties
     content: |
       MESSAGE={MESSAGE}
+tests: []

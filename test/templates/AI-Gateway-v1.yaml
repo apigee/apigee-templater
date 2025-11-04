@@ -6,6 +6,7 @@ features:
   - ../../repository/features/PROXY-Mistral-v1.yaml
   - ../../repository/features/LLM-PromptExtract-v1.yaml
   - ../../repository/features/LLM-PromptMask-v1.yaml
+  - ../../repository/features/LLM-SanitizeRequest-v1.yaml
 parameters:
   - name: PROXY-Gemini-v1.PROJECT_ID
     displayName: PROJECT_ID
@@ -60,6 +61,23 @@ parameters:
     displayName: DLP Project Id
     description: Configuration input for PROJECT_ID
     default: apigee-prod13
+    examples: []
+  - name: LLM-SanitizeRequest-v1.PROJECT_ID
+    displayName: Model Armor GCP Project Id
+    description: Configuration input for PROJECT_ID
+    default: "{organization.name}"
+    examples:
+      - "{organization.name}"
+  - name: LLM-SanitizeRequest-v1.REGION
+    displayName: Model Armor GCP region
+    description: Configuration input for REGION
+    default: "{system.region.name}"
+    examples:
+      - "{system.region.name}"
+  - name: LLM-SanitizeRequest-v1.TEMPLATE_ID
+    displayName: Model Armor Template Id
+    description: Configuration input for TEMPLATE_ID
+    default: projects/{organization.name}/locations/{system.region.name}/templates/default-ma-template
     examples: []
 endpoints:
   - name: gemini

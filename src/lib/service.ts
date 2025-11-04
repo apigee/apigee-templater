@@ -685,7 +685,10 @@ export class ApigeeTemplaterService {
           resolve(undefined);
         }
       } else {
-        console.log(" > Apigee proxy GET response: " + response.status);
+        let message = await response.text();
+        console.log(
+          " > Apigee proxy GET response: " + response.status + " - " + message,
+        );
         resolve(undefined);
       }
     });

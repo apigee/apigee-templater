@@ -1,4 +1,4 @@
-name: LLM-PromptExtract-v1
+name: Feature-LLM-PromptExtract-v1
 type: feature
 description: |
   This feature tries to extract the last user prompt from both gemini as well as openapi prompt formats.
@@ -131,8 +131,7 @@ tests:
     assertions:
       - llm.promptInput==="why is the sky blue?"
       - llm.promptEstimatedTokenCount===6.666666666666667
-  - request:
-      '{"messages": [{"role": "user", "content": [{"type": "text", "text":
+  - request: '{"messages": [{"role": "user", "content": [{"type": "text", "text":
       "why is the sky blue?"}]}]}'
     assertions:
       - llm.promptInput==="why is the sky blue?"

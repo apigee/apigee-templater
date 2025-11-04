@@ -1,4 +1,4 @@
-name: LLM-PromptMask-v1
+name: Feature-LLM-PromptMask-v1
 type: feature
 description: |
   This feature masks PII data email addresses and telephone numbers from

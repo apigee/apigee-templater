@@ -1,6 +1,6 @@
-name: PROXY-HttpBin-v1
+name: Feature-PROXY-HttpBin-v1
 type: feature
-description: Proxy traffic from /v1/httpbin to https://httpbin.org.
+description: Feature-PROXY-HttpBin-v1
 parameters: []
 endpointFlows: []
 targetFlows: []
@@ -23,3 +23,4 @@ targets:
         _text: https://httpbin.org
 policies: []
 resources: []
+tests: []

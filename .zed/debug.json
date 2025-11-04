@@ -20,13 +20,6 @@
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
-    "args": [
-      "-i",
-      "./test/templates/AI-Gateway-v1.yaml",
-      "-o",
-      "test.local.yaml",
-      "-f",
-      "proxy"
-    ]
+    "args": ["-o", "apigee-prod13", "-i", "./repository/features"]
   }
 ]

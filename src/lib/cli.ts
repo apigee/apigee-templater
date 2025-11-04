@@ -207,6 +207,12 @@ export class cli {
     }
   }
 
+  printVersion() {
+    console.log(
+      `${chalk.bold(chalk.magentaBright(`> Apigee Feature Templater ${version}.`))}`,
+    );
+  }
+
   processDataSpec(): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       let receivedData = "";
@@ -242,8 +248,13 @@ export class cli {
 
     let options: cliArgs = this.parseArgumentsIntoOptions(args);
 
-    if (options.help || options.version) {
+    if (options.help) {
       this.printHelp();
+      return;
+    }
+
+    if (options.version) {
+      this.printVersion();
       return;
     }
 
@@ -318,19 +329,52 @@ export class cli {
           proxy.description = "Proxy for " + proxy.name;
       }
     } else if (fs.existsSync(options.input)) {
-      let file = await this.loadFile(options.name, options.input);
-      if (file && file["type"] === "template") template = file as Template;
-      else if (file && file["type"] === "proxy") proxy = file as Proxy;
-      else if (file && file["type"] === "feature") feature = file as Feature;
-      else if (file) {
-        console.log(
-          `${chalk.bold(chalk.redBright(`> Error reading '${options.input}', could not determine its type: \n ${JSON.stringify(file, null, 2)}`))}`,
-        );
+      let stats = fs.statSync(options.input);
+      if (stats.isDirectory()) {
+        // try to load all files and export to an apigee ORG
+        let files = fs.readdirSync(options.input);
+        for (let fileName of files) {
+          if (fileName.toLowerCase().startsWith("feature-")) {
+            let file = await this.loadFile("", options.input + "/" + fileName);
+            console.log(
+              ` > Exporting file ${fileName} to an Apigee feature proxy.`,
+            );
+            if (options.output.endsWith(".yaml"))
+              options.output = options.output.replace(".yaml", "");
+
+            proxy = this.converter.featureToProxy(file, inputParameters);
+            let outputPath = await this.converter.proxyToApigeeZip(proxy);
+            let lastRevision = "";
+            // export to apigee
+            if (!options.token) {
+              let token = await auth.getAccessToken();
+              if (token) options.token = token;
+            }
+            lastRevision = await this.apigeeService.apigeeProxyExport(
+              proxy.name,
+              outputPath,
+              options.output,
+              "Bearer " + options.token,
+            );
+            fs.rmSync(outputPath);
+          }
+        }
         return;
+      } else {
+        let file = await this.loadFile(options.name, options.input);
+        if (file && file["type"] === "template") template = file as Template;
+        else if (file && file["type"] === "proxy") proxy = file as Proxy;
+        else if (file && file["type"] === "feature") feature = file as Feature;
+        else if (file) {
+          console.log(
+            `${chalk.bold(chalk.redBright(`> Error reading '${options.input}', could not determine its type: \n ${JSON.stringify(file, null, 2)}`))}`,
+          );
+          return;
+        }
+        // change working directory so that path resolutions will work
+        let dirName = path.dirname(options.input);
+        process.chdir(dirName);
       }
-      // change working directory so that path resolutions will work
-      let dirName = path.dirname(options.input);
-      process.chdir(dirName);
     } else {
       // try to load it from remote repositories
       template = await this.apigeeService.templateGet(options.input);
@@ -349,6 +393,7 @@ export class cli {
         `Bearer ${options.token}`,
       );
       if (
+        !options.output &&
         proxyList &&
         proxyList["proxies"] &&
         proxyList["proxies"].length > 0
@@ -359,10 +404,46 @@ export class cli {
         for (let proxy of proxyList["proxies"]) {
           console.log(` - ${proxy["name"]}`);
         }
-      } else {
-        console.log(
-          `${chalk.bold(chalk.redBright(`> Input '${options.input}' could not be loaded, maybe incorrect spelling?`))}`,
-        );
+      } else if (
+        proxyList &&
+        proxyList["proxies"] &&
+        proxyList["proxies"].length > 0
+      ) {
+        // try to export all to features
+        for (let apigeeProxy of proxyList["proxies"]) {
+          if (
+            apigeeProxy["name"] &&
+            apigeeProxy["name"].toLowerCase().startsWith("feature-")
+          ) {
+            console.log(`Exporting - ${apigeeProxy["name"]}`);
+            let apigeePath = await this.apigeeService.apigeeProxyGet(
+              apigeeProxy["name"],
+              options.input,
+              "Bearer " + options.token,
+            );
+            if (apigeePath) {
+              proxy = await this.converter.apigeeZipToProxy(
+                apigeeProxy["name"],
+                apigeePath,
+              );
+              fs.rmSync(apigeePath);
+              feature = this.converter.proxyToFeature(proxy);
+              if (options.output.endsWith(".yaml"))
+                options.output = options.output.replace(".yaml", "");
+              let filePath = options.output.endsWith("/")
+                ? options.output + apigeeProxy["name"] + ".yaml"
+                : options.output + "/" + apigeeProxy["name"] + ".yaml";
+
+              fs.writeFileSync(
+                filePath,
+                YAML.stringify(feature, {
+                  aliasDuplicateObjects: false,
+                  blockQuote: "literal",
+                }),
+              );
+            }
+          }
+        }
       }
       return;
     } else {

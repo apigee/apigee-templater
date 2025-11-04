@@ -1,4 +1,4 @@
-name: LLM-TokenQuota-v1
+name: Feature-LLM-TokenQuota-v1
 type: feature
 description: |-
   This feature estimates the token length of an input prompt, checks
@@ -94,3 +94,4 @@ policies:
           SyncMessageCount:
             _text: "5"
 resources: []
+tests: []

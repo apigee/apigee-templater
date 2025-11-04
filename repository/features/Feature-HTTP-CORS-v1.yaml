@@ -1,4 +1,4 @@
-name: HTTP-CORS-v1
+name: Feature-HTTP-CORS-v1
 type: feature
 description: |
   This feature adds CORS handling to a proxy, with parameters for the allowed origins, methods and headers,
@@ -21,14 +21,9 @@ parameters:
       - "{request.header.origin}"
   - name: ALLOWED_HEADERS
     description: The allowed headers for clients to send.
-    default: "origin, x-requested-with, accept, content-type"
+    default: origin, x-requested-with, accept, content-type
     examples:
-      - "origin, x-requested-with, accept, content-type"
-  - name: ALLOWED_METHODS
-    description: The allowed methods for clients to use.
-    default: "GET, PUT, POST, DELETE"
-    examples:
-      - "GET, PUT, POST, DELETE"
+      - origin, x-requested-with, accept, content-type
 endpointFlows:
   - name: OptionsPreFlight
     mode: Request
@@ -41,6 +36,9 @@ targetFlows:
     mode: Request
     steps:
       - name: CORS-AddCors
+  - name: EventFlow
+    mode: Response
+    steps: []
 endpoints: []
 targets: []
 policies:
@@ -55,11 +53,11 @@ policies:
         DisplayName:
           _text: CORS-AddCors
         AllowOrigins:
-          _text: "{ALLOWED_ORIGINS}"
+          _text: ALLOWED_ORIGINS
         AllowMethods:
-          _text: "{ALLOWED_METHODS}"
+          _text: GET, PUT, POST, DELETE
         AllowHeaders:
-          _text: "{ALLOWED_HEADERS}"
+          _text: ALLOWED_HEADERS
         ExposeHeaders:
           _text: "*"
         MaxAge:
@@ -71,3 +69,4 @@ policies:
         IgnoreUnresolvedVariables:
           _text: "true"
 resources: []
+tests: []

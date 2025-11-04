@@ -1,18 +1,17 @@
-name: PROXY-Mistral-v1
+name: Feature-PROXY-Gemini-v1
 type: feature
 description: |
-  This feature adds an endpoints with basepath at v1/mistral, and proxies
-  requests to the Vertex AI Mistral endpoint in a configured region.
+  This feature adds an endpoints with basepath at v1/gemini, and proxies
+  requests to the Vertex AI Gemini endpoint in a configured region.
 
   ## Prerequisites
   - Vertex AI is enabled in the GCP Project.
     ```sh
     gcloud services enable aiplatform.googleapis.com
     ```
-  - A Mistral model is enabled in the [Vertex AI Model Garden](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/mistral-medium-3).
 
   ## Inputs
-  - Request prompt input in the OAI format:
+  - Request prompt in the OAI llm format:
     ```js
     {
       "messages": [{
@@ -27,7 +26,7 @@ description: |
   - Stores successful prompt token count in the **Apigee variable llm.promptTokenCount**
   - Stores successful response token count in the **Apigee variable llm.responseTokenCount**
   - Stores successful total token count in the **Apigee variable llm.totalTokenCount**
-  - Normal response from Mistral model in OAI format
+  - Normal response from Gemini in OAI format.
 parameters:
   - name: PROJECT_ID
     displayName: PROJECT_ID
@@ -37,35 +36,36 @@ parameters:
       - YOUR_PROJECT_ID
   - name: REGION
     displayName: REGION
-    description: The GCP region that should be used for the Vertex AI endpoint.
-    default: europe-west4
+    description: The GCP region that should be used for the Vertex AI Gemini endpoint.
+    default: europe-west1
     examples:
-      - europe-west4
-      - us-central1
+      - europe-west1
+      - us-east1
   - name: MODEL_ID
-    description: Configuration input for MODEL_ID
-    default: mistral-medium-3
+    displayName: MODEL_ID
+    description: The Gemini model to use for the request.
+    default: gemini-2.5-flash
     examples:
-      - mistral-medium-3
-      - mistral-small-2503
-  - name: MISTRAL_PATH
-    displayName: MISTRAL_PATH
-    description: Configuration input for MISTRAL_PATH
-    default: europe-west4-aiplatform.googleapis.com/v1/projects/apigee-prod13/locations/europe-west4/publishers/mistralai/models/mistral-medium-3:rawPredict
+      - gemini-2.5-flash
+      - gemini-2.5-pro
+  - name: GEMINI_PATH
+    displayName: GEMINI_PATH
+    description: Configuration input for GEMINI_PATH
+    default: europe-west1-aiplatform.googleapis.com/v1beta1/projects/apigee-prod13/locations/europe-west1/endpoints/openapi/chat/completions
     examples: []
 endpointFlows: []
 targetFlows: []
 endpoints:
-  - name: mistral
-    basePath: /v1/mistral
+  - name: gemini
+    basePath: /v1/gemini
     routes:
       - name: default
-        target: mistral
+        target: gemini
     flows: []
     faultRules: []
 targets:
-  - name: mistral
-    url: https://{propertyset.mistral.MISTRAL_PATH}
+  - name: gemini
+    url: https://{propertyset.gemini.GEMINI_PATH}
     auth: GoogleAccessToken
     scopes:
       - https://www.googleapis.com/auth/cloud-platform
@@ -73,37 +73,38 @@ targets:
       - name: PreFlow
         mode: Request
         steps:
-          - name: JS-SetMistralModel
-          - name: JS-SetMistralPrompt
+          - name: JS-SetGeminiModel
+          - name: JS-SetGeminiPrompt
             condition: llm.promptInput != null
       - name: PostFlow
         mode: Response
         steps:
-          - name: EV-MistralStoreInfo
+          - name: EV-GeminiStoreInfo
       - name: EventFlow
         mode: Response
-        steps: []
+        steps:
+          - name: JS-SetStreamInfo
     faultRules: []
     httpTargetConnection:
       Properties: {}
       URL:
-        _text: https://{propertyset.mistral.MISTRAL_PATH}
+        _text: https://{propertyset.gemini.GEMINI_PATH}
       Authentication:
         GoogleAccessToken:
           Scopes:
             Scope:
               _text: https://www.googleapis.com/auth/cloud-platform
 policies:
-  - name: EV-MistralStoreInfo
+  - name: EV-GeminiStoreInfo
     type: ExtractVariables
     content:
       ExtractVariables:
         _attributes:
           continueOnError: "false"
           enabled: "true"
-          name: EV-MistralStoreInfo
+          name: EV-GeminiStoreInfo
         DisplayName:
-          _text: EV-MistralStoreInfo
+          _text: EV-GeminiStoreInfo
         Properties: {}
         IgnoreUnresolvedVariables:
           _text: "true"
@@ -131,7 +132,7 @@ policies:
           _text: response
         VariablePrefix:
           _text: llm
-  - name: JS-SetMistralModel
+  - name: JS-SetGeminiModel
     type: Javascript
     content:
       Javascript:
@@ -139,13 +140,13 @@ policies:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
-          name: JS-SetMistralModel
+          name: JS-SetGeminiModel
         DisplayName:
-          _text: JS-SetMistralModel
+          _text: JS-SetGeminiModel
         Properties: {}
         ResourceURL:
-          _text: jsc://set-mistral-model.js
-  - name: JS-SetMistralPrompt
+          _text: jsc://set-gemini-model.js
+  - name: JS-SetGeminiPrompt
     type: Javascript
     content:
       Javascript:
@@ -153,25 +154,42 @@ policies:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
-          name: JS-SetMistralPrompt
+          name: JS-SetGeminiPrompt
         DisplayName:
-          _text: JS-SetMistralPrompt
+          _text: JS-SetGeminiPrompt
         Properties: {}
         ResourceURL:
-          _text: jsc://set-mistral-prompt.js
+          _text: jsc://set-gemini-prompt.js
+  - name: JS-SetStreamInfo
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetStreamInfo
+        DisplayName:
+          _text: JS-SetStreamInfo
+        Properties: {}
+        ResourceURL:
+          _text: jsc://set-gemini-stream-info.js
 resources:
-  - name: set-mistral-model.js
+  - name: set-gemini-model.js
     type: jsc
     content: |-
       var requestObject = request.content.asJSON;
-      var model = context.getVariable("propertyset.mistral.MODEL_ID");
+      var model = context.getVariable("propertyset.gemini.MODEL_ID");
 
       if (requestObject) {
-        requestObject["model"] = model;
+        if (model.startsWith("google/"))
+          requestObject["model"] = model;
+        else
+          requestObject["model"] = "\"google/" + model + "\"";
       }
 
       context.setVariable('request.content', JSON.stringify(requestObject));
-  - name: set-mistral-prompt.js
+  - name: set-gemini-prompt.js
     type: jsc
     content: |-
       var requestObject = request.content.asJSON;
@@ -210,9 +228,31 @@ resources:
 
         return requestObject;
       }
-  - name: mistral.properties
+  - name: set-gemini-stream-info.js
+    type: jsc
+    content: |
+      var streamString = context.getVariable("response.event.current.content");
+      if (streamString) {
+        streamString = streamString.replace("data: ", "");
+        if (streamString != "[DONE]") {
+          var streamData = JSON.parse(streamString);
+
+          if (streamData["model"])
+            context.setVariable("llm.model", streamData["model"]);
+
+          if (streamData["usage"] && streamData["usage"]["prompt_tokens"])
+            context.setVariable("llm.promptTokenCount", streamData["usage"]["prompt_tokens"]);
+          
+          if (streamData["usage"] && streamData["usage"]["completion_tokens"])
+            context.setVariable("llm.responseTokenCount", streamData["usage"]["completion_tokens"]);
+
+          if (streamData["usage"] && streamData["usage"]["total_tokens"])
+            context.setVariable("llm.totalTokenCount", streamData["usage"]["total_tokens"]);
+        }
+      }
+  - name: gemini.properties
     type: properties
     content: |
       MODEL_ID={MODEL_ID}
-      MISTRAL_PATH={MISTRAL_PATH}
+      GEMINI_PATH={GEMINI_PATH}
 tests: []

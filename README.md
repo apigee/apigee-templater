@@ -6,10 +6,12 @@
 # Apigee Feature Templater
 Apigee Feature Templater (or **aft**) is **an experimental tool** providing assisted API authoring through the use of **Feature** and **Feature Template** definitions in JSON or YAML formats created and managed through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers. This tool is **experimental** and explores a feature-based approach to API proxy building and configuration.
 
-## Workflow
-1. Apigee proxy experts develop and test technical feature proxies that provide individual, reusable functionalities. This development uses all of the amazing Apigee tooling such as [apigeecli](https://github.com/apigee/apigeecli), [apigee-go-gen](https://github.com/apigee/apigee-go-gen), [apigelint](https://github.com/apigee/apigeelint), Apigee console, etc...
+Check out the [wiki](https://github.com/apigee/apigee-templater/wiki) for more detailed documentation.
 
-2. The features are tested and published to a repository with documentation, metadata and parameter configuration information, making it easier for non-experts to understand the capabilities and use the features. A sample repository is in this repo in the [./repository](https://github.com/apigee/apigee-templater/tree/main/repository/features) directory.
+## Workflow
+1. Apigee proxy experts develop and test technical feature proxies that provide individual, reusable functionalities. This development uses all of the amazing Apigee tooling such as [apigeecli](https://github.com/apigee/apigeecli), [apigee-go-gen](https://github.com/apigee/apigee-go-gen), [apigelint](https://github.com/apigee/apigeelint), Apigee console, etc... Feature proxies have the prefix **Feature-**, making them easy to recognize.
+
+2. The features are imported using **aft** to YAML or JSON files, with metadata and parameter configuration information, making it easier for non-experts to understand the capabilities and use the features. A sample repository is in this repo in the [./repository](https://github.com/apigee/apigee-templater/tree/main/repository/features) directory.
 
 3. Practioners can use the CLI, MCP agents or web tools using the REST interface to build and publish APIs using the feature building-blocks.
 
