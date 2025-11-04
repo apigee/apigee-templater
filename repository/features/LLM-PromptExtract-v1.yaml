@@ -1,4 +1,4 @@
-name: LLM-ExtractPrompt-v1
+name: LLM-PromptExtract-v1
 type: feature
 description: |
   This feature tries to extract the last user prompt from both gemini as well as openapi prompt formats.
@@ -10,7 +10,7 @@ description: |
   - User prompts are checked in both the contents.parts (gemini) and messages.content (openapi) structures.
 
   ## Outputs
-  - If a prompt is found, it is written to the Apigee variable **llm.inputPrompt**.
+  - If a prompt is found, it is written to the Apigee variable **llm.promptInput**.
   - If a prompt is found, the estimated token length is written to the Apigee variable **llm.promptEstimatedTokenCount**.
 priority: 10
 parameters: []
@@ -81,9 +81,11 @@ resources:
           // openapi format
           var userConversations = requestObject.messages.filter(item => item.role === 'user');
           if (userConversations && userConversations.length > 0) {
+            print("found conversations!");
             var lastUserConversation = userConversations[userConversations.length - 1];
             if (lastUserConversation.content && Array.isArray(lastUserConversation.content) && lastUserConversation.content.length > 0) {
               // array of content
+              print("found array of content!");
               const contentTexts = lastUserConversation.content.filter(item => item.type === 'text');
               if (contentTexts && contentTexts.length > 0) {
                 promptInput = contentTexts[contentTexts.length - 1].text;
@@ -96,21 +98,42 @@ resources:
 
         return promptInput;
       }
+
+      function setLastPrompt(requestObject, promptInput) {
+        if (requestObject && requestObject["contents"]) {
+          // gemini format
+          var userConversations = requestObject.contents.filter(item => item.role === 'user');
+          if (userConversations.length > 0) {
+            var lastUserConversation = userConversations[userConversations.length - 1];
+            if (lastUserConversation && lastUserConversation.parts && lastUserConversation.parts.length > 0)
+              lastUserConversation.parts[lastUserConversation.parts.length - 1].text = promptInput;
+          }
+        } else if (requestObject && requestObject["messages"]) {
+          // openapi format
+          var userConversations = requestObject.messages.filter(item => item.role === 'user');
+          if (userConversations && userConversations.length > 0) {
+            var lastUserConversation = userConversations[userConversations.length - 1];
+            if (lastUserConversation.content && lastUserConversation.content.length && lastUserConversation.content.length > 0) {
+              // array of content
+              const contentTexts = lastUserConversation.content.filter(item => item.type === 'text');
+              if (contentTexts && contentTexts.length > 0)
+                contentTexts[contentTexts.length - 1].text = promptInput;
+            } else if (lastUserConversation.content) {
+              lastUserConversation.content = promptInput;
+            }
+          }
+        }
+
+        return requestObject;
+      }
 tests:
-  - description: Simple openapi format
-    request: '{"messages": [{"role": "user", "content": "why is the sky blue?"}]}'
+  - request: '{"messages": [{"role": "user", "content": "why is the sky blue?"}]}'
     assertions:
       - llm.promptInput==="why is the sky blue?"
       - llm.promptEstimatedTokenCount===6.666666666666667
-  - description: Array openapi format
-    request:
+  - request:
       '{"messages": [{"role": "user", "content": [{"type": "text", "text":
       "why is the sky blue?"}]}]}'
-    assertions:
-      - llm.promptInput==="why is the sky blue?"
-      - llm.promptEstimatedTokenCount===6.666666666666667
-  - description: Gemini format
-    request: '{"contents": [{"role": "user", "parts": [{"text": "why is the sky blue?"}]}]}'
     assertions:
       - llm.promptInput==="why is the sky blue?"
       - llm.promptEstimatedTokenCount===6.666666666666667

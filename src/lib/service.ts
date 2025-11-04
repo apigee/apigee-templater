@@ -1,9 +1,9 @@
 import { ApigeeConverter } from "./converter.js";
 import { Template, Proxy, Feature } from "./interfaces.js";
 import fs from "fs";
+import path from "path";
 import * as YAML from "yaml";
 import { Blob } from "buffer";
-import { Readable } from "node:stream";
 
 export class ApigeeTemplaterService {
   tempPath: string = "./data/temp/";
@@ -345,6 +345,8 @@ export class ApigeeTemplaterService {
         foundYaml = true;
       } else if (fs.existsSync(tempName)) {
         featureString = fs.readFileSync(tempName, "utf8");
+        let dirName = path.dirname(tempName);
+        process.chdir(dirName);
         if (tempName.endsWith(".yaml")) foundYaml = true;
         else foundJson = true;
       } else {
@@ -565,19 +567,49 @@ export class ApigeeTemplaterService {
       if (template) {
         let features: Feature[] = [];
         for (let featureName of template.features) {
-          let feature = await this.featureGet(featureName);
-          if (feature) features.push(feature);
+          let results = await this.loadFeatures(featureName);
+          if (results) features = features.concat(results);
           else {
             // abort, could not load feature
-            console.error(`Could not load feature ${feature}, aborting...`);
+            console.error(`Could not load feature ${featureName}.`);
             resolve(undefined);
           }
+          // let feature = await this.featureGet(featureName);
+          // if (feature) features.push(feature);
+          // else {
+          //   // abort, could not load feature
+          //   console.error(`Could not load feature ${feature}, aborting...`);
+          //   resolve(undefined);
+          // }
         }
 
-        proxy = converter.templateToProxy(template, features, parameters);
+        const uniqueFeatures = Array.from(
+          new Set(features.map((a) => a.name)),
+        ).map((name) => {
+          return features.find((a) => a.name === name);
+        }) as Feature[];
+
+        proxy = converter.templateToProxy(template, uniqueFeatures, parameters);
       }
 
       resolve(proxy);
+    });
+  }
+
+  public async loadFeatures(
+    featureName: string,
+  ): Promise<Feature[] | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let features: Feature[] = [];
+      let feature = await this.featureGet(featureName);
+      if (feature) {
+        features.push(feature);
+      } else {
+        console.error(`Could not load feature ${featureName}.`);
+        resolve(undefined);
+      }
+
+      resolve(features);
     });
   }
 

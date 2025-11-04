@@ -28,7 +28,7 @@ description: |-
       --template-metadata-log-sanitize-operations
 
   **Inputs**
-  - The input prompt in the Apigee variable llm.inputPrompt.
+  - The input prompt in the Apigee variable llm.promptInput.
 
   **Outputs**
   - If objectionable content is found in the prompt, then a `**400** Prompt content rejected.` is returned to the user.
@@ -118,7 +118,7 @@ policies:
           TemplateName:
             _text: projects/{organization.name}/locations/{system.region.name}/templates/default-ma-template
         UserPromptSource:
-          _text: "{llm.inputPrompt}"
+          _text: "{llm.promptInput}"
 resources:
   - name: log-modal-armor.js
     type: jsc

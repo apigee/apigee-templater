@@ -1,4 +1,4 @@
-name: Feature-LLM-MaskRequest-v1
+name: LLM-PromptMask-v1
 type: feature
 description: |
   This feature masks PII data email addresses and telephone numbers from
@@ -11,20 +11,16 @@ description: |
   ```
 
   **Inputs**
-  - The user input prompt in the apigee variable llm.inputPrompt will be masked.
-  - llm.inputPrompt="can you remember my email address test@example.com and telephone number 801-417-4399 for me?"
+  - The input variable **llm.promptInput** will be sent to DLP to be masked.
 
   **Outputs**
-  - The request payload is directly changed with the masked data.
-  - llm.inputPrompt="can you remember my email address ****@********** and telephone number [telephone-number] for me?"
-  ```
+  - The DLM masked result is set back into the variable **llm.promptInput**.
 parameters:
   - name: PROJECT_ID
     displayName: DLP Project Id
     description: Configuration input for PROJECT_ID
-    default: "{organization.name}"
-    examples:
-      - "{organization.name}"
+    default: apigee-prod13
+    examples: []
 endpointFlows:
   - name: PreFlow
     mode: Request
@@ -48,7 +44,7 @@ policies:
           _text: JS-SetMaskedRequest
         Properties: {}
         ResourceURL:
-          _text: jsc://SetRequest.js
+          _text: jsc://set-masked-prompt.js
   - name: SC-SensitiveDataProtection
     type: ServiceCallout
     content:
@@ -78,8 +74,7 @@ policies:
 
                 \          \"item\": {
 
-                \            \"value\":
-                \"{llm.inputPrompt}\"
+                \            \"value\": \"{llm.promptInput}\"
 
                 \          },
 
@@ -197,19 +192,24 @@ policies:
         HTTPTargetConnection:
           Properties: {}
           URL:
-            _text: https://dlp.googleapis.com/v2/projects/{PROJECT_ID}/content:deidentify
+            _text: https://dlp.googleapis.com/v2/projects/{propertyset.dlp.PROJECT_ID}/content:deidentify
           Authentication:
             GoogleAccessToken:
               Scopes:
                 Scope:
                   _text: https://www.googleapis.com/auth/cloud-platform
 resources:
-  - name: SetRequest.js
+  - name: set-masked-prompt.js
     type: jsc
     content: |-
       var maskedResponseObj = JSON.parse(context.getVariable("sensitiveDataProtectionResponse.content"));
       print("sdp response json: "+ JSON.stringify(maskedResponseObj));
 
       if (maskedResponseObj["item"] && maskedResponseObj["item"]["value"]) {
-        context.setVariable("llm.inputPrompt", maskedResponseObj["item"]["value"]);
+        context.setVariable("llm.promptInput", maskedResponseObj["item"]["value"]);
       }
+  - name: dlp.properties
+    type: properties
+    content: |
+      PROJECT_ID={PROJECT_ID}
+tests: []

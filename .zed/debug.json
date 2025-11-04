@@ -21,10 +21,10 @@
     "stopOnEntry": false,
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
     "args": [
-      "-o",
-      "./repository/features/LLM-ExtractPrompt-v1.yaml",
       "-i",
-      "apigee-prod13:Feature-LLM-ExtractPrompt-v1",
+      "./test/templates/AI-Gateway-v1.yaml",
+      "-o",
+      "test.local.yaml",
       "-f",
       "proxy"
     ]

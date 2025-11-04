@@ -24,6 +24,7 @@ import { ApigeeConverter } from "./converter.js";
 import { Proxy, Feature, Template } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 import { GoogleAuth } from "google-auth-library";
+import { version } from "./version.js";
 
 const auth = new GoogleAuth({
   scopes: "https://www.googleapis.com/auth/cloud-platform",
@@ -62,6 +63,7 @@ export class cli {
         "--parameters": String,
         "--token": String,
         "--help": Boolean,
+        "--version": Boolean,
         "-i": "--input",
         "-n": "--name",
         "-b": "--basePath",
@@ -73,11 +75,18 @@ export class cli {
         "-p": "--parameters",
         "-t": "--token",
         "-h": "--help",
+        "-v": "--version",
       },
       {
         argv: rawArgs.slice(2),
       },
     );
+
+    // in case just a file name was passed in, use it to output a new feature
+    if (args["_"] && args["_"][0]) {
+      args["--output"] = args["_"][0];
+    }
+
     return {
       input: args["--input"] || "",
       name: args["--name"] || "",
@@ -90,6 +99,7 @@ export class cli {
       parameters: args["--parameters"] || "",
       token: args["--token"] || "",
       help: args["--help"] || false,
+      version: args["--version"] || false,
     };
   }
 
@@ -99,7 +109,18 @@ export class cli {
       options.output = options.output.replace(".js", ".json");
     if (options.output.endsWith(".yml"))
       options.output = options.output.replace(".yml", ".yaml");
-    if (options.output.includes(":")) options.format = "proxy";
+    if (options.output.includes(":")) {
+      options.format = "proxy";
+    } else if (
+      options.output &&
+      !options.output.toLowerCase().endsWith(".yaml") &&
+      !options.output.toLowerCase().endsWith(".json") &&
+      !options.output.toLowerCase().endsWith(".zip") &&
+      !options.output.toLowerCase().endsWith(".dir")
+    ) {
+      if (options.output.endsWith(".")) options.output += "yaml";
+      else options.output += ".yaml";
+    }
 
     if (!options.name) {
       if (options.output) {
@@ -177,7 +198,7 @@ export class cli {
 
   printHelp() {
     console.log(
-      `${chalk.bold(chalk.magentaBright("> Welcome to Apigee Templater! Here are all the parameters:"))}`,
+      `${chalk.bold(chalk.magentaBright(`> Welcome to Apigee Feature Templater ${version}! All parameters:`))}`,
     );
     for (const line of helpCommands) {
       console.log(
@@ -221,14 +242,14 @@ export class cli {
 
     let options: cliArgs = this.parseArgumentsIntoOptions(args);
 
-    if (options.help) {
+    if (options.help || options.version) {
       this.printHelp();
       return;
     }
 
     if (!options.input) {
       console.log(
-        `${chalk.bold(chalk.magentaBright("> Welcome to Apigee Templater"))}, ${chalk.green("use -h to view all command line options.")} `,
+        `${chalk.bold(chalk.magentaBright("> Welcome to Apigee Feature Templater " + version))}, ${chalk.green("use -h to view all command line options.")} `,
       );
     }
 
@@ -388,12 +409,13 @@ export class cli {
         let removeFeature = await this.apigeeService.featureGet(
           options.removeFeature,
         );
-        if (template && removeFeature)
+        if (template && removeFeature) {
           template = this.converter.templateRemoveFeature(
             template,
             removeFeature,
             relativePath,
           );
+        }
       }
 
       // generally print generated output overview
@@ -646,6 +668,7 @@ class cliArgs {
   parameters = "";
   token = "";
   help = false;
+  version = false;
 }
 
 const helpCommands = [
@@ -691,7 +714,16 @@ const helpCommands = [
   },
   {
     name: "--token, -t",
-    description: "A Google Cloud token to use with the Apigee API",
+    description:
+      "A Google Cloud token to use with the Apigee API, not needed if default application credentials are available.",
+  },
+  {
+    name: "--help, -h",
+    description: "Display version and help.",
+  },
+  {
+    name: "--version, -v",
+    description: "Display version and help.",
   },
 ];
 

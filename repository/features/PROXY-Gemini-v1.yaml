@@ -11,44 +11,22 @@ description: |
     ```
 
   ## Inputs
-  - Request prompt input in the form:
+  - Request prompt in the OAI llm format:
     ```js
     {
-      "contents": [
-        {
-          "role": "user",
-          "parts": [
-            {
-              "text": "why is the sky blue?"
-            }
-          ]
-        }
-      ]
+      "messages": [{
+        "role": "user",
+        "content": "Why is the sky blue?"
+      }],
+      "stream": true
     }
     ```
 
-    ## Outputs
-    - Stores successful prompt token count in the **Apigee variable llm.promptTokenCount**
-    - Stores successful response token count in the **Apigee variable llm.responseTokenCount**
-    - Stores successful total token count in the **Apigee variable llm.totalTokenCount**
-    - Normal response from Gemini, something like this:
-      ```js
-      {
-        "candidates": [
-          {
-            "content": {
-              "role": "model",
-              "parts": [
-                {
-                  "text": "The sky is blue because of a phenomenon called **Rayleigh scattering**. Here's a breakdown of why this happens:\n\n**1. Sunlight is White (but Actually Made of Colors):**\n\n* Sunlight might look white to us, but it's actually composed of all the colors of the rainbow – red, orange, yellow, green, blue, indigo, and violet. You can see this when sunlight passes through a prism or raindrops, creating a rainbow.\n\n**2. Sunlight Enters the Earth's Atmosphere:**\n\n* As sunlight travels through space and reaches Earth, it enters our atmosphere. Our atmosphere is made up mostly of nitrogen and oxygen molecules.\n\n**3. Light Interacts with Air Molecules:**\n\n* When sunlight hits these tiny air molecules, it gets scattered in different directions.  This scattering is called **Rayleigh scattering**, named after the British physicist Lord Rayleigh who explained it.\n\n**4. Rayleigh Scattering Favors Shorter Wavelengths:**\n\n* **Here's the key:** Rayleigh scattering is much more effective at scattering **shorter wavelengths** of light than longer wavelengths.\n    * **Shorter wavelengths:**  Blue and violet light have shorter wavelengths.\n    * **Longer wavelengths:** Red and orange light have longer wavelengths.\n\n* Think of it like this: Imagine throwing a small ball (blue light) and a large ball (red light) at a bunch of small obstacles (air molecules). The small ball is much more likely to be deflected in many directions, while the large ball is more likely to go straight through or be deflected less.\n\n**5. Blue Light is Scattered More:**\n\n* Because blue and violet light have shorter wavelengths, they are scattered much more by the air molecules than red and orange light.\n\n**6. We See the Scattered Blue Light:**\n\n* When you look up at the sky on a clear day, you are seeing this scattered blue light.  Blue light is scattered in all directions by the atmosphere, and some of this scattered blue light reaches your eyes from all over the sky.\n\n**Why not Violet then?**\n\nViolet light is scattered even *more* than blue light because it has an even shorter wavelength. However, the sky appears blue to us, not violet, for a couple of reasons:\n\n* **Sunlight Intensity:**  The sun actually emits slightly less violet light than blue light in the visible spectrum.\n* **Our Eyes Are Less Sensitive to Violet:**  Our eyes are more sensitive to blue than violet.\n* **Scattering at Higher Altitudes:** Some violet light is scattered away higher in the atmosphere before it reaches us.\n\n**In Summary:**\n\nThe sky is blue because:\n\n* Sunlight is made of all colors.\n* Air molecules scatter sunlight.\n* Rayleigh scattering is more effective at scattering shorter wavelengths (blue and violet).\n* We see the scattered blue light when we look up at the sky.\n\n**Think about sunsets and sunrises:**\n\nWhen the sun is low on the horizon, the sunlight has to travel through much more of the atmosphere to reach your eyes.  During this longer journey:\n\n* **Most of the blue light is scattered away** before it reaches you.\n* **The longer wavelengths like red and orange** are scattered less and can travel through the atmosphere to reach your eyes.\n\nThis is why sunsets and sunrises often appear red and orange – you're seeing the longer wavelengths of light that haven't been scattered away."
-                }
-              ]
-            }
-          }
-        ]
-      }
-      ```
-features: []
+  ## Outputs
+  - Stores successful prompt token count in the **Apigee variable llm.promptTokenCount**
+  - Stores successful response token count in the **Apigee variable llm.responseTokenCount**
+  - Stores successful total token count in the **Apigee variable llm.totalTokenCount**
+  - Normal response from Gemini in OAI format.
 parameters:
   - name: PROJECT_ID
     displayName: PROJECT_ID
@@ -95,13 +73,13 @@ targets:
       - name: PreFlow
         mode: Request
         steps:
-          - name: JS-SetModel
-          - name: JS-SetPrompt
-            condition: llm.inputPrompt != null
+          - name: JS-SetGeminiModel
+          - name: JS-SetGeminiPrompt
+            condition: llm.promptInput != null
       - name: PostFlow
         mode: Response
         steps:
-          - name: EV-StoreModelInfo
+          - name: EV-GeminiStoreInfo
       - name: EventFlow
         mode: Response
         steps: []
@@ -116,16 +94,16 @@ targets:
             Scope:
               _text: https://www.googleapis.com/auth/cloud-platform
 policies:
-  - name: EV-StoreModelInfo
+  - name: EV-GeminiStoreInfo
     type: ExtractVariables
     content:
       ExtractVariables:
         _attributes:
           continueOnError: "false"
           enabled: "true"
-          name: EV-StoreModelInfo
+          name: EV-GeminiStoreInfo
         DisplayName:
-          _text: EV-StoreModelInfo
+          _text: EV-GeminiStoreInfo
         Properties: {}
         IgnoreUnresolvedVariables:
           _text: "true"
@@ -154,7 +132,7 @@ policies:
           _text: response
         VariablePrefix:
           _text: llm
-  - name: JS-SetModel
+  - name: JS-SetGeminiModel
     type: Javascript
     content:
       Javascript:
@@ -162,13 +140,13 @@ policies:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
-          name: JS-SetModel
+          name: JS-SetGeminiModel
         DisplayName:
-          _text: JS-SetModel
+          _text: JS-SetGeminiModel
         Properties: {}
         ResourceURL:
-          _text: jsc://set-model.js
-  - name: JS-SetPrompt
+          _text: jsc://set-gemini-model.js
+  - name: JS-SetGeminiPrompt
     type: Javascript
     content:
       Javascript:
@@ -176,14 +154,14 @@ policies:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
-          name: JS-SetPrompt
+          name: JS-SetGeminiPrompt
         DisplayName:
-          _text: JS-SetPrompt
+          _text: JS-SetGeminiPrompt
         Properties: {}
         ResourceURL:
-          _text: jsc://set-prompt.js
+          _text: jsc://set-gemini-prompt.js
 resources:
-  - name: set-model.js
+  - name: set-gemini-model.js
     type: jsc
     content: |-
       var requestObject = request.content.asJSON;
@@ -197,15 +175,15 @@ resources:
       }
 
       context.setVariable('request.content', JSON.stringify(requestObject));
-  - name: set-prompt.js
+  - name: set-gemini-prompt.js
     type: jsc
     content: |-
       var requestObject = request.content.asJSON;
-      var inputPrompt = context.getVariable("llm.inputPrompt");
+      var inputPrompt = context.getVariable("llm.promptInput");
 
       if (requestObject && inputPrompt) {
         requestObject = setLastPrompt(requestObject, inputPrompt);
-        context.setVariable("request.content", JSON.stringify(requetsObject));
+        context.setVariable("request.content", JSON.stringify(requestObject));
       }
 
       function setLastPrompt(requestObject, inputPrompt) {
@@ -226,10 +204,10 @@ resources:
               // array of content
               const contentTexts = lastUserConversation.content.filter(item => item.type === 'text');
               if (contentTexts && contentTexts.length > 0) {
-                contentTexts[contentTexts.length - 1].text = promptInput;
+                contentTexts[contentTexts.length - 1].text = inputPrompt;
               }
             } else if (lastUserConversation.content) {
-              lastUserConversation.content = promptInput;
+              lastUserConversation.content = inputPrompt;
             }
           }
         }
@@ -241,10 +219,4 @@ resources:
     content: |
       MODEL_ID={MODEL_ID}
       GEMINI_PATH={GEMINI_PATH}
-tests:
-  - description: Gemini input prompt test, the feature should replace the request prompt with the variable prompt
-    proxy: Feature-PROXY-Gemini-v1
-    endpoint: gemini
-    request: '{"messages": [{"role": "user", "content": "why is the sky blue?"}]}'
-    variables:
-      - llm.inputPrompt=what is a galaxy?
+tests: []

@@ -1,0 +1,85 @@
+name: AI-Gateway-v1
+type: template
+description: API template for AI-Gateway-v1
+features:
+  - ../../repository/features/PROXY-Gemini-v1.yaml
+  - ../../repository/features/PROXY-Mistral-v1.yaml
+  - ../../repository/features/LLM-PromptExtract-v1.yaml
+  - ../../repository/features/LLM-PromptMask-v1.yaml
+parameters:
+  - name: PROXY-Gemini-v1.PROJECT_ID
+    displayName: PROJECT_ID
+    description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
+    default: YOUR_PROJECT_ID
+    examples:
+      - YOUR_PROJECT_ID
+  - name: PROXY-Gemini-v1.REGION
+    displayName: REGION
+    description: The GCP region that should be used for the Vertex AI Gemini endpoint.
+    default: europe-west1
+    examples:
+      - europe-west1
+      - us-east1
+  - name: PROXY-Gemini-v1.MODEL_ID
+    displayName: MODEL_ID
+    description: The Gemini model to use for the request.
+    default: gemini-2.5-flash
+    examples:
+      - gemini-2.5-flash
+      - gemini-2.5-pro
+  - name: PROXY-Gemini-v1.GEMINI_PATH
+    displayName: GEMINI_PATH
+    description: Configuration input for GEMINI_PATH
+    default: europe-west1-aiplatform.googleapis.com/v1beta1/projects/apigee-prod13/locations/europe-west1/endpoints/openapi/chat/completions
+    examples: []
+  - name: PROXY-Mistral-v1.PROJECT_ID
+    displayName: PROJECT_ID
+    description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
+    default: YOUR_PROJECT_ID
+    examples:
+      - YOUR_PROJECT_ID
+  - name: PROXY-Mistral-v1.REGION
+    displayName: REGION
+    description: The GCP region that should be used for the Vertex AI endpoint.
+    default: europe-west4
+    examples:
+      - europe-west4
+      - us-central1
+  - name: PROXY-Mistral-v1.MODEL_ID
+    description: Configuration input for MODEL_ID
+    default: mistral-medium-3
+    examples:
+      - mistral-medium-3
+      - mistral-small-2503
+  - name: PROXY-Mistral-v1.MISTRAL_PATH
+    displayName: MISTRAL_PATH
+    description: Configuration input for MISTRAL_PATH
+    default: europe-west4-aiplatform.googleapis.com/v1/projects/apigee-prod13/locations/europe-west4/publishers/mistralai/models/mistral-medium-3:rawPredict
+    examples: []
+  - name: LLM-PromptMask-v1.PROJECT_ID
+    displayName: DLP Project Id
+    description: Configuration input for PROJECT_ID
+    default: apigee-prod13
+    examples: []
+endpoints:
+  - name: gemini
+    basePath: /v1/gemini
+    routes:
+      - name: default
+        target: gemini
+  - name: mistral
+    basePath: /v1/mistral
+    routes:
+      - name: default
+        target: mistral
+targets:
+  - name: gemini
+    url: https://{propertyset.gemini.GEMINI_PATH}
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+  - name: mistral
+    url: https://{propertyset.mistral.MISTRAL_PATH}
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform

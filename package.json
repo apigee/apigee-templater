@@ -1,6 +1,6 @@
 {
   "name": "apigee-templater",
-  "version": "3.5.8",
+  "version": "3.5.14",
   "description": "Provides tooling for feature development of Apigee proxies using YAML, JSON and ZIP formats, and REST, MCP & CLI interfaces.",
   "main": "index.js",
   "directories": {
@@ -8,7 +8,7 @@
     "example": "examples"
   },
   "scripts": {
-    "build": "npx tsc",
+    "build": "genversion ./src/lib/version.ts --esm && npx tsc",
     "start": "npm run build && node dist/index.js",
     "test": "npm run build && vitest"
   },
@@ -53,6 +53,7 @@
     "@types/node": "^24.3.0",
     "@types/yauzl": "^2.10.3",
     "@types/yazl": "^3.3.0",
+    "genversion": "^3.2.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }

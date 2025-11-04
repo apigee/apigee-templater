@@ -1,6 +1,7 @@
 export class Template {
   name: string = "";
   type: string = "template";
+  priority?: number;
   description: string = "";
   features: string[] = [];
   parameters: Parameter[] = [];
@@ -103,7 +104,6 @@ export class Feature {
   type: string = "feature";
   description: string = "";
   priority?: number;
-  features?: string[] = [];
   parameters: Parameter[] = [];
   endpointFlows: Flow[] = [];
   targetFlows: Flow[] = [];

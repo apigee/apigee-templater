@@ -1,5 +1,5 @@
 <p align="center"><img width="244" height="244" alt="Gemini_Generated_Image_62tjhy62tjhy62tj" src="https://github.com/user-attachments/assets/e977197c-f5c5-4593-bcc6-b60194280b74" />
-<br><b>apigee feature templater v3</b></p>
+<br><b>Apigee Feature Templater v3</b></p>
 
 🚀 New experimental version v3. The previous version v2 is available in the [v2 branch](https://github.com/apigee/apigee-templater/tree/v2).
 
@@ -7,7 +7,7 @@
 Apigee Feature Templater (or **aft**) is **an experimental tool** providing assisted API authoring through the use of **Feature** and **Feature Template** definitions in JSON or YAML formats created and managed through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers. This tool is **experimental** and explores a feature-based approach to API proxy building and configuration.
 
 ## Workflow
-1. Apigee proxy experts develop and test technical feature proxies (names prefixed with **Feature-**) that provide individual, reusable functionalities. The tooling for this development uses all of the amazing existing Apigee tooling such as [apigeecli](https://github.com/apigee/apigeecli), [apigee-go-gen](https://github.com/apigee/apigee-go-gen), [apigelint](https://github.com/apigee/apigeelint), Apigee console, etc...
+1. Apigee proxy experts develop and test technical feature proxies that provide individual, reusable functionalities. This development uses all of the amazing Apigee tooling such as [apigeecli](https://github.com/apigee/apigeecli), [apigee-go-gen](https://github.com/apigee/apigee-go-gen), [apigelint](https://github.com/apigee/apigeelint), Apigee console, etc...
 
 2. The features are tested and published to a repository with documentation, metadata and parameter configuration information, making it easier for non-experts to understand the capabilities and use the features. A sample repository is in this repo in the [./repository](https://github.com/apigee/apigee-templater/tree/main/repository/features) directory.
 
@@ -25,8 +25,8 @@ npm update apigee-templater -g
 2. Next let's create an empty template for an **AI Gateway API** that will proxy both **Gemini** and **Mistral** endpoints from Vertex AI, along with API key authorization.
 
 ```sh
-# create an empty template, -o means output file
-aft -o AI-Gateway-v1.yaml
+# create an empty template
+aft AI-Gateway-v1.yaml
 # apply Gemini and Mistral features, -i means input file and -a means apply feature
 aft -i AI-Gateway-v1.yaml -a PROXY-Gemini-v1
 aft -i AI-Gateway-v1.yaml -a PROXY-Mistral-v1
@@ -41,7 +41,7 @@ Notice now that our `AI-Gateway-v1.yaml` file includes the configuration paramet
 
 ```sh
 PROJECT_ID=YOUR_PROJECT_ID
-aft -i AI-Gateway-v1.yaml -o $PROJECT_ID:AI-Gateway-v1 -t $(gcloud auth print-access-token)
+aft -i AI-Gateway-v1.yaml -o $PROJECT_ID:AI-Gateway-v1
 ```
 
 Open the Apigee console and deploy the **AI-Gateway-v1** proxy to an Apigee environment, you can use both **Gemini** and **Mistral** at the `v1/gemini` and `v1/mistral` paths, each with API key authorization.

@@ -1187,7 +1187,19 @@ export class ApigeeConverter {
     proxy.name = template.name;
     proxy.description = template.description;
     proxy.parameters = template.parameters;
+    if (template.priority) proxy.priority = template.priority;
+    if (template.tests) proxy.tests = template.tests;
 
+    proxy = this.proxyApplyFeatures(proxy, features, parameters);
+
+    return proxy;
+  }
+
+  public proxyApplyFeatures(
+    proxy: Proxy,
+    features: Feature[],
+    parameters: { [key: string]: string } = {},
+  ): Proxy {
     // replace any runtime parameters
     this.proxyUpdateParameters(proxy, parameters);
 
@@ -1513,7 +1525,13 @@ export class ApigeeConverter {
         }
 
         if (!foundFlow) {
-          endpoint.flows.push(featureFlow);
+          let newFlow = new Flow(
+            featureFlow.name,
+            featureFlow.mode,
+            featureFlow.condition,
+          );
+          newFlow.steps = newFlow.steps.concat(featureFlow.steps);
+          endpoint.flows.push(newFlow);
         }
       }
     }
@@ -1535,7 +1553,13 @@ export class ApigeeConverter {
         }
 
         if (!foundFlow) {
-          target.flows.push(featureFlow);
+          let newFlow = new Flow(
+            featureFlow.name,
+            featureFlow.mode,
+            featureFlow.condition,
+          );
+          newFlow.steps = newFlow.steps.concat(featureFlow.steps);
+          target.flows.push(newFlow);
         }
       }
     }
