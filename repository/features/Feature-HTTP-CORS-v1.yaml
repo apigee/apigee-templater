@@ -24,21 +24,35 @@ parameters:
     default: origin, x-requested-with, accept, content-type
     examples:
       - origin, x-requested-with, accept, content-type
-endpointFlows:
-  - name: OptionsPreFlight
-    mode: Request
-    condition: request.verb == "OPTIONS" AND request.header.origin != null AND
-      request.header.Access-Control-Request-Method != null
-    steps:
-      - name: CORS-AddCors
-targetFlows:
-  - name: PreFlow
-    mode: Request
-    steps:
-      - name: CORS-AddCors
-  - name: EventFlow
-    mode: Response
-    steps: []
+defaultEndpoint:
+  name: default
+  basePath: /feature-http-cors-v1
+  routes:
+    - name: default
+      target: default
+  flows:
+    - name: OptionsPreFlight
+      mode: Request
+      condition: request.verb == "OPTIONS" AND request.header.origin != null AND
+        request.header.Access-Control-Request-Method != null
+      steps:
+        - name: CORS-AddCors
+  faultRules: []
+defaultTarget:
+  name: default
+  url: https://httpbin.org
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: CORS-AddCors
+    - name: EventFlow
+      mode: Response
+      steps: []
+  faultRules: []
+  httpTargetConnection:
+    URL:
+      _text: https://httpbin.org
 endpoints: []
 targets: []
 policies:

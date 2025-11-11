@@ -2,8 +2,6 @@ name: Feature-PROXY-HttpBin-v1
 type: feature
 description: Feature-PROXY-HttpBin-v1
 parameters: []
-endpointFlows: []
-targetFlows: []
 endpoints:
   - name: httpbin
     basePath: /v1/httpbin
@@ -15,7 +13,10 @@ endpoints:
 targets:
   - name: httpbin
     url: https://httpbin.org
-    flows: []
+    flows:
+      - name: EventFlow
+        mode: Response
+        steps: []
     faultRules: []
     httpTargetConnection:
       Properties: {}

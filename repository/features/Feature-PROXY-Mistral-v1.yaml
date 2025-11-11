@@ -53,8 +53,6 @@ parameters:
     description: Configuration input for MISTRAL_PATH
     default: europe-west4-aiplatform.googleapis.com/v1/projects/apigee-prod13/locations/europe-west4/publishers/mistralai/models/mistral-medium-3:rawPredict
     examples: []
-endpointFlows: []
-targetFlows: []
 endpoints:
   - name: mistral
     basePath: /v1/mistral

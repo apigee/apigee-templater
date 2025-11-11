@@ -190,6 +190,7 @@ Sample agent requests:
 
 ## Limitations
 Currently these features are not yet supported:
+- Target fault rules and default fault rule are not yet converted. Endpoint faults are converted.
 - The MCP service does not yet use parameters when applying features, so currently only default values are used.
 
 ## Contributing

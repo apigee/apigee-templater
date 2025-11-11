@@ -6,21 +6,35 @@ description: |-
   post-flow.
 priority: 150
 parameters: []
-endpointFlows: []
-targetFlows:
-  - name: PreFlow
-    mode: Request
-    steps:
-      - name: Q-CheckQuota
-        condition: quota.limit != null
-  - name: PostFlow
-    mode: Response
-    steps:
-      - name: Q-UpdateQuota
-        condition: quota.limit != null
-  - name: EventFlow
-    mode: Response
-    steps: []
+defaultEndpoint:
+  name: default
+  basePath: /feature-llm-tokenquota-v1
+  routes:
+    - name: default
+      target: default
+  flows: []
+  faultRules: []
+defaultTarget:
+  name: default
+  url: https://httpbin.org
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: Q-CheckQuota
+          condition: quota.limit != null
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: Q-UpdateQuota
+          condition: quota.limit != null
+    - name: EventFlow
+      mode: Response
+      steps: []
+  faultRules: []
+  httpTargetConnection:
+    URL:
+      _text: https://httpbin.org
 endpoints: []
 targets: []
 policies:

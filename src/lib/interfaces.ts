@@ -11,9 +11,10 @@ export class Template {
 }
 
 export class Test {
+  name: string = "";
   description?: string = "";
-  proxy?: string = "";
-  endpoint: string = "";
+  path?: string = "";
+  verb?: string = "";
   headers?: string[] = [];
   request?: string = "";
   queryParams?: string[] = [];
@@ -32,6 +33,7 @@ export class Proxy {
   policies: Policy[] = [];
   resources: Resource[] = [];
   tests?: Test[] = [];
+  testFeature?: string;
 }
 
 export class Endpoint {
@@ -44,7 +46,7 @@ export class ProxyEndpoint extends Endpoint {
   flows: Flow[] = [];
   postClientFlow?: Flow;
   faultRules?: Flow[] = [];
-  defaultFaultRule?: Flow;
+  defaultFaultRule?: FaultRule;
 }
 
 export class Route {
@@ -71,6 +73,10 @@ export class Step {
   condition?: string;
 }
 
+export class FaultRule extends Flow {
+  alwaysEnforce: boolean = false;
+}
+
 export class Target {
   name: string = "";
   url: string = "";
@@ -82,7 +88,7 @@ export class Target {
 export class ProxyTarget extends Target {
   flows: Flow[] = [];
   faultRules?: Flow[] = [];
-  defaultFaultRule?: Flow;
+  defaultFaultRule?: FaultRule;
   httpTargetConnection?: any;
   localTargetConnection?: any;
 }
@@ -105,16 +111,16 @@ export class Feature {
   description: string = "";
   priority?: number;
   parameters: Parameter[] = [];
-  endpointFlows: Flow[] = [];
-  targetFlows: Flow[] = [];
-
-  // optional complete endpoints and targets
+  defaultEndpoint?: ProxyEndpoint;
+  defaultTarget?: ProxyTarget;
+  // endpointFlows: Flow[] = [];
+  // targetFlows: Flow[] = [];
   endpoints: ProxyEndpoint[] = [];
   targets: ProxyTarget[] = [];
-
   policies: Policy[] = [];
   resources: Resource[] = [];
   tests?: Test[] = [];
+  testFeature?: string;
 }
 
 export class Parameter {

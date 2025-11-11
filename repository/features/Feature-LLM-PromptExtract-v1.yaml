@@ -14,12 +14,36 @@ description: |
   - If a prompt is found, the estimated token length is written to the Apigee variable **llm.promptEstimatedTokenCount**.
 priority: 10
 parameters: []
-endpointFlows:
-  - name: PreFlow
-    mode: Request
-    steps:
-      - name: JS-EstimateTokens
-targetFlows: []
+defaultEndpoint:
+  name: default
+  basePath: /feature-llm-promptextract-v1
+  routes:
+    - name: default
+      target: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: JS-EstimateTokens
+    - name: PostFlow
+      mode: Response
+      steps: []
+  faultRules: []
+  defaultFaultRule:
+    name: default-fault
+    steps: []
+    alwaysEnforce: "true"
+defaultTarget:
+  name: default
+  url: https://httpbin.org
+  flows:
+    - name: EventFlow
+      mode: Response
+      steps: []
+  faultRules: []
+  httpTargetConnection:
+    URL:
+      _text: https://httpbin.org
 endpoints: []
 targets: []
 policies:
@@ -136,3 +160,4 @@ tests:
     assertions:
       - llm.promptInput==="why is the sky blue?"
       - llm.promptEstimatedTokenCount===6.666666666666667
+testFeature: Feature-TESTER-v1

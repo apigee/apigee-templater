@@ -6,3 +6,4 @@ export MCP_USER_URL=
 export SERVICE_URL=
 export AUTH_API_KEY=
 export AUTH_DOMAIN=
+export APIGEE_PROJECTS_REGIONS=

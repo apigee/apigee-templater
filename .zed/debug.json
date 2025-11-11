@@ -14,12 +14,61 @@
   },
   {
     "adapter": "JavaScript",
-    "label": "cli.js (JavaScript)",
+    "label": "cli.js - import apigee proxy to feature",
     "type": "pwa-node",
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
-    "args": ["-o", "apigee-prod13", "-i", "./repository/features"]
+    "args": [
+      "-i",
+      "apigee-prod13:Feature-LLM-PromptExtract-v1",
+      "-o",
+      "./repository/features",
+      "-f",
+      "feature"
+    ]
+  },
+  {
+    "adapter": "JavaScript",
+    "label": "cli.js - import ALL apigee proxies to features",
+    "type": "pwa-node",
+    "request": "launch",
+    "program": "dist/bin/apigee-templater.js",
+    "stopOnEntry": false,
+    "cwd": "/home/tyayers/projects/apigee/apigee-templater",
+    "args": [
+      "-i",
+      "apigee-prod13:",
+      "-o",
+      "./repository/features",
+      "-f",
+      "feature"
+    ]
+  },
+  {
+    "adapter": "JavaScript",
+    "label": "cli.js - export feature to apigee proxy",
+    "type": "pwa-node",
+    "request": "launch",
+    "program": "dist/bin/apigee-templater.js",
+    "stopOnEntry": false,
+    "cwd": "/home/tyayers/projects/apigee/apigee-templater",
+    "args": [
+      "-i",
+      "./repository/features/Feature-LLM-PromptExtract-v1.yaml",
+      "-o",
+      "apigee-prod13:"
+    ]
+  },
+  {
+    "adapter": "JavaScript",
+    "label": "cli.js - export ALL features to apigee proxy",
+    "type": "pwa-node",
+    "request": "launch",
+    "program": "dist/bin/apigee-templater.js",
+    "stopOnEntry": false,
+    "cwd": "/home/tyayers/projects/apigee/apigee-templater",
+    "args": ["-i", "./repository/features", "-o", "apigee-prod13:"]
   }
 ]

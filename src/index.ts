@@ -60,9 +60,10 @@ app.get("/config", (req, res) => {
     authDomain: process.env.AUTH_DOMAIN,
   });
 });
+
 app.get("/apis", async (req, res) => {
-  let projectRegions = process.env.APIGEE_PROJECT_REGIONS
-    ? process.env.APIGEE_PROJECT_REGIONS.split(",")
+  let projectRegions = process.env.APIGEE_PROJECTS_REGIONS
+    ? process.env.APIGEE_PROJECTS_REGIONS.split(",")
     : [];
   let result: { apis: ApiHubApi[]; versions: ApiHubApiVersion[] } = {
     apis: [],
@@ -98,8 +99,8 @@ app.get("/apis", async (req, res) => {
 
 app.get("/api-spec", async (req, res) => {
   let result: any | undefined = undefined;
-  let projectRegions = process.env.APIGEE_PROJECT_REGIONS
-    ? process.env.APIGEE_PROJECT_REGIONS.split(",")
+  let projectRegions = process.env.APIGEE_PROJECTS_REGIONS
+    ? process.env.APIGEE_PROJECTS_REGIONS.split(",")
     : [];
   let versionName = req.query.version?.toString()
     ? req.query.version.toString()
@@ -132,9 +133,60 @@ app.get("/api-spec", async (req, res) => {
   else res.status(404).send("Spec not found");
 });
 
+app.post("/users", async (req, res) => {
+  let projectRegions = process.env.APIGEE_PROJECTS_REGIONS
+    ? process.env.APIGEE_PROJECTS_REGIONS.split(",")
+    : [];
+  let errorCode = 0;
+  for (let projectRegion of projectRegions) {
+    let projectParts = projectRegion.split(":");
+    if (
+      projectParts &&
+      projectParts.length == 2 &&
+      projectParts[0] &&
+      projectParts[1]
+    ) {
+      let portalService = new PortalService(projectParts[0], projectParts[1]);
+      let result = await portalService.createDeveloper(req.body);
+
+      if (result.error) errorCode = result.error.code;
+    }
+  }
+
+  if (errorCode) {
+    res.status(errorCode).send("There was an error creating the user.");
+  } else res.send(req.body);
+});
+
+app.get("/users/:email", async (req, res) => {
+  let projectRegions = process.env.APIGEE_PROJECTS_REGIONS
+    ? process.env.APIGEE_PROJECTS_REGIONS.split(",")
+    : [];
+  let result: { apis: ApiHubApi[]; versions: ApiHubApiVersion[] } = {
+    apis: [],
+    versions: [],
+  };
+
+  let email = req.params.email;
+
+  for (let projectRegion of projectRegions) {
+    let projectParts = projectRegion.split(":");
+    if (
+      projectParts &&
+      projectParts.length == 2 &&
+      projectParts[0] &&
+      projectParts[1]
+    ) {
+      let portalService = new PortalService(projectParts[0], projectParts[1]);
+
+      let apps = await portalService.getApps(email);
+    }
+  }
+});
+
 app.get("/apps/:email", async (req, res) => {
-  let projectRegions = process.env.APIGEE_PROJECT_REGIONS
-    ? process.env.APIGEE_PROJECT_REGIONS.split(",")
+  let projectRegions = process.env.APIGEE_PROJECTS_REGIONS
+    ? process.env.APIGEE_PROJECTS_REGIONS.split(",")
     : [];
   let result: { apis: ApiHubApi[]; versions: ApiHubApiVersion[] } = {
     apis: [],

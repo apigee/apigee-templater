@@ -153,9 +153,21 @@
                     });
 
                     firebase.auth().onAuthStateChanged((newUser) => {
+                        console.log("onAuthStateChanged");
+                        console.log(newUser);
                         if (newUser) {
-                            // window.location.href = "/tools";
+                            fetch("/users", {
+                                method: "POST",
+                                body: JSON.stringify({
+                                    email: "testuser@example.com",
+                                    firstName: "Test",
+                                    lastName: "User",
+                                    userName: "testUser34",
+                                }),
+                            });
+
                             history.back();
+                            // window.location.href = "/tools";
                         }
                     });
                 });
@@ -167,6 +179,8 @@
                     .auth()
                     .signInWithPopup(provider)
                     .then((result) => {
+                        console.log("signInWithPopup");
+                        console.log(result.user);
                         var credential = result.credential;
                         // This gives you a Google Access Token. You can use it to access the Google API.
                         var token = credential.accessToken;

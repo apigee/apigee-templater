@@ -7,12 +7,17 @@ parameters:
     description: Configuration input for MESSAGE
     default: Hello world!
     examples: []
-endpointFlows:
-  - name: PostFlow
-    mode: Response
-    steps:
-      - name: JS-AddHelloWorld
-targetFlows: []
+defaultEndpoint:
+  name: default
+  basePath: /feature-data-helloworld-v1
+  routes:
+    - name: default
+  flows:
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: JS-AddHelloWorld
+  faultRules: []
 endpoints: []
 targets: []
 policies:

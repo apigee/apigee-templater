@@ -22,12 +22,17 @@ description: |
   **Outputs**
   - Data collectors are written with Apigee variable data, if found.
 parameters: []
-endpointFlows:
-  - name: PostFlow
-    mode: Response
-    steps:
-      - name: DC-ModelInfo
-targetFlows: []
+defaultEndpoint:
+  name: default
+  basePath: /feature-llm-datacollector-v1
+  routes:
+    - name: default
+  flows:
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: DC-ModelInfo
+  faultRules: []
 endpoints: []
 targets: []
 policies:

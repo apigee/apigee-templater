@@ -31,6 +31,7 @@ const auth = new GoogleAuth({
 });
 
 import { stdin } from "process";
+import { start } from "repl";
 
 process.on("uncaughtException", function (e) {
   console.error(
@@ -105,43 +106,28 @@ export class cli {
 
   async promptForMissingOptions(options: cliArgs): Promise<cliArgs> {
     const questions: any[] = [];
-    if (options.output.endsWith(".js"))
-      options.output = options.output.replace(".js", ".json");
-    if (options.output.endsWith(".yml"))
-      options.output = options.output.replace(".yml", ".yaml");
+
     if (options.output.includes(":")) {
       options.format = "proxy";
-    } else if (
-      options.output &&
-      !options.output.toLowerCase().endsWith(".yaml") &&
-      !options.output.toLowerCase().endsWith(".json") &&
-      !options.output.toLowerCase().endsWith(".zip") &&
-      !options.output.toLowerCase().endsWith(".dir")
-    ) {
-      if (options.output.endsWith(".")) options.output += "yaml";
-      else options.output += ".yaml";
     }
 
     if (!options.name) {
-      if (options.output) {
-        if (options.output.includes(":")) {
-          let pieces = options.output.split(":");
-          if (pieces.length > 1 && pieces[1]) options.name = pieces[1];
-        } else {
-          options.name = path.basename(
-            options.output,
-            path.extname(options.output),
-          );
-        }
-      } else if (options.input && options.input.includes(":")) {
-        let pieces = options.input.split(":");
-        if (pieces.length > 1 && pieces[1]) options.name = pieces[1];
-      } else if (options.input) {
-        options.name = path.basename(
-          options.input,
-          path.extname(options.input),
-        );
-      } else {
+      options.name = this.sanitizeName(options.output, options.input);
+      if (options.name && options.output.endsWith(":")) {
+        options.output += options.name;
+      } else if (
+        options.name &&
+        fs.existsSync(options.output) &&
+        fs.lstatSync(options.output).isDirectory()
+      ) {
+        if (!options.output.endsWith("/")) options.output += "/";
+        options.output += options.name + ".yaml";
+      } else if (options.name && options.input.endsWith(":")) {
+        options.input += options.name;
+      }
+
+      // interactive mode
+      if (!options.name && !options.input && !options.output) {
         questions.push({
           type: "input",
           name: "name",
@@ -194,6 +180,26 @@ export class cli {
       targetUrl: options.targetUrl || answers.targetUrl,
       output: options.output || answers.output,
     };
+  }
+
+  sanitizeName(primary: string, secondary: string): string {
+    let result = "";
+    if (primary.includes(":")) {
+      let pieces = primary.split(":");
+      if (pieces.length > 1 && pieces[1]) result = pieces[1];
+      else {
+        result = this.sanitizeName(secondary, "");
+      }
+    } else if (
+      primary.toLowerCase().includes("yaml") ||
+      primary.toLowerCase().includes(".json")
+    ) {
+      result = path.basename(primary, path.extname(primary));
+    } else if (primary) {
+      result = this.sanitizeName(secondary, "");
+    }
+
+    return result;
   }
 
   printHelp() {
@@ -339,10 +345,21 @@ export class cli {
             console.log(
               ` > Exporting file ${fileName} to an Apigee feature proxy.`,
             );
-            if (options.output.endsWith(".yaml"))
-              options.output = options.output.replace(".yaml", "");
 
             proxy = this.converter.featureToProxy(file, inputParameters);
+            if (file.testFeature) {
+              process.chdir(options.input);
+              let testFeature = await this.apigeeService.featureGet(
+                file.testFeature,
+              );
+              process.chdir(startDir);
+              if (testFeature)
+                proxy = this.converter.proxyApplyFeature(
+                  proxy,
+                  testFeature,
+                  inputParameters,
+                );
+            }
             let outputPath = await this.converter.proxyToApigeeZip(proxy);
             let lastRevision = "";
             // export to apigee
@@ -350,6 +367,8 @@ export class cli {
               let token = await auth.getAccessToken();
               if (token) options.token = token;
             }
+            if (options.output.endsWith(":"))
+              options.output = options.output.replace(":", "");
             lastRevision = await this.apigeeService.apigeeProxyExport(
               proxy.name,
               outputPath,
@@ -388,6 +407,8 @@ export class cli {
         let token = await auth.getAccessToken();
         if (token) options.token = token;
       }
+      if (options.input.endsWith(":"))
+        options.input = options.input.replace(":", "");
       let proxyList = await this.apigeeService.apigeeProxiesList(
         options.input,
         `Bearer ${options.token}`,
@@ -427,9 +448,19 @@ export class cli {
                 apigeePath,
               );
               fs.rmSync(apigeePath);
+
+              if (proxy.testFeature) {
+                process.chdir(options.output);
+                let testFeature = await this.apigeeService.featureGet(
+                  proxy.testFeature,
+                );
+                if (testFeature)
+                  proxy =
+                    this.converter.proxyRemoveFeature(proxy, testFeature) ??
+                    proxy;
+              }
+              process.chdir(startDir);
               feature = this.converter.proxyToFeature(proxy);
-              if (options.output.endsWith(".yaml"))
-                options.output = options.output.replace(".yaml", "");
               let filePath = options.output.endsWith("/")
                 ? options.output + apigeeProxy["name"] + ".yaml"
                 : options.output + "/" + apigeeProxy["name"] + ".yaml";
@@ -475,6 +506,10 @@ export class cli {
             applyFeature,
             inputParameters,
           );
+        } else if (feature && applyFeature) {
+          feature.testFeature = relativePath;
+        } else if (!applyFeature) {
+          console.error(`Could not load feature ${relativePath}.`);
         }
       } else if (options.removeFeature) {
         process.chdir(startDir);
@@ -496,6 +531,10 @@ export class cli {
             removeFeature,
             relativePath,
           );
+        } else if (feature && removeFeature) {
+          delete feature.testFeature;
+        } else if (!removeFeature) {
+          console.error(`Could not load feature ${relativePath}.`);
         }
       }
 
@@ -540,6 +579,17 @@ export class cli {
           );
         } else if (feature) {
           proxy = this.converter.featureToProxy(feature, inputParameters);
+          if (feature.testFeature) {
+            let testFeature = await this.apigeeService.featureGet(
+              feature.testFeature,
+            );
+            if (testFeature)
+              proxy = this.converter.proxyApplyFeature(
+                proxy,
+                testFeature,
+                inputParameters,
+              );
+          }
         }
         process.chdir(startDir);
         let removeDir = options.output.toLowerCase().endsWith(".dir")
@@ -589,6 +639,17 @@ export class cli {
           );
         } else if (feature) {
           proxy = this.converter.featureToProxy(feature, inputParameters);
+          if (feature.testFeature) {
+            let testFeature = await this.apigeeService.featureGet(
+              feature.testFeature,
+            );
+            if (testFeature)
+              proxy = this.converter.proxyApplyFeature(
+                proxy,
+                testFeature,
+                inputParameters,
+              );
+          }
         }
 
         process.chdir(startDir);
@@ -680,7 +741,17 @@ export class cli {
         }
       } else if (options.output && options.format == "feature") {
         if (proxy) {
-          feature = this.converter.proxyToFeature(proxy);
+          if (proxy.testFeature) {
+            let outputDir = path.dirname(options.output);
+            process.chdir(outputDir);
+            let testFeature = await this.apigeeService.featureGet(
+              proxy.testFeature,
+            );
+            if (testFeature)
+              proxy =
+                this.converter.proxyRemoveFeature(proxy, testFeature) ?? proxy;
+          }
+          if (proxy) feature = this.converter.proxyToFeature(proxy);
         }
         process.chdir(startDir);
         if (feature) {

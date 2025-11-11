@@ -21,13 +21,18 @@ parameters:
     description: Configuration input for PROJECT_ID
     default: apigee-prod13
     examples: []
-endpointFlows:
-  - name: PreFlow
-    mode: Request
-    steps:
-      - name: SC-SensitiveDataProtection
-      - name: JS-SetMaskedRequest
-targetFlows: []
+defaultEndpoint:
+  name: default
+  basePath: /feature-llm-promptmask-v1
+  routes:
+    - name: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: SC-SensitiveDataProtection
+        - name: JS-SetMaskedRequest
+  faultRules: []
 endpoints: []
 targets: []
 policies:

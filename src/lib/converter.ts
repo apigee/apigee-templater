@@ -18,6 +18,7 @@ import {
   Feature,
   Template,
   Parameter,
+  FaultRule,
 } from "./interfaces.js";
 
 export class ApigeeConverter {
@@ -205,6 +206,20 @@ export class ApigeeConverter {
           newEndpoint.faultRules = [faultRule];
         }
       }
+      // default fault rule
+      if (proxyJson["ProxyEndpoint"]["DefaultFaultRule"]) {
+        newEndpoint.defaultFaultRule = this.flowXmlNodeToJson(
+          proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["_attributes"]["name"],
+          "",
+          proxyJson["ProxyEndpoint"]["DefaultFaultRule"],
+        ) as FaultRule;
+        if (proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["AlwaysEnforce"]) {
+          newEndpoint.defaultFaultRule.alwaysEnforce =
+            proxyJson["ProxyEndpoint"]["DefaultFaultRule"]["AlwaysEnforce"][
+              "_text"
+            ];
+        }
+      }
 
       // push endpoint
       newProxy.endpoints.push(newEndpoint);
@@ -350,6 +365,8 @@ export class ApigeeConverter {
                     newProxy.priority = sandbox.proxy["priority"];
                   if (sandbox.proxy["tests"])
                     newProxy.tests = sandbox.proxy["tests"];
+                  if (sandbox.proxy["testFeature"])
+                    newProxy.testFeature = sandbox.proxy["testFeature"];
                 }
               }
             } else {
@@ -728,6 +745,15 @@ export class ApigeeConverter {
           endpointXml["ProxyEndpoint"]["DefaultFaultRule"] = this.flowJsonToXml(
             endpoint.defaultFaultRule,
           );
+          endpointXml["ProxyEndpoint"]["DefaultFaultRule"]["_attributes"] = {
+            name: endpoint.defaultFaultRule.name,
+          };
+          if (endpoint.defaultFaultRule.alwaysEnforce) {
+            endpointXml["ProxyEndpoint"]["DefaultFaultRule"]["AlwaysEnforce"] =
+              {
+                _text: "true",
+              };
+          }
         }
 
         fs.mkdirSync(tempFilePath + "/apiproxy/proxies", { recursive: true });
@@ -1304,28 +1330,29 @@ export class ApigeeConverter {
     newProxy.parameters = newFeature.parameters;
     if (newFeature.priority) newProxy.priority = newFeature.priority;
     if (newFeature.tests) newProxy.tests = newFeature.tests;
+    if (newFeature.testFeature) newProxy.testFeature = newFeature.testFeature;
 
     let defaultEndpoint: ProxyEndpoint | undefined = undefined;
 
-    if (
-      newFeature.endpoints.length === 0 ||
-      newFeature.endpointFlows.length > 0
-    ) {
-      defaultEndpoint = new ProxyEndpoint();
-      defaultEndpoint.name = "default";
-      defaultEndpoint.basePath =
-        "/" + newProxy.name.toLowerCase().replaceAll(" ", "-");
-      defaultEndpoint.routes.push({
-        name: "default",
-      });
-      defaultEndpoint.flows = feature.endpointFlows;
-      newProxy.endpoints.push(defaultEndpoint);
+    if (newFeature.endpoints.length === 0 || newFeature.defaultEndpoint) {
+      if (!newFeature.defaultEndpoint) {
+        defaultEndpoint = new ProxyEndpoint();
+        defaultEndpoint.name = "default";
+        defaultEndpoint.basePath =
+          "/" + newProxy.name.toLowerCase().replaceAll(" ", "-");
+        defaultEndpoint.routes.push({
+          name: "default",
+        });
+      } else defaultEndpoint = newFeature.defaultEndpoint;
+
+      if (defaultEndpoint) newProxy.endpoints.push(defaultEndpoint);
     }
 
-    if (newFeature.targetFlows.length > 0) {
+    if (newFeature.defaultTarget) {
+      newProxy.targets.push(newFeature.defaultTarget);
+    } else if (newFeature.targets.length === 0) {
       let defaultTarget = new ProxyTarget();
       defaultTarget.name = "default";
-      defaultTarget.flows = newFeature.targetFlows;
       defaultTarget.url = "https://httpbin.org";
       newProxy.targets.push(defaultTarget);
       if (defaultEndpoint && defaultEndpoint.routes[0])
@@ -1430,9 +1457,9 @@ export class ApigeeConverter {
       result.push(`Endpoints: none`);
     }
 
-    if (feature.endpointFlows && feature.endpointFlows.length > 0) {
+    if (feature.defaultEndpoint && feature.defaultEndpoint.flows.length > 0) {
       result.push(`Endpoint flows:`);
-      for (let flow of feature.endpointFlows) {
+      for (let flow of feature.defaultEndpoint.flows) {
         if (flow.condition)
           result.push(`- ${flow.name} - ${flow.mode} - ${flow.condition}`);
         else result.push(`- ${flow.name} - ${flow.mode}`);
@@ -1455,9 +1482,9 @@ export class ApigeeConverter {
       result.push(`Targets: none`);
     }
 
-    if (feature.targetFlows && feature.targetFlows.length > 0) {
+    if (feature.defaultTarget && feature.defaultTarget.flows.length > 0) {
       result.push(`Target flows:`);
-      for (let flow of feature.targetFlows) {
+      for (let flow of feature.defaultTarget.flows) {
         if (flow.condition)
           result.push(`- ${flow.name} - ${flow.mode} - ${flow.condition}`);
         else result.push(`- ${flow.name} - ${flow.mode}`);
@@ -1509,57 +1536,83 @@ export class ApigeeConverter {
     );
 
     // merge endpoint flows
-    for (let featureFlow of tempFeature.endpointFlows) {
+    if (tempFeature.defaultEndpoint) {
       for (let endpoint of proxy.endpoints) {
-        let foundFlow = false;
-        for (let proxyFlow of endpoint.flows) {
-          if (
-            proxyFlow.name == featureFlow.name &&
-            proxyFlow.mode == featureFlow.mode &&
-            proxyFlow.condition == featureFlow.condition
-          ) {
-            foundFlow = true;
-            proxyFlow.steps = featureFlow.steps.concat(proxyFlow.steps);
-            break;
+        for (let featureFlow of tempFeature.defaultEndpoint.flows) {
+          let foundFlow = false;
+          for (let proxyFlow of endpoint.flows) {
+            if (
+              proxyFlow.name == featureFlow.name &&
+              proxyFlow.mode == featureFlow.mode &&
+              proxyFlow.condition == featureFlow.condition
+            ) {
+              foundFlow = true;
+              proxyFlow.steps = featureFlow.steps.concat(proxyFlow.steps);
+              break;
+            }
+          }
+
+          if (!foundFlow) {
+            let newFlow = new Flow(
+              featureFlow.name,
+              featureFlow.mode,
+              featureFlow.condition,
+            );
+            newFlow.steps = newFlow.steps.concat(featureFlow.steps);
+            endpoint.flows.push(newFlow);
           }
         }
 
-        if (!foundFlow) {
-          let newFlow = new Flow(
-            featureFlow.name,
-            featureFlow.mode,
-            featureFlow.condition,
-          );
-          newFlow.steps = newFlow.steps.concat(featureFlow.steps);
-          endpoint.flows.push(newFlow);
+        if (tempFeature.defaultEndpoint.defaultFaultRule) {
+          if (endpoint.defaultFaultRule) {
+            endpoint.defaultFaultRule.steps =
+              endpoint.defaultFaultRule.steps.concat(
+                tempFeature.defaultEndpoint.defaultFaultRule.steps,
+              );
+          } else
+            endpoint.defaultFaultRule =
+              tempFeature.defaultEndpoint.defaultFaultRule;
         }
       }
     }
 
     // merge target flows
-    for (let featureFlow of tempFeature.targetFlows) {
+    if (tempFeature.defaultTarget) {
       for (let target of proxy.targets) {
-        let foundFlow = false;
-        for (let targetFlow of target.flows) {
-          if (
-            targetFlow.name == featureFlow.name &&
-            targetFlow.mode == featureFlow.mode &&
-            targetFlow.condition == featureFlow.condition
-          ) {
-            foundFlow = true;
-            targetFlow.steps = featureFlow.steps.concat(targetFlow.steps);
-            break;
+        for (let featureFlow of tempFeature.defaultTarget.flows) {
+          let foundFlow = false;
+          for (let targetFlow of target.flows) {
+            if (
+              targetFlow.name == featureFlow.name &&
+              targetFlow.mode == featureFlow.mode &&
+              targetFlow.condition == featureFlow.condition
+            ) {
+              foundFlow = true;
+              targetFlow.steps = featureFlow.steps.concat(targetFlow.steps);
+              break;
+            }
+          }
+
+          if (!foundFlow) {
+            let newFlow = new Flow(
+              featureFlow.name,
+              featureFlow.mode,
+              featureFlow.condition,
+            );
+            newFlow.steps = newFlow.steps.concat(featureFlow.steps);
+            target.flows.push(newFlow);
           }
         }
 
-        if (!foundFlow) {
-          let newFlow = new Flow(
-            featureFlow.name,
-            featureFlow.mode,
-            featureFlow.condition,
-          );
-          newFlow.steps = newFlow.steps.concat(featureFlow.steps);
-          target.flows.push(newFlow);
+        if (tempFeature.defaultTarget.defaultFaultRule) {
+          if (target.defaultFaultRule) {
+            target.defaultFaultRule.steps =
+              target.defaultFaultRule.steps.concat(
+                tempFeature.defaultTarget.defaultFaultRule.steps,
+              );
+          } else
+            target.defaultFaultRule =
+              tempFeature.defaultTarget.defaultFaultRule;
         }
       }
     }
@@ -1611,6 +1664,122 @@ export class ApigeeConverter {
     return proxy;
   }
 
+  public proxyRemoveFeature(proxy: Proxy, feature: Feature): Proxy {
+    // remove default endpoint flow steps
+    if (feature.defaultEndpoint) {
+      for (let featureFlow of feature.defaultEndpoint.flows) {
+        for (let endpoint of proxy.endpoints) {
+          for (let proxyFlow of endpoint.flows) {
+            if (
+              proxyFlow.name == featureFlow.name &&
+              proxyFlow.mode == featureFlow.mode &&
+              proxyFlow.condition == featureFlow.condition
+            ) {
+              for (let step of featureFlow.steps) {
+                let index = proxyFlow.steps.findIndex(
+                  (x) => x.name === step.name && x.condition === step.condition,
+                );
+                if (index != -1) proxyFlow.steps.splice(index, 1);
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      if (feature.defaultEndpoint.defaultFaultRule) {
+        for (let endpoint of proxy.endpoints) {
+          for (let step of feature.defaultEndpoint.defaultFaultRule.steps) {
+            if (endpoint.defaultFaultRule) {
+              let index = endpoint.defaultFaultRule.steps.findIndex(
+                (x) => x.name === step.name && x.condition === step.condition,
+              );
+              if (index != -1) endpoint.defaultFaultRule.steps.splice(index, 1);
+            }
+          }
+        }
+      }
+    }
+
+    // remove default target flow steps
+    if (feature.defaultTarget) {
+      for (let featureFlow of feature.defaultTarget.flows) {
+        for (let target of proxy.targets) {
+          for (let targetFlow of target.flows) {
+            if (
+              targetFlow.name == featureFlow.name &&
+              targetFlow.mode == featureFlow.mode &&
+              targetFlow.condition == featureFlow.condition
+            ) {
+              for (let step of featureFlow.steps) {
+                let index = targetFlow.steps.findIndex(
+                  (x) => x.name === step.name && x.condition === step.condition,
+                );
+                if (index != -1) targetFlow.steps.splice(index, 1);
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      if (feature.defaultTarget.defaultFaultRule) {
+        for (let target of proxy.targets) {
+          for (let step of feature.defaultTarget.defaultFaultRule.steps) {
+            if (target.defaultFaultRule) {
+              let index = target.defaultFaultRule.steps.findIndex(
+                (x) => x.name === step.name && x.condition === step.condition,
+              );
+              if (index != -1) target.defaultFaultRule.steps.splice(index, 1);
+            }
+          }
+        }
+      }
+    }
+
+    // remove feature endpoints
+    if (feature.endpoints && feature.endpoints.length > 0) {
+      for (let endpoint of feature.endpoints) {
+        let index = proxy.endpoints.findIndex((x) => x.name === endpoint.name);
+        if (index != -1) proxy.endpoints.splice(index, 1);
+      }
+    }
+
+    // if feature has targets
+    if (feature.targets && feature.targets.length > 0) {
+      for (let target of feature.targets) {
+        let index = proxy.targets.findIndex((x) => x.name === target.name);
+        if (index != -1) proxy.targets.splice(index, 1);
+      }
+    }
+
+    // merge policies
+    if (feature.policies && feature.policies.length > 0) {
+      for (let policy of feature.policies) {
+        let policyIndex = proxy.policies.findIndex(
+          (x) => x.name === policy.name,
+        );
+        if (policyIndex != -1) {
+          proxy.policies.splice(policyIndex, 1);
+        }
+      }
+    }
+
+    // merge resources
+    if (feature.resources && feature.resources.length > 0) {
+      for (let resource of feature.resources) {
+        let resourceIndex = proxy.resources.findIndex(
+          (x) => x.name === resource.name,
+        );
+        if (resourceIndex != -1) {
+          proxy.resources.splice(resourceIndex, 1);
+        }
+      }
+    }
+
+    return proxy;
+  }
+
   public proxyToTemplate(proxy: Proxy): Template {
     let template = new Template();
 
@@ -1641,12 +1810,13 @@ export class ApigeeConverter {
     newFeature.parameters = proxy.parameters;
     if (proxy.priority) newFeature.priority = proxy.priority;
     if (proxy.tests) newFeature.tests = proxy.tests;
+    if (proxy.testFeature) newFeature.testFeature = proxy.testFeature;
 
     let defaultEndpoint = proxy.endpoints.find((x) => x.name == "default");
     let defaultTarget = proxy.targets.find((x) => x.name == "default");
 
-    if (defaultEndpoint) newFeature.endpointFlows = defaultEndpoint.flows;
-    if (defaultTarget) newFeature.targetFlows = defaultTarget.flows;
+    if (defaultEndpoint) newFeature.defaultEndpoint = defaultEndpoint;
+    if (defaultTarget) newFeature.defaultTarget = defaultTarget;
 
     for (let endpoint of proxy.endpoints)
       if (endpoint.name != "default") newFeature.endpoints.push(endpoint);

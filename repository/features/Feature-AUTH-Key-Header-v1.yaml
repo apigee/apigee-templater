@@ -20,17 +20,22 @@ parameters:
     examples:
       - x-api-key
       - x-apikey
-endpointFlows:
-  - name: PreFlow
-    mode: Request
-    steps:
-      - name: VA-VerifyKey
-        condition: request.verb != "OPTIONS"
-      - name: AM-RemoveKey
-        condition: request.verb != "OPTIONS"
-      - name: AM-LoadQuota
-        condition: request.verb != "OPTIONS"
-targetFlows: []
+defaultEndpoint:
+  name: default
+  basePath: /feature-auth-key-header-v1
+  routes:
+    - name: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: VA-VerifyKey
+          condition: request.verb != "OPTIONS"
+        - name: AM-RemoveKey
+          condition: request.verb != "OPTIONS"
+        - name: AM-LoadQuota
+          condition: request.verb != "OPTIONS"
+  faultRules: []
 endpoints: []
 targets: []
 policies:
@@ -75,7 +80,7 @@ policies:
           Headers:
             Header:
               _attributes:
-                name: "{API_KEY_HEADER_NAME}"
+                name: x-api-key
         IgnoreUnresolvedVariables:
           _text: "true"
         AssignTo:
@@ -96,6 +101,6 @@ policies:
         Properties: {}
         APIKey:
           _attributes:
-            ref: request.header.{API_KEY_HEADER_NAME}
+            ref: request.header.x-api-key
 resources: []
 tests: []

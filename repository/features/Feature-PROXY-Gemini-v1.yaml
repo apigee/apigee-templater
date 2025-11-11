@@ -53,8 +53,6 @@ parameters:
     description: Configuration input for GEMINI_PATH
     default: europe-west1-aiplatform.googleapis.com/v1beta1/projects/apigee-prod13/locations/europe-west1/endpoints/openapi/chat/completions
     examples: []
-endpointFlows: []
-targetFlows: []
 endpoints:
   - name: gemini
     basePath: /v1/gemini

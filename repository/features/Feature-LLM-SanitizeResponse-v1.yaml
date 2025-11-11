@@ -7,12 +7,17 @@ parameters:
     description: Configuration input for TEMPLATE_ID
     default: projects/apigee-prod13/locations/europe-west1/templates/default-ma-template
     examples: []
-endpointFlows:
-  - name: PostFlow
-    mode: Response
-    steps:
-      - name: SMR-SanitizeResponse
-targetFlows: []
+defaultEndpoint:
+  name: default
+  basePath: /feature-llm-sanitizeresponse-v1
+  routes:
+    - name: default
+  flows:
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: SMR-SanitizeResponse
+  faultRules: []
 endpoints: []
 targets: []
 policies:
