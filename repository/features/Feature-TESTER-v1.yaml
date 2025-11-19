@@ -1,7 +1,12 @@
 name: Feature-TESTER-v1
 type: feature
 description: Feature-TESTER-v1
-parameters: []
+parameters:
+  - name: UPSTREAM_ID
+    displayName: UPSTREAM_ID
+    description: Configuration input for UPSTREAM_ID
+    default: "{UPSTREAM_ID}"
+    examples: []
 defaultEndpoint:
   name: default
   basePath: /feature-tester-v1
@@ -13,11 +18,10 @@ defaultEndpoint:
       mode: Request
       steps:
         - name: JS-SetTestIds
-          condition: request.header.x-upstream-id != null
         - name: SC-GetTestCases
-          condition: request.header.x-upstream-id != null
+          condition: upstream.testId != null
         - name: JS-SetTestData
-          condition: request.header.x-upstream-id != null
+          condition: upstream.testId != null
     - name: PostFlow
       mode: Response
       steps:
@@ -900,6 +904,10 @@ resources:
     type: jsc
     content: |-
       var upstreamId = context.getVariable("request.header.x-upstream-id");
+      if (!upstreamId) {
+        // try from properties
+        upstreamId = context.getVariable("propertyset.tester.UPSTREAM_ID")
+      }
       if (upstreamId && upstreamId.includes(".")) {
         var pieces = upstreamId.split(".");
         context.setVariable("upstream.testId", pieces[0]);
@@ -975,4 +983,8 @@ resources:
 
         return result;
       }
+  - name: tester.properties
+    type: properties
+    content: |
+      UPSTREAM_ID={UPSTREAM_ID}
 tests: []

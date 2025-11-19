@@ -350,25 +350,37 @@ export class ApigeeTemplaterService {
         if (tempName.endsWith(".yaml")) foundYaml = true;
         else foundJson = true;
       } else {
-        // try to fetch remotely
-        let fileName = tempName.endsWith(".json")
-          ? tempName
-          : tempName + ".json";
-        let response = await fetch(
-          this.remoteGetBaseUrl + "features/" + fileName,
-        );
-        if (response.status == 200) foundJson = true;
-
-        if (response.status == 404) {
-          fileName = tempName.endsWith(".yaml") ? tempName : tempName + ".yaml";
-          response = await fetch(
+        // first try https
+        if (tempName.startsWith("https://")) {
+          let response = await fetch(tempName);
+          if (response.status === 200) {
+            featureString = await response.text();
+            if (tempName.endsWith(".yaml")) foundYaml = true;
+            else if (tempName.endsWith(".json")) foundJson = true;
+          }
+        } else {
+          // try to fetch remotely
+          let fileName = tempName.endsWith(".json")
+            ? tempName
+            : tempName + ".json";
+          let response = await fetch(
             this.remoteGetBaseUrl + "features/" + fileName,
           );
-          if (response.status == 200) foundYaml = true;
-        }
+          if (response.status == 200) foundJson = true;
 
-        if (response.status == 200) {
-          featureString = await response.text();
+          if (response.status == 404) {
+            fileName = tempName.endsWith(".yaml")
+              ? tempName
+              : tempName + ".yaml";
+            response = await fetch(
+              this.remoteGetBaseUrl + "features/" + fileName,
+            );
+            if (response.status == 200) foundYaml = true;
+          }
+
+          if (response.status == 200) {
+            featureString = await response.text();
+          }
         }
       }
 

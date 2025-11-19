@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import { randomUUID } from "node:crypto";
 import fs from "fs";
 import { ApigeeConverter } from "./lib/converter.js";
 import { ApigeeTemplaterService } from "./lib/service.js";
@@ -62,35 +61,24 @@ app.get("/config", (req, res) => {
 });
 
 app.get("/apis", async (req, res) => {
-  let projectRegions = process.env.APIGEE_PROJECTS_REGIONS
-    ? process.env.APIGEE_PROJECTS_REGIONS.split(",")
-    : [];
   let result: { apis: ApiHubApi[]; versions: ApiHubApiVersion[] } = {
     apis: [],
     versions: [],
   };
-  for (let projectRegion of projectRegions) {
-    let projectParts = projectRegion.split(":");
-    if (
-      projectParts &&
-      projectParts.length == 2 &&
-      projectParts[0] &&
-      projectParts[1]
-    ) {
-      let portalService = new PortalService(projectParts[0], projectParts[1]);
-      let projectApis = await portalService.getApis();
-      if (projectApis.data && projectApis.data.length > 0) {
-        result.apis = result.apis.concat(projectApis.data);
+  let portalService = new PortalService(
+    process.env.PROJECT_ID,
+    process.env.REGION,
+  );
+  let projectApis = await portalService.getApis(
+    "target_user.enum_values.values.display_name:Public",
+  );
+  if (projectApis.data && projectApis.data.length > 0) {
+    result.apis = result.apis.concat(projectApis.data);
 
-        for (let api of result.apis) {
-          let versions = await portalService.getApiVersions(
-            api.name,
-            `attributes.projects/${projectParts[0]}}/locations/${projectParts[1]}/attributes/portal-publish-flag.string_values.values:True`,
-          );
-          if (versions && versions.data && versions.data.length > 0)
-            result.versions = result.versions.concat(versions.data);
-        }
-      }
+    for (let api of result.apis) {
+      let versions = await portalService.getApiVersions(api.name);
+      if (versions && versions.data && versions.data.length > 0)
+        result.versions = result.versions.concat(versions.data);
     }
   }
 
@@ -98,117 +86,166 @@ app.get("/apis", async (req, res) => {
 });
 
 app.get("/api-spec", async (req, res) => {
-  let result: any | undefined = undefined;
-  let projectRegions = process.env.APIGEE_PROJECTS_REGIONS
-    ? process.env.APIGEE_PROJECTS_REGIONS.split(",")
-    : [];
+  let result: any = {};
   let versionName = req.query.version?.toString()
     ? req.query.version.toString()
     : "";
-
-  console.log(versionName);
-
-  let portalService = new PortalService();
-
-  let versionResult: { data: any; error: Error } =
+  let portalService = new PortalService(
+    process.env.PROJECT_ID,
+    process.env.REGION,
+  );
+  let namePieces = versionName.split("/");
+  let apiName = "";
+  if (namePieces.length > 5) apiName = namePieces[5] ?? "";
+  if (apiName) {
+    let apiResult = await portalService.getApi(apiName);
+    if (apiResult && apiResult.data) result.api = apiResult.data;
+  }
+  let versionResult = await portalService.getApiVersion(versionName);
+  if (versionResult && versionResult.data) {
+    result.version = versionResult.data;
+    if (result.version.deployments && result.version.deployments.length > 0) {
+      // get deployment
+      let deploymentResult = await portalService.getApiDeployment(
+        result.version.deployments[0],
+      );
+      if (deploymentResult && deploymentResult.data) {
+        result.deployment = deploymentResult.data;
+      }
+    }
+  }
+  let versionSpecResult: { data: any; error: Error } =
     await portalService.getApiVersionSpecs(versionName);
-  console.log(versionResult);
   if (
-    versionResult.data &&
-    versionResult.data.specs &&
-    versionResult.data.specs.length &&
-    versionResult.data.specs.length > 0
+    versionSpecResult.data &&
+    versionSpecResult.data.specs &&
+    versionSpecResult.data.specs.length &&
+    versionSpecResult.data.specs.length > 0
   ) {
     let specResult: { data: ApiHubApiVersionSpecContents; error: Error } =
       await portalService.getApiVersionSpecContents(
-        versionResult.data.specs[0]["name"],
+        versionSpecResult.data.specs[0]["name"],
       );
 
     if (specResult.data) {
-      result = specResult.data;
+      result.spec = specResult.data;
     }
   }
 
-  if (result) res.send(result);
+  if (result.version) res.send(result);
   else res.status(404).send("Spec not found");
 });
 
 app.post("/users", async (req, res) => {
-  let projectRegions = process.env.APIGEE_PROJECTS_REGIONS
-    ? process.env.APIGEE_PROJECTS_REGIONS.split(",")
-    : [];
   let errorCode = 0;
-  for (let projectRegion of projectRegions) {
-    let projectParts = projectRegion.split(":");
-    if (
-      projectParts &&
-      projectParts.length == 2 &&
-      projectParts[0] &&
-      projectParts[1]
-    ) {
-      let portalService = new PortalService(projectParts[0], projectParts[1]);
-      let result = await portalService.createDeveloper(req.body);
 
-      if (result.error) errorCode = result.error.code;
-    }
-  }
+  let portalService = new PortalService(
+    process.env.PROJECT_ID,
+    process.env.REGION,
+  );
+  let user = req.body;
+  let result = await portalService.createDeveloper(user);
+
+  if (result.error) errorCode = result.error.code;
 
   if (errorCode) {
     res.status(errorCode).send("There was an error creating the user.");
   } else res.send(req.body);
 });
 
-app.get("/users/:email", async (req, res) => {
-  let projectRegions = process.env.APIGEE_PROJECTS_REGIONS
-    ? process.env.APIGEE_PROJECTS_REGIONS.split(",")
-    : [];
-  let result: { apis: ApiHubApi[]; versions: ApiHubApiVersion[] } = {
-    apis: [],
-    versions: [],
-  };
-
+app.get("/users/:email/apps", async (req, res) => {
   let email = req.params.email;
+  let portalService = new PortalService(
+    process.env.PROJECT_ID,
+    process.env.REGION,
+  );
 
-  for (let projectRegion of projectRegions) {
-    let projectParts = projectRegion.split(":");
-    if (
-      projectParts &&
-      projectParts.length == 2 &&
-      projectParts[0] &&
-      projectParts[1]
-    ) {
-      let portalService = new PortalService(projectParts[0], projectParts[1]);
-
-      let apps = await portalService.getApps(email);
-    }
-  }
+  let apps = await portalService.getApps(email);
+  if (apps.error) res.status(apps.error.code).send(apps.error.message);
+  else res.status(200).send(JSON.stringify(apps.data));
 });
 
-app.get("/apps/:email", async (req, res) => {
-  let projectRegions = process.env.APIGEE_PROJECTS_REGIONS
-    ? process.env.APIGEE_PROJECTS_REGIONS.split(",")
-    : [];
-  let result: { apis: ApiHubApi[]; versions: ApiHubApiVersion[] } = {
-    apis: [],
-    versions: [],
-  };
-
+app.post("/users/:email/apps", async (req, res) => {
   let email = req.params.email;
+  let appName = req.body.name;
+  let products = req.body.products;
+  let portalService = new PortalService(
+    process.env.PROJECT_ID,
+    process.env.REGION,
+  );
 
-  for (let projectRegion of projectRegions) {
-    let projectParts = projectRegion.split(":");
-    if (
-      projectParts &&
-      projectParts.length == 2 &&
-      projectParts[0] &&
-      projectParts[1]
-    ) {
-      let portalService = new PortalService(projectParts[0], projectParts[1]);
-
-      let apps = await portalService.getApps(email);
-    }
-  }
+  let app = await portalService.createApp(email, appName);
+  if (app.error) res.status(app.error.code).send(app.error.message);
+  else res.status(200).send(JSON.stringify(app.data));
 });
+
+app.delete("/users/:email/apps/:appName", async (req, res) => {
+  let email = req.params.email;
+  let appName = req.params.appName;
+  let portalService = new PortalService(
+    process.env.PROJECT_ID,
+    process.env.REGION,
+  );
+
+  let app = await portalService.deleteApp(email, appName);
+  if (app.error) res.status(app.error.code).send(app.error.message);
+  else res.status(200).send(JSON.stringify(app.data));
+});
+
+app.get("/products", async (req, res) => {
+  let portalService = new PortalService(
+    process.env.PROJECT_ID,
+    process.env.REGION,
+  );
+
+  let productData = await portalService.getProducts();
+  if (productData.error)
+    res.status(productData.error.code).send(productData.error.message);
+  else res.status(200).send(JSON.stringify(productData.data.apiProduct));
+});
+
+app.put(
+  "/users/:email/apps/:appName/keys/:keyName/products/:productName",
+  async (req, res) => {
+    let email = req.params.email;
+    let appName = req.params.appName;
+    let keyName = req.params.keyName;
+    let productName = req.params.productName;
+    let portalService = new PortalService(
+      process.env.PROJECT_ID,
+      process.env.REGION,
+    );
+
+    let apps = await portalService.addAppKeyProducts(email, appName, keyName, [
+      productName,
+    ]);
+    if (apps.error) res.status(apps.error.code).send(apps.error.message);
+    else res.status(200).send(JSON.stringify(apps.data));
+  },
+);
+
+app.delete(
+  "/users/:email/apps/:appName/keys/:keyName/products/:productName",
+  async (req, res) => {
+    let email = req.params.email;
+    let appName = req.params.appName;
+    let keyName = req.params.keyName;
+    let productName = req.params.productName;
+    let portalService = new PortalService(
+      process.env.PROJECT_ID,
+      process.env.REGION,
+    );
+
+    let apps = await portalService.removeAppKeyProduct(
+      email,
+      appName,
+      keyName,
+      productName,
+    );
+    if (apps.error) res.status(apps.error.code).send(apps.error.message);
+    else res.status(200).send(JSON.stringify(apps.data));
+  },
+);
 
 app.post("/templates", restService.templateCreate);
 app.put("/templates/:template", restService.templateUpdate);

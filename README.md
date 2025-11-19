@@ -9,7 +9,7 @@ Apigee Feature Templater (or **aft**) is **an experimental tool** providing assi
 Check out the [wiki](https://github.com/apigee/apigee-templater/wiki) for more detailed documentation.
 
 ## Workflow
-1. Apigee proxy experts develop and test technical feature proxies that provide individual, reusable functionalities. This development uses all of the amazing Apigee tooling such as [apigeecli](https://github.com/apigee/apigeecli), [apigee-go-gen](https://github.com/apigee/apigee-go-gen), [apigelint](https://github.com/apigee/apigeelint), Apigee console, etc... Feature proxies have the prefix **Feature-**, making them easy to recognize.
+1. Apigee proxy experts develop and test technical feature proxies that provide individual, reusable functionalities. This development uses all of the amazing Apigee tooling such as [apigeecli](https://github.com/apigee/apigeecli), [apigee-go-gen](https://github.com/apigee/apigee-go-gen), [apigelint](https://github.com/apigee/apigeelint), Apigee console, etc... Feature proxies have the **Feature-** prefix, making them easy to recognize.
 
 2. The features are imported using **aft** to YAML or JSON files, with metadata and parameter configuration information, making it easier for non-experts to understand the capabilities and use the features. A sample repository is in this repo in the [./repository](https://github.com/apigee/apigee-templater/tree/main/repository/features) directory.
 

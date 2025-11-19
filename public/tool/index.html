@@ -277,6 +277,290 @@
         </div>
         <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
         <div id="app"></div>
+
+        <!-- Main API Product Showcase Card -->
+        <div
+            id="showcase"
+            class="hidden max-w-7xl mx-auto card-bg p-6 sm:p-10 rounded-xl shadow-border shadow-2xl transition-all duration-300 border-gray-700/50 dark:border-gray-800"
+        >
+            <!-- Product Header and Metadata -->
+            <div class="flex items-start mb-8">
+                <!-- Icon -->
+                <div class="p-4 bg-indigo-600 rounded-xl mr-6 flex-shrink-0">
+                    <!-- Inline SVG for AI Icon -->
+                    <svg
+                        class="w-8 h-8 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 3v2m6-2v2M9 19v2m6-2v2M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                        ></path>
+                    </svg>
+                </div>
+
+                <!-- Title and Metadata -->
+                <div>
+                    <h1
+                        id="title"
+                        class="text-3xl sm:text-4xl font-extrabold text-indigo-400 mb-2 leading-tight"
+                    >
+                        Gemini AI Text Generation
+                    </h1>
+                    <div class="flex flex-wrap gap-3 text-sm font-medium">
+                        <span
+                            id="typeLabel"
+                            class="px-3 py-1 bg-indigo-500/20 text-indigo-400 rounded-full"
+                        >
+                            Type: LLM Endpoint
+                        </span>
+                        <span
+                            class="px-3 py-1 bg-teal-500/20 text-teal-400 rounded-full"
+                        >
+                            Category: AI/ML
+                        </span>
+                        <span
+                            class="px-3 py-1 bg-yellow-500/20 text-yellow-600 rounded-full"
+                        >
+                            Status: Stable v1.0
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <section
+                class="mb-10 border-t border-b py-6 border-gray-700 dark:border-gray-800"
+            >
+                <h2
+                    class="text-xl font-semibold mb-3 text-gray-200 dark:text-gray-100"
+                    style="color: var(--text-primary)"
+                >
+                    Product Description
+                </h2>
+                <p id="description" class="text-gray-400 leading-relaxed">
+                    The Gemini AI Text Generation API provides unparalleled
+                    access to cutting-edge large language models. Seamlessly
+                    integrate advanced conversational capabilities, content
+                    creation, and data summarization into your applications.
+                    With low-latency responses and competitive pricing, it's the
+                    perfect backbone for next-generation intelligent features.
+                </p>
+            </section>
+
+            <!-- Endpoint  -->
+            <section class="mb-10">
+                <h2
+                    class="text-xl font-semibold mb-4 text-black dark:text-gray-100"
+                    style="color: var(--text-primary)"
+                >
+                    Endpoint
+                </h2>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input
+                        id="endpoint-url"
+                        type="text"
+                        style="
+                            background-color: var(--bg-primary);
+                            color: var(--text-primary);
+                        "
+                        value="https://api.gemini.ai/v1/generate"
+                        readonly
+                        class="flex-grow p-3 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 text-sm font-mono border border-gray-700/50 dark:border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors duration-200 text-gray-300"
+                    />
+                    <button
+                        onclick="copyEndpoint()"
+                        class="flex-shrink-0 px-4 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                    >
+                        Copy URL
+                    </button>
+                </div>
+                <div
+                    id="endpoint-copy-message"
+                    class="text-sm mt-2 text-teal-400 hidden"
+                >
+                    Endpoint URL copied!
+                </div>
+            </section>
+
+            <!-- Getting Started -->
+            <section class="mb-10">
+                <h2
+                    class="text-xl font-semibold mb-4 text-gray-200 dark:text-gray-100"
+                    style="color: var(--text-primary)"
+                >
+                    Getting Started
+                </h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Step 1 -->
+                    <div
+                        class="p-4 rounded-lg bg-gray-800/50 dark:bg-gray-800/50 border border-indigo-500/30"
+                        style="
+                            background-color: var(--bg-primary);
+                            color: var(--text-primary);
+                        "
+                    >
+                        <p class="text-indigo-400 font-bold mb-1">
+                            1. Authentication
+                        </p>
+                        <p class="text-gray-400 text-sm">
+                            Sign up and get your API key from your dashboard.
+                            Keep it secure and use it as an environment variable
+                            (`GEMINI_API_KEY`).
+                        </p>
+                    </div>
+                    <!-- Step 2 -->
+                    <div
+                        class="p-4 rounded-lg bg-gray-800/50 dark:bg-gray-800/50 border border-indigo-500/30"
+                        style="
+                            background-color: var(--bg-primary);
+                            color: var(--text-primary);
+                        "
+                    >
+                        <p class="text-indigo-400 font-bold mb-1">
+                            2. Install SDK
+                        </p>
+                        <p class="text-gray-400 text-sm">
+                            Choose your language below and install the
+                            respective SDK to begin calling the endpoint.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Code Snippets (Tabbed Interface) -->
+            <section>
+                <h2
+                    class="text-xl font-semibold mb-4 text-gray-200 dark:text-gray-100"
+                    style="color: var(--text-primary)"
+                >
+                    Code Snippets
+                </h2>
+
+                <!-- Tabs -->
+                <div
+                    id="tabs-container"
+                    class="flex border-b border-gray-700/50 dark:border-gray-700/50 mb-4 overflow-x-auto whitespace-nowrap"
+                >
+                    <button
+                        data-lang="python"
+                        class="tab-button text-sm font-medium py-2 px-4 border-b-2 border-indigo-500 text-indigo-500 transition-colors duration-200"
+                    >
+                        Python
+                    </button>
+                    <button
+                        data-lang="go"
+                        class="tab-button text-sm font-medium py-2 px-4 border-b-2 border-transparent text-gray-400 hover:text-indigo-500 hover:border-indigo-500/50 transition-colors duration-200"
+                    >
+                        Go
+                    </button>
+                    <button
+                        data-lang="ts"
+                        class="tab-button text-sm font-medium py-2 px-4 border-b-2 border-transparent text-gray-400 hover:text-indigo-500 hover:border-indigo-500/50 transition-colors duration-200"
+                    >
+                        TypeScript
+                    </button>
+                </div>
+
+                <!-- Code Blocks -->
+                <div id="code-blocks">
+                    <!-- Python Code -->
+                    <div
+                        data-lang="python"
+                        class="code-container code-bg p-4 rounded-lg overflow-x-auto text-sm hidden-code"
+                        style="background-color: var(--bg-secondary)"
+                    >
+                        <pre class="whitespace-pre-wrap">
+    <code class="text-yellow-600"># Install the SDK
+    <span class="text-gray-300">pip install gemini-ai</span>
+
+    <span class="text-blue-400">import</span> gemini_ai <span class="text-blue-400">as</span> ai
+
+    <span class="text-green-400">client</span> = ai.Client(api_key=<span class="text-orange-400">"YOUR_API_KEY"</span>)
+    response = <span class="text-green-400">client</span>.generate(
+        model=<span class="text-orange-400">"flash"</span>,
+        prompt=<span class="text-orange-400">"Write a 3-line poem about the sea."</span>
+    )
+    <span class="text-blue-400">print</span>(response.<span class="text-green-400">text</span>)</code></pre>
+                    </div>
+
+                    <!-- Go Code -->
+                    <div
+                        data-lang="go"
+                        class="code-container code-bg p-4 rounded-lg overflow-x-auto text-sm hidden-code"
+                        style="background-color: var(--bg-secondary)"
+                        style="display: none"
+                    >
+                        <pre
+                            class="whitespace-pre-wrap"
+                        ><code class="text-yellow-600">
+    // Install the SDK
+    <span class="text-gray-300">go get github.com/gemini/ai</span>
+
+    <span class="text-blue-400">package</span> main
+
+    <span class="text-blue-400">import</span> (
+        <span class="text-orange-400">"fmt"</span>
+        <span class="text-orange-400">"gemini/ai"</span>
+    )
+
+    <span class="text-blue-400">func</span> main() {
+        client := ai.<span class="text-green-400">NewClient</span>(<span class="text-orange-400">"YOUR_API_KEY"</span>)
+        resp, _ := client.Generate(
+            <span class="text-orange-400">"flash"</span>,
+            <span class="text-orange-400">"Write a 3-line poem about the sea."</span>,
+        )
+        fmt.Println(resp.<span class="text-green-400">Text</span>)
+    }</code></pre>
+                    </div>
+
+                    <!-- TypeScript Code -->
+                    <div
+                        data-lang="ts"
+                        class="code-container code-bg p-4 rounded-lg overflow-x-auto text-sm hidden-code"
+                        style="background-color: var(--bg-secondary)"
+                        style="display: none"
+                    >
+                        <pre
+                            class="whitespace-pre-wrap"
+                        ><code class="text-yellow-600">
+    // Install the SDK
+    <span class="text-gray-300">npm install @gemini/sdk</span>
+
+    <span class="text-blue-400">import</span> { GeminiClient } <span class="text-blue-400">from</span> <span class="text-orange-400">"@gemini/sdk"</span>;
+
+    <span class="text-blue-400">const</span> client = <span class="text-blue-400">new</span> GeminiClient({ apiKey: <span class="text-orange-400">"YOUR_API_KEY"</span> });
+
+    <span class="text-blue-400">async</span> <span class="text-blue-400">function</span> run() {
+      <span class="text-blue-400">const</span> response = <span class="text-blue-400">await</span> client.generate({
+        model: <span class="text-orange-400">"flash"</span>,
+        prompt: <span class="text-orange-400">"Write a 3-line poem about the sea."</span>,
+      });
+      console.<span class="text-green-400">log</span>(response.<span class="text-green-400">text</span>);
+    }
+    run();</code></pre>
+                    </div>
+                </div>
+
+                <button
+                    onclick="copyCode()"
+                    class="mt-4 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                >
+                    Copy Code
+                </button>
+                <div
+                    id="copy-message"
+                    class="text-sm mt-2 text-green-400 hidden"
+                >
+                    Copied to clipboard!
+                </div>
+            </section>
+        </div>
         <script>
             // THEME
             const themeToggle = document.getElementById("theme-toggle");
@@ -412,14 +696,17 @@
             const urlParams = new URLSearchParams(window.location.search);
             const toolId = urlParams.get("id");
             const toolType = urlParams.get("type");
-
+            const titleElement = document.getElementById("title");
+            const descriptionElement = document.getElementById("description");
+            const typeElement = document.getElementById("typeLabel");
+            const endpointElement = document.getElementById("endpoint-url");
             fetch("/api-spec?version=" + toolId).then((response) => {
                 if (response.status === 200) {
                     response.json().then((versionInfo) => {
                         console.log(versionInfo);
-                        let spec = atob(versionInfo.contents);
 
-                        if (toolType == "REST") {
+                        if (toolType == "REST" && versionInfo.spec) {
+                            let spec = atob(versionInfo.spec.contents);
                             Scalar.createApiReference("#app", {
                                 // The URL of the OpenAPI/Swagger document
                                 // url: "https://registry.scalar.com/@scalar/apis/galaxy/latest?format=json",
@@ -452,19 +739,154 @@
                               `,
                             });
                         } else {
-                            let elem = document.getElementById("app");
-                            if (elem)
-                                elem.innerHTML =
-                                    "Documentation for type " +
-                                    toolType +
-                                    " not supported.";
+                            // try to just get API info
+                            if (versionInfo.api) {
+                                let titleText = versionInfo.api.displayName;
+                                let descriptionText =
+                                    versionInfo.api.description;
+                                titleElement.innerHTML = titleText;
+                                descriptionElement.innerHTML = descriptionText;
+                                typeElement.innerHTML = "Type: " + toolType;
+                            }
+                            if (versionInfo.deployment) {
+                                let endpointUrl = "No endpoint available";
+                                if (
+                                    versionInfo.deployment.endpoints &&
+                                    versionInfo.deployment.endpoints.length > 0
+                                ) {
+                                    endpointUrl =
+                                        versionInfo.deployment.endpoints[0];
+                                    endpointElement.value = endpointUrl;
+                                }
+                            }
+                            let elem = document.getElementById("showcase");
+                            if (elem) {
+                                elem.classList.remove("hidden");
+                            }
                         }
                     });
                 } else {
-                    let elem = document.getElementById("app");
-                    if (elem) elem.innerHTML = "No documentation found.";
+                    let elem = document.getElementById("showcase");
+                    if (elem) {
+                        elem.classList.remove("hidden");
+                    }
                 }
             });
+
+            // --- 2. Tab Switching Logic ---
+            const tabButtons = document.querySelectorAll(".tab-button");
+            const codeBlocks = document.querySelectorAll(".code-container");
+            const copyMessage = document.getElementById("copy-message");
+            let currentLang = "";
+            function showTab(lang) {
+                currentLang = lang;
+                // Remove active state from all buttons
+                tabButtons.forEach((button) => {
+                    button.classList.remove(
+                        "border-indigo-500",
+                        "text-indigo-500",
+                    );
+                    button.classList.add(
+                        "border-transparent",
+                        "text-gray-400",
+                        "hover:text-indigo-500",
+                        "hover:border-indigo-500/50",
+                    );
+                });
+
+                // Hide all code blocks
+                codeBlocks.forEach((block) => {
+                    block.style.display = "none";
+                });
+
+                // Set active state for the clicked button
+                const activeButton = document.querySelector(
+                    `.tab-button[data-lang="${lang}"]`,
+                );
+                if (activeButton) {
+                    activeButton.classList.add(
+                        "border-indigo-500",
+                        "text-indigo-500",
+                    );
+                    activeButton.classList.remove(
+                        "border-transparent",
+                        "text-gray-400",
+                        "hover:text-indigo-500",
+                        "hover:border-indigo-500/50",
+                    );
+                }
+
+                // Show the corresponding code block
+                const activeBlock = document.querySelector(
+                    `.code-container[data-lang="${lang}"]`,
+                );
+                if (activeBlock) {
+                    activeBlock.style.display = "block";
+                }
+            }
+
+            // Attach event listeners to tab buttons
+            tabButtons.forEach((button) => {
+                button.addEventListener("click", () => {
+                    showTab(button.dataset.lang);
+                });
+            });
+
+            // Show the default tab on load (Python)
+            showTab("python");
+
+            // --- 3. Copy Code Logic ---
+            window.copyCode = function () {
+                // Find the currently displayed code block
+                const currentBlock = document.querySelector(
+                    `.code-container[data-lang="${currentLang}"] pre code`,
+                );
+                if (!currentBlock) return;
+
+                const codeText = currentBlock.innerText;
+
+                // Use the safe document.execCommand('copy') method
+                const textArea = document.createElement("textarea");
+                textArea.value = codeText;
+                document.body.appendChild(textArea);
+                textArea.select();
+
+                try {
+                    document.execCommand("copy");
+                    copyMessage.classList.remove("hidden");
+                    setTimeout(() => {
+                        copyMessage.classList.add("hidden");
+                    }, 2000);
+                } catch (err) {
+                    console.error("Could not copy text: ", err);
+                } finally {
+                    document.body.removeChild(textArea);
+                }
+            };
+
+            window.copyEndpoint = function () {
+                const endpointInput = document.getElementById("endpoint-url");
+                const endpointCopyMessage = document.getElementById(
+                    "endpoint-copy-message",
+                );
+
+                if (!endpointInput) return;
+
+                // Select the text in the input field
+                endpointInput.select();
+                endpointInput.setSelectionRange(0, 99999); // For mobile devices
+
+                // Use the safe document.execCommand('copy') method
+                try {
+                    document.execCommand("copy");
+                    endpointCopyMessage.classList.remove("hidden");
+                    setTimeout(() => {
+                        endpointCopyMessage.classList.add("hidden");
+                    }, 2000);
+                } catch (err) {
+                    console.error("Could not copy endpoint URL: ", err);
+                }
+            };
         </script>
     </body>
 </html>

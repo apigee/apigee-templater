@@ -359,6 +359,8 @@ export class ApigeeConverter {
                 if (sandbox.proxy) {
                   if (sandbox.proxy["description"])
                     newProxy.description = sandbox.proxy["description"];
+                  if (sandbox.proxy["prefix"])
+                    newProxy.suffix = sandbox.proxy["prefix"];
                   if (sandbox.proxy["parameters"])
                     newProxy.parameters = sandbox.proxy["parameters"];
                   if (sandbox.proxy["priority"])
@@ -1328,6 +1330,8 @@ export class ApigeeConverter {
     newProxy.name = newFeature.name;
     newProxy.description = newFeature.description;
     newProxy.parameters = newFeature.parameters;
+    newProxy.suffix =
+      newFeature.suffix ?? (0 | (Math.random() * 9e6)).toString(36);
     if (newFeature.priority) newProxy.priority = newFeature.priority;
     if (newFeature.tests) newProxy.tests = newFeature.tests;
     if (newFeature.testFeature) newProxy.testFeature = newFeature.testFeature;
@@ -1351,12 +1355,15 @@ export class ApigeeConverter {
     if (newFeature.defaultTarget) {
       newProxy.targets.push(newFeature.defaultTarget);
     } else if (newFeature.targets.length === 0) {
-      let defaultTarget = new ProxyTarget();
-      defaultTarget.name = "default";
-      defaultTarget.url = "https://httpbin.org";
-      newProxy.targets.push(defaultTarget);
-      if (defaultEndpoint && defaultEndpoint.routes[0])
-        defaultEndpoint.routes[0].target = "default";
+      // no default target for now, Apigee automatically returns request
+      // for no-target proxies, which is nice.
+      //
+      // let defaultTarget = new ProxyTarget();
+      // defaultTarget.name = "default";
+      // defaultTarget.url = "https://httpbin.org";
+      // newProxy.targets.push(defaultTarget);
+      // if (defaultEndpoint && defaultEndpoint.routes[0])
+      //   defaultEndpoint.routes[0].target = "default";
     }
 
     newProxy.endpoints = newProxy.endpoints.concat(newFeature.endpoints);
@@ -1808,6 +1815,8 @@ export class ApigeeConverter {
     newFeature.name = proxy.name;
     newFeature.description = proxy.description;
     newFeature.parameters = proxy.parameters;
+    newFeature.suffix =
+      proxy.suffix ?? (0 | (Math.random() * 9e6)).toString(36);
     if (proxy.priority) newFeature.priority = proxy.priority;
     if (proxy.tests) newFeature.tests = proxy.tests;
     if (proxy.testFeature) newFeature.testFeature = proxy.testFeature;

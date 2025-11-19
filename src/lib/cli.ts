@@ -482,8 +482,12 @@ export class cli {
         process.chdir(startDir);
         if (!options.output) options.output = options.input;
         let relativePath = options.applyFeature;
-        if (fs.existsSync(options.applyFeature)) {
-          // this is a path, get relative path
+        if (
+          fs.existsSync(options.applyFeature) &&
+          path.dirname(options.output) != "." &&
+          fs.existsSync(path.dirname(options.output))
+        ) {
+          // this is a path, get relative path from output
           relativePath = path.relative(
             path.dirname(options.output),
             options.applyFeature,
@@ -531,6 +535,8 @@ export class cli {
             removeFeature,
             relativePath,
           );
+        } else if (proxy && removeFeature) {
+          proxy = this.converter.proxyRemoveFeature(proxy, removeFeature);
         } else if (feature && removeFeature) {
           delete feature.testFeature;
         } else if (!removeFeature) {
@@ -631,6 +637,7 @@ export class cli {
           if (pieces.length >= 1 && pieces[0])
             inputParameters["PROJECT_ID"] = pieces[0];
         }
+
         if (template) {
           proxy = await this.apigeeService.templateObjectToProxy(
             template,
@@ -640,13 +647,20 @@ export class cli {
         } else if (feature) {
           proxy = this.converter.featureToProxy(feature, inputParameters);
           if (feature.testFeature) {
-            let testFeature = await this.apigeeService.featureGet(
+            let applyFeatureObject = await this.apigeeService.featureGet(
               feature.testFeature,
             );
-            if (testFeature)
+            if (!applyFeatureObject) {
+              // retry in start directory
+              process.chdir(startDir);
+              applyFeatureObject = await this.apigeeService.featureGet(
+                feature.testFeature,
+              );
+            }
+            if (applyFeatureObject)
               proxy = this.converter.proxyApplyFeature(
                 proxy,
-                testFeature,
+                applyFeatureObject,
                 inputParameters,
               );
           }

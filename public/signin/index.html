@@ -156,13 +156,23 @@
                         console.log("onAuthStateChanged");
                         console.log(newUser);
                         if (newUser) {
+                            let namePieces = newUser.displayName.split(" ");
                             fetch("/users", {
                                 method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
                                 body: JSON.stringify({
-                                    email: "testuser@example.com",
-                                    firstName: "Test",
-                                    lastName: "User",
-                                    userName: "testUser34",
+                                    email: newUser.email,
+                                    firstName:
+                                        namePieces.length > 0
+                                            ? namePieces[0]
+                                            : newUser.displayName,
+                                    lastName:
+                                        namePieces.length > 1
+                                            ? namePieces[1]
+                                            : newUser.displayName,
+                                    userName: newUser.displayName,
                                 }),
                             });
 

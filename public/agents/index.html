@@ -397,10 +397,10 @@
                                 All
                             </button>
                             <button
-                                data-type="Agentspace"
+                                data-type="G4E"
                                 class="filter-btn px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300"
                             >
-                                Agentspace
+                                G4E
                             </button>
                             <button
                                 data-type="A2A"
@@ -594,8 +594,8 @@
                 },
                 {
                     id: 2,
-                    name: "Sales Forecast Agentspace",
-                    type: "Agentspace",
+                    name: "Sales Forecast G4E",
+                    type: "G4E",
                     topic: "Sales",
                     description:
                         "Predict future sales trends using machine learning models based on historical data.",
@@ -603,8 +603,8 @@
                 },
                 {
                     id: 3,
-                    name: "Financial Reporting Agentspace",
-                    type: "Agentspace",
+                    name: "Financial Reporting G4E",
+                    type: "G4E",
                     topic: "Financial",
                     description:
                         "Retrieve comprehensive financial reports, balance sheets, and profit-and-loss statements.",
@@ -639,8 +639,8 @@
                 },
                 {
                     id: 7,
-                    name: "Payment Gateway Agentspace",
-                    type: "Agentspace",
+                    name: "Payment Gateway G4E",
+                    type: "G4E",
                     topic: "Financial",
                     description:
                         "Process payments securely and integrate with major payment providers.",
@@ -670,7 +670,7 @@
             const apiIcons = {
                 A2A: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-rest" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5L12 2z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>`,
                 ADK2: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-graphql" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="2" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"></line></svg>`,
-                Agentspace: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-mcp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path></svg>`,
+                G4E: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-mcp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path></svg>`,
                 ADK: `<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 icon-grpc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="12" y1="9" x2="12" y2="15"></line></svg>`,
             };
 
@@ -699,7 +699,7 @@
                 card.innerHTML = `
                 <div class="flex items-start justify-between mb-4">
                     ${apiIcons[product.type]}
-                    <span class="text-sm font-bold px-3 py-1 rounded-full ${product.type === "A2A" ? "bg-orange-500 text-white" : product.type === "Agentspace" ? "bg-pink-500 text-white" : product.type === "ADK" ? "bg-blue-500 text-white" : "bg-purple-500 text-white"}">${product.type}</span>
+                    <span class="text-sm font-bold px-3 py-1 rounded-full ${product.type === "A2A" ? "bg-orange-500 text-white" : product.type === "G4E" ? "bg-pink-500 text-white" : product.type === "ADK" ? "bg-blue-500 text-white" : "bg-purple-500 text-white"}">${product.type}</span>
                 </div>
                 <h3 class="text-2xl font-semibold mb-2">${product.name}</h3>
                 <p class="text-gray-500 dark:text-gray-400 mb-4">${product.description}</p>
