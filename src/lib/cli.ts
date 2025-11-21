@@ -291,7 +291,8 @@ export class cli {
       // create new template
       template = this.converter.templateCreate(
         options.name,
-        options.basePath,
+        options.basePath ??
+          "/" + options.name.toLowerCase().replaceAll(" ", "-"),
         options.targetUrl,
       );
       if (!options.output) options.output = options.name + ".yaml";
@@ -303,6 +304,7 @@ export class cli {
           let token = await auth.getAccessToken();
           if (token) options.token = token;
         }
+        if (!options.name) options.name = pieces[1];
         let apigeePath = await this.apigeeService.apigeeProxyGet(
           pieces[1],
           pieces[0],
@@ -544,7 +546,7 @@ export class cli {
         }
       }
 
-      // generally print generated output overview
+      // HALF TIME - generally print generated output overview
       if (proxy) {
         console.log(
           `${chalk.bold(chalk.magentaBright(`> Proxy ${proxy.name} overview: `))}`,
@@ -570,7 +572,7 @@ export class cli {
         return;
       }
 
-      // write output
+      // WRITE OUTPUT
       if (
         options.output &&
         (options.output.toLowerCase().endsWith(".zip") ||

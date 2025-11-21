@@ -24,7 +24,7 @@ export class Test {
 
 export class Proxy {
   name: string = "";
-  suffix?: string;
+  uid?: string;
   type: string = "proxy";
   priority?: number;
   description: string = "";
@@ -108,7 +108,7 @@ export class Resource {
 
 export class Feature {
   name: string = "";
-  suffix?: string;
+  uid?: string;
   type: string = "feature";
   description: string = "";
   priority?: number;

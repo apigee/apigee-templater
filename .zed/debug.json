@@ -90,5 +90,19 @@
       "-r",
       "./repository/features/Feature-TESTER-v1.yaml"
     ]
+  },
+  {
+    "adapter": "JavaScript",
+    "label": "cli.js - apply feature to apigee proxy",
+    "type": "pwa-node",
+    "request": "launch",
+    "program": "dist/bin/apigee-templater.js",
+    "stopOnEntry": false,
+    "args": [
+      "-i",
+      "apigee-hub-demo:AI-Gateway-v2",
+      "-a",
+      "./repository/features/Feature-PROXY-DeepWiki-v2.yaml"
+    ]
   }
 ]

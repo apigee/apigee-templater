@@ -1,4 +1,5 @@
 name: Feature-PROXY-HttpBin-v1
+uid: 2mags
 type: feature
 description: Feature-PROXY-HttpBin-v1
 parameters: []
@@ -13,10 +14,7 @@ endpoints:
 targets:
   - name: httpbin
     url: https://httpbin.org
-    flows:
-      - name: EventFlow
-        mode: Response
-        steps: []
+    flows: []
     faultRules: []
     httpTargetConnection:
       Properties: {}
