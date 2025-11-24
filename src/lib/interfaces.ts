@@ -34,7 +34,6 @@ export class Proxy {
   policies: Policy[] = [];
   resources: Resource[] = [];
   tests?: Test[] = [];
-  testFeature?: string;
 }
 
 export class Endpoint {
@@ -120,7 +119,6 @@ export class Feature {
   policies: Policy[] = [];
   resources: Resource[] = [];
   tests?: Test[] = [];
-  testFeature?: string;
 }
 
 export class Parameter {

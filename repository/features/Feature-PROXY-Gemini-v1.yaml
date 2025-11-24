@@ -1,4 +1,5 @@
 name: Feature-PROXY-Gemini-v1
+uid: gem
 type: feature
 description: |
   This feature adds an endpoints with basepath at v1/gemini, and proxies
@@ -51,7 +52,8 @@ parameters:
   - name: GEMINI_PATH
     displayName: GEMINI_PATH
     description: Configuration input for GEMINI_PATH
-    default: europe-west1-aiplatform.googleapis.com/v1beta1/projects/apigee-prod13/locations/europe-west1/endpoints/openapi/chat/completions
+    default: "{REGION}-aiplatform.googleapis.com/v1beta1/projects/{PROJECT_ID}/loca\
+      tions/{REGION}/endpoints/openapi/chat/completions"
     examples: []
 endpoints:
   - name: gemini
@@ -240,7 +242,7 @@ resources:
 
           if (streamData["usage"] && streamData["usage"]["prompt_tokens"])
             context.setVariable("llm.promptTokenCount", streamData["usage"]["prompt_tokens"]);
-          
+
           if (streamData["usage"] && streamData["usage"]["completion_tokens"])
             context.setVariable("llm.responseTokenCount", streamData["usage"]["completion_tokens"]);
 

@@ -1,12 +1,25 @@
-name: Feature-DATA-HelloWorld-v1
+name: Feature-DATA-HelloWorldText-v1
+uid: hellot
 type: feature
-description: Feature-DATA-HelloWorld-v1
+description: |
+  A message text is added to the payload.
+
+  ## Prerequisites
+  - The message response is text.
+
+  ## Inputs
+  - A 'message' property is either sent as query parameter or retrieved from the properties file.
+
+  ## Outputs
+  - The message text is appended to the payload.
 parameters:
   - name: MESSAGE
     displayName: MESSAGE
     description: Configuration input for MESSAGE
     default: Hello world!
-    examples: []
+    examples:
+      - Hello mars!
+      - Hello internet!
 defaultEndpoint:
   name: default
   basePath: /feature-data-helloworld-v1
@@ -38,18 +51,17 @@ policies:
 resources:
   - name: hello-world.js
     type: jsc
-    content: |-
-      var responseObject = response.content.asJSON;
+    content: |
+      var responseText = response.content;
+      if (!responseText) responseText = "";
 
-      if (responseObject) {
-        var message = context.getVariable("request.queryparam.message");
-        if (!message)
-          message = context.getVariable("propertyset.helloworld.MESSAGE");
-        if (!message)
-          message = "Hello world!";
-        responseObject["message"] = message;
-        context.setVariable("response.content", JSON.stringify(responseObject))
-      }
+      var message = context.getVariable("request.queryparam.message");
+      if (!message)
+        message = context.getVariable("propertyset.helloworld.MESSAGE");
+      if (!message)
+        message = "Hello world!";
+      responseText += " " + message;
+      context.setVariable("response.content", responseText);
   - name: helloworld.properties
     type: properties
     content: |

@@ -40,6 +40,7 @@ export class ApigeeConverter {
   public async apigeeZipToProxy(
     name: string,
     inputFilePath: string,
+    importParameters: boolean = true,
   ): Promise<Proxy> {
     return new Promise((resolve, reject) => {
       let tempOutputDir = this.tempPath + name;
@@ -67,7 +68,11 @@ export class ApigeeConverter {
         });
         zipfile.on("close", () => {
           // proxies
-          let newProxy: Proxy = this.apigeeFolderToProxy(name, tempOutputDir);
+          let newProxy: Proxy = this.apigeeFolderToProxy(
+            name,
+            tempOutputDir,
+            importParameters,
+          );
           fs.rmSync(tempOutputDir, { recursive: true });
           resolve(newProxy);
         });
@@ -75,7 +80,11 @@ export class ApigeeConverter {
     });
   }
 
-  public apigeeFolderToProxy(name: string, inputPath: string): Proxy {
+  public apigeeFolderToProxy(
+    name: string,
+    inputPath: string,
+    importParameters: boolean = true,
+  ): Proxy {
     let proxies: string[] = fs.readdirSync(inputPath + "/apiproxy/proxies");
     let newProxy = new Proxy();
     newProxy.name = name;
@@ -358,16 +367,13 @@ export class ApigeeConverter {
               if (sandbox.proxy) {
                 if (sandbox.proxy["description"])
                   newProxy.description = sandbox.proxy["description"];
-                if (sandbox.proxy["prefix"])
-                  newProxy.uid = sandbox.proxy["prefix"];
+                if (sandbox.proxy["uid"]) newProxy.uid = sandbox.proxy["uid"];
                 if (sandbox.proxy["parameters"])
                   newProxy.parameters = sandbox.proxy["parameters"];
                 if (sandbox.proxy["priority"])
                   newProxy.priority = sandbox.proxy["priority"];
                 if (sandbox.proxy["tests"])
                   newProxy.tests = sandbox.proxy["tests"];
-                if (sandbox.proxy["testFeature"])
-                  newProxy.testFeature = sandbox.proxy["testFeature"];
               }
             }
           } else {
@@ -381,7 +387,7 @@ export class ApigeeConverter {
             newProxy.resources.push(newFile);
 
             // if propertyset, add as parameters
-            if (resType === "properties") {
+            if (resType === "properties" && importParameters) {
               let newPropertiesContent = "";
               let props = newFile.content.split("\n");
               for (let prop of props) {
@@ -1346,11 +1352,11 @@ export class ApigeeConverter {
     let newProxy = new Proxy();
     newProxy.name = newFeature.name;
     newProxy.description = newFeature.description;
-    newProxy.parameters = newFeature.parameters;
-    newProxy.uid = newFeature.uid ?? (0 | (Math.random() * 9e6)).toString(36);
+    // keep original parameters, non-replaced
+    newProxy.parameters = feature.parameters;
+    if (newFeature.uid) newProxy.uid = newFeature.uid;
     if (newFeature.priority) newProxy.priority = newFeature.priority;
     if (newFeature.tests) newProxy.tests = newFeature.tests;
-    if (newFeature.testFeature) newProxy.testFeature = newFeature.testFeature;
 
     let defaultEndpoint: ProxyEndpoint | undefined = undefined;
 
@@ -1398,6 +1404,7 @@ export class ApigeeConverter {
     let featureString = JSON.stringify(feature);
     let proxyParametersString = JSON.stringify(proxyParameters);
 
+    // first replace parameter values
     for (let i = 0; i < feature.parameters.length; i++) {
       let tempFeature = JSON.parse(featureString) as Feature;
       let tempProxyParametres = JSON.parse(
@@ -1551,12 +1558,67 @@ export class ApigeeConverter {
     feature: Feature,
     parameters: { [key: string]: string } = {},
   ): Proxy {
-    // replace parameters
+    // save original parameters
+    proxy.parameters = proxy.parameters.concat(feature.parameters);
+
+    // replace parameters from runtime
     let tempFeature = this.featureReplaceParameters(
       feature,
       proxy.parameters,
       parameters,
     );
+
+    // now changes names with uid, if available
+    if (tempFeature.uid) {
+      let tempFeatureString = JSON.stringify(tempFeature);
+      // policies
+      if (tempFeature.policies && tempFeature.policies.length > 0) {
+        for (let policy of tempFeature.policies) {
+          let originalName = policy.name;
+          policy.name = tempFeature.uid + "-" + policy.name;
+          tempFeatureString = tempFeatureString.replaceAll(
+            originalName + ".",
+            policy.name + ".",
+          );
+          tempFeatureString = tempFeatureString.replaceAll(
+            `"name":"${originalName}"`,
+            `"name":"${policy.name}"`,
+          );
+        }
+      }
+
+      // resources
+      if (tempFeature.resources && tempFeature.resources.length > 0) {
+        for (let resource of tempFeature.resources) {
+          let originalName = resource.name;
+          resource.name = tempFeature.uid + "-" + resource.name;
+
+          if (originalName.endsWith(".properties")) {
+            let propertySetName = originalName.replace(".properties", "");
+            let newPropertySetName = resource.name.replace(".properties", "");
+            tempFeatureString = tempFeatureString.replaceAll(
+              `propertyset.${propertySetName}.`,
+              `propertyset.${newPropertySetName}.`,
+            );
+            tempFeatureString = tempFeatureString.replaceAll(
+              `"name":"${originalName}"`,
+              `"name":"${resource.name}"`,
+            );
+          } else {
+            tempFeatureString = tempFeatureString.replaceAll(
+              `://${originalName}"`,
+              `://${resource.name}"`,
+            );
+            tempFeatureString = tempFeatureString.replaceAll(
+              `"name":"${originalName}"`,
+              `"name":"${resource.name}"`,
+            );
+          }
+        }
+      }
+
+      tempFeature = JSON.parse(tempFeatureString);
+    }
 
     // merge endpoint flows
     if (tempFeature.defaultEndpoint) {
@@ -1640,60 +1702,58 @@ export class ApigeeConverter {
       }
     }
 
-    let changedNames: { originalName: string; newName: string }[] = [];
-
     // if feature has endpoints
     if (tempFeature.endpoints && tempFeature.endpoints.length > 0) {
       // first set name with id
       for (let tempEndpoint of tempFeature.endpoints) {
-        if (tempFeature.uid) {
-          tempEndpoint.name = tempFeature.uid + "-" + tempEndpoint.name;
+        // remove renaming of endpoints and targets, for now...
+        // if (tempFeature.uid) {
+        //   tempEndpoint.name = tempFeature.uid + "-" + tempEndpoint.name;
 
-          for (let tempRoute of tempEndpoint.routes) {
-            if (tempRoute.target) {
-              tempRoute.target = tempFeature.uid + "-" + tempRoute.target;
-            }
-          }
-        }
+        //   for (let tempRoute of tempEndpoint.routes) {
+        //     if (tempRoute.target) {
+        //       tempRoute.target = tempFeature.uid + "-" + tempRoute.target;
+        //     }
+        //   }
+        // }
         let endpointIndex = proxy.endpoints.findIndex(
           (x) => x.name === tempEndpoint.name,
         );
         if (endpointIndex === -1) {
           proxy.endpoints.push(tempEndpoint);
         } else {
+          console.log(
+            `\n!! Conflict detected in proxy apply feature - endpoint "${tempEndpoint.name}" already exists, overwriting...\n`,
+          );
           proxy.endpoints[endpointIndex] = tempEndpoint;
         }
       }
-      // proxy.endpoints = proxy.endpoints.concat(tempFeature.endpoints);
     }
 
     // if feature has targets
     if (tempFeature.targets && tempFeature.targets.length > 0) {
       for (let tempTarget of tempFeature.targets) {
-        if (tempFeature.uid) {
-          tempTarget.name = tempFeature.uid + "-" + tempTarget.name;
-        }
+        // remove renaming of targets, for now
+        // if (tempFeature.uid) {
+        //   tempTarget.name = tempFeature.uid + "-" + tempTarget.name;
+        // }
         let targetIndex = proxy.targets.findIndex(
           (x) => x.name === tempTarget.name,
         );
         if (targetIndex === -1) {
           proxy.targets.push(tempTarget);
         } else {
+          console.log(
+            `\n!! Conflict detected in proxy apply feature - target "${tempTarget.name}" already exists, overwriting...\n`,
+          );
           proxy.targets[targetIndex] = tempTarget;
         }
       }
-      // proxy.targets = proxy.targets.concat(tempFeature.targets);
     }
 
     // merge policies
     if (tempFeature.policies && tempFeature.policies.length > 0) {
       for (let policy of tempFeature.policies) {
-        if (tempFeature.uid) {
-          let changedName = { originalName: policy.name, newName: "" };
-          policy.name = tempFeature.uid + "-" + policy.name;
-          changedName.newName = policy.name;
-          changedNames.push(changedName);
-        }
         let policyIndex = proxy.policies.findIndex(
           (x) => x.name === policy.name,
         );
@@ -1711,12 +1771,6 @@ export class ApigeeConverter {
     // merge resources
     if (tempFeature.resources && tempFeature.resources.length > 0) {
       for (let resource of tempFeature.resources) {
-        if (tempFeature.uid) {
-          let changedName = { originalName: resource.name, newName: "" };
-          resource.name = tempFeature.uid + "-" + resource.name;
-          changedName.newName = resource.name;
-          changedNames.push(changedName);
-        }
         let resourceIndex = proxy.resources.findIndex(
           (x) => x.name === resource.name,
         );
@@ -1731,46 +1785,18 @@ export class ApigeeConverter {
       }
     }
 
-    // correct any references to policies or resources with suffix
-    if (tempFeature.uid && changedNames.length > 0) {
-      let tempProxy = JSON.stringify(proxy);
-      for (let changedName of changedNames) {
-        if (changedName.originalName.endsWith(".properties")) {
-          let propertySetName = changedName.originalName.replace(
-            ".properties",
-            "",
-          );
-          let newPropertySetName = changedName.newName.replace(
-            ".properties",
-            "",
-          );
-          tempProxy = tempProxy.replaceAll(
-            `propertyset.${propertySetName}.`,
-            `propertyset.${newPropertySetName}.`,
-          );
-        } else {
-          tempProxy = tempProxy.replaceAll(
-            changedName.originalName + ".",
-            changedName.newName + ".",
-          );
-          tempProxy = tempProxy.replaceAll(
-            `"name":"${changedName.originalName}"`,
-            `"name":"${changedName.newName}"`,
-          );
-          tempProxy = tempProxy.replaceAll(
-            `://${changedName.originalName}"`,
-            `://${changedName.newName}"`,
-          );
-        }
-      }
-      proxy = JSON.parse(tempProxy);
-    }
-
-    fs.writeFileSync("test.local.json", JSON.stringify(proxy));
     return proxy;
   }
 
   public proxyRemoveFeature(proxy: Proxy, feature: Feature): Proxy {
+    // remove parameters
+    for (let parameter of feature.parameters) {
+      let index = proxy.parameters.findIndex(
+        (x) => x.name == parameter.name && x.default == parameter.default,
+      );
+      if (index != -1) proxy.parameters.splice(index, 1);
+    }
+
     // remove default endpoint flow steps
     if (feature.defaultEndpoint) {
       for (let featureFlow of feature.defaultEndpoint.flows) {
@@ -1854,7 +1880,7 @@ export class ApigeeConverter {
     // remove feature endpoints
     if (feature.endpoints && feature.endpoints.length > 0) {
       for (let endpoint of feature.endpoints) {
-        if (feature.uid) endpoint.name = feature.uid + "-" + endpoint.name;
+        // if (feature.uid) endpoint.name = feature.uid + "-" + endpoint.name;
         let index = proxy.endpoints.findIndex((x) => x.name === endpoint.name);
         if (index != -1) proxy.endpoints.splice(index, 1);
       }
@@ -1863,13 +1889,13 @@ export class ApigeeConverter {
     // if feature has targets
     if (feature.targets && feature.targets.length > 0) {
       for (let target of feature.targets) {
-        if (feature.uid) target.name = feature.uid + "-" + target.name;
+        // if (feature.uid) target.name = feature.uid + "-" + target.name;
         let index = proxy.targets.findIndex((x) => x.name === target.name);
         if (index != -1) proxy.targets.splice(index, 1);
       }
     }
 
-    // merge policies
+    // remove policies
     if (feature.policies && feature.policies.length > 0) {
       for (let policy of feature.policies) {
         if (feature.uid) policy.name = feature.uid + "-" + policy.name;
@@ -1882,12 +1908,12 @@ export class ApigeeConverter {
       }
     }
 
-    // merge resources
+    // remove resources
     if (feature.resources && feature.resources.length > 0) {
       for (let resource of feature.resources) {
         if (feature.uid) resource.name = feature.uid + "-" + resource.name;
         let resourceIndex = proxy.resources.findIndex(
-          (x) => x.name === feature.uid + "-" + resource.name,
+          (x) => x.name === resource.name,
         );
         if (resourceIndex != -1) {
           proxy.resources.splice(resourceIndex, 1);
@@ -1926,10 +1952,9 @@ export class ApigeeConverter {
     newFeature.name = proxy.name;
     newFeature.description = proxy.description;
     newFeature.parameters = proxy.parameters;
-    newFeature.uid = proxy.uid ?? (0 | (Math.random() * 9e6)).toString(36);
+    if (proxy.uid) newFeature.uid = proxy.uid;
     if (proxy.priority) newFeature.priority = proxy.priority;
     if (proxy.tests) newFeature.tests = proxy.tests;
-    if (proxy.testFeature) newFeature.testFeature = proxy.testFeature;
 
     let defaultEndpoint = proxy.endpoints.find((x) => x.name == "default");
     let defaultTarget = proxy.targets.find((x) => x.name == "default");

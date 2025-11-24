@@ -83,8 +83,15 @@ export class cli {
       },
     );
 
-    // in case just a file name was passed in, use it to output a new feature
-    if (args["_"] && args["_"][0]) {
+    if (
+      (args["--applyFeature"] || args["--removeFeature"]) &&
+      args["_"] &&
+      args["_"][0]
+    ) {
+      // user wants to apply a feature, set input
+      args["--input"] = args["_"][0];
+    } else if (args["_"] && args["_"][0]) {
+      // user wants to create a new template or proxy, set output
       args["--output"] = args["_"][0];
     }
 
@@ -191,8 +198,8 @@ export class cli {
         result = this.sanitizeName(secondary, "");
       }
     } else if (
-      primary.toLowerCase().includes("yaml") ||
-      primary.toLowerCase().includes(".json")
+      primary.toLowerCase().endsWith(".yaml") ||
+      primary.toLowerCase().endsWith(".json")
     ) {
       result = path.basename(primary, path.extname(primary));
     } else if (primary) {
@@ -289,6 +296,9 @@ export class cli {
 
     if (!options.input) {
       // create new template
+      if (!options.basePath) {
+        // set a default basepath
+      }
       template = this.converter.templateCreate(
         options.name,
         options.basePath ??
@@ -311,9 +321,11 @@ export class cli {
           "Bearer " + options.token,
         );
         if (apigeePath) {
+          let importParameters = options.format == "feature";
           proxy = await this.converter.apigeeZipToProxy(
             options.name,
             apigeePath,
+            importParameters,
           );
           fs.rmSync(apigeePath);
         } else {
@@ -339,7 +351,7 @@ export class cli {
     } else if (fs.existsSync(options.input)) {
       let stats = fs.statSync(options.input);
       if (stats.isDirectory()) {
-        // try to load all files and export to an apigee ORG
+        // try to export all features to an apigee org
         let files = fs.readdirSync(options.input);
         for (let fileName of files) {
           if (fileName.toLowerCase().startsWith("feature-")) {
@@ -349,13 +361,11 @@ export class cli {
             );
 
             proxy = this.converter.featureToProxy(file, inputParameters);
-            if (file.testFeature) {
-              process.chdir(options.input);
+            if (options.applyFeature) {
               let testFeature = await this.apigeeService.featureGet(
-                file.testFeature,
+                options.applyFeature,
               );
-              process.chdir(startDir);
-              if (testFeature)
+              if (testFeature && testFeature.name != proxy.name)
                 proxy = this.converter.proxyApplyFeature(
                   proxy,
                   testFeature,
@@ -432,7 +442,7 @@ export class cli {
         proxyList["proxies"] &&
         proxyList["proxies"].length > 0
       ) {
-        // try to export all to features
+        // try to import all apigee proxies to features
         for (let apigeeProxy of proxyList["proxies"]) {
           if (
             apigeeProxy["name"] &&
@@ -451,17 +461,15 @@ export class cli {
               );
               fs.rmSync(apigeePath);
 
-              if (proxy.testFeature) {
-                process.chdir(options.output);
+              if (options.removeFeature) {
                 let testFeature = await this.apigeeService.featureGet(
-                  proxy.testFeature,
+                  options.removeFeature,
                 );
-                if (testFeature)
+                if (testFeature && testFeature.name != proxy.name)
                   proxy =
                     this.converter.proxyRemoveFeature(proxy, testFeature) ??
                     proxy;
               }
-              process.chdir(startDir);
               feature = this.converter.proxyToFeature(proxy);
               let filePath = options.output.endsWith("/")
                 ? options.output + apigeeProxy["name"] + ".yaml"
@@ -483,6 +491,14 @@ export class cli {
       if (options.applyFeature) {
         process.chdir(startDir);
         if (!options.output) options.output = options.input;
+
+        if (options.output.includes(":") && !inputParameters["PROJECT_ID"]) {
+          // set PROJECT_ID with included project
+          let pieces = options.output.split(":");
+          if (pieces.length >= 1 && pieces[0])
+            inputParameters["PROJECT_ID"] = pieces[0];
+        }
+
         let relativePath = options.applyFeature;
         if (
           fs.existsSync(options.applyFeature) &&
@@ -512,8 +528,6 @@ export class cli {
             applyFeature,
             inputParameters,
           );
-        } else if (feature && applyFeature) {
-          feature.testFeature = relativePath;
         } else if (!applyFeature) {
           console.error(`Could not load feature ${relativePath}.`);
         }
@@ -539,8 +553,6 @@ export class cli {
           );
         } else if (proxy && removeFeature) {
           proxy = this.converter.proxyRemoveFeature(proxy, removeFeature);
-        } else if (feature && removeFeature) {
-          delete feature.testFeature;
         } else if (!removeFeature) {
           console.error(`Could not load feature ${relativePath}.`);
         }
@@ -587,9 +599,9 @@ export class cli {
           );
         } else if (feature) {
           proxy = this.converter.featureToProxy(feature, inputParameters);
-          if (feature.testFeature) {
+          if (options.applyFeature) {
             let testFeature = await this.apigeeService.featureGet(
-              feature.testFeature,
+              options.applyFeature,
             );
             if (testFeature)
               proxy = this.converter.proxyApplyFeature(
@@ -648,24 +660,6 @@ export class cli {
           );
         } else if (feature) {
           proxy = this.converter.featureToProxy(feature, inputParameters);
-          if (feature.testFeature) {
-            let applyFeatureObject = await this.apigeeService.featureGet(
-              feature.testFeature,
-            );
-            if (!applyFeatureObject) {
-              // retry in start directory
-              process.chdir(startDir);
-              applyFeatureObject = await this.apigeeService.featureGet(
-                feature.testFeature,
-              );
-            }
-            if (applyFeatureObject)
-              proxy = this.converter.proxyApplyFeature(
-                proxy,
-                applyFeatureObject,
-                inputParameters,
-              );
-          }
         }
 
         process.chdir(startDir);
@@ -757,11 +751,11 @@ export class cli {
         }
       } else if (options.output && options.format == "feature") {
         if (proxy) {
-          if (proxy.testFeature) {
-            let outputDir = path.dirname(options.output);
-            process.chdir(outputDir);
+          if (options.removeFeature) {
+            // let outputDir = path.dirname(options.output);
+            // process.chdir(outputDir);
             let testFeature = await this.apigeeService.featureGet(
-              proxy.testFeature,
+              options.removeFeature,
             );
             if (testFeature)
               proxy =
@@ -769,8 +763,11 @@ export class cli {
           }
           if (proxy) feature = this.converter.proxyToFeature(proxy);
         }
-        process.chdir(startDir);
+        // process.chdir(startDir);
         if (feature) {
+          // if (!feature.uid)
+          //   feature.uid = (0 | (Math.random() * 9e6)).toString(36);
+
           this.converter.featureUpdateParameters(feature, inputParameters);
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(feature, null, 2));

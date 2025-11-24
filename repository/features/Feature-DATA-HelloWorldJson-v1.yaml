@@ -1,0 +1,70 @@
+name: Feature-DATA-HelloWorldJson-v1
+uid: helloj
+type: feature
+description: |
+  If the proxy response is JSON, then a message property is added to the payload.
+
+  ## Prerequisites
+  - The message response is JSON.
+
+  ## Inputs
+  - A 'message' property is either sent as query parameter or retrieved from the properties file.
+
+  ## Outputs
+  - If the proxy response is JSON, then the message property is added to the payload.
+parameters:
+  - name: MESSAGE
+    displayName: MESSAGE
+    description: Configuration input for MESSAGE
+    default: Hello world!
+    examples:
+      - Hello mars!
+      - Hello internet!
+defaultEndpoint:
+  name: default
+  basePath: /feature-data-helloworld-v1
+  routes:
+    - name: default
+  flows:
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: JS-AddHelloWorld
+  faultRules: []
+endpoints: []
+targets: []
+policies:
+  - name: JS-AddHelloWorld
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-AddHelloWorld
+        DisplayName:
+          _text: JS-AddHelloWorld
+        Properties: {}
+        ResourceURL:
+          _text: jsc://hello-world.js
+resources:
+  - name: hello-world.js
+    type: jsc
+    content: |-
+      var responseObject = response.content.asJSON;
+
+      if (responseObject) {
+        var message = context.getVariable("request.queryparam.message");
+        if (!message)
+          message = context.getVariable("propertyset.helloworld.MESSAGE");
+        if (!message)
+          message = "Hello world!";
+        responseObject["message"] = message;
+        context.setVariable("response.content", JSON.stringify(responseObject))
+      }
+  - name: helloworld.properties
+    type: properties
+    content: |
+      MESSAGE={MESSAGE}
+tests: []

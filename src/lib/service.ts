@@ -345,8 +345,8 @@ export class ApigeeTemplaterService {
         foundYaml = true;
       } else if (fs.existsSync(tempName)) {
         featureString = fs.readFileSync(tempName, "utf8");
-        let dirName = path.dirname(tempName);
-        process.chdir(dirName);
+        // let dirName = path.dirname(tempName);
+        // process.chdir(dirName);
         if (tempName.endsWith(".yaml")) foundYaml = true;
         else foundJson = true;
       } else {

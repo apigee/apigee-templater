@@ -1,4 +1,5 @@
 name: Feature-LLM-PromptExtract-v1
+uid: pext
 type: feature
 description: |
   This feature tries to extract the last user prompt from both gemini as well as openapi prompt formats.
@@ -136,4 +137,3 @@ resources:
         return requestObject;
       }
 tests: []
-testFeature: Feature-TESTER-v1.yaml

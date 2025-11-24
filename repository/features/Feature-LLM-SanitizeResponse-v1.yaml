@@ -1,4 +1,5 @@
 name: Feature-LLM-SanitizeResponse-v1
+uid: sanresp
 type: feature
 description: Feature-LLM-SanitizeResponse-v1
 parameters:

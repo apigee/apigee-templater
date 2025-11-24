@@ -1,4 +1,5 @@
 name: Feature-LLM-SanitizeRequest-v1
+uid: sanreq
 type: feature
 description: |-
   This feature uses Google Cloud Model Armor to screen a request prompt,

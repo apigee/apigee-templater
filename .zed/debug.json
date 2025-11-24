@@ -15,7 +15,7 @@
   },
   {
     "adapter": "JavaScript",
-    "label": "cli.js - import apigee proxy to feature",
+    "label": "cli.js - import apigee org proxy to feature",
     "type": "pwa-node",
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
@@ -32,7 +32,7 @@
   },
   {
     "adapter": "JavaScript",
-    "label": "cli.js - import ALL apigee proxies to features",
+    "label": "cli.js - import ALL apigee org proxies to features",
     "type": "pwa-node",
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
@@ -49,7 +49,7 @@
   },
   {
     "adapter": "JavaScript",
-    "label": "cli.js - export feature to apigee proxy",
+    "label": "cli.js - export feature to apigee org",
     "type": "pwa-node",
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
@@ -57,26 +57,30 @@
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
     "args": [
       "-i",
-      "./repository/features/Feature-LLM-PromptExtract-v1.yaml",
+      "./repository/features/Feature-PROXY-Gemini-v1.yaml",
+      "-o",
+      "apigee-prod13:"
+    ]
+  },
+  {
+    "adapter": "JavaScript",
+    "label": "cli.js - export ALL features to apigee org",
+    "type": "pwa-node",
+    "request": "launch",
+    "program": "dist/bin/apigee-templater.js",
+    "stopOnEntry": false,
+    "args": [
+      "-i",
+      "./repository/features",
       "-o",
       "apigee-hub-demo:",
-      "-r",
+      "-a",
       "./repository/features/Feature-TESTER-v1.yaml"
     ]
   },
   {
     "adapter": "JavaScript",
-    "label": "cli.js - export ALL features to apigee proxy",
-    "type": "pwa-node",
-    "request": "launch",
-    "program": "dist/bin/apigee-templater.js",
-    "stopOnEntry": false,
-    "cwd": "/home/tyayers/projects/apigee/apigee-templater",
-    "args": ["-i", "./repository/features", "-o", "apigee-prod13:"]
-  },
-  {
-    "adapter": "JavaScript",
-    "label": "cli.js - remove feature from apigee proxy",
+    "label": "cli.js - remove feature from apigee org",
     "type": "pwa-node",
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
@@ -93,16 +97,16 @@
   },
   {
     "adapter": "JavaScript",
-    "label": "cli.js - apply feature to apigee proxy",
+    "label": "cli.js - apply feature to apigee org proxy",
     "type": "pwa-node",
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
     "args": [
       "-i",
-      "apigee-hub-demo:AI-Gateway-v2",
+      "apigee-hub-demo:AI-Gateway-v1",
       "-a",
-      "./repository/features/Feature-PROXY-DeepWiki-v2.yaml"
+      "./repository/features/Feature-PROXY-Gemini-v1.yaml"
     ]
   }
 ]

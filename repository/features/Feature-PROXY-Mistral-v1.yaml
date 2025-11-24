@@ -1,4 +1,5 @@
 name: Feature-PROXY-Mistral-v1
+uid: mis
 type: feature
 description: |
   This feature adds an endpoints with basepath at v1/mistral, and proxies
@@ -237,7 +238,7 @@ resources:
 
           if (streamData["usage"] && streamData["usage"]["prompt_tokens"])
             context.setVariable("llm.promptTokenCount", streamData["usage"]["prompt_tokens"]);
-          
+
           if (streamData["usage"] && streamData["usage"]["completion_tokens"])
             context.setVariable("llm.responseTokenCount", streamData["usage"]["completion_tokens"]);
 

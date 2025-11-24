@@ -1,4 +1,5 @@
 name: Feature-LLM-PromptMask-v1
+uid: pmask
 type: feature
 description: |
   This feature masks PII data email addresses and telephone numbers from

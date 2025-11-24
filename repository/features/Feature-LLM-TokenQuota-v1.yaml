@@ -1,4 +1,5 @@
 name: Feature-LLM-TokenQuota-v1
+uid: quota
 type: feature
 description: |-
   This feature estimates the token length of an input prompt, checks
