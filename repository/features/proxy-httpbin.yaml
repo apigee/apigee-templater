@@ -1,0 +1,33 @@
+name: proxy-httpbin
+uid: bin
+type: feature
+description: Feature to proxy httpbin.org.
+parameters:
+  - name: BASE_PATH
+    displayName: BASE_PATH
+    description: The base path on the proxy to receive traffic.
+    default: /v1/httpbin
+    examples:
+      - /v1/httpbin
+      - /httpbin
+      - /llm/httpbin
+endpoints:
+  - name: httpbin
+    basePath: { BASE_PATH }
+    routes:
+      - name: default
+        target: httpbin
+    flows: []
+    faultRules: []
+targets:
+  - name: httpbin
+    url: https://httpbin.org
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL:
+        _text: https://httpbin.org
+policies: []
+resources: []
+tests: []

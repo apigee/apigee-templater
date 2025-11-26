@@ -1,7 +1,18 @@
 name: AI-Gateway-v1
 type: template
 description: API template for AI-Gateway-v1
-features: []
-parameters: []
-endpoints: []
+features:
+  - auth-key-header
+parameters:
+  - name: auth-key-header.API_KEY_HEADER_NAME
+    description: The header where the api key is checked.
+    default: x-api-key
+    examples:
+      - x-api-key
+      - x-apikey
+endpoints:
+  - name: default
+    basePath: /ai-gateway-v1
+    routes:
+      - name: default
 targets: []

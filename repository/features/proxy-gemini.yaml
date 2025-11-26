@@ -1,0 +1,267 @@
+name: proxy-gemini
+uid: gem
+type: feature
+description: |
+  This feature adds an endpoints with basepath at v1/gemini, and proxies
+  requests to the Vertex AI Gemini endpoint in a configured region.
+
+  ## Prerequisites
+  - Vertex AI is enabled in the GCP Project.
+    ```sh
+    gcloud services enable aiplatform.googleapis.com
+    ```
+
+  ## Inputs
+  - Request prompt in the OAI llm format:
+    ```js
+    {
+      "messages": [{
+        "role": "user",
+        "content": "Why is the sky blue?"
+      }],
+      "stream": true
+    }
+    ```
+
+  ## Outputs
+  - Stores successful prompt token count in the **Apigee variable llm.promptTokenCount**
+  - Stores successful response token count in the **Apigee variable llm.responseTokenCount**
+  - Stores successful total token count in the **Apigee variable llm.totalTokenCount**
+  - Normal response from Gemini in OAI format.
+parameters:
+  - name: BASE_PATH
+    displayName: BASE_PATH
+    description: The base path on the proxy to receive traffic.
+    default: /v1/gemini
+    examples:
+      - /v1/gemini
+      - /gemini
+      - /llm/gemini
+  - name: PROJECT_ID
+    displayName: PROJECT_ID
+    description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
+    default: YOUR_PROJECT_ID
+    examples:
+      - YOUR_PROJECT_ID
+  - name: REGION
+    displayName: REGION
+    description: The GCP region that should be used for the Vertex AI Gemini endpoint.
+    default: europe-west1
+    examples:
+      - europe-west1
+      - us-east1
+  - name: MODEL_ID
+    displayName: MODEL_ID
+    description: The Gemini model to use for the request.
+    default: gemini-2.5-flash
+    examples:
+      - gemini-2.5-flash
+      - gemini-2.5-pro
+  - name: GEMINI_PATH
+    displayName: GEMINI_PATH
+    description: Configuration input for GEMINI_PATH
+    default:
+      "{REGION}-aiplatform.googleapis.com/v1beta1/projects/{PROJECT_ID}/loca\
+      tions/{REGION}/endpoints/openapi/chat/completions"
+    examples: []
+endpoints:
+  - name: gemini
+    basePath: { BASE_PATH }
+    routes:
+      - name: default
+        target: gemini
+    flows: []
+    faultRules: []
+targets:
+  - name: gemini
+    url: https://{propertyset.gemini.GEMINI_PATH}
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: JS-SetGeminiModel
+          - name: JS-SetGeminiPrompt
+            condition: llm.promptInput != null
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: EV-GeminiStoreInfo
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-SetStreamInfo
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL:
+        _text: https://{propertyset.gemini.GEMINI_PATH}
+      Authentication:
+        GoogleAccessToken:
+          Scopes:
+            Scope:
+              _text: https://www.googleapis.com/auth/cloud-platform
+policies:
+  - name: EV-GeminiStoreInfo
+    type: ExtractVariables
+    content:
+      ExtractVariables:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: EV-GeminiStoreInfo
+        DisplayName:
+          _text: EV-GeminiStoreInfo
+        Properties: {}
+        IgnoreUnresolvedVariables:
+          _text: "true"
+        JSONPayload:
+          Variable:
+            - _attributes:
+                name: model
+              JSONPath:
+                _text: $.model
+            - _attributes:
+                name: promptTokenCount
+              JSONPath:
+                _text: $.usage.prompt_tokens
+            - _attributes:
+                name: responseTokenCount
+              JSONPath:
+                _text: $.usage.completion_tokens
+            - _attributes:
+                name: totalTokenCount
+              JSONPath:
+                _text: $.usage.total_tokens
+        Source:
+          _attributes:
+            clearPayload: "false"
+          _text: response
+        VariablePrefix:
+          _text: llm
+  - name: JS-SetGeminiModel
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetGeminiModel
+        DisplayName:
+          _text: JS-SetGeminiModel
+        Properties: {}
+        ResourceURL:
+          _text: jsc://set-gemini-model.js
+  - name: JS-SetGeminiPrompt
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetGeminiPrompt
+        DisplayName:
+          _text: JS-SetGeminiPrompt
+        Properties: {}
+        ResourceURL:
+          _text: jsc://set-gemini-prompt.js
+  - name: JS-SetStreamInfo
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetStreamInfo
+        DisplayName:
+          _text: JS-SetStreamInfo
+        Properties: {}
+        ResourceURL:
+          _text: jsc://set-gemini-stream-info.js
+resources:
+  - name: set-gemini-model.js
+    type: jsc
+    content: |-
+      var requestObject = request.content.asJSON;
+      var model = context.getVariable("propertyset.gemini.MODEL_ID");
+
+      if (requestObject) {
+        if (model.startsWith("google/"))
+          requestObject["model"] = model;
+        else
+          requestObject["model"] = "\"google/" + model + "\"";
+      }
+
+      context.setVariable('request.content', JSON.stringify(requestObject));
+  - name: set-gemini-prompt.js
+    type: jsc
+    content: |-
+      var requestObject = request.content.asJSON;
+      var inputPrompt = context.getVariable("llm.promptInput");
+
+      if (requestObject && inputPrompt) {
+        requestObject = setLastPrompt(requestObject, inputPrompt);
+        context.setVariable("request.content", JSON.stringify(requestObject));
+      }
+
+      function setLastPrompt(requestObject, inputPrompt) {
+        if (requestObject && requestObject["contents"]) {
+          // gemini format
+          var userConversations = requestObject.contents.filter(item => item.role === 'user');
+          if (userConversations.length > 0) {
+            var lastUserConversation = userConversations[userConversations.length - 1];
+            if (lastUserConversation && lastUserConversation.parts && lastUserConversation.parts.length > 0)
+              lastUserConversation.parts[lastUserConversation.parts.length - 1].text = inputPrompt;
+          }
+        } else if (requestObject && requestObject["messages"]) {
+          // openapi format
+          var userConversations = requestObject.messages.filter(item => item.role === 'user');
+          if (userConversations && userConversations.length > 0) {
+            var lastUserConversation = userConversations[userConversations.length - 1];
+            if (lastUserConversation.content && Array.isArray(lastUserConversation.content) && lastUserConversation.content.length > 0) {
+              // array of content
+              const contentTexts = lastUserConversation.content.filter(item => item.type === 'text');
+              if (contentTexts && contentTexts.length > 0) {
+                contentTexts[contentTexts.length - 1].text = inputPrompt;
+              }
+            } else if (lastUserConversation.content) {
+              lastUserConversation.content = inputPrompt;
+            }
+          }
+        }
+
+        return requestObject;
+      }
+  - name: set-gemini-stream-info.js
+    type: jsc
+    content: |
+      var streamString = context.getVariable("response.event.current.content");
+      if (streamString) {
+        streamString = streamString.replace("data: ", "");
+        if (streamString != "[DONE]") {
+          var streamData = JSON.parse(streamString);
+
+          if (streamData["model"])
+            context.setVariable("llm.model", streamData["model"]);
+
+          if (streamData["usage"] && streamData["usage"]["prompt_tokens"])
+            context.setVariable("llm.promptTokenCount", streamData["usage"]["prompt_tokens"]);
+
+          if (streamData["usage"] && streamData["usage"]["completion_tokens"])
+            context.setVariable("llm.responseTokenCount", streamData["usage"]["completion_tokens"]);
+
+          if (streamData["usage"] && streamData["usage"]["total_tokens"])
+            context.setVariable("llm.totalTokenCount", streamData["usage"]["total_tokens"]);
+        }
+      }
+  - name: gemini.properties
+    type: properties
+    content: |
+      MODEL_ID={MODEL_ID}
+      GEMINI_PATH={GEMINI_PATH}
+tests: []
