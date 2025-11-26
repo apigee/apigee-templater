@@ -13,7 +13,7 @@ parameters:
       - /llm/httpbin
 endpoints:
   - name: httpbin
-    basePath: { BASE_PATH }
+    basePath: "{BASE_PATH}"
     routes:
       - name: default
         target: httpbin

@@ -108,5 +108,14 @@
       "-a",
       "./repository/features/Feature-PROXY-Gemini-v1.yaml"
     ]
+  },
+  {
+    "adapter": "JavaScript",
+    "label": "cli.js - apply feature to local file",
+    "type": "pwa-node",
+    "request": "launch",
+    "program": "dist/bin/apigee-templater.js",
+    "stopOnEntry": false,
+    "args": ["./repository/templates/AI-Gateway-v1.yaml", "-a", "proxy-gemini"]
   }
 ]

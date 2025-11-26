@@ -1127,8 +1127,11 @@ export class ApigeeConverter {
     parameters: { [key: string]: string } = {},
   ): Template {
     if (!template.features.includes(featurePath)) {
-      if (feature.endpoints && feature.endpoints.length > 0) {
-        for (let endpoint of feature.endpoints) {
+      // replace parameters from runtime
+      let tempFeature = this.featureReplaceParameters(feature, [], parameters);
+
+      if (tempFeature.endpoints && tempFeature.endpoints.length > 0) {
+        for (let endpoint of tempFeature.endpoints) {
           if (endpoint.name != "default") {
             let templateEndpoint = new Endpoint();
             templateEndpoint.name = endpoint.name;
@@ -1139,8 +1142,8 @@ export class ApigeeConverter {
         }
       }
 
-      if (feature.targets && feature.targets.length > 0) {
-        for (let target of feature.targets) {
+      if (tempFeature.targets && tempFeature.targets.length > 0) {
+        for (let target of tempFeature.targets) {
           if (target.name != "default") {
             let templateTarget: Target = {
               name: target.name,
@@ -1706,16 +1709,16 @@ export class ApigeeConverter {
     if (tempFeature.endpoints && tempFeature.endpoints.length > 0) {
       // first set name with id
       for (let tempEndpoint of tempFeature.endpoints) {
-        // remove renaming of endpoints and targets, for now...
-        // if (tempFeature.uid) {
-        //   tempEndpoint.name = tempFeature.uid + "-" + tempEndpoint.name;
+        // rename endpoint names with uid
+        if (tempFeature.uid) {
+          tempEndpoint.name = tempFeature.uid + "-" + tempEndpoint.name;
 
-        //   for (let tempRoute of tempEndpoint.routes) {
-        //     if (tempRoute.target) {
-        //       tempRoute.target = tempFeature.uid + "-" + tempRoute.target;
-        //     }
-        //   }
-        // }
+          for (let tempRoute of tempEndpoint.routes) {
+            if (tempRoute.target) {
+              tempRoute.target = tempFeature.uid + "-" + tempRoute.target;
+            }
+          }
+        }
         let endpointIndex = proxy.endpoints.findIndex(
           (x) => x.name === tempEndpoint.name,
         );
@@ -1733,10 +1736,10 @@ export class ApigeeConverter {
     // if feature has targets
     if (tempFeature.targets && tempFeature.targets.length > 0) {
       for (let tempTarget of tempFeature.targets) {
-        // remove renaming of targets, for now
-        // if (tempFeature.uid) {
-        //   tempTarget.name = tempFeature.uid + "-" + tempTarget.name;
-        // }
+        // rename targets with uid
+        if (tempFeature.uid) {
+          tempTarget.name = tempFeature.uid + "-" + tempTarget.name;
+        }
         let targetIndex = proxy.targets.findIndex(
           (x) => x.name === tempTarget.name,
         );
@@ -1880,7 +1883,8 @@ export class ApigeeConverter {
     // remove feature endpoints
     if (feature.endpoints && feature.endpoints.length > 0) {
       for (let endpoint of feature.endpoints) {
-        // if (feature.uid) endpoint.name = feature.uid + "-" + endpoint.name;
+        // endpoint with uid, if available
+        if (feature.uid) endpoint.name = feature.uid + "-" + endpoint.name;
         let index = proxy.endpoints.findIndex((x) => x.name === endpoint.name);
         if (index != -1) proxy.endpoints.splice(index, 1);
       }
@@ -1889,7 +1893,8 @@ export class ApigeeConverter {
     // if feature has targets
     if (feature.targets && feature.targets.length > 0) {
       for (let target of feature.targets) {
-        // if (feature.uid) target.name = feature.uid + "-" + target.name;
+        // target with uid, if available
+        if (feature.uid) target.name = feature.uid + "-" + target.name;
         let index = proxy.targets.findIndex((x) => x.name === target.name);
         if (index != -1) proxy.targets.splice(index, 1);
       }

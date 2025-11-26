@@ -64,7 +64,7 @@ parameters:
     examples: []
 endpoints:
   - name: mistral
-    basePath: { BASE_PATH }
+    basePath: "{BASE_PATH}"
     routes:
       - name: default
         target: mistral
