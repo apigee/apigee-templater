@@ -1,4 +1,4 @@
-name: Feature-LLM-SanitizeResponse-v1
+name: llm-response-sanitize
 uid: sanresp
 type: feature
 description: Feature-LLM-SanitizeResponse-v1
@@ -41,7 +41,8 @@ policies:
         UserPromptSource:
           _text: "{jsonPath('$.contents[-1].parts[-1].text',request.content,true)}"
         LLMResponseSource:
-          _text: "{jsonPath('$.candidates[-1].content.parts[-1].text',response.content,tr\
+          _text:
+            "{jsonPath('$.candidates[-1].content.parts[-1].text',response.content,tr\
             ue)}"
 resources:
   - name: model-armor.properties

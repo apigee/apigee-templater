@@ -1,4 +1,4 @@
-name: Feature-LLM-PromptExtract-v1
+name: llm-prompt-extract
 uid: pext
 type: feature
 description: |

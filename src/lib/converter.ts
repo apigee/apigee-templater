@@ -1133,6 +1133,17 @@ export class ApigeeConverter {
       if (tempFeature.endpoints && tempFeature.endpoints.length > 0) {
         for (let endpoint of tempFeature.endpoints) {
           if (endpoint.name != "default") {
+            // add feature uid if exists
+            if (tempFeature.uid) {
+              endpoint.name = tempFeature.uid + "-" + endpoint.name;
+
+              for (let tempRoute of endpoint.routes) {
+                if (tempRoute.target) {
+                  tempRoute.target = tempFeature.uid + "-" + tempRoute.target;
+                }
+              }
+            }
+
             let templateEndpoint = new Endpoint();
             templateEndpoint.name = endpoint.name;
             templateEndpoint.basePath = endpoint.basePath;
@@ -1145,6 +1156,10 @@ export class ApigeeConverter {
       if (tempFeature.targets && tempFeature.targets.length > 0) {
         for (let target of tempFeature.targets) {
           if (target.name != "default") {
+            // add template uid, if it exists
+            if (tempFeature.uid) {
+              target.name = tempFeature.uid + "-" + target.name;
+            }
             let templateTarget: Target = {
               name: target.name,
               url: target.url,
@@ -1185,6 +1200,8 @@ export class ApigeeConverter {
       if (feature.endpoints && feature.endpoints.length > 0) {
         for (let endpoint of feature.endpoints) {
           if (endpoint.name != "default") {
+            // add feature uid, if it exists
+            if (feature.uid) endpoint.name = feature.uid + "-" + endpoint.name;
             let index = template.endpoints.findIndex(
               (x) => x.name === endpoint.name,
             );
@@ -1196,6 +1213,8 @@ export class ApigeeConverter {
       if (feature.targets && feature.targets.length > 0) {
         for (let target of feature.targets) {
           if (target.name != "default") {
+            // add feature uid, if it exists
+            if (feature.uid) target.name = feature.uid + "-" + target.name;
             let index = template.targets.findIndex(
               (x) => x.name === target.name,
             );
@@ -1353,7 +1372,7 @@ export class ApigeeConverter {
   ): Proxy {
     let newFeature = this.featureReplaceParameters(feature, [], parameters);
     let newProxy = new Proxy();
-    newProxy.name = newFeature.name;
+    newProxy.name = "feature-" + newFeature.name;
     newProxy.description = newFeature.description;
     // keep original parameters, non-replaced
     newProxy.parameters = feature.parameters;
@@ -1955,6 +1974,8 @@ export class ApigeeConverter {
   public proxyToFeature(proxy: Proxy): Feature {
     let newFeature = new Feature();
     newFeature.name = proxy.name;
+    if (newFeature.name.startsWith("feature-"))
+      newFeature.name = newFeature.name.replace("feature-", "");
     newFeature.description = proxy.description;
     newFeature.parameters = proxy.parameters;
     if (proxy.uid) newFeature.uid = proxy.uid;

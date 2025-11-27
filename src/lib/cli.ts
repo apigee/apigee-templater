@@ -351,44 +351,45 @@ export class cli {
     } else if (fs.existsSync(options.input)) {
       let stats = fs.statSync(options.input);
       if (stats.isDirectory()) {
+        console.log(
+          ` > Exporting all features from ${options.input} to ${options.output}.`,
+        );
         // try to export all features to an apigee org
         let files = fs.readdirSync(options.input);
         for (let fileName of files) {
-          if (fileName.toLowerCase().startsWith("feature-")) {
-            let file = await this.loadFile("", options.input + "/" + fileName);
-            console.log(
-              ` > Exporting file ${fileName} to an Apigee feature proxy.`,
-            );
+          let file = await this.loadFile("", options.input + "/" + fileName);
+          console.log(
+            ` > Exporting file ${fileName} to an Apigee feature proxy.`,
+          );
 
-            proxy = this.converter.featureToProxy(file, inputParameters);
-            if (options.applyFeature) {
-              let testFeature = await this.apigeeService.featureGet(
-                options.applyFeature,
-              );
-              if (testFeature && testFeature.name != proxy.name)
-                proxy = this.converter.proxyApplyFeature(
-                  proxy,
-                  testFeature,
-                  inputParameters,
-                );
-            }
-            let outputPath = await this.converter.proxyToApigeeZip(proxy);
-            let lastRevision = "";
-            // export to apigee
-            if (!options.token) {
-              let token = await auth.getAccessToken();
-              if (token) options.token = token;
-            }
-            if (options.output.endsWith(":"))
-              options.output = options.output.replace(":", "");
-            lastRevision = await this.apigeeService.apigeeProxyExport(
-              proxy.name,
-              outputPath,
-              options.output,
-              "Bearer " + options.token,
+          proxy = this.converter.featureToProxy(file, inputParameters);
+          if (options.applyFeature) {
+            let testFeature = await this.apigeeService.featureGet(
+              options.applyFeature,
             );
-            fs.rmSync(outputPath);
+            if (testFeature && testFeature.name != proxy.name)
+              proxy = this.converter.proxyApplyFeature(
+                proxy,
+                testFeature,
+                inputParameters,
+              );
           }
+          let outputPath = await this.converter.proxyToApigeeZip(proxy);
+          let lastRevision = "";
+          // export to apigee
+          if (!options.token) {
+            let token = await auth.getAccessToken();
+            if (token) options.token = token;
+          }
+          if (options.output.endsWith(":"))
+            options.output = options.output.replace(":", "");
+          lastRevision = await this.apigeeService.apigeeProxyExport(
+            proxy.name,
+            outputPath,
+            options.output,
+            "Bearer " + options.token,
+          );
+          fs.rmSync(outputPath);
         }
         return;
       } else {
@@ -472,8 +473,8 @@ export class cli {
               }
               feature = this.converter.proxyToFeature(proxy);
               let filePath = options.output.endsWith("/")
-                ? options.output + apigeeProxy["name"] + ".yaml"
-                : options.output + "/" + apigeeProxy["name"] + ".yaml";
+                ? options.output + feature.name + ".yaml"
+                : options.output + "/" + feature.name + ".yaml";
 
               fs.writeFileSync(
                 filePath,

@@ -1,0 +1,25 @@
+name: proxy-apigeemock
+uid: am
+type: feature
+description: proxy-apigeemock
+parameters: []
+endpoints:
+  - name: apigeemock
+    basePath: /feature-proxy-apigeemock
+    routes:
+      - name: default
+        target: apigeemock
+    flows: []
+    faultRules: []
+targets:
+  - name: apigeemock
+    url: https://mocktarget.apigee.net
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL:
+        _text: https://mocktarget.apigee.net
+policies: []
+resources: []
+tests: []

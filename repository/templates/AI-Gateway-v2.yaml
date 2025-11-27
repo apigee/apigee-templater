@@ -1,17 +1,10 @@
-name: AI-Gateway-v1
+name: AI-Gateway-v2
 type: template
-description: API template for AI-Gateway-v1
+description: API template for AI-Gateway-v2
 features:
-  - auth-key-header
   - proxy-gemini
   - proxy-mistral
 parameters:
-  - name: auth-key-header.API_KEY_HEADER_NAME
-    description: The header where the api key is checked.
-    default: x-api-key
-    examples:
-      - x-api-key
-      - x-apikey
   - name: proxy-gemini.BASE_PATH
     displayName: BASE_PATH
     description: The base path on the proxy to receive traffic.
@@ -80,7 +73,7 @@ parameters:
     examples: []
 endpoints:
   - name: default
-    basePath: /ai-gateway-v1
+    basePath: /ai-gateway-v2
     routes:
       - name: default
   - name: gem-gemini

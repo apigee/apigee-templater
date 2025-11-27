@@ -1,4 +1,4 @@
-name: Feature-LLM-SanitizeRequest-v1
+name: llm-prompt-sanitize
 uid: sanreq
 type: feature
 description: |-

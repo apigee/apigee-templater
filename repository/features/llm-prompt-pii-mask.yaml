@@ -1,4 +1,4 @@
-name: Feature-LLM-PromptMask-v1
+name: llm-prompt-pii-mask
 uid: pmask
 type: feature
 description: |
