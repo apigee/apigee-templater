@@ -1,5 +1,4 @@
 name: response-hello-world-json
-uid: helloj
 type: feature
 description: |
   If the proxy response is JSON, then a message property is added to the payload.

@@ -1,5 +1,4 @@
 name: response-hello-world-text
-uid: hellot
 type: feature
 description: |
   A message text is added to the payload.

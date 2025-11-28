@@ -92,7 +92,11 @@ export class cli {
       args["--input"] = args["_"][0];
     } else if (args["_"] && args["_"][0]) {
       // user wants to create a new template or proxy, set output
-      args["--output"] = args["_"][0];
+      args["--output"] =
+        !args["_"][0].toLowerCase().endsWith(".yaml") &&
+        !args["_"][0].toLowerCase().endsWith(".yaml")
+          ? args["_"][0] + ".yaml"
+          : args["_"][0];
     }
 
     return {
@@ -543,6 +547,14 @@ export class cli {
             options.removeFeature,
           );
         }
+        let id = "";
+        if (options.removeFeature.includes(":")) {
+          let parts = options.removeFeature.split(":");
+          if (parts.length === 2) {
+            id = parts[0] ?? "";
+            options.removeFeature = parts[1] ?? options.removeFeature;
+          }
+        }
         let removeFeature = await this.apigeeService.featureGet(
           options.removeFeature,
         );
@@ -551,6 +563,7 @@ export class cli {
             template,
             removeFeature,
             relativePath,
+            id,
           );
         } else if (proxy && removeFeature) {
           proxy = this.converter.proxyRemoveFeature(proxy, removeFeature);

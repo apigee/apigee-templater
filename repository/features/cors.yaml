@@ -1,5 +1,4 @@
 name: cors
-uid: cors
 type: feature
 description: |
   This feature adds CORS handling to a proxy, with parameters for the allowed origins, methods and headers,

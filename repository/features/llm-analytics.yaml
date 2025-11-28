@@ -1,5 +1,4 @@
 name: llm-analytics
-uid: lmma
 type: feature
 description: |
   Adds LLM data to data collectors. This feature does not fail if properites are not found,

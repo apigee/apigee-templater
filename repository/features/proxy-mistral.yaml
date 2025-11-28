@@ -1,5 +1,4 @@
 name: proxy-mistral
-uid: mis
 type: feature
 description: |
   This feature adds an endpoints with basepath at v1/mistral, and proxies

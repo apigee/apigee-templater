@@ -1,5 +1,4 @@
 name: llm-prompt-sanitize
-uid: sanreq
 type: feature
 description: |-
   This feature uses Google Cloud Model Armor to screen a request prompt,

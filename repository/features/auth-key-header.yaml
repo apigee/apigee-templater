@@ -1,5 +1,4 @@
 name: auth-key-header
-uid: authkh
 type: feature
 description: |
   This feature applies API key header authentication and authorization to the proxy flow.

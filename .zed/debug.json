@@ -116,6 +116,10 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["./repository/templates/AI-Gateway-v1.yaml", "-a", "proxy-gemini"]
+    "args": [
+      "./repository/templates/Test1.yaml",
+      "-a",
+      "./repository/features/proxy-cloudrun.yaml"
+    ]
   }
 ]

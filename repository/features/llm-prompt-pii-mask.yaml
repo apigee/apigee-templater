@@ -1,5 +1,4 @@
 name: llm-prompt-pii-mask
-uid: pmask
 type: feature
 description: |
   This feature masks PII data email addresses and telephone numbers from

@@ -1,5 +1,4 @@
 name: proxy-httpbin
-uid: bin
 type: feature
 description: Feature to proxy httpbin.org.
 parameters:

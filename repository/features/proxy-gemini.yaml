@@ -1,5 +1,4 @@
 name: proxy-gemini
-uid: gem
 type: feature
 description: |
   This feature adds an endpoints with basepath at v1/gemini, and proxies

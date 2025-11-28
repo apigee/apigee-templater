@@ -1126,65 +1126,67 @@ export class ApigeeConverter {
     featurePath: string,
     parameters: { [key: string]: string } = {},
   ): Template {
-    if (!template.features.includes(featurePath)) {
-      // replace parameters from runtime
-      let tempFeature = this.featureReplaceParameters(feature, [], parameters);
+    // replace parameters from runtime
+    let tempFeature = this.featureReplaceParameters(feature, [], parameters);
+    // set uid on feature usage
+    tempFeature.uid = (Math.random() + 1).toString(36).substring(7);
+    if (tempFeature.endpoints && tempFeature.endpoints.length > 0) {
+      for (let endpoint of tempFeature.endpoints) {
+        if (endpoint.name != "default") {
+          // add feature uid if exists
+          if (tempFeature.uid) {
+            endpoint.name = tempFeature.uid + "-" + endpoint.name;
 
-      if (tempFeature.endpoints && tempFeature.endpoints.length > 0) {
-        for (let endpoint of tempFeature.endpoints) {
-          if (endpoint.name != "default") {
-            // add feature uid if exists
-            if (tempFeature.uid) {
-              endpoint.name = tempFeature.uid + "-" + endpoint.name;
-
-              for (let tempRoute of endpoint.routes) {
-                if (tempRoute.target) {
-                  tempRoute.target = tempFeature.uid + "-" + tempRoute.target;
-                }
+            for (let tempRoute of endpoint.routes) {
+              if (tempRoute.target) {
+                tempRoute.target = tempFeature.uid + "-" + tempRoute.target;
               }
             }
-
-            let templateEndpoint = new Endpoint();
-            templateEndpoint.name = endpoint.name;
-            templateEndpoint.basePath = endpoint.basePath;
-            templateEndpoint.routes = endpoint.routes;
-            template.endpoints.push(templateEndpoint);
           }
+
+          let templateEndpoint = new Endpoint();
+          templateEndpoint.name = endpoint.name;
+          templateEndpoint.basePath = endpoint.basePath;
+          templateEndpoint.routes = endpoint.routes;
+          template.endpoints.push(templateEndpoint);
         }
       }
+    }
 
-      if (tempFeature.targets && tempFeature.targets.length > 0) {
-        for (let target of tempFeature.targets) {
-          if (target.name != "default") {
-            // add template uid, if it exists
-            if (tempFeature.uid) {
-              target.name = tempFeature.uid + "-" + target.name;
-            }
-            let templateTarget: Target = {
-              name: target.name,
-              url: target.url,
-            };
-            if (target.auth) templateTarget.auth = target.auth;
-            if (target.scopes) templateTarget.scopes = target.scopes;
-            if (target.aud) templateTarget.aud = target.aud;
-            template.targets.push(templateTarget);
+    if (tempFeature.targets && tempFeature.targets.length > 0) {
+      for (let target of tempFeature.targets) {
+        if (target.name != "default") {
+          // add template uid, if it exists
+          if (tempFeature.uid) {
+            target.name = tempFeature.uid + "-" + target.name;
           }
+          let templateTarget: Target = {
+            name: target.name,
+            url: target.url,
+          };
+          if (target.auth) templateTarget.auth = target.auth;
+          if (target.scopes) templateTarget.scopes = target.scopes;
+          if (target.aud) templateTarget.aud = target.aud;
+          template.targets.push(templateTarget);
         }
       }
+    }
 
-      template.features.push(featurePath);
+    template.features.push({
+      name: featurePath,
+      id: tempFeature.uid,
+    });
 
-      // add parameters with feature name
-      if (feature.parameters.length > 0) {
-        for (let parameter of feature.parameters) {
-          // set default if one was passed in
-          if (parameters[parameter.name])
-            parameter.default = parameters[parameter.name] ?? parameter.default;
-          parameter.name = feature.name + "." + parameter.name;
-          if (parameters[parameter.name])
-            parameter.default = parameters[parameter.name] ?? parameter.default;
-          template.parameters.push(parameter);
-        }
+    // add parameters with feature name
+    if (feature.parameters.length > 0) {
+      for (let parameter of feature.parameters) {
+        // set default if one was passed in
+        if (parameters[parameter.name])
+          parameter.default = parameters[parameter.name] ?? parameter.default;
+        parameter.name = feature.name + "." + parameter.name;
+        if (parameters[parameter.name])
+          parameter.default = parameters[parameter.name] ?? parameter.default;
+        template.parameters.push(parameter);
       }
     }
 
@@ -1195,8 +1197,12 @@ export class ApigeeConverter {
     template: Template,
     feature: Feature,
     featurePath: string,
+    id: string = "",
   ): Template {
-    if (template.features.includes(featurePath)) {
+    let featureIndex = template.features.findIndex((x) =>
+      id ? x.name === featurePath && x.id === id : x.name === featurePath,
+    );
+    if (featureIndex != -1) {
       if (feature.endpoints && feature.endpoints.length > 0) {
         for (let endpoint of feature.endpoints) {
           if (endpoint.name != "default") {
@@ -1223,8 +1229,7 @@ export class ApigeeConverter {
         }
       }
 
-      let index = template.features.indexOf(featurePath);
-      if (index != -1) template.features.splice(index, 1);
+      template.features.splice(featureIndex, 1);
 
       for (let parameter of feature.parameters) {
         let index = template.parameters.findIndex(

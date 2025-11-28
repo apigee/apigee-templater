@@ -328,6 +328,14 @@ export class ApigeeTemplaterService {
     return new Promise(async (resolve, reject) => {
       let result: Feature | undefined = undefined;
       let tempName = name.replaceAll(" ", "-");
+      let uid = "";
+      if (name.includes(":")) {
+        let parts = name.split(":");
+        if (parts.length === 2) {
+          uid = parts[0] ?? "";
+          tempName = parts[1] ?? tempName;
+        }
+      }
       let foundJson = false,
         foundYaml = false;
       let featureString = "";
@@ -389,6 +397,8 @@ export class ApigeeTemplaterService {
         else result = YAML.parse(featureString);
       }
 
+      // set dynamic uid, if found
+      if (result && uid) result.uid = uid;
       resolve(result);
     });
   }
@@ -405,11 +415,6 @@ export class ApigeeTemplaterService {
       if (!template || !feature) {
         console.log(
           `templateApplyFeature error: either ${templateName} or ${featureName} could not be loaded.`,
-        );
-        return undefined;
-      } else if (template.features.includes(feature.name)) {
-        console.log(
-          `templateApplyFeature error: template ${templateName} already uses feature ${featureName}.`,
         );
         return undefined;
       } else {
@@ -433,6 +438,7 @@ export class ApigeeTemplaterService {
     templateName: string,
     featureName: string,
     converter: ApigeeConverter,
+    id: string = "",
   ): Promise<Template | undefined> {
     return new Promise(async (resolve, reject) => {
       let template: Template | undefined = undefined;
@@ -442,11 +448,6 @@ export class ApigeeTemplaterService {
       if (!template || !feature) {
         console.log(
           `proxyApplyFeature error: either ${templateName} or ${featureName} could not be loaded.`,
-        );
-        return undefined;
-      } else if (!template.features.includes(feature.name)) {
-        console.log(
-          `proxyRemoveFeature error: proxy ${templateName} doesn't use feature ${featureName}.`,
         );
         return undefined;
       } else {
@@ -578,21 +579,14 @@ export class ApigeeTemplaterService {
 
       if (template) {
         let features: Feature[] = [];
-        for (let featureName of template.features) {
-          let results = await this.loadFeatures(featureName);
-          if (results) features = features.concat(results);
+        for (let featureRefObject of template.features) {
+          let loadedFeature = await this.loadFeature(featureRefObject.name);
+          if (loadedFeature) features.push(loadedFeature);
           else {
             // abort, could not load feature
-            console.error(`Could not load feature ${featureName}.`);
+            console.error(`Could not load feature ${featureRefObject}.`);
             resolve(undefined);
           }
-          // let feature = await this.featureGet(featureName);
-          // if (feature) features.push(feature);
-          // else {
-          //   // abort, could not load feature
-          //   console.error(`Could not load feature ${feature}, aborting...`);
-          //   resolve(undefined);
-          // }
         }
 
         const uniqueFeatures = Array.from(
@@ -608,20 +602,26 @@ export class ApigeeTemplaterService {
     });
   }
 
-  public async loadFeatures(
-    featureName: string,
-  ): Promise<Feature[] | undefined> {
+  public async loadFeature(featureName: string): Promise<Feature | undefined> {
     return new Promise(async (resolve, reject) => {
-      let features: Feature[] = [];
+      let uId = "";
+      if (featureName.includes(":")) {
+        let parts = featureName.split(":");
+        if (parts.length === 2) {
+          uId = parts[0] ?? "";
+          featureName = parts[1] ?? featureName;
+        }
+      }
       let feature = await this.featureGet(featureName);
-      if (feature) {
-        features.push(feature);
-      } else {
+      if (!feature) {
         console.error(`Could not load feature ${featureName}.`);
         resolve(undefined);
+      } else if (uId) {
+        // set dynamic uId
+        feature.uid = uId;
       }
 
-      resolve(features);
+      resolve(feature);
     });
   }
 

@@ -3,18 +3,24 @@ export class Template {
   type: string = "template";
   priority?: number;
   description: string = "";
-  features: string[] = [];
+  features: TemplateFeatureRef[] = [];
   parameters: Parameter[] = [];
   endpoints: Endpoint[] = [];
   targets: Target[] = [];
   tests?: Test[] = [];
 }
 
+export class TemplateFeatureRef {
+  name: string = "";
+  id: string = "";
+}
+
 export class Test {
   name: string = "";
   description?: string = "";
+  url: string = "";
   path?: string = "";
-  verb?: string = "";
+  method?: string = "";
   headers?: string[] = [];
   request?: string = "";
   queryParams?: string[] = [];
