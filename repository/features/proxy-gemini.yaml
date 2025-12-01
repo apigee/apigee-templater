@@ -4,13 +4,13 @@ description: |
   This feature adds an endpoints with basepath at v1/gemini, and proxies
   requests to the Vertex AI Gemini endpoint in a configured region.
 
-  ## Prerequisites
+  **Prerequisites**
   - Vertex AI is enabled in the GCP Project.
     ```sh
     gcloud services enable aiplatform.googleapis.com
     ```
 
-  ## Inputs
+  **Inputs**
   - Request prompt in the OAI llm format:
     ```js
     {
@@ -22,7 +22,7 @@ description: |
     }
     ```
 
-  ## Outputs
+  **Outputs**
   - Stores successful prompt token count in the **Apigee variable llm.promptTokenCount**
   - Stores successful response token count in the **Apigee variable llm.responseTokenCount**
   - Stores successful total token count in the **Apigee variable llm.totalTokenCount**

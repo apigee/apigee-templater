@@ -3,13 +3,13 @@ type: feature
 description: |
   A message text is added to the payload.
 
-  ## Prerequisites
+  **Prerequisites**
   - The message response is text.
 
-  ## Inputs
+  **Inputs**
   - A 'message' property is either sent as query parameter or retrieved from the properties file.
 
-  ## Outputs
+  **Outputs**
   - The message text is appended to the payload.
 categories:
   - traffic

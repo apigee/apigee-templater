@@ -4,13 +4,13 @@ description: |
   This feature adds CORS handling to a proxy, with parameters for the allowed origins, methods and headers,
   and allowing developer portal web applications to also access API endpoints for 'Try It Out' features.
 
-  ## Prerequisites
+  **Prerequisites**
   None.
 
-  ## Inputs
+  **Inputs**
   None.
 
-  ## Outputs
+  **Outputs**
   - The allowed headers are set according to the configuration, enabling CORS requests to be answered for allowed requests.
 categories:
   - traffic

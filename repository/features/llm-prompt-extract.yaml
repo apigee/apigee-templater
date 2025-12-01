@@ -3,13 +3,13 @@ type: feature
 description: |
   This feature tries to extract the last user prompt from both gemini as well as openapi prompt formats.
 
-  ## Prerequisites
+  **Prerequisites**
   None.
 
-  ## Inputs
+  **Inputs**
   - User prompts are checked in both the contents.parts (gemini) and messages.content (openapi) structures.
 
-  ## Outputs
+  **Outputs**
   - If a prompt is found, it is written to the Apigee variable **llm.promptInput**.
   - If a prompt is found, the estimated token length is written to the Apigee variable **llm.promptEstimatedTokenCount**.
 priority: 10

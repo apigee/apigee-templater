@@ -3,13 +3,13 @@ type: feature
 description: |
   If the proxy response is JSON, then a message property is added to the payload.
 
-  ## Prerequisites
+  **Prerequisites**
   - The message response is JSON.
 
-  ## Inputs
+  **Inputs**
   - A 'message' property is either sent as query parameter or retrieved from the properties file.
 
-  ## Outputs
+  **Outputs**
   - If the proxy response is JSON, then the message property is added to the payload.
 categories:
   - traffic

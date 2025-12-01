@@ -4,7 +4,7 @@ description: |
   Adds LLM data to data collectors. This feature does not fail if properites are not found,
   however the data collectors must be created in your Apigee org before using it.
 
-  **Prerequisites:**
+  **Prerequisites**
   - Apigee data collectors **llm_model**, **llm_prompt_token_count**, **llm_response_token_count** and **llm_total_token_count**
   created in your org before using this feature. You can create these by running these commands with [apigeecli]().
   ```sh

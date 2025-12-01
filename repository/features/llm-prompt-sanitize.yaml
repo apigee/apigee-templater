@@ -27,6 +27,7 @@ description: |-
       --template-metadata-log-operations \
       --template-metadata-log-sanitize-operations
   ```
+
   **Inputs**
   - The prompt to check in the **llm.promptInput** variable.
 
