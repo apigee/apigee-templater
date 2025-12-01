@@ -2,16 +2,17 @@ name: AI-Gateway-v1
 type: template
 description: API template for AI-Gateway-v1
 features:
-  - auth-key-header
-  - proxy-gemini
-  - proxy-mistral
+  - name: ../features/proxy-gemini.yaml
+    id: jxchz
+  - name: ../features/proxy-mistral.yaml
+    id: 8n47w
+  - name: ../features/llm-prompt-extract.yaml
+    id: 2hg6s
+  - name: ../features/llm-prompt-pii-mask.yaml
+    id: 7d0aj
+  - name: ../features/llm-prompt-sanitize.yaml
+    id: jwdo0g
 parameters:
-  - name: auth-key-header.API_KEY_HEADER_NAME
-    description: The header where the api key is checked.
-    default: x-api-key
-    examples:
-      - x-api-key
-      - x-apikey
   - name: proxy-gemini.BASE_PATH
     displayName: BASE_PATH
     description: The base path on the proxy to receive traffic.
@@ -78,28 +79,50 @@ parameters:
     description: Configuration input for MISTRAL_PATH
     default: europe-west4-aiplatform.googleapis.com/v1/projects/apigee-prod13/locations/europe-west4/publishers/mistralai/models/mistral-medium-3:rawPredict
     examples: []
+  - name: llm-prompt-pii-mask.PROJECT_ID
+    displayName: DLP Project Id
+    description: Configuration input for PROJECT_ID
+    default: apigee-prod13
+    examples: []
+  - name: llm-prompt-sanitize.PROJECT_ID
+    displayName: Model Armor GCP Project Id
+    description: Configuration input for PROJECT_ID
+    default: "{organization.name}"
+    examples:
+      - "{organization.name}"
+  - name: llm-prompt-sanitize.REGION
+    displayName: Model Armor GCP region
+    description: Configuration input for REGION
+    default: "{system.region.name}"
+    examples:
+      - "{system.region.name}"
+  - name: llm-prompt-sanitize.TEMPLATE_ID
+    displayName: Model Armor Template Id
+    description: Configuration input for TEMPLATE_ID
+    default: projects/{organization.name}/locations/{system.region.name}/templates/default-ma-template
+    examples: []
 endpoints:
   - name: default
     basePath: /ai-gateway-v1
     routes:
       - name: default
-  - name: gem-gemini
+  - name: jxchz-gemini
     basePath: /v1/gemini
     routes:
       - name: default
-        target: gem-gemini
-  - name: mis-mistral
+        target: jxchz-gemini
+  - name: 8n47w-mistral
     basePath: /v1/mistral
     routes:
       - name: default
-        target: mis-mistral
+        target: 8n47w-mistral
 targets:
-  - name: gem-gemini
+  - name: jxchz-gemini
     url: https://{propertyset.gemini.GEMINI_PATH}
     auth: GoogleAccessToken
     scopes:
       - https://www.googleapis.com/auth/cloud-platform
-  - name: mis-mistral
+  - name: 8n47w-mistral
     url: https://{propertyset.mistral.MISTRAL_PATH}
     auth: GoogleAccessToken
     scopes:

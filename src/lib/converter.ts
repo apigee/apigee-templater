@@ -1339,7 +1339,7 @@ export class ApigeeConverter {
     if (template.features && template.features.length > 0) {
       result.push(`Features:`);
       for (let feature of template.features) {
-        result.push(`- ${feature}`);
+        result.push(`- ${feature.name}`);
       }
     } else {
       result.push(`Features: none`);

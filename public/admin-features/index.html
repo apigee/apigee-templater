@@ -701,7 +701,7 @@
                         for (let feature of responseJson) {
                             let newUiFeature = {
                                 id: feature.name,
-                                name: feature.name,
+                                name: feature.displayName ?? feature.name,
                                 type:
                                     feature.categories &&
                                     feature.categories.length > 0
@@ -934,6 +934,25 @@
                     epContainer.appendChild(card);
                 });
 
+                if (feature.endpoints.length === 0) {
+                    const card = document.createElement("div");
+                    card.className =
+                        "bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4 shadow-sm";
+
+                    card.innerHTML = `
+                      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                          <div class="flex items-center gap-3">
+                              <span class="${getMethodColor("ALL")} px-2 py-1 rounded text-xs font-bold">ALL</span>
+                              <code class="text-sm font-mono text-slate-700 dark:text-slate-200">/</code>
+                          </div>
+                      </div>
+                      <div class="flex flex-wrap gap-2 mt-2">
+
+                      </div>
+                  `;
+                    epContainer.appendChild(card);
+                }
+
                 // Targets
                 const targetsList = document.getElementById("targets-list");
                 const targetsFrame = document.getElementById("targets-frame");
@@ -955,9 +974,24 @@
                     targetsList.appendChild(li);
                 });
                 if (feature.targets.length === 0) {
-                    targetsFrame.classList.add("hidden");
+                    const li = document.createElement("li");
+                    li.className =
+                        "p-4 flex flex-col gap-1 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors first:rounded-t-xl last:rounded-b-xl";
+                    li.innerHTML = `
+                  <div class="flex items-center justify-between">
+                      <span class="font-medium text-sm text-slate-700 dark:text-slate-200">ALL</span>
+                      <div class="flex items-center gap-1 text-green-500">
+                          <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                          <span class="text-[10px] font-bold uppercase">Active</span>
+                      </div>
+                  </div>
+                  <code class="text-xs text-gray-400 dark:text-slate-500 font-mono break-all">ALL</code>
+              `;
+                    targetsList.appendChild(li);
+
+                    //targetsFrame.classList.add("hidden");
                 } else {
-                    targetsFrame.classList.remove("hidden");
+                    //targetsFrame.classList.remove("hidden");
                 }
 
                 // Refresh Icons
