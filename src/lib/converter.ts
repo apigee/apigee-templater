@@ -372,8 +372,10 @@ export class ApigeeConverter {
                   newProxy.parameters = sandbox.proxy["parameters"];
                 if (sandbox.proxy["priority"])
                   newProxy.priority = sandbox.proxy["priority"];
-                if (sandbox.proxy["tests"])
-                  newProxy.tests = sandbox.proxy["tests"];
+                if (sandbox.proxy["displayName"])
+                  newProxy.displayName = sandbox.proxy["displayName"];
+                if (sandbox.proxy["categories"])
+                  newProxy.categories = sandbox.proxy["categories"];
               }
             }
           } else {
@@ -1377,10 +1379,14 @@ export class ApigeeConverter {
   ): Proxy {
     let newFeature = this.featureReplaceParameters(feature, [], parameters);
     let newProxy = new Proxy();
-    newProxy.name = "feature-" + newFeature.name;
+    newProxy.name = newFeature.name.toLowerCase().startsWith("feature-")
+      ? newFeature.name
+      : "feature-" + newFeature.name;
     newProxy.description = newFeature.description;
     // keep original parameters, non-replaced
     newProxy.parameters = feature.parameters;
+    if (newFeature.displayName) newProxy.displayName = newFeature.displayName;
+    if (newFeature.categories) newProxy.categories = newFeature.categories;
     if (newFeature.uid) newProxy.uid = newFeature.uid;
     if (newFeature.priority) newProxy.priority = newFeature.priority;
     if (newFeature.tests) newProxy.tests = newFeature.tests;
@@ -1986,6 +1992,8 @@ export class ApigeeConverter {
     if (proxy.uid) newFeature.uid = proxy.uid;
     if (proxy.priority) newFeature.priority = proxy.priority;
     if (proxy.tests) newFeature.tests = proxy.tests;
+    if (proxy.displayName) newFeature.displayName = proxy.displayName;
+    if (proxy.categories) newFeature.categories = proxy.categories;
 
     let defaultEndpoint = proxy.endpoints.find((x) => x.name == "default");
     let defaultTarget = proxy.targets.find((x) => x.name == "default");

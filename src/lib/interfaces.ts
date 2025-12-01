@@ -30,9 +30,11 @@ export class Test {
 
 export class Proxy {
   name: string = "";
+  displayName?: string = "";
   uid?: string;
   type: string = "proxy";
   priority?: number;
+  categories?: string[] = [];
   description: string = "";
   parameters: Parameter[] = [];
   endpoints: ProxyEndpoint[] = [];

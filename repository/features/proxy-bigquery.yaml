@@ -8,13 +8,22 @@ parameters:
   - name: ENTITY_NAME
     displayName: ENTITY_NAME
     description: Configuration input for ENTITY_NAME
-    default: "{ENTITY_NAME}"
+    default: "alphafold"
+    examples:
+      - alphafold
+      - bbcnews
+  - name: BASE_PATH
+    displayName: BASE_PATH
+    description: Base path to access the data at.
+    default: "/{ENTITY_NAME}"
     examples: []
   - name: DATA_NAME
     displayName: DATA_NAME
-    description: Configuration input for DATA_NAME
-    default: "{DATA_NAME}"
-    examples: []
+    description: The name of the dataset or the query to run.
+    default: "bigquery-public-data.deepmind_alphafold"
+    examples:
+      - bigquery-public-data.deepmind_alphafold
+      - bigquery-public-data.bbc_news
 endpoints:
   - name: bigquery
     basePath: "/{ENTITY_NAME}"

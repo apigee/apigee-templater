@@ -2,11 +2,48 @@ name: AI-Gateway-v1
 type: template
 description: API template for AI-Gateway-v1
 features:
-  - name: proxy-gemini
-    id: l9qih
   - name: proxy-mistral
-    id: i1nmlf
+    id: i85t
+  - name: proxy-gemini
+    id: 7cav7
+  - name: llm-prompt-extract
+    id: zbb41
+  - name: llm-prompt-sanitize
+    id: o2s0b
 parameters:
+  - name: proxy-mistral.BASE_PATH
+    displayName: BASE_PATH
+    description: The base path on the proxy to receive traffic.
+    default: /v1/mistral
+    examples:
+      - /v1/mistral
+      - /mistral
+      - /llm/mistral
+  - name: proxy-mistral.PROJECT_ID
+    displayName: PROJECT_ID
+    description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
+    default: YOUR_PROJECT_ID
+    examples:
+      - YOUR_PROJECT_ID
+  - name: proxy-mistral.REGION
+    displayName: REGION
+    description: The GCP region that should be used for the Vertex AI endpoint.
+    default: europe-west4
+    examples:
+      - europe-west4
+      - us-central1
+  - name: proxy-mistral.MODEL_ID
+    description: Configuration input for MODEL_ID
+    default: mistral-medium-3
+    examples:
+      - mistral-medium-3
+      - mistral-small-2503
+  - name: proxy-mistral.MISTRAL_PATH
+    displayName: MISTRAL_PATH
+    description: Configuration input for MISTRAL_PATH
+    default: "{REGION}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations\
+      /{REGION}/publishers/mistralai/models/{MODEL_ID}:rawPredict"
+    examples: []
   - name: proxy-gemini.BASE_PATH
     displayName: BASE_PATH
     description: The base path on the proxy to receive traffic.
@@ -41,57 +78,46 @@ parameters:
     default: "{REGION}-aiplatform.googleapis.com/v1beta1/projects/{PROJECT_ID}/loca\
       tions/{REGION}/endpoints/openapi/chat/completions"
     examples: []
-  - name: proxy-mistral.BASE_PATH
-    displayName: BASE_PATH
-    description: The base path on the proxy to receive traffic.
-    default: /v1/mistral
+  - name: llm-prompt-sanitize.PROJECT_ID
+    displayName: Model Armor GCP Project Id
+    description: Configuration input for PROJECT_ID
+    default: "{organization.name}"
     examples:
-      - /v1/mistral
-      - /mistral
-      - /llm/mistral
-  - name: proxy-mistral.PROJECT_ID
-    displayName: PROJECT_ID
-    description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
-    default: YOUR_PROJECT_ID
+      - "{organization.name}"
+  - name: llm-prompt-sanitize.REGION
+    displayName: Model Armor GCP region
+    description: Configuration input for REGION
+    default: "{system.region.name}"
     examples:
-      - YOUR_PROJECT_ID
-  - name: proxy-mistral.REGION
-    displayName: REGION
-    description: The GCP region that should be used for the Vertex AI endpoint.
-    default: europe-west4
-    examples:
-      - europe-west4
-      - us-central1
-  - name: proxy-mistral.MODEL_ID
-    description: Configuration input for MODEL_ID
-    default: mistral-medium-3
-    examples:
-      - mistral-medium-3
-      - mistral-small-2503
-  - name: proxy-mistral.MISTRAL_PATH
-    displayName: MISTRAL_PATH
-    description: Configuration input for MISTRAL_PATH
-    default: europe-west4-aiplatform.googleapis.com/v1/projects/apigee-prod13/locations/europe-west4/publishers/mistralai/models/mistral-medium-3:rawPredict
+      - "{system.region.name}"
+  - name: llm-prompt-sanitize.TEMPLATE_ID
+    displayName: Model Armor Template Id
+    description: Configuration input for TEMPLATE_ID
+    default: projects/{organization.name}/locations/{system.region.name}/templates/default-ma-template
     examples: []
 endpoints:
-  - name: l9qih-gemini
-    basePath: /v1/gemini
+  - name: default
+    basePath: /ai-gateway-v1
     routes:
       - name: default
-        target: l9qih-gemini
-  - name: i1nmlf-mistral
+  - name: i85t-mistral
     basePath: /v1/mistral
     routes:
       - name: default
-        target: i1nmlf-mistral
+        target: i85t-mistral
+  - name: 7cav7-gemini
+    basePath: /v1/gemini
+    routes:
+      - name: default
+        target: 7cav7-gemini
 targets:
-  - name: l9qih-gemini
-    url: https://{propertyset.gemini.GEMINI_PATH}
+  - name: i85t-mistral
+    url: https://{propertyset.mistral.MISTRAL_PATH}
     auth: GoogleAccessToken
     scopes:
       - https://www.googleapis.com/auth/cloud-platform
-  - name: i1nmlf-mistral
-    url: https://{propertyset.mistral.MISTRAL_PATH}
+  - name: 7cav7-gemini
+    url: https://{propertyset.gemini.GEMINI_PATH}
     auth: GoogleAccessToken
     scopes:
       - https://www.googleapis.com/auth/cloud-platform
