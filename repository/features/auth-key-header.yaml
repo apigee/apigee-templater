@@ -1,4 +1,5 @@
 name: auth-key-header
+displayName: Authentication Key Header
 type: feature
 description: |
   This feature applies API key header authentication and authorization to the proxy flow.

@@ -113,6 +113,7 @@ export class Resource {
 
 export class Feature {
   name: string = "";
+  displayName?: string = "";
   uid?: string;
   type: string = "feature";
   description: string = "";

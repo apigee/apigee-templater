@@ -701,7 +701,11 @@
                             let newUiFeature = {
                                 id: feature.name,
                                 name: feature.name,
-                                type: "Traffic",
+                                type:
+                                    feature.categories &&
+                                    feature.categories.length > 0
+                                        ? feature.categories[0]
+                                        : "Traffic",
                                 description: feature.description,
                                 parameters: feature.parameters.map(
                                     (x) =>
