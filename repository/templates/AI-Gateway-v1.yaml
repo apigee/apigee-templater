@@ -2,16 +2,10 @@ name: AI-Gateway-v1
 type: template
 description: API template for AI-Gateway-v1
 features:
-  - name: ../features/proxy-gemini.yaml
-    id: jxchz
-  - name: ../features/proxy-mistral.yaml
-    id: 8n47w
-  - name: ../features/llm-prompt-extract.yaml
-    id: 2hg6s
-  - name: ../features/llm-prompt-pii-mask.yaml
-    id: 7d0aj
-  - name: ../features/llm-prompt-sanitize.yaml
-    id: jwdo0g
+  - name: proxy-gemini
+    id: l9qih
+  - name: proxy-mistral
+    id: i1nmlf
 parameters:
   - name: proxy-gemini.BASE_PATH
     displayName: BASE_PATH
@@ -79,50 +73,24 @@ parameters:
     description: Configuration input for MISTRAL_PATH
     default: europe-west4-aiplatform.googleapis.com/v1/projects/apigee-prod13/locations/europe-west4/publishers/mistralai/models/mistral-medium-3:rawPredict
     examples: []
-  - name: llm-prompt-pii-mask.PROJECT_ID
-    displayName: DLP Project Id
-    description: Configuration input for PROJECT_ID
-    default: apigee-prod13
-    examples: []
-  - name: llm-prompt-sanitize.PROJECT_ID
-    displayName: Model Armor GCP Project Id
-    description: Configuration input for PROJECT_ID
-    default: "{organization.name}"
-    examples:
-      - "{organization.name}"
-  - name: llm-prompt-sanitize.REGION
-    displayName: Model Armor GCP region
-    description: Configuration input for REGION
-    default: "{system.region.name}"
-    examples:
-      - "{system.region.name}"
-  - name: llm-prompt-sanitize.TEMPLATE_ID
-    displayName: Model Armor Template Id
-    description: Configuration input for TEMPLATE_ID
-    default: projects/{organization.name}/locations/{system.region.name}/templates/default-ma-template
-    examples: []
 endpoints:
-  - name: default
-    basePath: /ai-gateway-v1
-    routes:
-      - name: default
-  - name: jxchz-gemini
+  - name: l9qih-gemini
     basePath: /v1/gemini
     routes:
       - name: default
-        target: jxchz-gemini
-  - name: 8n47w-mistral
+        target: l9qih-gemini
+  - name: i1nmlf-mistral
     basePath: /v1/mistral
     routes:
       - name: default
-        target: 8n47w-mistral
+        target: i1nmlf-mistral
 targets:
-  - name: jxchz-gemini
+  - name: l9qih-gemini
     url: https://{propertyset.gemini.GEMINI_PATH}
     auth: GoogleAccessToken
     scopes:
       - https://www.googleapis.com/auth/cloud-platform
-  - name: 8n47w-mistral
+  - name: i1nmlf-mistral
     url: https://{propertyset.mistral.MISTRAL_PATH}
     auth: GoogleAccessToken
     scopes:

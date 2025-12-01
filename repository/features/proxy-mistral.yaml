@@ -61,7 +61,7 @@ parameters:
   - name: MISTRAL_PATH
     displayName: MISTRAL_PATH
     description: Configuration input for MISTRAL_PATH
-    default: europe-west4-aiplatform.googleapis.com/v1/projects/apigee-prod13/locations/europe-west4/publishers/mistralai/models/mistral-medium-3:rawPredict
+    default: "{REGION}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/{REGION}/publishers/mistralai/models/{MODEL_ID}:rawPredict"
     examples: []
 endpoints:
   - name: mistral
