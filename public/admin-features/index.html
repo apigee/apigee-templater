@@ -671,6 +671,7 @@
                                     Upstream Targets
                                 </h3>
                                 <div
+                                    id="targets-frame"
                                     class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-1 shadow-sm"
                                 >
                                     <ul
@@ -707,13 +708,7 @@
                                         ? feature.categories[0]
                                         : "Traffic",
                                 description: feature.description,
-                                parameters: feature.parameters.map(
-                                    (x) =>
-                                        (x.example =
-                                            x.examples.length > 0
-                                                ? x.examples.join(", ")
-                                                : ""),
-                                ),
+                                parameters: feature.parameters,
                                 endpoints:
                                     feature.endpoints.length > 0
                                         ? [
@@ -739,6 +734,7 @@
                                         : [],
                             };
 
+                            console.log(newUiFeature);
                             proxyFeatures.push(newUiFeature);
                         }
 
@@ -888,6 +884,9 @@
                 const tbody = document.getElementById("params-table-body");
                 tbody.innerHTML = "";
                 feature.parameters.forEach((param) => {
+                    let examples = param.examples
+                        ? param.examples.join(", ")
+                        : "";
                     const row = document.createElement("tr");
                     row.className =
                         "hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors";
@@ -895,7 +894,7 @@
                     <td class="p-4 font-mono text-blue-600 dark:text-blue-400 font-medium">${param.name}</td>
                     <td class="p-4 text-gray-600 dark:text-slate-300">${param.description}</td>
                     <td class="p-4 text-gray-500 dark:text-slate-400"><span class="bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded text-xs">${param.default}</span></td>
-                    <td class="p-4 font-mono text-xs text-gray-500 dark:text-slate-500 truncate max-w-xs" title="${param.example}">${param.example}</td>
+                    <td class="p-4 font-mono text-xs text-gray-500 dark:text-slate-500 truncate max-w-xs" title="${examples}">${examples}</td>
                 `;
                     tbody.appendChild(row);
                 });
@@ -937,6 +936,7 @@
 
                 // Targets
                 const targetsList = document.getElementById("targets-list");
+                const targetsFrame = document.getElementById("targets-frame");
                 targetsList.innerHTML = "";
                 feature.targets.forEach((t) => {
                     const li = document.createElement("li");
@@ -954,6 +954,11 @@
                 `;
                     targetsList.appendChild(li);
                 });
+                if (feature.targets.length === 0) {
+                    targetsFrame.classList.add("hidden");
+                } else {
+                    targetsFrame.classList.remove("hidden");
+                }
 
                 // Refresh Icons
                 lucide.createIcons();

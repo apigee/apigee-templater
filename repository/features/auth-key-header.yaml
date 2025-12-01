@@ -4,13 +4,13 @@ type: feature
 description: |
   This feature applies API key header authentication and authorization to the proxy flow.
 
-  ## Prerequisites
+  **Prerequisites**
   None.
 
-  ## Inputs
+  **Inputs**
   - An API product configured for the current proxy, optionally with quota information.
 
-  ## Outputs
+  **Outputs**
   - If the key is not found in the configured header, or is not valid for the current call, then a fault is raised with response code 401.
   - If quota information is found, it is loaded into the **Apigee variables quota.limit, quota.interval, and quota.timeunit**.
 priority: 1
