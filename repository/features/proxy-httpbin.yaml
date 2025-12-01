@@ -1,4 +1,5 @@
 name: proxy-httpbin
+displayName: HttpBin Proxy
 type: feature
 description: Feature to proxy httpbin.org.
 categories:

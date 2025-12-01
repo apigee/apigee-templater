@@ -1,4 +1,5 @@
 name: llm-response-sanitize
+displayName: LLM Response Sanitization
 type: feature
 description: Feature-LLM-SanitizeResponse-v1
 categories:

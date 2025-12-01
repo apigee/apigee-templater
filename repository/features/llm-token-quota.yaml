@@ -1,4 +1,5 @@
 name: llm-token-quota
+displayName: LLM Token Quotas
 type: feature
 description: |-
   This feature estimates the token length of an input prompt, checks

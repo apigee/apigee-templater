@@ -1,4 +1,5 @@
 name: llm-analytics
+displayName: LLM Analytics
 type: feature
 description: |
   Adds LLM data to data collectors. This feature does not fail if properites are not found,

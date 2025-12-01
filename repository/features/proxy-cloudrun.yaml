@@ -1,4 +1,5 @@
 name: proxy-cloudrun
+displayName: Cloud Run Services
 type: feature
 description: proxy-cloudrun
 categories:

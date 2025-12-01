@@ -1,4 +1,5 @@
 name: llm-prompt-extract
+displayName: LLM Prompt Extraction
 type: feature
 description: |
   This feature tries to extract the last user prompt from both gemini as well as openapi prompt formats.

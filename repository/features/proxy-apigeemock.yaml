@@ -1,4 +1,5 @@
 name: proxy-apigeemock
+displayName: Apigee Mock Proxy
 type: feature
 description: proxy-apigeemock
 categories:

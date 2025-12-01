@@ -1,4 +1,5 @@
 name: proxy-bigquery
+displayName: BigQuery Data Product
 type: feature
 description: proxy-bigquery
 categories:

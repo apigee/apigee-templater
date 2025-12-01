@@ -1,4 +1,5 @@
 name: llm-prompt-pii-mask
+displayName: LLM PII Data Masking
 type: feature
 description: |
   This feature masks PII data email addresses and telephone numbers from

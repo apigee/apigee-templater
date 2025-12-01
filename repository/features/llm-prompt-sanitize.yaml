@@ -1,4 +1,5 @@
 name: llm-prompt-sanitize
+displayName: LLM Prompt Sanitization
 type: feature
 description: |-
   This feature uses Google Cloud Model Armor to screen a request prompt,
