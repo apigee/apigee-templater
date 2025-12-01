@@ -1,6 +1,8 @@
 name: proxy-cloudrun
 type: feature
 description: proxy-cloudrun
+categories:
+  - services
 parameters:
   - name: BASE_PATH
     description: The base path to offer the proxy on.

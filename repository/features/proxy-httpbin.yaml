@@ -1,6 +1,8 @@
 name: proxy-httpbin
 type: feature
 description: Feature to proxy httpbin.org.
+categories:
+  - services
 parameters:
   - name: BASE_PATH
     displayName: BASE_PATH

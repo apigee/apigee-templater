@@ -21,6 +21,8 @@ description: |
 
   **Outputs**
   - Data collectors are written with Apigee variable data, if found.
+categories:
+  - llm
 parameters: []
 defaultEndpoint:
   name: default

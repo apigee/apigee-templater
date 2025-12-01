@@ -28,6 +28,8 @@ description: |
   - Stores successful response token count in the **Apigee variable llm.responseTokenCount**
   - Stores successful total token count in the **Apigee variable llm.totalTokenCount**
   - Normal response from Mistral model in OAI format
+categories:
+  - llm
 parameters:
   - name: BASE_PATH
     displayName: BASE_PATH

@@ -5,6 +5,8 @@ description: |-
   the quota in the target pre-flow, and then updates the token in the target
   post-flow.
 priority: 150
+categories:
+  - llm
 parameters: []
 defaultEndpoint:
   name: default

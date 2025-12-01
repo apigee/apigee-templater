@@ -12,6 +12,8 @@ description: |
 
   ## Outputs
   - The allowed headers are set according to the configuration, enabling CORS requests to be answered for allowed requests.
+categories:
+  - traffic
 parameters:
   - name: ALLOWED_ORIGINS
     description: The allowed origins of clients.

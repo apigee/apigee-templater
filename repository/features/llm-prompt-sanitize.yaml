@@ -33,6 +33,8 @@ description: |-
   **Outputs**
   - If objectionable content is found in the prompt, then a `**400** Prompt content rejected.` is returned to the user.
   ```
+categories:
+  - llm
 parameters:
   - name: PROJECT_ID
     displayName: Model Armor GCP Project Id

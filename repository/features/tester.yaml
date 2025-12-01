@@ -2,6 +2,8 @@ name: tester
 uid: test
 type: feature
 description: Policies to help with unit testing proxies using the API Tester framework at https://tdd.upstr.dev.
+categories:
+  - testing
 parameters:
   - name: UPSTREAM_ID
     displayName: UPSTREAM_ID

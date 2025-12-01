@@ -117,6 +117,7 @@ export class Feature {
   type: string = "feature";
   description: string = "";
   priority?: number;
+  categories?: string[] = [];
   parameters: Parameter[] = [];
   defaultEndpoint?: ProxyEndpoint;
   defaultTarget?: ProxyTarget;

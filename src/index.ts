@@ -247,6 +247,7 @@ app.delete(
   },
 );
 
+// REST
 app.post("/templates", restService.templateCreate);
 app.put("/templates/:template", restService.templateUpdate);
 app.get("/templates", restService.templatesList);
@@ -268,6 +269,7 @@ app.post(
   "/templates/:template/apigee-deploy",
   restService.templateDeployToApigee,
 );
+app.get("/features", restService.featuresList);
 app.post("/features", restService.featureCreate);
 app.put("/features/:feature", restService.featureUpdate);
 app.get("/features/:feature", restService.featureGet);

@@ -11,6 +11,8 @@ description: |
 
   ## Outputs
   - The message text is appended to the payload.
+categories:
+  - traffic
 parameters:
   - name: MESSAGE
     displayName: MESSAGE

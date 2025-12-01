@@ -1,0 +1,309 @@
+name: proxy-bigquery
+type: feature
+description: proxy-bigquery
+categories:
+  - data
+parameters:
+  - name: ENTITY_NAME
+    displayName: ENTITY_NAME
+    description: Configuration input for ENTITY_NAME
+    default: "{ENTITY_NAME}"
+    examples: []
+  - name: DATA_NAME
+    displayName: DATA_NAME
+    description: Configuration input for DATA_NAME
+    default: "{DATA_NAME}"
+    examples: []
+endpoints:
+  - name: bigquery
+    basePath: "/{ENTITY_NAME}"
+    routes:
+      - name: default
+        target: bigquery
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: EV-ExtractName
+          - name: KVM-GetVariables
+          - name: KVM-GetVariables
+    faultRules: []
+targets:
+  - name: bigquery
+    url: https://bigquery.googleapis.com/bigquery/v2/projects/{organization.name}/queries
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: JS-RunPreTarget-Script
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-RunPostTarget-Script
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL:
+        _text: https://bigquery.googleapis.com/bigquery/v2/projects/{organization.name}/queries
+      Authentication:
+        GoogleAccessToken:
+          Scopes:
+            Scope:
+              _text: https://www.googleapis.com/auth/bigquery
+policies:
+  - name: EV-ExtractName
+    type: ExtractVariables
+    content:
+      ExtractVariables:
+        _attributes:
+          name: EV-ExtractName
+          enabled: "true"
+        DisplayName:
+          _text: EV-ExtractName
+        URIPath:
+          Pattern:
+            _text: /{entityName}
+  - name: JS-RunPostTarget-Script
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          name: JS-RunPostTarget-Script
+        DisplayName:
+          _text: JS-RunPostTarget-Script
+        Properties: {}
+        ResourceURL:
+          _text: jsc://bigquery_posttarget.js
+        IncludeURL:
+          _text: jsc://bigquery_functions.js
+  - name: JS-RunPreTarget-Script
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          name: JS-RunPreTarget-Script
+        DisplayName:
+          _text: JS-RunPreTarget-Script
+        Properties: {}
+        ResourceURL:
+          _text: jsc://bigquery_pretarget.js
+        IncludeURL:
+          _text: jsc://bigquery_functions.js
+  - name: KVM-GetVariables
+    type: KeyValueMapOperations
+    content:
+      KeyValueMapOperations:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          name: KVM-GetVariables
+          mapIdentifier: marketplace-kvm
+        DisplayName:
+          _text: KVM-GetVariables
+        Properties: {}
+        ExclusiveCache:
+          _text: "false"
+        ExpiryTimeInSecs:
+          _text: "300"
+        Get:
+          _attributes:
+            assignTo: data.lookup
+            index: "1"
+          Key:
+            Parameter:
+              _attributes:
+                ref: entityName
+        Scope:
+          _text: environment
+resources:
+  - name: bigquery_functions.js
+    type: jsc
+    content: |-
+
+      function generateQuery(query, table, input_filter, order_by, page_size, page_token) {
+
+        if (!page_size) page_size = "10";
+
+        var filter = "";
+        var orderBy = "";
+        var pageSize = "";
+        var pageToken = "";
+
+        if (input_filter)
+          filter = "WHERE " + input_filter;
+
+        if (order_by)
+          orderBy = "ORDER BY " + order_by;
+
+        if (page_size) {
+          pageSize = "LIMIT " + page_size;
+        }
+
+        if (page_token) {
+          pageToken = "OFFSET " + parseInt(page_size) * (parseInt(page_token) - 1);
+        }
+
+        var newQuery = "";
+
+        if (table)
+          newQuery = "SELECT * FROM " + table + " %filter% %orderBy% %pageSize% %pageToken%";
+        else
+          newQuery = query;
+
+        newQuery = newQuery.replace("%filter%", filter);
+        newQuery = newQuery.replace("%orderBy%", orderBy);
+        newQuery = newQuery.replace("%pageSize%", pageSize);
+        newQuery = newQuery.replace("%pageToken%", pageToken);
+
+        return newQuery;
+      }
+
+      function convertResponse(dataResponseObject, entity_name, page_token) {
+
+        var responseObject = {};
+
+        responseObject[entity_name] = doConversionRows(dataResponseObject, dataResponseObject.schema.fields);
+
+        if (page_token) {
+          responseObject["next_page_token"] = parseInt(page_token) + 1;
+        }
+        else {
+          responseObject["next_page_token"] = 2;
+        }
+
+        return responseObject;
+      }
+
+      function doConversionRows(inputObject, fields) {
+        var result = [];
+        for (var rowKey in inputObject.rows) {
+          var row = inputObject.rows[rowKey];
+          result.push(doConversion(row, fields));
+        }
+
+        return result;
+      }
+
+      function doConversion(inputObject, fields) {
+        var result;
+        if (inputObject.f) {
+          // This is a field object, so collect properties
+          result = {};
+          for (var valueKey in inputObject.f) {
+            var value = inputObject.f[valueKey];
+            var type = fields[valueKey].type;
+            var mode = fields[valueKey].mode;
+            if (type != "RECORD") {
+              // simple value
+              result[fields[valueKey].name] = value.v;
+            }
+            else if (type === "RECORD" && mode === "REPEATED") {
+              // child array
+              result[fields[valueKey].name] = doConversion(value, fields[valueKey].fields);
+            }
+            else if (type === "RECORD") {
+              // child object
+              result[fields[valueKey].name] = doConversion(value, fields[valueKey].fields);
+            }
+          }
+        }
+        else if (inputObject.v) {
+          // This is a value (or a sub-object)
+          if (Array.isArray(inputObject.v)) {
+            // This is an array
+            result = [];
+            for (var valueKey in inputObject.v) {
+              var value = inputObject.v[valueKey];
+              // var type = fields[valueKey].type;
+              // var mode = fields[valueKey].mode;
+
+              result = result.concat(doConversion(value, fields));
+            }
+          }
+          else {
+            // This is an object
+            result = doConversion(inputObject.v, fields);
+          }
+        }
+
+        return result;
+      }
+
+      // this is to only export the function if in node
+      if (typeof exports !== 'undefined') {
+        exports.generateQuery = generateQuery;
+        exports.convertResponse = convertResponse;
+      }
+  - name: bigquery_posttarget.js
+    type: jsc
+    content: |
+      var bqResponse = context.getVariable("response.content");
+      var pageSize = context.getVariable("bq.pageSize");
+      var pageToken = context.getVariable("bq.pageToken");
+      var entityName = context.getVariable("propertyset.bigquery.ENTITY_NAME");
+
+      var responseObject = convertResponse(JSON.parse(bqResponse), entityName, pageToken);
+
+      context.setVariable("response.content", JSON.stringify(responseObject));
+  - name: bigquery_pretarget.js
+    type: jsc
+    content: |-
+      context.targetRequest.method='POST';
+      context.targetRequest.headers['Content-Type']='application/json';
+
+      var objectName = context.getVariable("propertyset.bigquery.DATA_NAME");
+
+      print("BigQuery object name: " + objectName + "\n");
+
+      var query = "";
+      var table = "";
+      if (objectName.toLowerCase().includes("select "))
+        query = objectName;
+      else
+        table = objectName;
+
+      print("BigQuery table input: " + table + "\n");
+      print("BigQuery query input: " + query + "\n");
+      context.setVariable("target.copy.pathsuffix", false);
+
+      var filter = "";
+      var orderBy = "";
+      var pageSize = "";
+      var pageToken = "";
+
+      for(var queryParam in request.queryParams){
+        if (queryParam == "filter") {
+            filter = context.getVariable("request.queryparam." + queryParam);
+        }
+        else if (queryParam == "orderBy") {
+            orderBy = context.getVariable("request.queryparam." + queryParam);
+        }
+        else if (queryParam == "pageSize") {
+            var pageSize =  context.getVariable("request.queryparam." + queryParam);
+            context.setVariable("bq.pageSize", pageSize);
+        }
+        else if (queryParam == "pageToken") {
+            pageToken =  context.getVariable("request.queryparam." + queryParam);
+            context.setVariable("bq.pageToken", pageToken);
+        }
+      }
+
+      var newQuery = generateQuery(query, table, filter, orderBy, pageSize, pageToken);
+
+      print("BigQuery query: " + newQuery);
+
+      context.targetRequest.body = '' +
+        '{' +
+        '   "query": "' + newQuery + '",' +
+        '   "useLegacySql": false,' +
+        '   "maxResults": 1000' +
+        '}';
+  - name: bigquery.properties
+    type: properties
+    content: |
+      ENTITY_NAME={ENTITY_NAME}
+      DATA_NAME={DATA_NAME}
+tests: []

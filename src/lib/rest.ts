@@ -18,7 +18,7 @@ export class RestService {
     req: express.Request,
     res: express.Response,
   ) => {
-    let templates = this.apigeeService.templatesList();
+    let templates = await this.apigeeService.templatesList();
     res.send(JSON.stringify(templates, null, 2));
   };
 
@@ -388,6 +388,11 @@ export class RestService {
     } else res.status(404).send("Proxy could not be found.");
   };
 
+  public featuresList = async (req: express.Request, res: express.Response) => {
+    let features = await this.apigeeService.featuresList();
+    res.send(JSON.stringify(features, null, 2));
+  };
+
   public featureGet = (req: express.Request, res: express.Response) => {
     let featureName = req.params.feature;
     if (!featureName) {
@@ -653,14 +658,12 @@ export class RestService {
             this.apigeeService.featureImport(newFeature);
             if (responseType == "application/yaml") {
               res.setHeader("Content-Type", "application/yaml");
-              return res
-                .status(201)
-                .send(
-                  YAML.stringify(newFeature, {
-                    aliasDuplicateObjects: false,
-                    blockQuote: "literal",
-                  }),
-                );
+              return res.status(201).send(
+                YAML.stringify(newFeature, {
+                  aliasDuplicateObjects: false,
+                  blockQuote: "literal",
+                }),
+              );
             } else {
               res.setHeader("Content-Type", "application/json");
               return res.status(201).send(JSON.stringify(newFeature, null, 2));

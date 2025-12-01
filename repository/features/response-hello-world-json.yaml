@@ -11,6 +11,8 @@ description: |
 
   ## Outputs
   - If the proxy response is JSON, then the message property is added to the payload.
+categories:
+  - traffic
 parameters:
   - name: MESSAGE
     displayName: MESSAGE

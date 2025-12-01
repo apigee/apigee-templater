@@ -1,6 +1,8 @@
 name: llm-response-sanitize
 type: feature
 description: Feature-LLM-SanitizeResponse-v1
+categories:
+  - llm
 parameters:
   - name: TEMPLATE_ID
     displayName: TEMPLATE_ID

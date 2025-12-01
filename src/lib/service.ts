@@ -100,6 +100,11 @@ export class ApigeeTemplaterService {
             fs.readFileSync(this.featuresPath + featurePath, "utf8"),
           );
           features.push(feature);
+        } else {
+          let feature: Feature = YAML.parse(
+            fs.readFileSync(this.featuresPath + featurePath, "utf8"),
+          );
+          features.push(feature);
         }
       }
 

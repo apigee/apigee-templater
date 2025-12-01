@@ -1491,7 +1491,7 @@ export class ApigeeConverter {
   public featureToStringArray(feature: Feature): string[] {
     let result: string[] = [];
     if (feature.name) result.push(`Name: ${feature.name}`);
-    if (feature.description) result.push(`Description: ${feature.description}`);
+    // if (feature.description) result.push(`Description: ${feature.description}`);
 
     if (feature.parameters && feature.parameters.length > 0) {
       result.push(`Parameters:`);
@@ -2033,7 +2033,7 @@ export class ApigeeConverter {
   public proxyToStringArray(proxy: Proxy): string[] {
     let result: string[] = [];
     if (proxy.name) result.push(`Name: ${proxy.name}`);
-    if (proxy.description) result.push(`Description: ${proxy.description}`);
+    // if (proxy.description) result.push(`Description: ${proxy.description}`);
 
     if (proxy.endpoints && proxy.endpoints.length > 0) {
       result.push(`Endpoints:`);

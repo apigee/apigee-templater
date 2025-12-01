@@ -1,0 +1,993 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Apigee Agentic Portal</title>
+        <style>
+            /* Custom Scrollbar for Webkit */
+            ::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
+            }
+            ::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 4px;
+            }
+            .dark ::-webkit-scrollbar-thumb {
+                background: #475569;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+
+            /* Smooth fade for theme transition */
+            body {
+                transition:
+                    background-color 0.3s ease,
+                    color 0.3s ease;
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            a:link {
+                color: var(--text-primary);
+            }
+
+            /* visited link */
+            a:visited {
+                color: var(--text-primary);
+            }
+
+            /* mouse over link */
+            a:hover {
+                color: var(--text-primary);
+            }
+
+            /* selected link */
+            a:active {
+                color: var(--text-primary);
+            }
+
+            :root {
+                /* Dark mode colors */
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-tertiary: #334155;
+                --text-primary: #f8fafc;
+                --text-secondary: #cbd5e1;
+                --text-tertiary: #64748b;
+                --border: #334155;
+                --shadow: rgba(0, 0, 0, 0.3);
+                --accent: #60a5fa;
+                --accent-hover: #3b82f6;
+                --user-bg: #3b82f6;
+                --user-text: #ffffff;
+                --ai-bg: #1e293b;
+                --ai-text: #f8fafc;
+                --input-bg: #1e293b;
+                --header-bg: rgba(15, 23, 42, 0.8);
+            }
+
+            [data-theme="light"] {
+                /* Light mode colors */
+                --bg-primary: #ffffff;
+                --bg-secondary: #f8fafc;
+                --bg-tertiary: #f1f5f9;
+                --text-primary: #0f172a;
+                --text-secondary: #475569;
+                --text-tertiary: #94a3b8;
+                --border: #e2e8f0;
+                --shadow: rgba(0, 0, 0, 0.05);
+                --accent: #3b82f6;
+                --accent-hover: #2563eb;
+                --user-bg: #3b82f6;
+                --user-text: #ffffff;
+                --ai-bg: #f1f5f9;
+                --ai-text: #0f172a;
+                --input-bg: #ffffff;
+                --header-bg: rgba(255, 255, 255, 0.8);
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter",
+                    system-ui, sans-serif;
+                background-color: var(--bg-primary);
+                color: var(--text-primary);
+                transition:
+                    background-color 0.3s ease,
+                    color 0.3s ease;
+                line-height: 1.5;
+                font-size: 16px;
+            }
+
+            .app-container {
+                max-width: 900px;
+                margin: 0 auto;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                background-color: var(--bg-primary);
+            }
+
+            .header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 16px 24px;
+                border-bottom: 1px solid var(--border);
+                background-color: var(--header-bg);
+                backdrop-filter: blur(8px);
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+
+            .header-left {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .logo {
+                width: 32px;
+                height: 32px;
+                background: var(--accent);
+                border-radius: 6px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: 600;
+                font-size: 14px;
+            }
+
+            .app-title {
+                font-size: 18px;
+                font-weight: 600;
+                color: var(--text-primary);
+            }
+
+            .theme-toggle {
+                background: none;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                color: var(--text-secondary);
+                transition: all 0.2s ease;
+            }
+
+            .theme-toggle:hover {
+                background-color: var(--bg-secondary);
+                color: var(--text-primary);
+            }
+
+            .chat-container {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+
+            .messages {
+                flex: 1;
+                overflow-y: auto;
+                padding: 24px;
+                scroll-behavior: smooth;
+            }
+
+            .messages::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            .messages::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            .messages::-webkit-scrollbar-thumb {
+                background: var(--border);
+                border-radius: 2px;
+            }
+
+            .message {
+                margin-bottom: 24px;
+                display: flex;
+                gap: 12px;
+                opacity: 0;
+                animation: fadeInUp 0.4s ease-out forwards;
+            }
+
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(8px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .message.user {
+                flex-direction: row-reverse;
+            }
+
+            .avatar {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                font-weight: 600;
+                flex-shrink: 0;
+                margin-top: 2px;
+            }
+
+            .avatar.user {
+                background: var(--user-bg);
+                color: var(--user-text);
+            }
+
+            .avatar.ai {
+                background: var(--bg-secondary);
+                color: var(--text-secondary);
+                border: 1px solid var(--border);
+            }
+
+            .message-content {
+                max-width: calc(100% - 48px);
+                background: var(--ai-bg);
+                color: var(--ai-text);
+                padding: 12px 26px;
+                border-radius: 12px;
+                font-size: 15px;
+                line-height: 1.6;
+                border: 1px solid var(--border);
+            }
+
+            .message.user .message-content {
+                background: var(--user-bg);
+                color: var(--user-text);
+                border: none;
+            }
+
+            .typing-indicator {
+                display: none;
+                align-items: center;
+                gap: 12px;
+                margin: 0 24px 24px 24px;
+            }
+
+            .typing-dots {
+                display: flex;
+                gap: 4px;
+                padding: 12px 16px;
+                background: var(--ai-bg);
+                border-radius: 12px;
+                border: 1px solid var(--border);
+            }
+
+            .typing-dot {
+                width: 6px;
+                height: 6px;
+                background: var(--text-tertiary);
+                border-radius: 50%;
+                animation: pulse 1.5s ease-in-out infinite;
+            }
+
+            .typing-dot:nth-child(2) {
+                animation-delay: 0.2s;
+            }
+
+            .typing-dot:nth-child(3) {
+                animation-delay: 0.4s;
+            }
+
+            @keyframes pulse {
+                0%,
+                60%,
+                100% {
+                    opacity: 0.3;
+                    transform: scale(0.8);
+                }
+                30% {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+
+            .input-area {
+                padding: 16px 24px;
+                border-top: 1px solid var(--border);
+                background: var(--bg-primary);
+            }
+
+            .input-container {
+                display: flex;
+                gap: 12px;
+                align-items: flex-end;
+                max-width: 100%;
+            }
+
+            .message-input {
+                flex: 1;
+                background: var(--input-bg);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 12px 16px;
+                font-size: 15px;
+                color: var(--text-primary);
+                resize: none;
+                outline: none;
+                transition: all 0.2s ease;
+                min-height: 44px;
+                max-height: 120px;
+                font-family: inherit;
+                line-height: 1.4;
+                overflow: hidden;
+            }
+
+            .message-input::placeholder {
+                color: var(--text-tertiary);
+            }
+
+            .message-input:focus {
+                border-color: var(--accent);
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            }
+
+            .send-button {
+                background: var(--accent);
+                border: none;
+                border-radius: 10px;
+                width: 44px;
+                height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                color: white;
+                transition: all 0.2s ease;
+                flex-shrink: 0;
+            }
+
+            .send-button:hover:not(:disabled) {
+                background: var(--accent-hover);
+                transform: translateY(-1px);
+            }
+
+            .send-button:active {
+                transform: translateY(0);
+            }
+
+            .send-button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+            .welcome-message {
+                text-align: center;
+                color: var(--text-secondary);
+                font-size: 18px;
+                margin: 60px 20px;
+                line-height: 1.6;
+            }
+
+            .welcome-title {
+                font-size: 34px;
+                font-weight: 600;
+                color: var(--text-primary);
+                margin-bottom: 8px;
+            }
+
+            @media (max-width: 768px) {
+                .app-container {
+                    height: calc(100vh - 124px);
+                }
+
+                .header {
+                    padding: 12px 16px;
+                }
+
+                .messages {
+                    padding: 16px;
+                }
+
+                .input-area {
+                    padding: 12px 16px;
+                }
+
+                .message-content {
+                    max-width: calc(100% - 48px);
+                    font-size: 14px;
+                }
+
+                .welcome-message {
+                    margin: 40px 16px;
+                }
+            }
+        </style>
+
+        <!-- Tailwind CSS -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            slate: {
+                                850: "#1e293b",
+                                900: "#0f172a",
+                            },
+                        },
+                    },
+                },
+            };
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+        <!-- Lucide Icons -->
+        <script src="https://unpkg.com/lucide@latest"></script>
+        <style>
+            ul {
+                list-style: disc inside none !important;
+            }
+            pre {
+                background: #1e293b;
+                /*border: 1px solid #ddd;
+                border-left: 3px solid ##1e293b;*/
+                border-radius: 2px;
+                color: #666;
+                page-break-inside: avoid;
+                font-family: monospace;
+                font-size: 15px;
+                line-height: 1.6;
+                margin-bottom: 1.6em;
+                max-width: 100%;
+                overflow: auto;
+                padding: 1em 1.5em;
+                display: block;
+                word-wrap: break-word;
+            }
+        </style>
+    </head>
+    <body
+        class="bg-gray-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 h-screen overflow-hidden flex flex-col font-sans"
+    >
+        <!-- Main Workspace -->
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Left Sidebar: Feature List -->
+            <aside
+                class="w-full md:w-60 lg:w-60 rounded-md bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col z-0 transition-all duration-300"
+            >
+                <!-- Search Header -->
+                <div class="p-4 border-b border-gray-200 dark:border-slate-700">
+                    <div class="relative">
+                        <i
+                            data-lucide="search"
+                            class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"
+                        ></i>
+                        <input
+                            type="text"
+                            id="search-input"
+                            placeholder="Filter features..."
+                            class="w-full pl-9 pr-4 py-2 text-sm bg-gray-100 dark:bg-slate-900 border-none rounded-md focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-200 placeholder-gray-500 dark:placeholder-slate-500 outline-none transition-all"
+                        />
+                    </div>
+                </div>
+
+                <!-- List Container -->
+                <div
+                    id="feature-list"
+                    class="flex-1 overflow-y-auto p-2 space-y-1"
+                >
+                    <!-- List items injected by JS -->
+                </div>
+
+                <!-- List Footer -->
+                <div
+                    class="p-3 text-xs text-center text-gray-400 dark:text-slate-500 border-t border-gray-200 dark:border-slate-700"
+                >
+                    <span id="feature-count">0</span> features loaded
+                </div>
+            </aside>
+
+            <!-- Right Panel: Details -->
+            <main
+                class="flex-1 relative bg-gray-50 dark:bg-slate-900 overflow-y-auto scroll-smooth"
+            >
+                <div
+                    id="detail-view"
+                    class="max-w-5xl mx-auto p-6 lg:p-10 min-h-full"
+                >
+                    <!-- Empty State (Default) -->
+                    <div
+                        id="empty-state"
+                        class="flex flex-col items-center justify-center h-[80vh] text-center opacity-60"
+                    >
+                        <div
+                            class="w-24 h-24 bg-gray-200 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6"
+                        >
+                            <i
+                                data-lucide="mouse-pointer-click"
+                                class="w-10 h-10 text-gray-400 dark:text-slate-500"
+                            ></i>
+                        </div>
+                        <h3
+                            class="text-xl font-semibold text-gray-700 dark:text-slate-300"
+                        >
+                            Select a Feature
+                        </h3>
+                        <p
+                            class="text-gray-500 dark:text-slate-500 mt-2 max-w-sm"
+                        >
+                            Select a proxy feature from the sidebar to view its
+                            parameters, endpoints, and routing logic.
+                        </p>
+                    </div>
+
+                    <!-- Content Area (Hidden by default) -->
+                    <div
+                        id="content-area"
+                        class="hidden space-y-8 animate-fade-in"
+                    >
+                        <!-- Header -->
+                        <header
+                            class="pb-6 border-b border-gray-200 dark:border-slate-700"
+                        >
+                            <div class="flex items-start justify-between">
+                                <div class="max-w-[100%] list-inside list-disc">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span
+                                            id="detail-type"
+                                            class="px-2.5 py-0.5 rounded-full text-xs font-medium uppercase tracking-wider bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                                        >
+                                            Type
+                                        </span>
+                                        <span
+                                            class="text-xs text-gray-400 dark:text-slate-500 font-mono"
+                                            id="detail-id"
+                                            >ID: 001</span
+                                        >
+                                    </div>
+                                    <h2
+                                        id="detail-title"
+                                        class="text-3xl font-bold text-slate-900 dark:text-white mb-2"
+                                    >
+                                        Feature Name
+                                    </h2>
+                                    <p
+                                        id="detail-desc"
+                                        class="text-lg text-gray-600 dark:text-slate-300 leading-relaxed overflow-x-auto"
+                                    ></p>
+                                </div>
+                                <button
+                                    class="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                    title="Copy Configuration JSON"
+                                    onclick="copyConfig()"
+                                >
+                                    <i data-lucide="copy" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                        </header>
+
+                        <!-- Parameters Section -->
+                        <section>
+                            <h3
+                                class="text-lg font-semibold mb-4 flex items-center gap-2"
+                            >
+                                <i
+                                    data-lucide="sliders-horizontal"
+                                    class="w-5 h-5 text-blue-500"
+                                ></i>
+                                Parameters
+                            </h3>
+                            <div
+                                class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm"
+                            >
+                                <div class="overflow-x-auto">
+                                    <table
+                                        class="w-full text-left border-collapse"
+                                    >
+                                        <thead>
+                                            <tr
+                                                class="bg-gray-50 dark:bg-slate-700/50 border-b border-gray-200 dark:border-slate-700 text-xs uppercase text-gray-500 dark:text-slate-400"
+                                            >
+                                                <th
+                                                    class="p-4 font-semibold w-1/4"
+                                                >
+                                                    Name
+                                                </th>
+                                                <th
+                                                    class="p-4 font-semibold w-1/3"
+                                                >
+                                                    Description
+                                                </th>
+                                                <th
+                                                    class="p-4 font-semibold w-1/6"
+                                                >
+                                                    Default
+                                                </th>
+                                                <th
+                                                    class="p-4 font-semibold w-1/4"
+                                                >
+                                                    Example
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody
+                                            id="params-table-body"
+                                            class="divide-y divide-gray-100 dark:divide-slate-700 text-sm"
+                                        >
+                                            <!-- Rows injected here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </section>
+
+                        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                            <!-- Endpoints & Routes -->
+                            <section>
+                                <h3
+                                    class="text-lg font-semibold mb-4 flex items-center gap-2"
+                                >
+                                    <i
+                                        data-lucide="signpost"
+                                        class="w-5 h-5 text-purple-500"
+                                    ></i>
+                                    Endpoints & Routes
+                                </h3>
+                                <div class="space-y-3" id="endpoints-container">
+                                    <!-- Endpoint Cards injected here -->
+                                </div>
+                            </section>
+
+                            <!-- Targets -->
+                            <section>
+                                <h3
+                                    class="text-lg font-semibold mb-4 flex items-center gap-2"
+                                >
+                                    <i
+                                        data-lucide="server"
+                                        class="w-5 h-5 text-green-500"
+                                    ></i>
+                                    Upstream Targets
+                                </h3>
+                                <div
+                                    class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-1 shadow-sm"
+                                >
+                                    <ul
+                                        id="targets-list"
+                                        class="divide-y divide-gray-100 dark:divide-slate-700"
+                                    >
+                                        <!-- Targets injected here -->
+                                    </ul>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        <script>
+            // --- Mock Data ---
+            const proxyFeatures = [];
+
+            fetch("/features")
+                .then((response) => {
+                    return response.json();
+                })
+                .then((responseJson) => {
+                    if (responseJson) {
+                        console.log(responseJson);
+                        for (let feature of responseJson) {
+                            let newUiFeature = {
+                                id: feature.name,
+                                name: feature.name,
+                                type: "Traffic",
+                                description: feature.description,
+                                parameters: feature.parameters.map(
+                                    (x) =>
+                                        (x.example =
+                                            x.examples.length > 0
+                                                ? x.examples.join(", ")
+                                                : ""),
+                                ),
+                                endpoints:
+                                    feature.endpoints.length > 0
+                                        ? [
+                                              {
+                                                  path: feature.endpoints[0]
+                                                      .basePath,
+                                                  method: "ALL",
+                                                  rules: [
+                                                      feature.endpoints[0]
+                                                          .routes[0].target,
+                                                  ],
+                                              },
+                                          ]
+                                        : [],
+                                targets:
+                                    feature.targets.length > 0
+                                        ? [
+                                              {
+                                                  name: feature.targets[0].name,
+                                                  url: feature.targets[0].url,
+                                              },
+                                          ]
+                                        : [],
+                            };
+
+                            proxyFeatures.push(newUiFeature);
+                        }
+
+                        renderList();
+                    }
+                });
+
+            // --- State ---
+            let state = {
+                selectedId: null,
+                searchTerm: "",
+            };
+
+            // --- DOM Elements ---
+            const listContainer = document.getElementById("feature-list");
+            const searchInput = document.getElementById("search-input");
+            const emptyState = document.getElementById("empty-state");
+            const contentArea = document.getElementById("content-area");
+            const featureCount = document.getElementById("feature-count");
+
+            // --- Theme Logic ---
+            //const themeToggle = document.getElementById("theme-toggle");
+            const html = document.documentElement;
+
+            // Check local storage or system preference
+            if (
+                localStorage.theme === "dark" ||
+                (!("theme" in localStorage) &&
+                    window.matchMedia("(prefers-color-scheme: dark)").matches)
+            ) {
+                html.classList.add("dark");
+            } else {
+                html.classList.remove("dark");
+            }
+
+            // themeToggle.addEventListener("click", () => {
+            //     html.classList.toggle("dark");
+            //     localStorage.theme = html.classList.contains("dark")
+            //         ? "dark"
+            //         : "light";
+            // });
+
+            // --- Render Logic ---
+
+            function getMethodColor(method) {
+                const map = {
+                    GET: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
+                    POST: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
+                    PUT: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300",
+                    DELETE: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300",
+                    ALL: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300",
+                };
+                return map[method] || "bg-gray-100 text-gray-800";
+            }
+
+            function getTypeColor(type) {
+                // Returns a border color class for the list item
+                const map = {
+                    Security: "border-red-500",
+                    Performance: "border-purple-500",
+                    "Traffic Control": "border-blue-500",
+                    Routing: "border-green-500",
+                    Transformation: "border-orange-500",
+                };
+                return map[type] || "border-gray-300";
+            }
+
+            function renderList() {
+                listContainer.innerHTML = "";
+
+                const filtered = proxyFeatures.filter(
+                    (f) =>
+                        f.name
+                            .toLowerCase()
+                            .includes(state.searchTerm.toLowerCase()) ||
+                        f.type
+                            .toLowerCase()
+                            .includes(state.searchTerm.toLowerCase()),
+                );
+
+                featureCount.textContent = filtered.length;
+
+                if (filtered.length === 0) {
+                    listContainer.innerHTML = `
+                    <div class="p-8 text-center text-gray-400 dark:text-slate-600">
+                        <p class="text-sm">No features found</p>
+                    </div>
+                `;
+                    return;
+                }
+
+                filtered.forEach((feature) => {
+                    const isSelected = feature.id === state.selectedId;
+                    const typeBorder = getTypeColor(feature.type);
+
+                    const item = document.createElement("div");
+                    item.className = `
+                    group p-3 rounded-lg cursor-pointer border-l-4 transition-all duration-200 mb-1
+                    ${
+                        isSelected
+                            ? "bg-blue-50 dark:bg-slate-700/60 border-blue-500 shadow-sm"
+                            : "bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-slate-700/50 hover:border-gray-300 dark:hover:border-slate-600"
+                    }
+                `;
+
+                    item.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <h4 class="font-medium text-sm text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${feature.name}</h4>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300 group-hover:text-gray-400 dark:text-slate-600 dark:group-hover:text-slate-400 ${isSelected ? "opacity-100" : "opacity-0"}"></i>
+                    </div>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="text-xs font-mono text-gray-400 dark:text-slate-500">${feature.id}</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-600 text-gray-500 dark:text-slate-400 uppercase tracking-wide">${feature.type}</span>
+                    </div>
+                `;
+
+                    item.addEventListener("click", () => {
+                        state.selectedId = feature.id;
+                        renderList(); // Re-render to update active state styling
+                        renderDetails(feature);
+                    });
+
+                    listContainer.appendChild(item);
+                });
+                lucide.createIcons();
+            }
+
+            function renderDetails(feature) {
+                emptyState.classList.add("hidden");
+                contentArea.classList.remove("hidden");
+
+                // Header
+                document.getElementById("detail-type").textContent =
+                    feature.type;
+                document.getElementById("detail-id").textContent =
+                    `ID: ${feature.id}`;
+                document.getElementById("detail-title").textContent =
+                    feature.name;
+                let description = "No description available.";
+                if (feature.description) {
+                    description = marked.parse(feature.description);
+                }
+                document.getElementById("detail-desc").innerHTML =
+                    marked.parse(description);
+
+                // Parameters
+                const tbody = document.getElementById("params-table-body");
+                tbody.innerHTML = "";
+                feature.parameters.forEach((param) => {
+                    const row = document.createElement("tr");
+                    row.className =
+                        "hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors";
+                    row.innerHTML = `
+                    <td class="p-4 font-mono text-blue-600 dark:text-blue-400 font-medium">${param.name}</td>
+                    <td class="p-4 text-gray-600 dark:text-slate-300">${param.description}</td>
+                    <td class="p-4 text-gray-500 dark:text-slate-400"><span class="bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded text-xs">${param.default}</span></td>
+                    <td class="p-4 font-mono text-xs text-gray-500 dark:text-slate-500 truncate max-w-xs" title="${param.example}">${param.example}</td>
+                `;
+                    tbody.appendChild(row);
+                });
+
+                // Endpoints
+                const epContainer = document.getElementById(
+                    "endpoints-container",
+                );
+                epContainer.innerHTML = "";
+                feature.endpoints.forEach((ep) => {
+                    const methodClass = getMethodColor(ep.method);
+                    const card = document.createElement("div");
+                    card.className =
+                        "bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4 shadow-sm";
+
+                    // Route Rules Tags
+                    const rulesHtml = ep.rules
+                        .map(
+                            (r) =>
+                                `<span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
+                        <i data-lucide="check-circle" class="w-3 h-3"></i> ${r}
+                     </span>`,
+                        )
+                        .join("");
+
+                    card.innerHTML = `
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                        <div class="flex items-center gap-3">
+                            <span class="${methodClass} px-2 py-1 rounded text-xs font-bold">${ep.method}</span>
+                            <code class="text-sm font-mono text-slate-700 dark:text-slate-200">${ep.path}</code>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-2">
+                         ${rulesHtml}
+                    </div>
+                `;
+                    epContainer.appendChild(card);
+                });
+
+                // Targets
+                const targetsList = document.getElementById("targets-list");
+                targetsList.innerHTML = "";
+                feature.targets.forEach((t) => {
+                    const li = document.createElement("li");
+                    li.className =
+                        "p-4 flex flex-col gap-1 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors first:rounded-t-xl last:rounded-b-xl";
+                    li.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="font-medium text-sm text-slate-700 dark:text-slate-200">${t.name}</span>
+                        <div class="flex items-center gap-1 text-green-500">
+                            <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                            <span class="text-[10px] font-bold uppercase">Active</span>
+                        </div>
+                    </div>
+                    <code class="text-xs text-gray-400 dark:text-slate-500 font-mono break-all">${t.url}</code>
+                `;
+                    targetsList.appendChild(li);
+                });
+
+                // Refresh Icons
+                lucide.createIcons();
+            }
+
+            // --- Event Listeners ---
+            searchInput.addEventListener("input", (e) => {
+                state.searchTerm = e.target.value;
+                renderList();
+            });
+
+            function copyConfig() {
+                if (!state.selectedId) return;
+                const feature = proxyFeatures.find(
+                    (f) => f.id === state.selectedId,
+                );
+                const text = JSON.stringify(feature, null, 2);
+
+                // Clipboard API might be restricted in iframes, fallback to legacy if needed
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        alert("Configuration JSON copied to clipboard!");
+                    });
+                } else {
+                    // Fallback
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand("Copy");
+                    textArea.remove();
+                    alert("Configuration JSON copied to clipboard!");
+                }
+            }
+
+            // --- Init ---
+            //renderList();
+            lucide.createIcons();
+        </script>
+    </body>
+</html>

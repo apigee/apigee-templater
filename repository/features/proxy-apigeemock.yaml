@@ -1,6 +1,8 @@
 name: proxy-apigeemock
 type: feature
 description: proxy-apigeemock
+categories:
+  - llm
 parameters: []
 endpoints:
   - name: apigeemock

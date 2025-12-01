@@ -13,6 +13,8 @@ description: |
   - If a prompt is found, it is written to the Apigee variable **llm.promptInput**.
   - If a prompt is found, the estimated token length is written to the Apigee variable **llm.promptEstimatedTokenCount**.
 priority: 10
+categories:
+  - llm
 parameters: []
 defaultEndpoint:
   name: default

@@ -2,6 +2,8 @@ name: proxy-mcp-deepwiki
 type: feature
 description: Feature-PROXY-DeepWiki-v1
 parameters: []
+categories:
+  - services
 endpoints:
   - name: deepwiki
     basePath: /v1/deepwiki
