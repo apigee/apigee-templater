@@ -1128,8 +1128,8 @@ export class ApigeeConverter {
     featurePath: string,
     parameters: { [key: string]: string } = {},
   ): Template {
-    // replace parameters from runtime
-    let tempFeature = this.featureReplaceParameters(feature, [], parameters);
+    // replace parameters from runtime (no, disable for now..)
+    let tempFeature = feature; // this.featureReplaceParameters(feature, [], parameters);
     // set uid on feature usage
     tempFeature.uid = (Math.random() + 1).toString(36).substring(7);
     if (tempFeature.endpoints && tempFeature.endpoints.length > 0) {
@@ -1177,19 +1177,16 @@ export class ApigeeConverter {
     template.features.push(featurePath + "." + tempFeature.uid);
 
     // add parameters with feature name and uid
-    if (feature.parameters.length > 0) {
-      for (let parameter of tempFeature.parameters) {
-        // set default if one was passed in
-        if (parameters[parameter.name])
-          parameter.default = parameters[parameter.name] ?? parameter.default;
-        if (tempFeature.uid)
-          parameter.name =
-            tempFeature.name + "." + tempFeature.uid + "." + parameter.name;
-        else parameter.name = tempFeature.name + "." + parameter.name;
-        if (parameters[parameter.name])
-          parameter.default = parameters[parameter.name] ?? parameter.default;
-        template.parameters.push(parameter);
-      }
+    for (let parameter of tempFeature.parameters) {
+      // set default if one was passed in
+      if (parameters[parameter.name])
+        parameter.default = parameters[parameter.name] ?? parameter.default;
+      parameter.name =
+        tempFeature.name + "." + tempFeature.uid + "." + parameter.name;
+      if (parameters[parameter.name])
+        parameter.default = parameters[parameter.name] ?? parameter.default;
+
+      template.parameters.push(parameter);
     }
 
     return template;
@@ -1309,7 +1306,7 @@ export class ApigeeConverter {
     return proxy;
   }
 
-  public templateUpdateParamters(
+  public templateUpdateParameters(
     template: Template,
     parameters: { [key: string]: string } = {},
   ) {
@@ -1596,8 +1593,8 @@ export class ApigeeConverter {
     feature: Feature,
     parameters: { [key: string]: string } = {},
   ): Proxy {
-    // save original parameters
-    proxy.parameters = proxy.parameters.concat(feature.parameters);
+    // save original parameters, no don't do it, not needed.
+    // proxy.parameters = proxy.parameters.concat(feature.parameters);
 
     // replace parameters from runtime
     let tempFeature = this.featureReplaceParameters(

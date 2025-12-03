@@ -603,13 +603,13 @@ export class ApigeeTemplaterService {
           }
         }
 
-        const uniqueFeatures = Array.from(
-          new Set(features.map((a) => a.name)),
-        ).map((name) => {
-          return features.find((a) => a.name === name);
-        }) as Feature[];
+        // const uniqueFeatures = Array.from(
+        //   new Set(features.map((a) => a.name)),
+        // ).map((name) => {
+        //   return features.find((a) => a.name === name);
+        // }) as Feature[];
 
-        proxy = converter.templateToProxy(template, uniqueFeatures, parameters);
+        proxy = converter.templateToProxy(template, features, parameters);
       }
 
       resolve(proxy);

@@ -68,6 +68,7 @@ defaultEndpoint:
         - name: RF-ArmorFault
           condition: SanitizeUserPrompt.SUP-SanitizeRequest.filterMatchState =
             "MATCH_FOUND"
+        - name: JS-LogModelArmor
   faultRules: []
 endpoints: []
 targets: []

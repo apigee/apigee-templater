@@ -744,7 +744,7 @@ export class cli {
         process.chdir(startDir);
 
         if (template) {
-          this.converter.templateUpdateParamters(template, inputParameters);
+          // this.converter.templateUpdateParameters(template, inputParameters);
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(template, null, 2));
           } else if (options.output.toLowerCase().endsWith(".yaml")) {

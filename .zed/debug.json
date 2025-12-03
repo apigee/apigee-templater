@@ -111,15 +111,18 @@
   },
   {
     "adapter": "JavaScript",
-    "label": "cli.js - apply feature to local file",
+    "label": "cli.js - convert template to proxy",
     "type": "pwa-node",
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
     "args": [
-      "test-cr.local.yaml",
-      "-a",
-      "./repository/features/proxy-cloudrun.yaml"
+      "-i",
+      "cr-template.local.yaml",
+      "-o",
+      "cr-proxy.local.yaml",
+      "-f",
+      "proxy"
     ]
   },
   {
