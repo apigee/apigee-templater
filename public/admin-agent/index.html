@@ -466,7 +466,7 @@
                     this.config = {};
                     this.isTyping = false;
                     this.user_email = localStorage.getItem("user_email");
-                    this.user_session = "s_abc";
+                    this.user_session = "api-publisher-portal";
                     // this.user_session =
                     //     "s_" + Math.floor(Math.random() * 10000).toString();
 
@@ -497,12 +497,9 @@
                     );
 
                     let responseText = await sessionResponse.text();
-                    // console.log(responseText);
-                    // this.generateResponse(
-                    //     "Describe yourself and give some sample requests.",
-                    // );
+                    console.log(responseText);
                     let authCodeResult = await this.onAuthorizationCode();
-                    if (!authCodeResult) this.onAuthorizationCode();
+                    //if (!authCodeResult) this.onAuthorizationCode();
                 }
 
                 initTheme() {
@@ -603,7 +600,7 @@
                             this.config.apigeeAgentUrl + "/run",
                             {
                                 method: "POST",
-                                signal: AbortSignal.timeout(5000),
+                                signal: AbortSignal.timeout(25000),
                                 headers: {
                                     "Content-Type": "application/json",
                                 },
@@ -634,11 +631,14 @@
                         }
                     } catch (e) {
                         result = false;
-                        this.hideTypingIndicator();
-                        // await this.typeMessage(
-                        //     "Unfortunately I can't connect to my service right now, maybe take a break and try again later?",
-                        //     "ai",
-                        // );
+                        // this.hideTypingIndicator();
+                        let seconds = Math.floor(Math.random() * 100) + 1;
+                        await this.typeMessage(
+                            `Hmm, it looks like I went to sleep and need to wake up my Python! Give me ${seconds} seconds...`,
+                            "ai",
+                        );
+
+                        return this.generateResponse(userMessage);
                     }
 
                     return result;
@@ -708,7 +708,15 @@
                     messageDiv.appendChild(content);
                     this.messages.appendChild(messageDiv);
                     this.isTyping = true;
-                    for (let i = 0; i <= text.length; i++) {
+                    console.log(text.length);
+                    let begin = 0;
+                    if (text.length > 100) {
+                        content.innerHTML = marked.parse(
+                            text.substring(0, text.length - 100),
+                        );
+                        begin = text.length - 100;
+                    }
+                    for (let i = begin; i <= text.length; i++) {
                         // content.textContent = text.substring(0, i);
                         content.innerHTML = marked.parse(text.substring(0, i));
                         this.scrollToBottom();
@@ -779,18 +787,23 @@
                                 let responseJson = await newResponse.json();
                                 this.processResponse(responseJson);
                             }
+
+                            localStorage.removeItem("auth_response_uri");
+                            localStorage.removeItem("authorization_code");
+                            localStorage.removeItem("oauthMessage");
                         } catch (e) {
                             result = false;
                         }
                     } else {
-                        let result = await this.generateResponse(
-                            "Give a short overview of your capabilities.",
-                        );
-                        if (!result) {
-                            this.generateResponse(
-                                "Give a short overview of your capabilities.",
-                            );
-                        }
+                        this.generateResponse("Greet me.");
+                        // let result = await this.generateResponse(
+                        //     "Give a short overview of your capabilities.",
+                        // );
+                        // if (!result) {
+                        //     this.generateResponse(
+                        //         "Give a short overview of your capabilities.",
+                        //     );
+                        // }
                     }
 
                     return result;

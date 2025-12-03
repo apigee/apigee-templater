@@ -3,8 +3,9 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Apigee Agentic Portal</title>
+        <title>API Publisher Portal</title>
         <link rel="icon" type="image/x-icon" href="/favicon.png" />
+        <script src="https://www.gstatic.com/firebasejs/8.0/firebase.js"></script>
         <style>
             * {
                 margin: 0;
@@ -392,7 +393,7 @@
                         <a href="/">
                             <div class="logo-icon">A</div>
                         </a>
-                        <span class="logo-text">Portal Admin</span>
+                        <span class="logo-text">API Publisher</span>
                     </div>
                     <button class="theme-toggle" onclick="toggleTheme()">
                         <svg
@@ -437,7 +438,7 @@
                                 <a
                                     href="/admin-agent"
                                     class="nav-link active"
-                                    x-description="AI assistance for API, AI & integration management"
+                                    x-description="AI assistance for API publishing & feature management"
                                 >
                                     <svg
                                         class="nav-icon"
@@ -678,33 +679,6 @@
                         <h3 class="nav-section-title">Tools</h3>
                         <ul class="nav-items">
                             <li class="nav-item">
-                                <a href="/tools" class="nav-link">
-                                    <svg
-                                        class="nav-icon"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 18 18"
-                                    >
-                                        <g
-                                            id="SVGRepo_bgCarrier"
-                                            stroke-width="0"
-                                        ></g>
-                                        <g
-                                            id="SVGRepo_tracerCarrier"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                        ></g>
-                                        <g id="SVGRepo_iconCarrier">
-                                            <path
-                                                d="M14 2H5.50003L4.00003 3.5L6.83581 6.33579L0.585815 12.5858L3.41424 15.4142L9.66424 9.16421L12.5 12L14 10.5L14 2Z"
-                                                fill="#000000"
-                                            ></path>
-                                        </g>
-                                    </svg>
-                                    <span>View Live Portal</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
                                 <a href="/coming-soon" class="nav-link">
                                     <svg
                                         class="nav-icon"
@@ -760,6 +734,37 @@
                                     <span>Help</span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a
+                                    href="#"
+                                    onclick="signOut()"
+                                    class="nav-link"
+                                >
+                                    <svg
+                                        class="nav-icon"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 18 18"
+                                    >
+                                        <g
+                                            id="SVGRepo_bgCarrier"
+                                            stroke-width="0"
+                                        ></g>
+                                        <g
+                                            id="SVGRepo_tracerCarrier"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        ></g>
+                                        <g id="SVGRepo_iconCarrier">
+                                            <path
+                                                d="M14 2H5.50003L4.00003 3.5L6.83581 6.33579L0.585815 12.5858L3.41424 15.4142L9.66424 9.16421L12.5 12L14 10.5L14 2Z"
+                                                fill="#000000"
+                                            ></path>
+                                        </g>
+                                    </svg>
+                                    <span>Sign Out</span>
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </nav>
@@ -769,7 +774,7 @@
                 <div class="content-header">
                     <h1 class="content-title">Admin Agent</h1>
                     <p class="content-subtitle">
-                        AI assistance for API, AI & integration management
+                        AI assistance for API publishing & feature management
                     </p>
                 </div>
 
@@ -780,7 +785,7 @@
                         height: calc(100vh - 170px);
                         border: 0px;
                     "
-                    src="/chat"
+                    src=""
                 >
                 </iframe>
             </main>
@@ -830,6 +835,44 @@
                     lightIcon.style.display = "block";
                     darkIcon.style.display = "none";
                 }
+            }
+
+            // USER
+            let config = {};
+            let user = undefined;
+            fetch("/config")
+                .then((response) => {
+                    if (response.status == 200) return response.json();
+                    else
+                        console.error("Could not load app config from server.");
+                })
+                .then((appConfig) => {
+                    config = appConfig;
+                    firebase.initializeApp({
+                        apiKey: config.authApiKey,
+                        authDomain: config.authDomain,
+                    });
+
+                    firebase.auth().onAuthStateChanged((newUser) => {
+                        if (newUser) {
+                            user = newUser;
+                            localStorage.setItem("user_email", user.email);
+                            // set admin agent as start page now that user is there
+                            document.getElementById("content-iframe").src =
+                                "/admin-agent";
+                        } else {
+                        }
+                    });
+                });
+
+            function signOut() {
+                localStorage.removeItem("user_email");
+                firebase
+                    .auth()
+                    .signOut()
+                    .then(function () {
+                        window.location.href = "/";
+                    });
             }
 
             function toggleSidebar() {

@@ -300,13 +300,11 @@ export class cli {
 
     if (!options.input) {
       // create new template
-      if (!options.basePath) {
-        // set a default basepath
-      }
+      let basePath = options.basePath;
+      // if (!basePath) basePath = "/" + options.name.toLowerCase().replaceAll(" ", "-")
       template = this.converter.templateCreate(
         options.name,
-        options.basePath ??
-          "/" + options.name.toLowerCase().replaceAll(" ", "-"),
+        basePath,
         options.targetUrl,
       );
       if (!options.output) options.output = options.name + ".yaml";

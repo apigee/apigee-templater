@@ -117,9 +117,18 @@
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
     "args": [
-      "./repository/templates/Test1.yaml",
+      "test-cr.local.yaml",
       "-a",
       "./repository/features/proxy-cloudrun.yaml"
     ]
+  },
+  {
+    "adapter": "JavaScript",
+    "label": "cli.js - create new template",
+    "type": "pwa-node",
+    "request": "launch",
+    "program": "dist/bin/apigee-templater.js",
+    "stopOnEntry": false,
+    "args": ["test.local.yaml"]
   }
 ]

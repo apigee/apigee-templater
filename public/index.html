@@ -1,24 +1,11 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" class="light">
+    <!-- Default to light mode -->
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Apigee Agentic Portal</title>
+        <title>API Publisher Portal - Sign In</title>
         <link rel="icon" type="image/x-icon" href="/favicon.png" />
-
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://portal.agenticplatform.dev/" />
-        <meta property="og:site_name" content="Apigee Agentic Portal" />
-        <meta
-            property="og:image"
-            itemprop="image primaryImageOfPage"
-            content="https://portal.agenticplatform.dev/preview.jpg"
-        />
-        <meta
-            name="description"
-            content="Apigee Agentic Portal leverages AI to create a dynamic, self-optimizing API ecosystem, simplifying development and boosting performance."
-        />
-
         <script src="https://cdn.tailwindcss.com"></script>
         <script src="https://www.gstatic.com/firebasejs/8.0/firebase.js"></script>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -28,594 +15,133 @@
             rel="stylesheet"
         />
         <style>
-            :root {
-                /* Dark mode colors */
-                --bg-primary: #0f172a;
-                --bg-secondary: #1e293b;
-                --bg-tertiary: #334155;
-                --text-primary: #f8fafc;
-                --text-secondary: #cbd5e1;
-                --text-tertiary: #64748b;
-                --text-title: rgb(129, 140, 248, 1);
-                --border: #334155;
-                --shadow: rgba(0, 0, 0, 0.3);
-                --accent: #60a5fa;
-                --accent-hover: #3b82f6;
-                --user-bg: #3b82f6;
-                --user-text: #ffffff;
-                --ai-bg: #1e293b;
-                --ai-text: #f8fafc;
-                --input-bg: #1e293b;
-                --header-bg: rgba(15, 23, 42, 0.8);
-            }
-
-            [data-theme="light"] {
-                /* Light mode colors */
-                --bg-primary: #ffffff;
-                --bg-secondary: #f8fafc;
-                --bg-tertiary: #f1f5f9;
-                --text-primary: #0f172a;
-                --text-secondary: #475569;
-                --text-tertiary: #94a3b8;
-                --text-title: rgb(79, 70, 229, 1);
-                --border: #e2e8f0;
-                --shadow: rgba(0, 0, 0, 0.05);
-                --accent: #3b82f6;
-                --accent-hover: #2563eb;
-                --user-bg: #3b82f6;
-                --user-text: #ffffff;
-                --ai-bg: #f1f5f9;
-                --ai-text: #0f172a;
-                --input-bg: #ffffff;
-                --header-bg: rgba(255, 255, 255, 0.8);
-            }
             body {
                 font-family: "Inter", sans-serif;
-                background: var(--bg-primary);
-                color: var(--text-primary);
-                transition: all 0.3s ease;
-            }
-
-            .menu-item:hover {
-                background-color: var(--bg-tertiary);
-                color: var(--text-primary);
             }
         </style>
+        <script>
+            // Set theme on initial load
+            if (
+                localStorage.theme === "dark" ||
+                (!("theme" in localStorage) &&
+                    window.matchMedia("(prefers-color-scheme: dark)").matches)
+            ) {
+                document.documentElement.classList.add("dark");
+            } else {
+                document.documentElement.classList.remove("dark");
+            }
+        </script>
     </head>
-    <body class="">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <!-- Header -->
-            <header
-                class="flex justify-between items-center py-6"
-                style="white-space: nowrap"
-            >
-                <div class="text-2xl font-bold tracking-tight">
-                    <a href="/">
-                        <span style="color: var(--text-title)">Apigee</span>
-                        <span class="hidden md:inline">Agentic Portal</span></a
-                    >
-                </div>
-
-                <div style="display: flex; align-items: center">
-                    <a
-                        href="/tools"
-                        class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
-                        >Tools</a
-                    >
-
-                    <a
-                        href="/agents"
-                        class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
-                        >Agents</a
-                    >
-
-                    <a
-                        id="sign_in_button"
-                        style="display: none"
-                        href="/signin"
-                        class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
-                        >Sign in</a
-                    >
-
-                    <!--<button
-                        id="sign_in_button"
-                        style="display: none"
-                        onclick="signInWithGoogle()"
-                        class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
-                    >
-                        Sign in
-                    </button>-->
-
-                    <!-- Account Dropdown -->
-                    <div
-                        id="account_button"
-                        style="display: none"
-                        class="relative"
-                    >
-                        <button
-                            id="account-dropdown-button"
-                            style="background-color: var(--bg-tertiary)"
-                            class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-full p-2 transition duration-150 ease-in-out"
-                        >
-                            <svg
-                                class="h-6 w-6 text-gray-500 dark:text-gray-400"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-                                <g
-                                    id="SVGRepo_tracerCarrier"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                ></g>
-                                <g id="SVGRepo_iconCarrier">
-                                    <path
-                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
-                                    ></path>
-                                </g>
-                            </svg>
-                            <span
-                                style="color: var(--text-secondary)"
-                                class="font-medium text-gray-900 dark:text-white hidden md:inline"
-                                >Account</span
-                            >
-                            <svg
-                                class="h-4 w-4 text-gray-500 dark:text-gray-400"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M19 9l-7 7-7-7"
-                                />
-                            </svg>
-                        </button>
-
-                        <!-- Dropdown Menu -->
-                        <div
-                            id="account-dropdown-menu"
-                            style="background-color: var(--bg-secondary)"
-                            class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 z-10 opacity-0 dropdown-menu"
-                        >
-                            <a
-                                href="/apps"
-                                style="color: var(--text-primary)"
-                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
-                                >Apps</a
-                            >
-                            <a
-                                href="/admin"
-                                style="color: var(--text-primary)"
-                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
-                                >Admin Console</a
-                            >
-                            <button
-                                onclick="signOut()"
-                                style="
-                                    color: var(--text-primary);
-                                    width: 100%;
-                                    text-align: left;
-                                "
-                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
-                            >
-                                Sign-Out
-                            </button>
-                        </div>
-                    </div>
-
-                    <button
-                        class="relative pl-4 theme-toggle"
-                        onclick="toggleTheme()"
-                    >
-                        <svg
-                            class="theme-icon-light"
-                            width="20"
-                            height="20"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                            />
-                        </svg>
-                        <svg
-                            class="theme-icon-dark"
-                            width="20"
-                            height="20"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            style="display: none"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                            />
-                        </svg>
-                    </button>
-                </div>
-            </header>
-
-            <main class="space-y-24 mt-12 sm:mt-24">
-                <!-- Hero Section -->
-                <section class="text-center">
+    <body class="bg-slate-50 dark:bg-gray-900 transition-colors duration-300">
+        <div class="flex flex-col items-center justify-center min-h-screen p-4">
+            <div class="w-full max-w-sm">
+                <div
+                    class="bg-white dark:bg-gray-800 shadow-md rounded-2xl p-8 transition-colors duration-300"
+                >
                     <h1
-                        class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight"
+                        class="text-2xl font-bold text-center text-gray-800 dark:text-white mb-2"
                     >
-                        The Agentic Storefront For Any Tool, Any Client
+                        Sign in to your account
                     </h1>
                     <p
-                        class="mt-4 text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto"
+                        class="text-center text-gray-500 dark:text-gray-400 mb-8"
                     >
-                        Apigee Agentic Portal offers all of your MCP, A2A, REST
-                        and any other type of tool for any type of client. Build
-                        your ecosystem, simplifying development and boosting
-                        performance.
+                        Choose one of the options below
                     </p>
-                    <div class="mt-8 flex justify-center space-x-4">
-                        <a
-                            href="/tools"
-                            class="px-6 py-3 text-lg font-medium text-white bg-indigo-600 rounded-full shadow-lg hover:bg-indigo-700 transition-colors duration-300"
-                            >Explore Tools</a
-                        >
-                        <a
-                            href="/agents"
-                            class="px-6 py-3 text-lg font-medium text-gray-800 dark:text-gray-200 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-300"
-                            >Agents</a
-                        >
-                    </div>
-                </section>
 
-                <!-- Showcase Section -->
-                <section id="features" class="py-12">
-                    <div class="text-center">
-                        <h2
-                            class="text-3xl sm:text-4xl font-bold tracking-tight"
-                        >
-                            Empowering Your AI Ecosystem
-                        </h2>
-                        <p
-                            class="mt-4 text-gray-600 dark:text-gray-400 max-w-xl mx-auto"
-                        >
-                            Discover the intelligent features that make Apigee
-                            Agentic Portal a game-changer for developers and
-                            enterprises.
-                        </p>
-                    </div>
-                    <div
-                        class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+                    <!-- Sign in with Google -->
+                    <button
+                        onclick="signInWithGoogle()"
+                        class="w-full flex items-center justify-center gap-3 py-3 px-4 mb-4 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200"
                     >
-                        <!-- Feature Card 1 -->
-                        <div
-                            style="
-                                background-color: var(--bg-tertiary);
-                                border-color: var(--accent);
-                            "
-                            class="p-8 rounded-2xl shadow-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 transition-all duration-300 transform hover:-translate-y-1"
+                        <svg
+                            class="w-5 h-5"
+                            viewBox="0 0 48 48"
+                            xmlns="http://www.w3.org/2000/svg"
                         >
-                            <div
-                                class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-600 dark:text-white"
-                            >
-                                <svg
-                                    class="h-8 w-8"
-                                    fill="none"
-                                    viewBox="0 0 512 512"
-                                    stroke="currentColor"
-                                >
-                                    <g
-                                        id="SVGRepo_bgCarrier"
-                                        stroke-width="0"
-                                    ></g>
-                                    <g
-                                        id="SVGRepo_tracerCarrier"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    ></g>
-                                    <g id="SVGRepo_iconCarrier">
-                                        <title>ai</title>
-                                        <g
-                                            id="Page-1"
-                                            stroke-width="1"
-                                            fill="currentColor"
-                                            fill-rule="evenodd"
-                                        >
-                                            <g
-                                                id="icon"
-                                                fill="currentColor"
-                                                transform="translate(64.000000, 64.000000)"
-                                            >
-                                                <path
-                                                    d="M320,64 L320,320 L64,320 L64,64 L320,64 Z M171.749388,128 L146.817842,128 L99.4840387,256 L121.976629,256 L130.913039,230.977 L187.575039,230.977 L196.319607,256 L220.167172,256 L171.749388,128 Z M260.093778,128 L237.691519,128 L237.691519,256 L260.093778,256 L260.093778,128 Z M159.094727,149.47526 L181.409039,213.333 L137.135039,213.333 L159.094727,149.47526 Z M341.333333,256 L384,256 L384,298.666667 L341.333333,298.666667 L341.333333,256 Z M85.3333333,341.333333 L128,341.333333 L128,384 L85.3333333,384 L85.3333333,341.333333 Z M170.666667,341.333333 L213.333333,341.333333 L213.333333,384 L170.666667,384 L170.666667,341.333333 Z M85.3333333,0 L128,0 L128,42.6666667 L85.3333333,42.6666667 L85.3333333,0 Z M256,341.333333 L298.666667,341.333333 L298.666667,384 L256,384 L256,341.333333 Z M170.666667,0 L213.333333,0 L213.333333,42.6666667 L170.666667,42.6666667 L170.666667,0 Z M256,0 L298.666667,0 L298.666667,42.6666667 L256,42.6666667 L256,0 Z M341.333333,170.666667 L384,170.666667 L384,213.333333 L341.333333,213.333333 L341.333333,170.666667 Z M0,256 L42.6666667,256 L42.6666667,298.666667 L0,298.666667 L0,256 Z M341.333333,85.3333333 L384,85.3333333 L384,128 L341.333333,128 L341.333333,85.3333333 Z M0,170.666667 L42.6666667,170.666667 L42.6666667,213.333333 L0,213.333333 L0,170.666667 Z M0,85.3333333 L42.6666667,85.3333333 L42.6666667,128 L0,128 L0,85.3333333 Z"
-                                                    id="Combined-Shape"
-                                                ></path>
-                                            </g>
-                                        </g>
-                                    </g>
-                                </svg>
-                            </div>
-                            <h3 class="mt-6 text-xl font-semibold">
-                                AI-Powered Optimization
-                            </h3>
-                            <p class="mt-4 text-gray-600 dark:text-gray-400">
-                                Our agentic AI learns and adapts, automatically
-                                optimizing API performance, security, and
-                                developer experience.
-                            </p>
-                        </div>
-                        <!-- Feature Card 2 -->
-                        <div
-                            style="
-                                background-color: var(--bg-tertiary);
-                                border-color: var(--accent);
-                            "
-                            class="p-8 rounded-2xl shadow-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 transition-all duration-300 transform hover:-translate-y-1"
+                            <path
+                                fill="#FFC107"
+                                d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
+                            />
+                            <path
+                                fill="#FF3D00"
+                                d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"
+                            />
+                            <path
+                                fill="#4CAF50"
+                                d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
+                            />
+                            <path
+                                fill="#1976D2"
+                                d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C42.02,35.216,44,30.023,44,24C44,22.659,43.862,21.35,43.611,20.083z"
+                            />
+                        </svg>
+                        <span
+                            class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                            >Sign in with Google</span
                         >
-                            <div
-                                class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-600 dark:text-white"
-                            >
-                                <svg
-                                    class="h-6 w-6"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                                    />
-                                </svg>
-                            </div>
-                            <h3 class="mt-6 text-xl font-semibold">
-                                Self-Healing Infrastructure
-                            </h3>
-                            <p class="mt-4 text-gray-600 dark:text-gray-400">
-                                The portal proactively identifies and resolves
-                                issues, ensuring maximum uptime and reliability
-                                for your services.
-                            </p>
-                        </div>
-                        <!-- Feature Card 3 -->
-                        <div
-                            style="
-                                background-color: var(--bg-tertiary);
-                                border-color: var(--accent);
-                            "
-                            class="p-8 rounded-2xl shadow-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 transition-all duration-300 transform hover:-translate-y-1"
-                        >
-                            <div
-                                class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-600 dark:text-white"
-                            >
-                                <svg
-                                    class="h-7 w-7"
-                                    fill="currentColor"
-                                    viewBox="0 0 1024 1024"
-                                    stroke="currentColor"
-                                >
-                                    <g
-                                        id="SVGRepo_bgCarrier"
-                                        stroke-width="0"
-                                    ></g>
-                                    <g
-                                        id="SVGRepo_tracerCarrier"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    ></g>
-                                    <g id="SVGRepo_iconCarrier">
-                                        <path
-                                            d="M877.685565 727.913127l-0.584863-0.365539a32.898541 32.898541 0 0 1-8.041866-46.423497 411.816631 411.816631 0 1 0-141.829267 145.777092c14.621574-8.992268 33.62962-5.117551 43.645398 8.772944l0.146216 0.073108a30.412874 30.412874 0 0 1-7.968758 43.206751l-6.141061 4.020933a475.201154 475.201154 0 1 1 163.615412-164.419599 29.974227 29.974227 0 0 1-42.841211 9.357807z m-537.342843-398.584106c7.164571-7.091463 24.71046-9.650239 33.26408 0 10.600641 11.185504 7.164571 29.462472 0 37.138798l-110.612207 107.468569L370.901811 576.14119c7.164571 7.091463 8.114974 27.342343 0 35.384209-9.796455 9.723347-29.828011 8.188081-36.480827 1.535265L208.309909 487.388236a18.423183 18.423183 0 0 1 0-25.953294l132.032813-132.032813z m343.314556 0l132.032813 132.032813a18.423183 18.423183 0 0 1 0 25.953294L689.652124 613.133772c-6.652816 6.579708-25.587754 10.746857-36.553935 0-10.30821-10.235102-7.091463-31.290168 0-38.381632l108.345863-100.669537-111.855041-108.638294c-7.164571-7.676326-9.504023-26.611265 0-36.04218 9.284699-9.138484 26.903696-7.091463 34.068267 0z m-135.54199-26.318833c3.582286-9.504023 21.347498-15.498868 32.679217-11.258612 10.819965 4.020933 17.180349 19.008046 14.256035 28.512069l-119.896906 329.716493c-3.509178 9.504023-20.616419 13.305632-30.193551 9.723347-10.161994-3.509178-21.201282-17.545889-17.545888-26.976804l120.627985-329.716493z"
-                                        ></path>
-                                    </g>
-                                </svg>
-                            </div>
-                            <h3 class="mt-6 text-xl font-semibold">
-                                Intuitive Developer Experience
-                            </h3>
-                            <p class="mt-4 text-gray-600 dark:text-gray-400">
-                                An easy-to-use interface and intelligent
-                                documentation simplify everything from
-                                onboarding to integration.
-                            </p>
-                        </div>
-                    </div>
-                </section>
+                    </button>
 
-                <!-- Testimonials Section -->
-                <section id="testimonials" class="py-12">
-                    <div class="text-center">
-                        <h2
-                            class="text-3xl sm:text-4xl font-bold tracking-tight"
-                        >
-                            What Our Customers Say
-                        </h2>
-                        <p
-                            class="mt-4 text-gray-600 dark:text-gray-400 max-w-xl mx-auto"
-                        >
-                            See how Apigee Agentic Portal has transformed API
-                            management for businesses of all sizes.
-                        </p>
-                    </div>
-                    <div
-                        class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+                    <!-- Sign in with SSO -->
+                    <button
+                        title="Coming soon"
+                        class="cursor-not-allowed w-full flex items-center justify-center gap-3 py-3 px-4 mb-4 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200"
                     >
-                        <!-- Testimonial Card 1 -->
-                        <div
-                            style="
-                                background-color: var(--bg-tertiary);
-                                border-color: var(--accent);
-                            "
-                            class="p-8 rounded-2xl shadow-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 transition-all duration-300 transform hover:-translate-y-1"
+                        <svg
+                            class="w-5 h-5 text-gray-700 dark:text-gray-200"
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
                         >
-                            <p
-                                class="text-lg italic text-gray-600 dark:text-gray-400"
-                            >
-                                "The AI capabilities are mind-blowing. Our API
-                                deployment time has been cut in half, allowing
-                                us to focus on innovation."
-                            </p>
-                            <div class="mt-6 flex items-center">
-                                <img
-                                    class="h-12 w-12 rounded-full"
-                                    src="https://placehold.co/100x100/A5B4FC/4338CA?text=A.C."
-                                    alt="User Avatar"
-                                />
-                                <div class="ml-4">
-                                    <p class="text-lg font-semibold">
-                                        Alex Chen
-                                    </p>
-                                    <p
-                                        class="text-sm text-gray-500 dark:text-gray-400"
-                                    >
-                                        CTO, Tech Solutions Inc.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Testimonial Card 2 -->
-                        <div
-                            style="
-                                background-color: var(--bg-tertiary);
-                                border-color: var(--accent);
-                            "
-                            class="p-8 rounded-2xl shadow-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 transition-all duration-300 transform hover:-translate-y-1"
+                            <path
+                                d="M2 20h20v2H2v-2Zm2-8h2v7H4v-7Zm5 0h2v7H9v-7Zm5 0h2v7h-2v-7Zm5 0h2v7h-2v-7ZM2 6h20v4H2V6Z"
+                            />
+                        </svg>
+                        <span
+                            class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                            >Sign in with Enterprise SSO</span
                         >
-                            <p
-                                class="text-lg italic text-gray-600 dark:text-gray-400"
-                            >
-                                "A seamless, intuitive experience. The portal's
-                                automation has drastically reduced our
-                                operational overhead."
-                            </p>
-                            <div class="mt-6 flex items-center">
-                                <img
-                                    class="h-12 w-12 rounded-full"
-                                    src="https://placehold.co/100x100/FCA5A5/DC2626?text=B.P."
-                                    alt="User Avatar"
-                                />
-                                <div class="ml-4">
-                                    <p class="text-lg font-semibold">
-                                        Bianca Perez
-                                    </p>
-                                    <p
-                                        class="text-sm text-gray-500 dark:text-gray-400"
-                                    >
-                                        Lead Developer, InnovateNow
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Testimonial Card 3 -->
-                        <div
-                            style="
-                                background-color: var(--bg-tertiary);
-                                border-color: var(--accent);
-                            "
-                            class="p-8 rounded-2xl shadow-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 transition-all duration-300 transform hover:-translate-y-1"
-                        >
-                            <p
-                                class="text-lg italic text-gray-600 dark:text-gray-400"
-                            >
-                                "We've seen a measurable improvement in our API
-                                performance since migrating. The self-healing
-                                feature is a lifesaver."
-                            </p>
-                            <div class="mt-6 flex items-center">
-                                <img
-                                    class="h-12 w-12 rounded-full"
-                                    src="https://placehold.co/100x100/99F6E4/0F766E?text=C.S."
-                                    alt="User Avatar"
-                                />
-                                <div class="ml-4">
-                                    <p class="text-lg font-semibold">
-                                        Chris Smith
-                                    </p>
-                                    <p
-                                        class="text-sm text-gray-500 dark:text-gray-400"
-                                    >
-                                        Product Manager, Nexus Labs
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                    </button>
 
-                <!-- CTA Section -->
-                <section class="py-12 text-center">
-                    <div
-                        class="bg-indigo-600 dark:bg-indigo-700 rounded-3xl p-10 sm:p-16"
+                    <div class="my-6 flex items-center">
+                        <div
+                            class="flex-grow border-t border-gray-200 dark:border-gray-600"
+                        ></div>
+                        <span
+                            class="mx-4 flex-shrink text-sm text-gray-400 dark:text-gray-500"
+                            >Or</span
+                        >
+                        <div
+                            class="flex-grow border-t border-gray-200 dark:border-gray-600"
+                        ></div>
+                    </div>
+
+                    <!-- Sign in with Username/Password -->
+                    <button
+                        title="Coming soon"
+                        class="cursor-not-allowed w-full flex items-center justify-center gap-3 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors duration-200"
                     >
-                        <h2
-                            class="text-3xl sm:text-4xl font-bold text-white tracking-tight"
+                        <svg
+                            class="w-5 h-5 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
                         >
-                            Ready to Transform Your APIs?
-                        </h2>
-                        <p class="mt-4 text-lg text-indigo-200">
-                            Join the future of API management. Sign up for a
-                            free trial today.
-                        </p>
-                        <div class="mt-8">
-                            <a
-                                href="https://cloud.google.com/apigee"
-                                class="px-8 py-4 text-lg font-medium text-indigo-600 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors duration-300"
-                                >Start Your Free Trial</a
-                            >
-                        </div>
-                    </div>
-                </section>
-            </main>
-
-            <!-- Footer -->
-            <footer class="text-center py-8 text-gray-500 dark:text-gray-400">
-                <p>
-                    &copy; 2025-2026 Apigee Agentic Portal. All rights reserved.
-                </p>
-            </footer>
+                            <path
+                                d="M12 2.5a5.5 5.5 0 0 1 5.5 5.5c0 1.57-.67 3-1.69 3.99a7.5 7.5 0 0 1-7.62 0A5.47 5.47 0 0 1 6.5 8a5.5 5.5 0 0 1 5.5-5.5Zm0 13a7.5 7.5 0 0 1 7.5 7.5v.5H4.5v-.5a7.5 7.5 0 0 1 7.5-7.5Z"
+                            />
+                        </svg>
+                        <span class="text-sm font-medium text-white"
+                            >Sign in with Username / Password</span
+                        >
+                    </button>
+                </div>
+            </div>
         </div>
 
         <script>
-            // THEME
-            const themeToggle = document.getElementById("theme-toggle");
-            const savedTheme = localStorage.getItem("theme") || "dark";
-            setTheme(savedTheme);
-            function toggleTheme() {
-                const currentTheme = document.body.getAttribute("data-theme");
-                const newTheme = currentTheme === "light" ? "dark" : "light";
-
-                setTheme(newTheme);
-            }
-
-            function setTheme(newTheme) {
-                const lightIcon = document.querySelector(".theme-icon-light");
-                const darkIcon = document.querySelector(".theme-icon-dark");
-
-                document.body.setAttribute("data-theme", newTheme);
-                localStorage.setItem("theme", newTheme);
-
-                if (newTheme === "dark") {
-                    lightIcon.style.display = "none";
-                    darkIcon.style.display = "block";
-                } else {
-                    lightIcon.style.display = "block";
-                    darkIcon.style.display = "none";
-                }
-            }
-
             // USER
             let config = {};
-            let user = undefined;
-            setUser();
             fetch("/config")
                 .then((response) => {
                     if (response.status == 200) return response.json();
@@ -630,12 +156,11 @@
                     });
 
                     firebase.auth().onAuthStateChanged((newUser) => {
+                        console.log("onAuthStateChanged");
+                        console.log(newUser);
                         if (newUser) {
-                            user = newUser;
-                            localStorage.setItem("user_email", user.email);
-                            setUser();
-                        } else {
-                            setUser();
+                            //history.back();
+                            window.location.href = "/admin";
                         }
                     });
                 });
@@ -647,6 +172,8 @@
                     .auth()
                     .signInWithPopup(provider)
                     .then((result) => {
+                        console.log("signInWithPopup");
+                        console.log(result.user);
                         var credential = result.credential;
                         // This gives you a Google Access Token. You can use it to access the Google API.
                         var token = credential.accessToken;
@@ -665,81 +192,6 @@
                         // ...
                     });
             }
-
-            function signOut() {
-                localStorage.removeItem("user_email");
-                firebase
-                    .auth()
-                    .signOut()
-                    .then(function () {
-                        window.location.href = "/";
-                    });
-            }
-
-            function setUser() {
-                let user_email = localStorage.getItem("user_email");
-                if (user_email) {
-                    document.getElementById("account_button").style.display =
-                        "block";
-                    document.getElementById("sign_in_button").style.display =
-                        "none";
-                } else {
-                    document.getElementById("account_button").style.display =
-                        "none";
-                    document.getElementById("sign_in_button").style.display =
-                        "block";
-                }
-            }
-
-            const dropdownButton = document.getElementById(
-                "account-dropdown-button",
-            );
-            const dropdownMenu = document.getElementById(
-                "account-dropdown-menu",
-            );
-
-            // --- Dropdown Logic ---
-            dropdownButton.addEventListener("click", () => {
-                const isExpanded =
-                    dropdownButton.getAttribute("aria-expanded") === "true" ||
-                    false;
-                dropdownButton.setAttribute("aria-expanded", !isExpanded);
-                if (dropdownMenu.classList.contains("hidden")) {
-                    dropdownMenu.classList.remove("hidden");
-                    // Trigger a reflow to ensure the transition runs
-                    dropdownMenu.offsetHeight;
-                    dropdownMenu.classList.add("opacity-100", "translate-y-0");
-                    dropdownMenu.classList.remove("opacity-0", "translate-y-2");
-                } else {
-                    dropdownMenu.classList.remove(
-                        "opacity-100",
-                        "translate-y-0",
-                    );
-                    dropdownMenu.classList.add("opacity-0", "translate-y-2");
-                    setTimeout(() => {
-                        dropdownMenu.classList.add("hidden");
-                    }, 200); // Match transition duration
-                }
-            });
-
-            // Close dropdown if user clicks outside
-            window.addEventListener("click", (event) => {
-                if (
-                    !dropdownButton.contains(event.target) &&
-                    !dropdownMenu.contains(event.target)
-                ) {
-                    dropdownMenu.classList.add(
-                        "hidden",
-                        "opacity-0",
-                        "translate-y-2",
-                    );
-                    dropdownMenu.classList.remove(
-                        "opacity-100",
-                        "translate-y-0",
-                    );
-                    dropdownButton.setAttribute("aria-expanded", "false");
-                }
-            });
         </script>
     </body>
 </html>

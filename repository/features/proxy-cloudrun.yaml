@@ -1,7 +1,17 @@
 name: proxy-cloudrun
 displayName: Cloud Run Services
 type: feature
-description: proxy-cloudrun
+description: |
+  Proxy your Cloud Run services through Apigee with this feature.
+
+  **Prerequisites**
+  - When deploying, a service account must be used with `roles/run.invoker' permissions in the Google Cloud project.
+
+  **Inputs**
+  None.
+
+  **Outputs
+  None.
 categories:
   - services
 parameters:

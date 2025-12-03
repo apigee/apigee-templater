@@ -584,12 +584,21 @@ export class ApigeeTemplaterService {
 
       if (template) {
         let features: Feature[] = [];
-        for (let featureRefObject of template.features) {
-          let loadedFeature = await this.loadFeature(featureRefObject.name);
-          if (loadedFeature) features.push(loadedFeature);
-          else {
+        for (let templateFeature of template.features) {
+          let featureName = templateFeature;
+          let featureUid = "";
+          if (templateFeature.includes(".")) {
+            let parts = templateFeature.split(".");
+            featureName = parts[0] ?? featureName;
+            featureUid = parts[1] ?? featureUid;
+          }
+          let loadedFeature = await this.loadFeature(featureName);
+          if (loadedFeature) {
+            if (featureUid) loadedFeature.uid = featureUid;
+            features.push(loadedFeature);
+          } else {
             // abort, could not load feature
-            console.error(`Could not load feature ${featureRefObject}.`);
+            console.error(`Could not load feature ${featureName}.`);
             resolve(undefined);
           }
         }

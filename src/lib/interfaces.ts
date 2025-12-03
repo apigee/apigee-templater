@@ -3,7 +3,7 @@ export class Template {
   type: string = "template";
   priority?: number;
   description: string = "";
-  features: TemplateFeatureRef[] = [];
+  features: string[] = [];
   parameters: Parameter[] = [];
   endpoints: Endpoint[] = [];
   targets: Target[] = [];

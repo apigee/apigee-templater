@@ -1174,18 +1174,18 @@ export class ApigeeConverter {
       }
     }
 
-    template.features.push({
-      name: featurePath,
-      id: tempFeature.uid,
-    });
+    template.features.push(featurePath + "." + tempFeature.uid);
 
-    // add parameters with feature name
+    // add parameters with feature name and uid
     if (feature.parameters.length > 0) {
-      for (let parameter of feature.parameters) {
+      for (let parameter of tempFeature.parameters) {
         // set default if one was passed in
         if (parameters[parameter.name])
           parameter.default = parameters[parameter.name] ?? parameter.default;
-        parameter.name = feature.name + "." + parameter.name;
+        if (tempFeature.uid)
+          parameter.name =
+            tempFeature.name + "." + tempFeature.uid + "." + parameter.name;
+        else parameter.name = tempFeature.name + "." + parameter.name;
         if (parameters[parameter.name])
           parameter.default = parameters[parameter.name] ?? parameter.default;
         template.parameters.push(parameter);
@@ -1202,7 +1202,7 @@ export class ApigeeConverter {
     id: string = "",
   ): Template {
     let featureIndex = template.features.findIndex((x) =>
-      id ? x.name === featurePath && x.id === id : x.name === featurePath,
+      id ? x === featurePath + "." + id : x === featurePath,
     );
     if (featureIndex != -1) {
       if (feature.endpoints && feature.endpoints.length > 0) {
@@ -1234,8 +1234,10 @@ export class ApigeeConverter {
       template.features.splice(featureIndex, 1);
 
       for (let parameter of feature.parameters) {
-        let index = template.parameters.findIndex(
-          (x) => x.name === feature.name + "." + parameter.name,
+        let index = template.parameters.findIndex((x) =>
+          feature.uid
+            ? x.name === feature.name + "." + feature.uid + "." + parameter.name
+            : x.name === feature.name + "." + parameter.name,
         );
         if (index != -1) template.parameters.splice(index, 1);
       }
@@ -1341,7 +1343,7 @@ export class ApigeeConverter {
     if (template.features && template.features.length > 0) {
       result.push(`Features:`);
       for (let feature of template.features) {
-        result.push(`- ${feature.name}`);
+        result.push(`- ${feature}`);
       }
     } else {
       result.push(`Features: none`);
@@ -1447,13 +1449,16 @@ export class ApigeeConverter {
       let parameter = tempFeature.parameters[i];
       if (parameter) {
         let paramValue = parameter.default;
+        let proxyParamKey = feature.uid
+          ? feature.name + "." + feature.uid + "." + parameter.name
+          : feature.name + "." + parameter.name;
         let proxyParam = tempProxyParametres.find(
-          (x) => x.name === feature.name + "." + parameter.name,
+          (x) => x.name === proxyParamKey,
         );
         if (proxyParam && proxyParam.default) paramValue = proxyParam.default;
 
-        if (parameters[feature.name + "." + parameter.name])
-          paramValue = parameters[feature.name + "." + parameter.name] ?? "";
+        if (parameters[proxyParamKey])
+          paramValue = parameters[proxyParamKey] ?? "";
         else if (parameters[parameter.name])
           paramValue = parameters[parameter.name] ?? "";
 
@@ -1601,7 +1606,7 @@ export class ApigeeConverter {
       parameters,
     );
 
-    // now changes names with uid, if available
+    // now change names with uid, if available
     if (tempFeature.uid) {
       let tempFeatureString = JSON.stringify(tempFeature);
       // policies

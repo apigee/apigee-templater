@@ -689,58 +689,7 @@
         </div>
         <script>
             // --- Mock Data ---
-            const proxyFeatures = [];
-
-            fetch("/features")
-                .then((response) => {
-                    return response.json();
-                })
-                .then((responseJson) => {
-                    if (responseJson) {
-                        console.log(responseJson);
-                        for (let feature of responseJson) {
-                            let newUiFeature = {
-                                id: feature.name,
-                                name: feature.displayName ?? feature.name,
-                                type:
-                                    feature.categories &&
-                                    feature.categories.length > 0
-                                        ? feature.categories[0]
-                                        : "Traffic",
-                                description: feature.description,
-                                parameters: feature.parameters,
-                                endpoints:
-                                    feature.endpoints.length > 0
-                                        ? [
-                                              {
-                                                  path: feature.endpoints[0]
-                                                      .basePath,
-                                                  method: "ALL",
-                                                  rules: [
-                                                      feature.endpoints[0]
-                                                          .routes[0].target,
-                                                  ],
-                                              },
-                                          ]
-                                        : [],
-                                targets:
-                                    feature.targets.length > 0
-                                        ? [
-                                              {
-                                                  name: feature.targets[0].name,
-                                                  url: feature.targets[0].url,
-                                              },
-                                          ]
-                                        : [],
-                            };
-
-                            console.log(newUiFeature);
-                            proxyFeatures.push(newUiFeature);
-                        }
-
-                        renderList();
-                    }
-                });
+            let proxyFeatures = [];
 
             // --- State ---
             let state = {
@@ -776,6 +725,69 @@
             //         ? "dark"
             //         : "light";
             // });
+
+            let featuresData = localStorage.getItem("features_data");
+            if (featuresData) {
+                loadFeatures(JSON.parse(featuresData));
+            }
+
+            fetch("/features")
+                .then((response) => {
+                    return response.json();
+                })
+                .then((responseJson) => {
+                    if (responseJson) {
+                        //console.log(responseJson);
+                        localStorage.setItem(
+                            "features_data",
+                            JSON.stringify(responseJson),
+                        );
+                        loadFeatures(responseJson);
+                    }
+                });
+
+            function loadFeatures(featuresJson) {
+                proxyFeatures = [];
+                for (let feature of featuresJson) {
+                    let newUiFeature = {
+                        id: feature.name,
+                        name: feature.displayName ?? feature.name,
+                        type:
+                            feature.categories && feature.categories.length > 0
+                                ? feature.categories[0]
+                                : "Traffic",
+                        description: feature.description,
+                        parameters: feature.parameters,
+                        endpoints:
+                            feature.endpoints.length > 0
+                                ? [
+                                      {
+                                          path: feature.endpoints[0].basePath,
+                                          method: "ALL",
+                                          rules: [
+                                              feature.endpoints[0].routes[0]
+                                                  .target,
+                                          ],
+                                      },
+                                  ]
+                                : [],
+                        targets:
+                            feature.targets.length > 0
+                                ? [
+                                      {
+                                          name: feature.targets[0].name,
+                                          url: feature.targets[0].url,
+                                      },
+                                  ]
+                                : [],
+                    };
+
+                    //console.log(newUiFeature);
+                    proxyFeatures.push(newUiFeature);
+                }
+
+                renderList();
+            }
 
             // --- Render Logic ---
 
