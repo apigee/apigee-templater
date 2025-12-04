@@ -1,967 +1,1036 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>API Publisher Portal</title>
-        <link rel="icon" type="image/x-icon" href="/favicon.png" />
-        <script src="https://www.gstatic.com/firebasejs/8.0/firebase.js"></script>
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Publisher Portal</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.png" />
+    <script src="https://www.gstatic.com/firebasejs/8.0/firebase.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-            :root {
-                --bg-primary: #0f172a;
-                --bg-secondary: #0f172a;
-                --bg-sidebar: #0f172a;
-                --text-primary: #f9fafb;
-                --text-secondary: #9ca3af;
-                --border: #374151;
-                --accent: #60a5fa;
-                --hover: #374151;
-                --shadow:
-                    0 1px 3px 0 rgb(0 0 0 / 0.3),
-                    0 1px 2px -1px rgb(0 0 0 / 0.3);
-                --shadow-lg:
-                    0 10px 15px -3px rgb(0 0 0 / 0.3),
-                    0 4px 6px -4px rgb(0 0 0 / 0.3);
-            }
+      :root {
+        --bg-primary: #0f172a;
+        --bg-secondary: #0f172a;
+        --bg-sidebar: #0f172a;
+        --text-primary: #f9fafb;
+        --text-secondary: #9ca3af;
+        --border: #374151;
+        --accent: #60a5fa;
+        --hover: #374151;
+        --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+        --shadow-lg:
+          0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+      }
 
-            [data-theme="light"] {
-                --bg-primary: #ffffff;
-                --bg-secondary: #f8fafc;
-                --bg-sidebar: #ffffff;
-                --text-primary: #1f2937;
-                --text-secondary: #6b7280;
-                --border: #e5e7eb;
-                --accent: #3b82f6;
-                --hover: #f3f4f6;
-                --shadow:
-                    0 1px 3px 0 rgb(0 0 0 / 0.1),
-                    0 1px 2px -1px rgb(0 0 0 / 0.1);
-                --shadow-lg:
-                    0 10px 15px -3px rgb(0 0 0 / 0.1),
-                    0 4px 6px -4px rgb(0 0 0 / 0.1);
-            }
+      [data-theme="light"] {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f8fafc;
+        --bg-sidebar: #ffffff;
+        --text-primary: #1f2937;
+        --text-secondary: #6b7280;
+        --border: #e5e7eb;
+        --accent: #3b82f6;
+        --hover: #f3f4f6;
+        --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg:
+          0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      }
 
-            body {
-                font-family:
-                    "Inter",
-                    -apple-system,
-                    BlinkMacSystemFont,
-                    "Segoe UI",
-                    sans-serif;
-                background: var(--bg-primary);
-                color: var(--text-primary);
-                transition: all 0.3s ease;
-            }
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        transition: all 0.3s ease;
+      }
 
-            a:link {
-                color: var(--text-primary);
-                text-decoration: none;
-            }
+      a:link {
+        color: var(--text-primary);
+        text-decoration: none;
+      }
 
-            /* visited link */
-            a:visited {
-                color: var(--text-primary);
-            }
+      /* visited link */
+      a:visited {
+        color: var(--text-primary);
+      }
 
-            /* mouse over link */
-            a:hover {
-                color: var(--text-primary);
-            }
+      /* mouse over link */
+      a:hover {
+        color: var(--text-primary);
+      }
 
-            /* selected link */
-            a:active {
-                color: var(--text-primary);
-            }
+      /* selected link */
+      a:active {
+        color: var(--text-primary);
+      }
 
-            .app-container {
-                display: flex;
-                min-height: 100vh;
-            }
+      .app-container {
+        display: flex;
+        min-height: 100vh;
+      }
 
-            .sidebar {
-                background: var(--bg-sidebar);
-                border-right: 1px solid var(--border);
-                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                position: relative;
-                z-index: 1000;
-                box-shadow: var(--shadow);
-                width: 280px;
-            }
+      .sidebar {
+        background: var(--bg-sidebar);
+        border-right: 1px solid var(--border);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        z-index: 1000;
+        box-shadow: var(--shadow);
+        width: 280px;
+      }
 
-            .sidebar-header {
-                padding: 1.5rem;
-                border-bottom: 1px solid var(--border);
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-            }
+      .sidebar-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
 
-            .logo {
-                display: flex;
-                align-items: center;
-                gap: 0.75rem;
-                font-weight: 600;
-                font-size: 1.125rem;
-                color: var(--text-primary);
-            }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 600;
+        font-size: 1.125rem;
+        color: var(--text-primary);
+      }
 
-            .logo-icon {
-                width: 32px;
-                height: 32px;
-                background: linear-gradient(135deg, var(--accent), #8b5cf6);
-                border-radius: 8px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: white;
-                font-weight: bold;
-            }
+      .logo-icon {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, var(--accent), #8b5cf6);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+      }
 
-            .theme-toggle {
-                background: none;
-                border: none;
-                color: var(--text-secondary);
-                cursor: pointer;
-                padding: 0.5rem;
-                border-radius: 8px;
-                transition: all 0.2s ease;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
+      .theme-toggle {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
 
-            .theme-toggle:hover {
-                background: var(--hover);
-                color: var(--text-primary);
-            }
+      .theme-toggle:hover {
+        background: var(--hover);
+        color: var(--text-primary);
+      }
 
-            .sidebar-nav {
-                padding: 1rem;
-                flex: 1;
-            }
+      .sidebar-nav {
+        padding: 1rem;
+        flex: 1;
+      }
 
-            .nav-section {
-                margin-bottom: 2rem;
-            }
+      .nav-section {
+        margin-bottom: 2rem;
+      }
 
-            .nav-section-title {
-                font-size: 0.75rem;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                color: var(--text-secondary);
-                margin-bottom: 0.75rem;
-                padding: 0 0.75rem;
-            }
+      .nav-section-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-secondary);
+        margin-bottom: 0.75rem;
+        padding: 0 0.75rem;
+      }
 
-            .nav-items {
-                list-style: none;
-            }
+      .nav-items {
+        list-style: none;
+      }
 
-            .nav-item {
-                margin-bottom: 0.25rem;
-            }
+      .nav-item {
+        margin-bottom: 0.25rem;
+      }
 
-            .nav-link {
-                display: flex;
-                align-items: center;
-                gap: 0.75rem;
-                padding: 0.75rem;
-                color: var(--text-secondary);
-                text-decoration: none;
-                border-radius: 8px;
-                transition: all 0.2s ease;
-                font-weight: 500;
-                position: relative;
-            }
+      .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        color: var(--text-secondary);
+        text-decoration: none;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        position: relative;
+      }
 
-            .nav-link:hover {
-                background: var(--hover);
-                color: var(--text-primary);
-            }
+      .nav-link:hover {
+        background: var(--hover);
+        color: var(--text-primary);
+      }
 
-            .nav-link.active {
-                background: var(--accent);
-                color: white;
-            }
+      .nav-link.active {
+        background: var(--accent);
+        color: white;
+      }
 
-            .nav-link.active::before {
-                content: "";
-                position: absolute;
-                left: -1rem;
-                top: 50%;
-                transform: translateY(-50%);
-                width: 3px;
-                height: 20px;
-                background: var(--accent);
-                border-radius: 0 2px 2px 0;
-            }
+      .nav-link.active::before {
+        content: "";
+        position: absolute;
+        left: -1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 20px;
+        background: var(--accent);
+        border-radius: 0 2px 2px 0;
+      }
 
-            .nav-icon {
-                width: 20px;
-                height: 20px;
-                stroke-width: 2;
-                flex-shrink: 0;
-            }
+      .nav-icon {
+        width: 20px;
+        height: 20px;
+        stroke-width: 2;
+        flex-shrink: 0;
+      }
 
-            .mobile-toggle {
-                display: none;
-                position: fixed;
-                top: 1rem;
-                left: 1rem;
-                z-index: 1001;
-                background: var(--bg-sidebar);
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                padding: 0.75rem;
-                cursor: pointer;
-                box-shadow: var(--shadow);
-                color: var(--text-primary);
-            }
+      .mobile-toggle {
+        display: none;
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 1001;
+        background: var(--bg-sidebar);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.75rem;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+        color: var(--text-primary);
+      }
 
-            .mobile-overlay {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 999;
-            }
+      .mobile-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+      }
 
-            .main-content {
-                flex: 1;
-                background: var(--bg-secondary);
-                min-height: 100vh;
-                padding: 2rem;
-                transition: all 0.3s ease;
-            }
+      .main-content {
+        flex: 1;
+        background: var(--bg-secondary);
+        min-height: 100vh;
+        padding: 2rem;
+        transition: all 0.3s ease;
+      }
 
-            .content-header {
-                margin-bottom: 2rem;
-            }
+      .content-header {
+        margin-bottom: 2rem;
+      }
 
-            .content-title {
-                font-size: 2rem;
-                font-weight: 700;
-                margin-bottom: 0.5rem;
-            }
+      .content-title {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+      }
 
-            .content-subtitle {
-                color: var(--text-secondary);
-                font-size: 1.125rem;
-            }
+      .content-subtitle {
+        color: var(--text-secondary);
+        font-size: 1.125rem;
+      }
 
-            .content-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                gap: 1.5rem;
-            }
+      .content-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+      }
 
-            .content-card {
-                background: var(--bg-sidebar);
-                border: 1px solid var(--border);
-                border-radius: 12px;
-                padding: 1.5rem;
-                box-shadow: var(--shadow);
-                transition: all 0.2s ease;
-            }
+      .content-card {
+        background: var(--bg-sidebar);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow);
+        transition: all 0.2s ease;
+      }
 
-            .content-card:hover {
-                box-shadow: var(--shadow-lg);
-                transform: translateY(-2px);
-            }
+      .content-card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
+      }
 
-            .card-title {
-                font-weight: 600;
-                margin-bottom: 0.5rem;
-            }
+      .card-title {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
 
-            .card-text {
-                color: var(--text-secondary);
-                line-height: 1.6;
-            }
+      .card-text {
+        color: var(--text-secondary);
+        line-height: 1.6;
+      }
 
-            /* Responsive breakpoints */
-            @media (max-width: 1024px) {
-                .sidebar {
-                    width: 80px;
-                }
+      /* Responsive breakpoints */
+      @media (max-width: 1024px) {
+        .sidebar {
+          width: 80px;
+        }
 
-                .sidebar-header {
-                    padding: 1rem;
-                    justify-content: center;
-                }
+        .sidebar-header {
+          padding: 1rem;
+          justify-content: center;
+        }
 
-                .logo-text,
-                .nav-section-title {
-                    display: none;
-                }
+        .logo-text,
+        .nav-section-title {
+          display: none;
+        }
 
-                .nav-link {
-                    justify-content: center;
-                    padding: 0.75rem;
-                }
+        .nav-link {
+          justify-content: center;
+          padding: 0.75rem;
+        }
 
-                .nav-link span {
-                    display: none;
-                }
+        .nav-link span {
+          display: none;
+        }
 
-                .theme-toggle {
-                    padding: 0.5rem;
-                }
-            }
+        .theme-toggle {
+          padding: 0.5rem;
+        }
+      }
 
-            @media (max-width: 768px) {
-                .sidebar {
-                    position: fixed;
-                    left: -280px;
-                    top: 0;
-                    bottom: 0;
-                    width: 280px;
-                    z-index: 1000;
-                }
+      @media (max-width: 768px) {
+        .sidebar {
+          position: fixed;
+          left: -280px;
+          top: 0;
+          bottom: 0;
+          width: 280px;
+          z-index: 1000;
+        }
 
-                .sidebar.open {
-                    left: 0;
-                }
+        .sidebar.open {
+          left: 0;
+        }
 
-                .mobile-toggle {
-                    display: block;
-                }
+        .mobile-toggle {
+          display: block;
+        }
 
-                .mobile-toggle.hide {
-                    display: none;
-                }
+        .mobile-toggle.hide {
+          display: none;
+        }
 
-                .mobile-overlay.show {
-                    display: block;
-                }
+        .mobile-overlay.show {
+          display: block;
+        }
 
-                .main-content {
-                    margin-left: 0;
-                    padding: 5rem 1rem 2rem;
-                }
+        .main-content {
+          margin-left: 0;
+          padding: 5rem 1rem 2rem;
+        }
 
-                .logo-text,
-                .nav-section-title {
-                    display: block;
-                }
+        .logo-text,
+        .nav-section-title {
+          display: block;
+        }
 
-                .nav-link {
-                    justify-content: flex-start;
-                    padding: 0.75rem;
-                }
+        .nav-link {
+          justify-content: flex-start;
+          padding: 0.75rem;
+        }
 
-                .nav-link span {
-                    display: block;
-                }
-            }
-        </style>
-    </head>
-    <body data-theme="light">
-        <div class="app-container">
-            <button class="mobile-toggle" onclick="toggleSidebar()">
-                <svg
-                    width="24"
-                    height="24"
+        .nav-link span {
+          display: block;
+        }
+      }
+    </style>
+  </head>
+  <body data-theme="light">
+    <div class="app-container">
+      <button class="mobile-toggle" onclick="toggleSidebar()">
+        <svg
+          width="24"
+          height="24"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 6h16M4 12h16M4 18h16"
+          />
+        </svg>
+      </button>
+
+      <div class="mobile-overlay" onclick="closeSidebar()"></div>
+
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">
+            <a href="/">
+              <div class="logo-icon">A</div>
+            </a>
+            <span class="logo-text">API Publisher</span>
+          </div>
+          <button class="theme-toggle" onclick="toggleTheme()">
+            <svg
+              class="theme-icon-light"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+              />
+            </svg>
+            <svg
+              class="theme-icon-dark"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              style="display: none"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <nav class="sidebar-nav">
+          <div class="nav-section">
+            <h3 class="nav-section-title">Main</h3>
+            <ul class="nav-items">
+              <li class="nav-item">
+                <a
+                  href="/admin-agent"
+                  class="nav-link"
+                  id="agent"
+                  x-description="AI assistance for API publishing & feature management"
+                >
+                  <svg
+                    class="nav-icon"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                    <g
+                      id="SVGRepo_tracerCarrier"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></g>
+                    <g id="SVGRepo_iconCarrier">
+                      <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                      <circle cx="12" cy="5" r="2"></circle>
+                      <path d="M12 7v4"></path>
+                      <line x1="8" y1="16" x2="8" y2="16"></line>
+                      <line x1="16" y1="16" x2="16" y2="16"></line>
+                    </g>
+                  </svg>
+                  <span>Admin Agent</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a
+                  href="/admin-features"
+                  class="nav-link"
+                  id="features"
+                  x-description="Composable API feature blocks"
                 >
-                    <path
+                  <svg
+                    class="nav-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 64 64"
+                  >
+                    <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                    <g
+                      id="SVGRepo_tracerCarrier"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></g>
+                    <g id="SVGRepo_iconCarrier">
+                      <path
+                        d="M59.972,20.164c0.007-0.041,0.011-0.081,0.013-0.123c0.002-0.049,0.001-0.096-0.003-0.145 c-0.004-0.042-0.01-0.082-0.02-0.123c-0.011-0.048-0.026-0.094-0.044-0.14c-0.009-0.024-0.011-0.049-0.022-0.072 c-0.008-0.017-0.022-0.03-0.031-0.047c-0.009-0.017-0.013-0.035-0.023-0.052l-10-16c-0.046-0.073-0.1-0.139-0.161-0.197 c-0.001-0.001-0.002-0.001-0.003-0.002c-0.086-0.081-0.188-0.139-0.297-0.185c-0.014-0.006-0.023-0.018-0.038-0.024 c-0.011-0.004-0.023-0.002-0.034-0.005c-0.101-0.034-0.205-0.057-0.314-0.057h-38c-0.108,0-0.211,0.023-0.31,0.056 c-0.011,0.003-0.022,0.001-0.032,0.005c-0.015,0.005-0.024,0.017-0.038,0.023c-0.104,0.043-0.202,0.099-0.287,0.175 c-0.005,0.005-0.012,0.008-0.017,0.012c-0.062,0.058-0.117,0.125-0.163,0.198l-10,16c-0.01,0.016-0.014,0.035-0.023,0.052 c-0.009,0.017-0.023,0.03-0.031,0.047c-0.011,0.023-0.013,0.048-0.023,0.072c-0.018,0.046-0.033,0.092-0.044,0.14 c-0.009,0.041-0.016,0.082-0.02,0.124C0,19.945-0.001,19.993,0.001,20.041c0.002,0.042,0.006,0.082,0.013,0.123 c0.008,0.048,0.021,0.095,0.037,0.142c0.013,0.039,0.027,0.077,0.045,0.115c0.009,0.018,0.012,0.038,0.022,0.056 c0.016,0.029,0.04,0.051,0.058,0.078c0.014,0.021,0.022,0.044,0.039,0.064l28.989,35.986c0.002,0.003,0.004,0.005,0.006,0.007 l0.005,0.007c0.003,0.004,0.008,0.005,0.011,0.009c0.082,0.099,0.184,0.174,0.295,0.234c0.03,0.016,0.058,0.03,0.089,0.043 c0.121,0.051,0.249,0.087,0.383,0.087c0.114,0,0.229-0.02,0.343-0.061c0.017-0.006,0.028-0.02,0.045-0.027 c0.051-0.021,0.091-0.055,0.137-0.084c0.076-0.048,0.147-0.098,0.206-0.163c0.014-0.015,0.035-0.022,0.048-0.038l29-36 c0.016-0.02,0.024-0.044,0.039-0.064c0.019-0.027,0.042-0.049,0.058-0.078c0.01-0.018,0.013-0.038,0.022-0.056 c0.018-0.038,0.032-0.075,0.045-0.115C59.95,20.259,59.964,20.213,59.972,20.164z M32.095,4.993h15.459l-4.86,13.045L32.095,4.993z M40.892,18.993H19.095L29.993,5.58L40.892,18.993z M17.222,18.125L12.423,4.993h15.469L17.222,18.125z M41.593,20.993 L29.818,52.599L18.269,20.993H41.593z M49.221,6.246l7.967,12.748H44.472L49.221,6.246z M10.756,6.259l4.653,12.734H2.798 L10.756,6.259z M16.14,20.993l10.839,29.664L3.083,20.993H16.14z M32.39,51.423l11.337-30.43h13.176L32.39,51.423z"
+                      ></path>
+                    </g>
+                  </svg>
+                  <span>API Features</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="/coming-soon" class="nav-link" id="composition">
+                  <svg
+                    class="nav-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 18 18"
+                  >
+                    <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                    <g
+                      id="SVGRepo_tracerCarrier"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></g>
+                    <g id="SVGRepo_iconCarrier">
+                      <path
+                        d="M9.44444 4.44444L12.3917 0.760432C12.7762 0.279794 13.3583 0 13.9738 0C15.0929 0 16 0.907148 16 2.02617C16 2.64169 15.7202 3.22383 15.2396 3.60835L11.5556 6.55556L12.2454 7.24538C12.7286 7.72855 13 8.38388 13 9.0672C13 9.66992 12.7887 10.2536 12.4028 10.7166L11.8246 11.4104L4.58957 4.17536L5.2834 3.59717C5.74643 3.21131 6.33008 3 6.9328 3C7.61612 3 8.27145 3.27145 8.75462 3.75462L9.44444 4.44444Z"
+                        fill="#000000"
+                      ></path>
+                      <path
+                        d="M0 8L3.04679 5.46101L10.539 12.9532L8 16L0 8Z"
+                        fill="#000000"
+                      ></path>
+                    </g>
+                  </svg>
+                  <span>API Composition</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="/coming-soon" class="nav-link" id="integrations">
+                  <svg
+                    class="nav-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 16 16"
+                  >
+                    <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                    <g
+                      id="SVGRepo_tracerCarrier"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></g>
+                    <g id="SVGRepo_iconCarrier">
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="3"
+                        stroke-width="2"
                         stroke-linecap="round"
                         stroke-linejoin="round"
+                      ></circle>
+                      <circle
+                        cx="12"
+                        cy="4"
+                        r="2"
                         stroke-width="2"
-                        d="M4 6h16M4 12h16M4 18h16"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      ></circle>
+                      <circle
+                        cx="20"
+                        cy="12"
+                        r="2"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      ></circle>
+                      <circle
+                        cx="4"
+                        cy="12"
+                        r="2"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      ></circle>
+                      <circle
+                        cx="12"
+                        cy="20"
+                        r="2"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      ></circle>
+                      <path
+                        d="M12 6V9"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      ></path>
+                      <path
+                        d="M15 12H18"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      ></path>
+                      <path
+                        d="M12 15V18"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      ></path>
+                      <path
+                        d="M9 12H6"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      ></path>
+                    </g>
+                  </svg>
+                  <span>Integrations</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="/coming-soon" class="nav-link" id="profile">
+                  <svg
+                    class="nav-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                     />
-                </svg>
-            </button>
+                  </svg>
+                  <span>Profile</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="/coming-soon" class="nav-link" id="analytics">
+                  <svg
+                    class="nav-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  <span>Analytics</span>
+                </a>
+              </li>
+            </ul>
+          </div>
 
-            <div class="mobile-overlay" onclick="closeSidebar()"></div>
+          <div class="nav-section">
+            <h3 class="nav-section-title">Tools</h3>
+            <ul class="nav-items">
+              <li class="nav-item" id="documents">
+                <a href="/coming-soon" class="nav-link">
+                  <svg
+                    class="nav-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <span>Documents</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="/coming-soon" class="nav-link" id="settings">
+                  <svg
+                    class="nav-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                  <span>Settings</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="/coming-soon" class="nav-link" id="help">
+                  <svg
+                    class="nav-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <span>Help</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" onclick="signOut()" class="nav-link">
+                  <svg
+                    class="nav-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 18 18"
+                  >
+                    <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                    <g
+                      id="SVGRepo_tracerCarrier"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></g>
+                    <g id="SVGRepo_iconCarrier">
+                      <path
+                        d="M14 2H5.50003L4.00003 3.5L6.83581 6.33579L0.585815 12.5858L3.41424 15.4142L9.66424 9.16421L12.5 12L14 10.5L14 2Z"
+                        fill="#000000"
+                      ></path>
+                    </g>
+                  </svg>
+                  <span>Sign Out</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+      </aside>
 
-            <aside class="sidebar">
-                <div class="sidebar-header">
-                    <div class="logo">
-                        <a href="/">
-                            <div class="logo-icon">A</div>
-                        </a>
-                        <span class="logo-text">API Publisher</span>
-                    </div>
-                    <button class="theme-toggle" onclick="toggleTheme()">
-                        <svg
-                            class="theme-icon-light"
-                            width="20"
-                            height="20"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                            />
-                        </svg>
-                        <svg
-                            class="theme-icon-dark"
-                            width="20"
-                            height="20"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            style="display: none"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                            />
-                        </svg>
-                    </button>
-                </div>
-
-                <nav class="sidebar-nav">
-                    <div class="nav-section">
-                        <h3 class="nav-section-title">Main</h3>
-                        <ul class="nav-items">
-                            <li class="nav-item">
-                                <a
-                                    href="/admin-agent"
-                                    class="nav-link active"
-                                    x-description="AI assistance for API publishing & feature management"
-                                >
-                                    <svg
-                                        class="nav-icon"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
-                                        <g
-                                            id="SVGRepo_bgCarrier"
-                                            stroke-width="0"
-                                        ></g>
-                                        <g
-                                            id="SVGRepo_tracerCarrier"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                        ></g>
-                                        <g id="SVGRepo_iconCarrier">
-                                            <rect
-                                                x="3"
-                                                y="11"
-                                                width="18"
-                                                height="10"
-                                                rx="2"
-                                            ></rect>
-                                            <circle
-                                                cx="12"
-                                                cy="5"
-                                                r="2"
-                                            ></circle>
-                                            <path d="M12 7v4"></path>
-                                            <line
-                                                x1="8"
-                                                y1="16"
-                                                x2="8"
-                                                y2="16"
-                                            ></line>
-                                            <line
-                                                x1="16"
-                                                y1="16"
-                                                x2="16"
-                                                y2="16"
-                                            ></line>
-                                        </g>
-                                    </svg>
-                                    <span>Admin Agent</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a
-                                    href="/admin-features"
-                                    class="nav-link"
-                                    x-description="Composable API feature blocks"
-                                >
-                                    <svg
-                                        class="nav-icon"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 64 64"
-                                    >
-                                        <g
-                                            id="SVGRepo_bgCarrier"
-                                            stroke-width="0"
-                                        ></g>
-                                        <g
-                                            id="SVGRepo_tracerCarrier"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                        ></g>
-                                        <g id="SVGRepo_iconCarrier">
-                                            <path
-                                                d="M59.972,20.164c0.007-0.041,0.011-0.081,0.013-0.123c0.002-0.049,0.001-0.096-0.003-0.145 c-0.004-0.042-0.01-0.082-0.02-0.123c-0.011-0.048-0.026-0.094-0.044-0.14c-0.009-0.024-0.011-0.049-0.022-0.072 c-0.008-0.017-0.022-0.03-0.031-0.047c-0.009-0.017-0.013-0.035-0.023-0.052l-10-16c-0.046-0.073-0.1-0.139-0.161-0.197 c-0.001-0.001-0.002-0.001-0.003-0.002c-0.086-0.081-0.188-0.139-0.297-0.185c-0.014-0.006-0.023-0.018-0.038-0.024 c-0.011-0.004-0.023-0.002-0.034-0.005c-0.101-0.034-0.205-0.057-0.314-0.057h-38c-0.108,0-0.211,0.023-0.31,0.056 c-0.011,0.003-0.022,0.001-0.032,0.005c-0.015,0.005-0.024,0.017-0.038,0.023c-0.104,0.043-0.202,0.099-0.287,0.175 c-0.005,0.005-0.012,0.008-0.017,0.012c-0.062,0.058-0.117,0.125-0.163,0.198l-10,16c-0.01,0.016-0.014,0.035-0.023,0.052 c-0.009,0.017-0.023,0.03-0.031,0.047c-0.011,0.023-0.013,0.048-0.023,0.072c-0.018,0.046-0.033,0.092-0.044,0.14 c-0.009,0.041-0.016,0.082-0.02,0.124C0,19.945-0.001,19.993,0.001,20.041c0.002,0.042,0.006,0.082,0.013,0.123 c0.008,0.048,0.021,0.095,0.037,0.142c0.013,0.039,0.027,0.077,0.045,0.115c0.009,0.018,0.012,0.038,0.022,0.056 c0.016,0.029,0.04,0.051,0.058,0.078c0.014,0.021,0.022,0.044,0.039,0.064l28.989,35.986c0.002,0.003,0.004,0.005,0.006,0.007 l0.005,0.007c0.003,0.004,0.008,0.005,0.011,0.009c0.082,0.099,0.184,0.174,0.295,0.234c0.03,0.016,0.058,0.03,0.089,0.043 c0.121,0.051,0.249,0.087,0.383,0.087c0.114,0,0.229-0.02,0.343-0.061c0.017-0.006,0.028-0.02,0.045-0.027 c0.051-0.021,0.091-0.055,0.137-0.084c0.076-0.048,0.147-0.098,0.206-0.163c0.014-0.015,0.035-0.022,0.048-0.038l29-36 c0.016-0.02,0.024-0.044,0.039-0.064c0.019-0.027,0.042-0.049,0.058-0.078c0.01-0.018,0.013-0.038,0.022-0.056 c0.018-0.038,0.032-0.075,0.045-0.115C59.95,20.259,59.964,20.213,59.972,20.164z M32.095,4.993h15.459l-4.86,13.045L32.095,4.993z M40.892,18.993H19.095L29.993,5.58L40.892,18.993z M17.222,18.125L12.423,4.993h15.469L17.222,18.125z M41.593,20.993 L29.818,52.599L18.269,20.993H41.593z M49.221,6.246l7.967,12.748H44.472L49.221,6.246z M10.756,6.259l4.653,12.734H2.798 L10.756,6.259z M16.14,20.993l10.839,29.664L3.083,20.993H16.14z M32.39,51.423l11.337-30.43h13.176L32.39,51.423z"
-                                            ></path>
-                                        </g>
-                                    </svg>
-                                    <span>API Features</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="/coming-soon" class="nav-link">
-                                    <svg
-                                        class="nav-icon"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 18 18"
-                                    >
-                                        <g
-                                            id="SVGRepo_bgCarrier"
-                                            stroke-width="0"
-                                        ></g>
-                                        <g
-                                            id="SVGRepo_tracerCarrier"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                        ></g>
-                                        <g id="SVGRepo_iconCarrier">
-                                            <path
-                                                d="M9.44444 4.44444L12.3917 0.760432C12.7762 0.279794 13.3583 0 13.9738 0C15.0929 0 16 0.907148 16 2.02617C16 2.64169 15.7202 3.22383 15.2396 3.60835L11.5556 6.55556L12.2454 7.24538C12.7286 7.72855 13 8.38388 13 9.0672C13 9.66992 12.7887 10.2536 12.4028 10.7166L11.8246 11.4104L4.58957 4.17536L5.2834 3.59717C5.74643 3.21131 6.33008 3 6.9328 3C7.61612 3 8.27145 3.27145 8.75462 3.75462L9.44444 4.44444Z"
-                                                fill="#000000"
-                                            ></path>
-                                            <path
-                                                d="M0 8L3.04679 5.46101L10.539 12.9532L8 16L0 8Z"
-                                                fill="#000000"
-                                            ></path>
-                                        </g>
-                                    </svg>
-                                    <span>API Composition</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="/coming-soon" class="nav-link">
-                                    <svg
-                                        class="nav-icon"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 16 16"
-                                    >
-                                        <g
-                                            id="SVGRepo_bgCarrier"
-                                            stroke-width="0"
-                                        ></g>
-                                        <g
-                                            id="SVGRepo_tracerCarrier"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                        ></g>
-                                        <g id="SVGRepo_iconCarrier">
-                                            <circle
-                                                cx="12"
-                                                cy="12"
-                                                r="3"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            ></circle>
-                                            <circle
-                                                cx="12"
-                                                cy="4"
-                                                r="2"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            ></circle>
-                                            <circle
-                                                cx="20"
-                                                cy="12"
-                                                r="2"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            ></circle>
-                                            <circle
-                                                cx="4"
-                                                cy="12"
-                                                r="2"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            ></circle>
-                                            <circle
-                                                cx="12"
-                                                cy="20"
-                                                r="2"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            ></circle>
-                                            <path
-                                                d="M12 6V9"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            ></path>
-                                            <path
-                                                d="M15 12H18"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            ></path>
-                                            <path
-                                                d="M12 15V18"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            ></path>
-                                            <path
-                                                d="M9 12H6"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            ></path>
-                                        </g>
-                                    </svg>
-                                    <span>Integrations</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="/coming-soon" class="nav-link">
-                                    <svg
-                                        class="nav-icon"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                                        />
-                                    </svg>
-                                    <span>Profile</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="/coming-soon" class="nav-link">
-                                    <svg
-                                        class="nav-icon"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                                        />
-                                    </svg>
-                                    <span>Analytics</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-
-                    <div class="nav-section">
-                        <h3 class="nav-section-title">Tools</h3>
-                        <ul class="nav-items">
-                            <li class="nav-item">
-                                <a href="/coming-soon" class="nav-link">
-                                    <svg
-                                        class="nav-icon"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                        />
-                                    </svg>
-                                    <span>Documents</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="/coming-soon" class="nav-link">
-                                    <svg
-                                        class="nav-icon"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                                        />
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                        />
-                                    </svg>
-                                    <span>Settings</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="/coming-soon" class="nav-link">
-                                    <svg
-                                        class="nav-icon"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                    </svg>
-                                    <span>Help</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a
-                                    href="#"
-                                    onclick="signOut()"
-                                    class="nav-link"
-                                >
-                                    <svg
-                                        class="nav-icon"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 18 18"
-                                    >
-                                        <g
-                                            id="SVGRepo_bgCarrier"
-                                            stroke-width="0"
-                                        ></g>
-                                        <g
-                                            id="SVGRepo_tracerCarrier"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                        ></g>
-                                        <g id="SVGRepo_iconCarrier">
-                                            <path
-                                                d="M14 2H5.50003L4.00003 3.5L6.83581 6.33579L0.585815 12.5858L3.41424 15.4142L9.66424 9.16421L12.5 12L14 10.5L14 2Z"
-                                                fill="#000000"
-                                            ></path>
-                                        </g>
-                                    </svg>
-                                    <span>Sign Out</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </nav>
-            </aside>
-
-            <main class="main-content">
-                <div class="content-header">
-                    <h1 class="content-title">Admin Agent</h1>
-                    <p class="content-subtitle">
-                        AI assistance for API publishing & feature management
-                    </p>
-                </div>
-
-                <iframe
-                    id="content-iframe"
-                    style="
-                        width: 100%;
-                        height: calc(100vh - 170px);
-                        border: 0px;
-                    "
-                    src=""
-                >
-                </iframe>
-            </main>
+      <main class="main-content">
+        <div class="content-header">
+          <h1 class="content-title"></h1>
+          <p class="content-subtitle"></p>
         </div>
 
-        <script>
-            const savedTheme = localStorage.getItem("theme") || "dark";
-            setTheme(savedTheme);
+        <iframe
+          id="content-iframe"
+          style="width: 100%; height: calc(100vh - 170px); border: 0px"
+          src=""
+        >
+        </iframe>
+      </main>
+    </div>
 
-            const searchParams = new URLSearchParams(window.location.href);
-            for (const p of searchParams) {
-                if (p[0] == "code") {
-                    let code = p[1];
-                    localStorage.setItem("authorization_code", code);
-                    localStorage.setItem(
-                        "auth_response_uri",
-                        window.location.href,
-                    );
+    <script>
+      const savedTheme = localStorage.getItem("theme") || "dark";
+      setTheme(savedTheme);
 
-                    window.location.href =
-                        window.location.origin + window.location.pathname;
-                }
+      const searchParams = new URLSearchParams(window.location.href);
+      for (const p of searchParams) {
+        if (p[0] == "code") {
+          let code = p[1];
+          localStorage.setItem("authorization_code", code);
+          localStorage.setItem("auth_response_uri", window.location.href);
+
+          window.location.href =
+            window.location.origin + window.location.pathname;
+        }
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      let view = urlParams.get("view");
+
+      function toggleTheme() {
+        const currentTheme = document.body.getAttribute("data-theme");
+        const newTheme = currentTheme === "light" ? "dark" : "light";
+
+        setTheme(newTheme);
+
+        document
+          .getElementById("content-iframe")
+          .contentWindow.location.reload();
+      }
+
+      function setTheme(newTheme) {
+        const lightIcon = document.querySelector(".theme-icon-light");
+        const darkIcon = document.querySelector(".theme-icon-dark");
+
+        document.body.setAttribute("data-theme", newTheme);
+        localStorage.setItem("theme", newTheme);
+
+        if (newTheme === "dark") {
+          lightIcon.style.display = "none";
+          darkIcon.style.display = "block";
+        } else {
+          lightIcon.style.display = "block";
+          darkIcon.style.display = "none";
+        }
+      }
+
+      // USER
+      let config = {};
+      let user = undefined;
+      let user_email = localStorage.getItem("user_email");
+      if (user_email) setView(view);
+
+      fetch("/config")
+        .then((response) => {
+          if (response.status == 200) return response.json();
+          else console.error("Could not load app config from server.");
+        })
+        .then((appConfig) => {
+          config = appConfig;
+          firebase.initializeApp({
+            apiKey: config.authApiKey,
+            authDomain: config.authDomain,
+          });
+
+          firebase.auth().onAuthStateChanged((newUser) => {
+            if (newUser) {
+              user = newUser;
+              localStorage.setItem("user_email", user.email);
+
+              setView(view);
+            } else {
+              window.location.href = "/";
             }
+          });
+        });
 
-            function toggleTheme() {
-                const currentTheme = document.body.getAttribute("data-theme");
-                const newTheme = currentTheme === "light" ? "dark" : "light";
+      function signOut() {
+        localStorage.removeItem("user_email");
+        firebase
+          .auth()
+          .signOut()
+          .then(function () {
+            window.location.href = "/";
+          });
+      }
 
-                setTheme(newTheme);
+      function toggleSidebar() {
+        const sidebar = document.querySelector(".sidebar");
+        const overlay = document.querySelector(".mobile-overlay");
+        const toggle = document.querySelector(".mobile-toggle");
 
-                document
-                    .getElementById("content-iframe")
-                    .contentWindow.location.reload();
+        sidebar.classList.toggle("open");
+        overlay.classList.toggle("show");
+        toggle.classList.toggle("hide");
+      }
+
+      function closeSidebar() {
+        const sidebar = document.querySelector(".sidebar");
+        const overlay = document.querySelector(".mobile-overlay");
+        const toggle = document.querySelector(".mobile-toggle");
+
+        sidebar.classList.remove("open");
+        overlay.classList.remove("show");
+        setTimeout(() => {
+          toggle.classList.toggle("hide");
+        }, 200);
+      }
+
+      function setView(name) {
+        if (!name) name = "agent";
+        // Remove active class from all links
+        document
+          .querySelectorAll(".nav-link")
+          .forEach((l) => l.classList.remove("active"));
+        let viewButton = document.getElementById(name);
+        // Add active class to clicked link
+        viewButton.classList.add("active");
+
+        // Close sidebar on mobile after selection
+        if (window.innerWidth <= 768) {
+          closeSidebar();
+        }
+        switch (name) {
+          case "agent":
+            // Update main content title
+            document.querySelector(".content-title").textContent =
+              "Publishing Agent";
+            document.querySelector(".content-subtitle").textContent =
+              "AI assistance for API publishing & feature management";
+
+            // set content iframe
+            document.getElementById("content-iframe").src = "/admin-agent";
+            break;
+          case "features":
+            // Update main content title
+            document.querySelector(".content-title").textContent =
+              "API Features";
+            document.querySelector(".content-subtitle").textContent =
+              "Composable API feature blocks";
+
+            // set content iframe
+            document.getElementById("content-iframe").src = "/admin-features";
+            break;
+          case "composition":
+            // Update main content title
+            document.querySelector(".content-title").textContent =
+              "API Composition";
+            document.querySelector(".content-subtitle").textContent =
+              "Composable API feature blocks";
+
+            // set content iframe
+            document.getElementById("content-iframe").src = "/coming-soon";
+            break;
+          case "integrations":
+            // Update main content title
+            document.querySelector(".content-title").textContent =
+              "Integrations";
+            document.querySelector(".content-subtitle").textContent =
+              "Composable API feature blocks";
+
+            // set content iframe
+            document.getElementById("content-iframe").src = "/coming-soon";
+            break;
+          case "profile":
+            // Update main content title
+            document.querySelector(".content-title").textContent = "Profile";
+            document.querySelector(".content-subtitle").textContent =
+              "Composable API feature blocks";
+
+            // set content iframe
+            document.getElementById("content-iframe").src = "/coming-soon";
+            break;
+          case "analytics":
+            // Update main content title
+            document.querySelector(".content-title").textContent = "Analytics";
+            document.querySelector(".content-subtitle").textContent =
+              "Composable API feature blocks";
+
+            // set content iframe
+            document.getElementById("content-iframe").src = "/coming-soon";
+            break;
+          case "documents":
+            // Update main content title
+            document.querySelector(".content-title").textContent = "Documents";
+            document.querySelector(".content-subtitle").textContent =
+              "Composable API feature blocks";
+
+            // set content iframe
+            document.getElementById("content-iframe").src = "/coming-soon";
+            break;
+          case "settings":
+            // Update main content title
+            document.querySelector(".content-title").textContent = "Settings";
+            document.querySelector(".content-subtitle").textContent =
+              "Composable API feature blocks";
+
+            // set content iframe
+            document.getElementById("content-iframe").src = "/coming-soon";
+            break;
+          case "help":
+            // Update main content title
+            document.querySelector(".content-title").textContent = "Help";
+            document.querySelector(".content-subtitle").textContent =
+              "Composable API feature blocks";
+
+            // set content iframe
+            document.getElementById("content-iframe").src = "/coming-soon";
+            break;
+        }
+      }
+
+      // Handle navigation clicks
+      document.querySelectorAll(".nav-link").forEach((link) => {
+        link.addEventListener("click", function (e) {
+          e.preventDefault();
+
+          let viewType = this.getAttribute("id");
+          if (viewType) {
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set("view", viewType);
+            let newUrl =
+              window.location.origin +
+              window.location.pathname +
+              "?" +
+              urlParams.toString();
+
+            if (newUrl != window.location.href) {
+              // set url
+              window.history.replaceState({}, "", newUrl);
+              setView(viewType);
+              // window.location.href = newUrl;
             }
+          }
 
-            function setTheme(newTheme) {
-                const lightIcon = document.querySelector(".theme-icon-light");
-                const darkIcon = document.querySelector(".theme-icon-dark");
+          // Remove active class from all links
+          // document
+          //   .querySelectorAll(".nav-link")
+          //   .forEach((l) => l.classList.remove("active"));
 
-                document.body.setAttribute("data-theme", newTheme);
-                localStorage.setItem("theme", newTheme);
+          // // Add active class to clicked link
+          // this.classList.add("active");
 
-                if (newTheme === "dark") {
-                    lightIcon.style.display = "none";
-                    darkIcon.style.display = "block";
-                } else {
-                    lightIcon.style.display = "block";
-                    darkIcon.style.display = "none";
-                }
-            }
+          // // Update main content title
+          // const title = this.querySelector("span").textContent;
+          // document.querySelector(".content-title").textContent = title;
 
-            // USER
-            let config = {};
-            let user = undefined;
-            fetch("/config")
-                .then((response) => {
-                    if (response.status == 200) return response.json();
-                    else
-                        console.error("Could not load app config from server.");
-                })
-                .then((appConfig) => {
-                    config = appConfig;
-                    firebase.initializeApp({
-                        apiKey: config.authApiKey,
-                        authDomain: config.authDomain,
-                    });
+          // const description =
+          //   this.getAttribute("x-description") ??
+          //   "Apigee Agentic Portal resources";
+          // document.querySelector(".content-subtitle").textContent = description;
 
-                    firebase.auth().onAuthStateChanged((newUser) => {
-                        if (newUser) {
-                            user = newUser;
-                            localStorage.setItem("user_email", user.email);
-                            // set admin agent as start page now that user is there
-                            document.getElementById("content-iframe").src =
-                                "/admin-agent";
-                        } else {
-                        }
-                    });
-                });
+          // // set content iframe
+          // document.getElementById("content-iframe").src =
+          //   this.getAttribute("href");
 
-            function signOut() {
-                localStorage.removeItem("user_email");
-                firebase
-                    .auth()
-                    .signOut()
-                    .then(function () {
-                        window.location.href = "/";
-                    });
-            }
+          // // Close sidebar on mobile after selection
+          // if (window.innerWidth <= 768) {
+          //   closeSidebar();
+          // }
+        });
+      });
 
-            function toggleSidebar() {
-                const sidebar = document.querySelector(".sidebar");
-                const overlay = document.querySelector(".mobile-overlay");
-                const toggle = document.querySelector(".mobile-toggle");
+      // Handle window resize
+      window.addEventListener("resize", function () {
+        if (window.innerWidth > 768) {
+          closeSidebar();
+        } else {
+          const toggle = document.querySelector(".mobile-toggle");
+          toggle.classList.remove("hide");
+        }
+      });
 
-                sidebar.classList.toggle("open");
-                overlay.classList.toggle("show");
-                toggle.classList.toggle("hide");
-            }
+      window.document.addEventListener("oauth_redirect", (event) => {
+        console.log(event);
 
-            function closeSidebar() {
-                const sidebar = document.querySelector(".sidebar");
-                const overlay = document.querySelector(".mobile-overlay");
-                const toggle = document.querySelector(".mobile-toggle");
+        let authUri =
+          event.detail["args"]["authConfig"]["exchangedAuthCredential"][
+            "oauth2"
+          ]["authUri"];
 
-                sidebar.classList.remove("open");
-                overlay.classList.remove("show");
-                setTimeout(() => {
-                    toggle.classList.toggle("hide");
-                }, 200);
-            }
+        event.detail["args"]["authConfig"]["exchangedAuthCredential"]["oauth2"][
+          "redirectUri"
+        ] = window.location.href;
 
-            // Handle navigation clicks
-            document.querySelectorAll(".nav-link").forEach((link) => {
-                link.addEventListener("click", function (e) {
-                    e.preventDefault();
+        localStorage.setItem("oauthMessage", JSON.stringify(event.detail));
 
-                    // Remove active class from all links
-                    document
-                        .querySelectorAll(".nav-link")
-                        .forEach((l) => l.classList.remove("active"));
-
-                    // Add active class to clicked link
-                    this.classList.add("active");
-
-                    // Update main content title
-                    const title = this.querySelector("span").textContent;
-                    document.querySelector(".content-title").textContent =
-                        title;
-
-                    const description =
-                        this.getAttribute("x-description") ??
-                        "Apigee Agentic Portal resources";
-                    document.querySelector(".content-subtitle").textContent =
-                        description;
-
-                    // set content iframe
-                    document.getElementById("content-iframe").src =
-                        this.getAttribute("href");
-
-                    // Close sidebar on mobile after selection
-                    if (window.innerWidth <= 768) {
-                        closeSidebar();
-                    }
-                });
-            });
-
-            // Handle window resize
-            window.addEventListener("resize", function () {
-                if (window.innerWidth > 768) {
-                    closeSidebar();
-                } else {
-                    const toggle = document.querySelector(".mobile-toggle");
-                    toggle.classList.remove("hide");
-                }
-            });
-
-            window.document.addEventListener("oauth_redirect", (event) => {
-                console.log(event);
-
-                let authUri =
-                    event.detail["args"]["authConfig"][
-                        "exchangedAuthCredential"
-                    ]["oauth2"]["authUri"];
-
-                event.detail["args"]["authConfig"]["exchangedAuthCredential"][
-                    "oauth2"
-                ]["redirectUri"] = window.location.href;
-
-                localStorage.setItem(
-                    "oauthMessage",
-                    JSON.stringify(event.detail),
-                );
-
-                window.location.href =
-                    authUri + "&redirect_uri=" + window.location.href;
-            });
-        </script>
-    </body>
+        window.location.href =
+          authUri + "&redirect_uri=" + window.location.href;
+      });
+    </script>
+  </body>
 </html>
