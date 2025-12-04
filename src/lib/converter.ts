@@ -1192,14 +1192,9 @@ export class ApigeeConverter {
     return template;
   }
 
-  public templateRemoveFeature(
-    template: Template,
-    feature: Feature,
-    featurePath: string,
-    id: string = "",
-  ): Template {
+  public templateRemoveFeature(template: Template, feature: Feature): Template {
     let featureIndex = template.features.findIndex((x) =>
-      id ? x === featurePath + "." + id : x === featurePath,
+      x.endsWith("." + feature.uid),
     );
     if (featureIndex != -1) {
       if (feature.endpoints && feature.endpoints.length > 0) {

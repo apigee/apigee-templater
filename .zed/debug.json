@@ -111,18 +111,16 @@
   },
   {
     "adapter": "JavaScript",
-    "label": "cli.js - convert template to proxy",
+    "label": "cli.js - remove feature from local template",
     "type": "pwa-node",
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
     "args": [
       "-i",
-      "cr-template.local.yaml",
-      "-o",
-      "cr-proxy.local.yaml",
-      "-f",
-      "proxy"
+      "AI-Gateway-v2.local.yaml",
+      "-r",
+      "./repository/features/proxy-gemini.yaml.3gzj2"
     ]
   },
   {

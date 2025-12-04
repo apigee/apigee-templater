@@ -32,6 +32,7 @@ const auth = new GoogleAuth({
 
 import { stdin } from "process";
 import { start } from "repl";
+import { relative } from "path/win32";
 
 process.on("uncaughtException", function (e) {
   console.error(
@@ -538,30 +539,26 @@ export class cli {
         process.chdir(startDir);
         if (!options.output) options.output = options.input;
         let relativePath = options.removeFeature;
-        if (fs.existsSync(options.removeFeature)) {
+        let id = options.removeFeature;
+        let parts = relativePath.split(".");
+        if (parts.length > 1) {
+          id = parts[parts.length - 1] ?? id;
+          parts.splice(parts.length - 1);
+          relativePath = parts.join(".") ?? options.removeFeature;
+        }
+        if (fs.existsSync(relativePath)) {
           // this is a path, get relative path
           relativePath = path.relative(
             path.dirname(options.output),
-            options.removeFeature,
+            relativePath,
           );
         }
-        let id = "";
-        if (options.removeFeature.includes(":")) {
-          let parts = options.removeFeature.split(":");
-          if (parts.length === 2) {
-            id = parts[0] ?? "";
-            options.removeFeature = parts[1] ?? options.removeFeature;
-          }
-        }
-        let removeFeature = await this.apigeeService.featureGet(
-          options.removeFeature,
-        );
+        let removeFeature = await this.apigeeService.featureGet(relativePath);
         if (template && removeFeature) {
+          removeFeature.uid = id;
           template = this.converter.templateRemoveFeature(
             template,
             removeFeature,
-            relativePath,
-            id,
           );
         } else if (proxy && removeFeature) {
           proxy = this.converter.proxyRemoveFeature(proxy, removeFeature);

@@ -456,11 +456,7 @@ export class ApigeeTemplaterService {
         );
         return undefined;
       } else {
-        template = converter.templateRemoveFeature(
-          template,
-          feature,
-          feature.name,
-        );
+        template = converter.templateRemoveFeature(template, feature);
       }
 
       fs.writeFileSync(
@@ -589,8 +585,9 @@ export class ApigeeTemplaterService {
           let featureUid = "";
           if (templateFeature.includes(".")) {
             let parts = templateFeature.split(".");
-            featureName = parts[0] ?? featureName;
-            featureUid = parts[1] ?? featureUid;
+            featureUid = parts[parts.length - 1] ?? featureUid;
+            parts.splice(parts.length - 1);
+            featureName = parts.join(".");
           }
           let loadedFeature = await this.loadFeature(featureName);
           if (loadedFeature) {
