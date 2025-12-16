@@ -1,6 +1,7 @@
 import * as xmljs from "xml-js";
 import yauzl from "yauzl";
 import yazl from "yazl";
+import jp from "jsonpath";
 import path from "path";
 import fs from "fs";
 import vm from "vm";
@@ -1455,7 +1456,12 @@ export class ApigeeConverter {
           paramValue = parameters[parameter.name] ?? "";
 
         let replaceKey = "{" + parameter.name + "}";
-        featureString = featureString.replaceAll(replaceKey, paramValue);
+        if (parameter.path) {
+          jp.value(tempFeature, parameter.path, paramValue);
+          featureString = JSON.stringify(tempFeature);
+        } else {
+          featureString = featureString.replaceAll(replaceKey, paramValue);
+        }
         proxyParametersString = proxyParametersString.replaceAll(
           replaceKey,
           paramValue,

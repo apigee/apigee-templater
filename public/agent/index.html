@@ -1,1012 +1,970 @@
 <!doctype html>
 <html lang="en" class="dark">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Apigee Agentic Portal</title>
-        <link rel="icon" type="image/x-icon" href="/favicon.png" />
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script src="https://www.gstatic.com/firebasejs/8.0/firebase.js"></script>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-            rel="stylesheet"
-        />
-        <style>
-            :root {
-                /* Dark mode colors */
-                --bg-primary: #0f172a;
-                --bg-secondary: #1e293b;
-                --bg-tertiary: #334155;
-                --text-primary: #f8fafc;
-                --text-secondary: #cbd5e1;
-                --text-tertiary: #64748b;
-                --text-title: rgb(129, 140, 248, 1);
-                --border: #334155;
-                --shadow: rgba(0, 0, 0, 0.3);
-                --accent: #60a5fa;
-                --accent-hover: #3b82f6;
-                --user-bg: #3b82f6;
-                --user-text: #ffffff;
-                --ai-bg: #1e293b;
-                --ai-text: #f8fafc;
-                --input-bg: #1e293b;
-                --header-bg: rgba(15, 23, 42, 0.8);
-            }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Apigee Agentic Portal</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0/firebase.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        /* Dark mode colors */
+        --bg-primary: #0f172a;
+        --bg-secondary: #1e293b;
+        --bg-tertiary: #334155;
+        --text-primary: #f8fafc;
+        --text-secondary: #cbd5e1;
+        --text-tertiary: #64748b;
+        --text-title: rgb(129, 140, 248, 1);
+        --border: #334155;
+        --shadow: rgba(0, 0, 0, 0.3);
+        --accent: #60a5fa;
+        --accent-hover: #3b82f6;
+        --user-bg: #3b82f6;
+        --user-text: #ffffff;
+        --ai-bg: #1e293b;
+        --ai-text: #f8fafc;
+        --input-bg: #1e293b;
+        --header-bg: rgba(15, 23, 42, 0.8);
+      }
 
-            [data-theme="light"] {
-                /* Light mode colors */
-                --bg-primary: #ffffff;
-                --bg-secondary: #f8fafc;
-                --bg-tertiary: #f1f5f9;
-                --text-primary: #0f172a;
-                --text-secondary: #475569;
-                --text-tertiary: #94a3b8;
-                --text-title: rgb(79, 70, 229, 1);
-                --border: #e2e8f0;
-                --shadow: rgba(0, 0, 0, 0.05);
-                --accent: #3b82f6;
-                --accent-hover: #2563eb;
-                --user-bg: #3b82f6;
-                --user-text: #ffffff;
-                --ai-bg: #f1f5f9;
-                --ai-text: #0f172a;
-                --input-bg: #ffffff;
-                --header-bg: rgba(255, 255, 255, 0.8);
-            }
-            body {
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter",
-                    system-ui, sans-serif;
-                background-color: var(--bg-primary);
-                color: var(--text-primary);
-                transition:
-                    background-color 0.3s ease,
-                    color 0.3s ease;
-                line-height: 1.5;
-                font-size: 16px;
-            }
+      [data-theme="light"] {
+        /* Light mode colors */
+        --bg-primary: #ffffff;
+        --bg-secondary: #f8fafc;
+        --bg-tertiary: #f1f5f9;
+        --text-primary: #0f172a;
+        --text-secondary: #475569;
+        --text-tertiary: #94a3b8;
+        --text-title: rgb(79, 70, 229, 1);
+        --border: #e2e8f0;
+        --shadow: rgba(0, 0, 0, 0.05);
+        --accent: #3b82f6;
+        --accent-hover: #2563eb;
+        --user-bg: #3b82f6;
+        --user-text: #ffffff;
+        --ai-bg: #f1f5f9;
+        --ai-text: #0f172a;
+        --input-bg: #ffffff;
+        --header-bg: rgba(255, 255, 255, 0.8);
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui,
+          sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        transition:
+          background-color 0.3s ease,
+          color 0.3s ease;
+        line-height: 1.5;
+        font-size: 16px;
+      }
 
-            .app-container {
-                max-width: 900px;
-                margin: 0 auto;
-                height: calc(100vh - 118px);
-                display: flex;
-                flex-direction: column;
-                background-color: var(--bg-primary);
-            }
+      .app-container {
+        max-width: 900px;
+        margin: 0 auto;
+        height: calc(100vh - 118px);
+        display: flex;
+        flex-direction: column;
+        background-color: var(--bg-primary);
+      }
 
-            .header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 16px 24px;
-                border-bottom: 1px solid var(--border);
-                background-color: var(--header-bg);
-                backdrop-filter: blur(8px);
-                position: sticky;
-                top: 0;
-                z-index: 10;
-            }
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+        background-color: var(--header-bg);
+        backdrop-filter: blur(8px);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
 
-            .header-left {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-            }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
 
-            .logo {
-                width: 32px;
-                height: 32px;
-                background: var(--accent);
-                border-radius: 6px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: white;
-                font-weight: 600;
-                font-size: 14px;
-            }
+      .logo {
+        width: 32px;
+        height: 32px;
+        background: var(--accent);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 14px;
+      }
 
-            .app-title {
-                font-size: 18px;
-                font-weight: 600;
-                color: var(--text-primary);
-            }
+      .app-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
 
-            .theme-toggle {
-                background: none;
-                /*border: 1px solid var(--border);*/
-                border-radius: 8px;
-                width: 40px;
-                height: 40px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                color: var(--text-secondary);
-                transition: all 0.2s ease;
-            }
+      .theme-toggle {
+        background: none;
+        /*border: 1px solid var(--border);*/
+        border-radius: 8px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--text-secondary);
+        transition: all 0.2s ease;
+      }
 
-            .theme-toggle:hover {
-                background-color: var(--bg-secondary);
-                color: var(--text-primary);
-            }
+      .theme-toggle:hover {
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+      }
 
-            .chat-container {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-            }
+      .chat-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
 
-            .messages {
-                flex: 1;
-                overflow-y: auto;
-                padding: 24px;
-                scroll-behavior: smooth;
-            }
+      .messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        scroll-behavior: smooth;
+      }
 
-            .messages::-webkit-scrollbar {
-                width: 4px;
-            }
+      .messages::-webkit-scrollbar {
+        width: 4px;
+      }
 
-            .messages::-webkit-scrollbar-track {
-                background: transparent;
-            }
+      .messages::-webkit-scrollbar-track {
+        background: transparent;
+      }
 
-            .messages::-webkit-scrollbar-thumb {
-                background: var(--border);
-                border-radius: 2px;
-            }
+      .messages::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 2px;
+      }
 
-            .message {
-                margin-bottom: 24px;
-                display: flex;
-                gap: 12px;
-                opacity: 0;
-                animation: fadeInUp 0.4s ease-out forwards;
-            }
+      .message {
+        margin-bottom: 24px;
+        display: flex;
+        gap: 12px;
+        opacity: 0;
+        animation: fadeInUp 0.4s ease-out forwards;
+      }
 
-            @keyframes fadeInUp {
-                from {
-                    opacity: 0;
-                    transform: translateY(8px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-            }
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
 
-            .message.user {
-                flex-direction: row-reverse;
-            }
+      .message.user {
+        flex-direction: row-reverse;
+      }
 
-            .avatar {
-                width: 36px;
-                height: 36px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 12px;
-                font-weight: 600;
-                flex-shrink: 0;
-                margin-top: 2px;
-            }
+      .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
 
-            .avatar.user {
-                background: var(--user-bg);
-                color: var(--user-text);
-            }
+      .avatar.user {
+        background: var(--user-bg);
+        color: var(--user-text);
+      }
 
-            .avatar.ai {
-                background: var(--bg-secondary);
-                color: var(--text-secondary);
-                border: 1px solid var(--border);
-            }
+      .avatar.ai {
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        border: 1px solid var(--border);
+      }
 
-            .message-content {
-                max-width: calc(100% - 48px);
-                background: var(--ai-bg);
-                color: var(--ai-text);
-                padding: 12px 26px;
-                border-radius: 12px;
-                font-size: 15px;
-                line-height: 1.6;
-                border: 1px solid var(--border);
-            }
+      .message-content {
+        max-width: calc(100% - 48px);
+        background: var(--ai-bg);
+        color: var(--ai-text);
+        padding: 12px 26px;
+        border-radius: 12px;
+        font-size: 15px;
+        line-height: 1.6;
+        border: 1px solid var(--border);
+      }
 
-            .message.user .message-content {
-                background: var(--user-bg);
-                color: var(--user-text);
-                border: none;
-            }
+      .message.user .message-content {
+        background: var(--user-bg);
+        color: var(--user-text);
+        border: none;
+      }
 
-            .typing-indicator {
-                display: none;
-                align-items: center;
-                gap: 12px;
-                margin: 0 24px 24px 24px;
-            }
+      .typing-indicator {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        margin: 0 24px 24px 24px;
+      }
 
-            .typing-dots {
-                display: flex;
-                gap: 4px;
-                padding: 12px 16px;
-                background: var(--ai-bg);
-                border-radius: 12px;
-                border: 1px solid var(--border);
-            }
+      .typing-dots {
+        display: flex;
+        gap: 4px;
+        padding: 12px 16px;
+        background: var(--ai-bg);
+        border-radius: 12px;
+        border: 1px solid var(--border);
+      }
 
-            .typing-dot {
-                width: 6px;
-                height: 6px;
-                background: var(--text-tertiary);
-                border-radius: 50%;
-                animation: pulse 1.5s ease-in-out infinite;
-            }
+      .typing-dot {
+        width: 6px;
+        height: 6px;
+        background: var(--text-tertiary);
+        border-radius: 50%;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
 
-            .typing-dot:nth-child(2) {
-                animation-delay: 0.2s;
-            }
+      .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
 
-            .typing-dot:nth-child(3) {
-                animation-delay: 0.4s;
-            }
+      .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
 
-            @keyframes pulse {
-                0%,
-                60%,
-                100% {
-                    opacity: 0.3;
-                    transform: scale(0.8);
-                }
-                30% {
-                    opacity: 1;
-                    transform: scale(1);
-                }
-            }
+      @keyframes pulse {
+        0%,
+        60%,
+        100% {
+          opacity: 0.3;
+          transform: scale(0.8);
+        }
+        30% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
 
-            .input-area {
-                padding: 16px 24px;
-                border-top: 1px solid var(--border);
-                background: var(--bg-primary);
-            }
+      .input-area {
+        padding: 16px 24px;
+        border-top: 1px solid var(--border);
+        background: var(--bg-primary);
+      }
 
-            .input-container {
-                display: flex;
-                gap: 12px;
-                align-items: flex-end;
-                max-width: 100%;
-            }
+      .input-container {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        max-width: 100%;
+      }
 
-            .message-input {
-                flex: 1;
-                background: var(--input-bg);
-                border: 1px solid var(--border);
-                border-radius: 12px;
-                padding: 12px 16px;
-                font-size: 15px;
-                color: var(--text-primary);
-                resize: none;
-                outline: none;
-                transition: all 0.2s ease;
-                min-height: 44px;
-                max-height: 120px;
-                font-family: inherit;
-                line-height: 1.4;
-                overflow: hidden;
-            }
+      .message-input {
+        flex: 1;
+        background: var(--input-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 15px;
+        color: var(--text-primary);
+        resize: none;
+        outline: none;
+        transition: all 0.2s ease;
+        min-height: 44px;
+        max-height: 120px;
+        font-family: inherit;
+        line-height: 1.4;
+        overflow: hidden;
+      }
 
-            .message-input::placeholder {
-                color: var(--text-tertiary);
-            }
+      .message-input::placeholder {
+        color: var(--text-tertiary);
+      }
 
-            .message-input:focus {
-                border-color: var(--accent);
-                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-            }
+      .message-input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
 
-            .send-button {
-                background: var(--accent);
-                border: none;
-                border-radius: 10px;
-                width: 44px;
-                height: 44px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                color: white;
-                transition: all 0.2s ease;
-                flex-shrink: 0;
-            }
+      .send-button {
+        background: var(--accent);
+        border: none;
+        border-radius: 10px;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: white;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+      }
 
-            .send-button:hover:not(:disabled) {
-                background: var(--accent-hover);
-                transform: translateY(-1px);
-            }
+      .send-button:hover:not(:disabled) {
+        background: var(--accent-hover);
+        transform: translateY(-1px);
+      }
 
-            .send-button:active {
-                transform: translateY(0);
-            }
+      .send-button:active {
+        transform: translateY(0);
+      }
 
-            .send-button:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-                transform: none;
-            }
+      .send-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
 
-            .welcome-message {
-                text-align: center;
-                color: var(--text-secondary);
-                font-size: 18px;
-                margin: 60px 20px;
-                line-height: 1.6;
-            }
+      .welcome-message {
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 18px;
+        margin: 60px 20px;
+        line-height: 1.6;
+      }
 
-            .welcome-title {
-                font-size: 32px;
-                font-weight: 600;
-                color: var(--text-primary);
-                margin-bottom: 8px;
-            }
+      .welcome-title {
+        font-size: 32px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+      }
 
-            @media (max-width: 768px) {
-                .app-container {
-                    height: calc(100vh - 160px);
-                }
+      @media (max-width: 768px) {
+        .app-container {
+          height: calc(100vh - 160px);
+        }
 
-                .header {
-                    padding: 12px 16px;
-                }
+        .header {
+          padding: 12px 16px;
+        }
 
-                .messages {
-                    padding: 16px;
-                }
+        .messages {
+          padding: 16px;
+        }
 
-                .input-area {
-                    padding: 12px 16px;
-                }
+        .input-area {
+          padding: 12px 16px;
+        }
 
-                .message-content {
-                    max-width: calc(100% - 48px);
-                    font-size: 14px;
-                }
+        .message-content {
+          max-width: calc(100% - 48px);
+          font-size: 14px;
+        }
 
-                .welcome-message {
-                    margin: 40px 16px;
-                }
-            }
+        .welcome-message {
+          margin: 40px 16px;
+        }
+      }
 
-            .menu-item:hover {
-                background-color: var(--bg-tertiary);
-                color: var(--text-primary);
-            }
-        </style>
-        <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
-    </head>
-    <body class="">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <!-- Header -->
-            <header
-                class="flex justify-between items-center py-6"
-                style="white-space: nowrap"
-            >
-                <div class="text-2xl font-bold tracking-tight">
-                    <a href="/">
-                        <span style="color: var(--text-title)">Apigee</span>
-                        <span class="hidden md:inline">Agentic Portal</span></a
-                    >
-                </div>
-
-                <div style="display: flex; align-items: center">
-                    <a
-                        href="/tools"
-                        class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
-                        >Tools</a
-                    >
-
-                    <a
-                        href="/agents"
-                        class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
-                        >Agents</a
-                    >
-
-                    <a
-                        id="sign_in_button"
-                        style="display: none"
-                        href="/signin"
-                        class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
-                        >Sign in</a
-                    >
-
-                    <!-- Account Dropdown -->
-                    <div
-                        id="account_button"
-                        style="display: none"
-                        class="relative"
-                    >
-                        <button
-                            id="account-dropdown-button"
-                            style="background-color: var(--bg-tertiary)"
-                            class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-full p-2 transition duration-150 ease-in-out"
-                        >
-                            <svg
-                                class="h-6 w-6 text-gray-500 dark:text-gray-400"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-                                <g
-                                    id="SVGRepo_tracerCarrier"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                ></g>
-                                <g id="SVGRepo_iconCarrier">
-                                    <path
-                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
-                                    ></path>
-                                </g>
-                            </svg>
-                            <span
-                                style="color: var(--text-secondary)"
-                                class="font-medium text-gray-900 dark:text-white hidden md:inline"
-                                >Account</span
-                            >
-                            <svg
-                                class="h-4 w-4 text-gray-500 dark:text-gray-400"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M19 9l-7 7-7-7"
-                                />
-                            </svg>
-                        </button>
-
-                        <!-- Dropdown Menu -->
-                        <div
-                            id="account-dropdown-menu"
-                            style="background-color: var(--bg-secondary)"
-                            class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 z-10 opacity-0 dropdown-menu"
-                        >
-                            <a
-                                href="/apps"
-                                style="color: var(--text-primary)"
-                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
-                                >Apps</a
-                            >
-                            <a
-                                href="/admin"
-                                style="color: var(--text-primary)"
-                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
-                                >Admin Console</a
-                            >
-                            <button
-                                onclick="signOut()"
-                                style="
-                                    color: var(--text-primary);
-                                    width: 100%;
-                                    text-align: left;
-                                "
-                                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
-                            >
-                                Sign-Out
-                            </button>
-                        </div>
-                    </div>
-
-                    <button
-                        class="relative pl-4 theme-toggle"
-                        onclick="toggleTheme()"
-                    >
-                        <svg
-                            class="theme-icon-light"
-                            width="20"
-                            height="20"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                            />
-                        </svg>
-                        <svg
-                            class="theme-icon-dark"
-                            width="20"
-                            height="20"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            style="display: none"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                            />
-                        </svg>
-                    </button>
-                </div>
-            </header>
-
-            <main class="space-y-24">
-                <div class="app-container">
-                    <div class="chat-container">
-                        <div class="messages" id="messages">
-                            <div class="welcome-message">
-                                <div class="welcome-title">
-                                    Apigee Portal Agent
-                                </div>
-                                I'm here to help you with creating and managing
-                                API subscriptions, credentials & discovering
-                                tools to use.
-                            </div>
-                        </div>
-
-                        <div class="typing-indicator" id="typingIndicator">
-                            <div class="avatar ai">AI</div>
-                            <div class="typing-dots">
-                                <div class="typing-dot"></div>
-                                <div class="typing-dot"></div>
-                                <div class="typing-dot"></div>
-                            </div>
-                        </div>
-
-                        <div class="input-area">
-                            <div class="input-container">
-                                <textarea
-                                    class="message-input"
-                                    id="messageInput"
-                                    placeholder="Message Apigee..."
-                                    rows="1"
-                                    autofocus
-                                ></textarea>
-                                <button
-                                    class="send-button"
-                                    id="sendButton"
-                                    aria-label="Send message"
-                                >
-                                    <svg
-                                        width="20"
-                                        height="20"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                    >
-                                        <path d="M22 2L11 13" />
-                                        <path d="M22 2L15 22L11 13L2 9L22 2z" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
+      .menu-item:hover {
+        background-color: var(--bg-tertiary);
+        color: var(--text-primary);
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+  </head>
+  <body class="">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Header -->
+      <header
+        class="flex justify-between items-center py-6"
+        style="white-space: nowrap"
+      >
+        <div class="text-2xl font-bold tracking-tight">
+          <a href="/">
+            <span style="color: var(--text-title)">Apigee</span>
+            <span class="hidden md:inline">Agentic Portal</span></a
+          >
         </div>
 
-        <script>
-            // THEME
-            const themeToggle = document.getElementById("theme-toggle");
+        <div style="display: flex; align-items: center">
+          <a
+            href="/tools"
+            class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
+            >Tools</a
+          >
 
-            const savedTheme = localStorage.getItem("theme") || "dark";
-            setTheme(savedTheme);
+          <a
+            href="/agents"
+            class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
+            >Agents</a
+          >
 
-            function toggleTheme() {
-                const currentTheme = document.body.getAttribute("data-theme");
-                const newTheme = currentTheme === "light" ? "dark" : "light";
+          <a
+            id="sign_in_button"
+            style="display: none"
+            href="/signin"
+            class="relative pr-4 md:pr-8 font-bold right-0 text-lg"
+            >Sign in</a
+          >
 
-                setTheme(newTheme);
+          <!-- Account Dropdown -->
+          <div id="account_button" style="display: none" class="relative">
+            <button
+              id="account-dropdown-button"
+              style="background-color: var(--bg-tertiary)"
+              class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-full p-2 transition duration-150 ease-in-out"
+            >
+              <svg
+                class="h-6 w-6 text-gray-500 dark:text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                <g
+                  id="SVGRepo_tracerCarrier"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ></g>
+                <g id="SVGRepo_iconCarrier">
+                  <path
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+                  ></path>
+                </g>
+              </svg>
+              <span
+                style="color: var(--text-secondary)"
+                class="font-medium text-gray-900 dark:text-white hidden md:inline"
+                >Account</span
+              >
+              <svg
+                class="h-4 w-4 text-gray-500 dark:text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div
+              id="account-dropdown-menu"
+              style="background-color: var(--bg-secondary)"
+              class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 z-10 opacity-0 dropdown-menu"
+            >
+              <a
+                href="/apps"
+                style="color: var(--text-primary)"
+                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                >Apps</a
+              >
+              <a
+                href="/admin"
+                style="color: var(--text-primary)"
+                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+                >Admin Console</a
+              >
+              <button
+                onclick="signOut()"
+                style="
+                  color: var(--text-primary);
+                  width: 100%;
+                  text-align: left;
+                "
+                class="menu-item block px-4 py-2 text-gray-700 dark:text-gray-300"
+              >
+                Sign-Out
+              </button>
+            </div>
+          </div>
+
+          <button class="relative pl-4 theme-toggle" onclick="toggleTheme()">
+            <svg
+              class="theme-icon-light"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+              />
+            </svg>
+            <svg
+              class="theme-icon-dark"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              style="display: none"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+              />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="space-y-24">
+        <div class="app-container">
+          <div class="chat-container">
+            <div class="messages" id="messages">
+              <div class="welcome-message">
+                <div class="welcome-title">Apigee Portal Agent</div>
+                I'm here to help you with creating and managing API
+                subscriptions, credentials & discovering tools to use.
+              </div>
+            </div>
+
+            <div class="typing-indicator" id="typingIndicator">
+              <div class="avatar ai">AI</div>
+              <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+              </div>
+            </div>
+
+            <div class="input-area">
+              <div class="input-container">
+                <textarea
+                  class="message-input"
+                  id="messageInput"
+                  placeholder="Message Apigee..."
+                  rows="1"
+                  autofocus
+                ></textarea>
+                <button
+                  class="send-button"
+                  id="sendButton"
+                  aria-label="Send message"
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M22 2L11 13" />
+                    <path d="M22 2L15 22L11 13L2 9L22 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      // THEME
+      const themeToggle = document.getElementById("theme-toggle");
+
+      const savedTheme = localStorage.getItem("theme") || "dark";
+      setTheme(savedTheme);
+
+      function toggleTheme() {
+        const currentTheme = document.body.getAttribute("data-theme");
+        const newTheme = currentTheme === "light" ? "dark" : "light";
+
+        setTheme(newTheme);
+      }
+
+      function setTheme(newTheme) {
+        const lightIcon = document.querySelector(".theme-icon-light");
+        const darkIcon = document.querySelector(".theme-icon-dark");
+
+        document.body.setAttribute("data-theme", newTheme);
+        localStorage.setItem("theme", newTheme);
+
+        if (newTheme === "dark") {
+          lightIcon.style.display = "none";
+          darkIcon.style.display = "block";
+        } else {
+          lightIcon.style.display = "block";
+          darkIcon.style.display = "none";
+        }
+      }
+
+      // USER
+      let config = {};
+      let user = undefined;
+      let user_email = "";
+      let user_session = "s_abc";
+      // let user_session =
+      //     "s_" + Math.floor(Math.random() * 10000).toString();
+      setUser();
+      fetch("/config")
+        .then((response) => {
+          if (response.status == 200) return response.json();
+          else console.error("Could not load app config from server.");
+        })
+        .then((appConfig) => {
+          config = appConfig;
+          firebase.initializeApp({
+            apiKey: config.authApiKey,
+            authDomain: config.authDomain,
+          });
+
+          firebase.auth().onAuthStateChanged((newUser) => {
+            if (newUser) {
+              user = newUser;
+              user_email = newUser.email;
+              localStorage.setItem("user_email", user.email);
+              setUser();
+            } else {
+              setUser();
             }
+          });
+        });
 
-            function setTheme(newTheme) {
-                const lightIcon = document.querySelector(".theme-icon-light");
-                const darkIcon = document.querySelector(".theme-icon-dark");
+      function signOut() {
+        localStorage.removeItem("user_email");
+        firebase
+          .auth()
+          .signOut()
+          .then(function () {
+            window.location.href = "/";
+          });
+      }
 
-                document.body.setAttribute("data-theme", newTheme);
-                localStorage.setItem("theme", newTheme);
+      function setUser() {
+        user_email = localStorage.getItem("user_email");
+        if (user_email) {
+          document.getElementById("account_button").style.display = "block";
+          document.getElementById("sign_in_button").style.display = "none";
+        } else {
+          document.getElementById("account_button").style.display = "none";
+          document.getElementById("sign_in_button").style.display = "block";
+        }
+      }
 
-                if (newTheme === "dark") {
-                    lightIcon.style.display = "none";
-                    darkIcon.style.display = "block";
-                } else {
-                    lightIcon.style.display = "block";
-                    darkIcon.style.display = "none";
-                }
+      const dropdownButton = document.getElementById("account-dropdown-button");
+      const dropdownMenu = document.getElementById("account-dropdown-menu");
+
+      // --- Dropdown Logic ---
+      dropdownButton.addEventListener("click", () => {
+        const isExpanded =
+          dropdownButton.getAttribute("aria-expanded") === "true" || false;
+        dropdownButton.setAttribute("aria-expanded", !isExpanded);
+        if (dropdownMenu.classList.contains("hidden")) {
+          dropdownMenu.classList.remove("hidden");
+          // Trigger a reflow to ensure the transition runs
+          dropdownMenu.offsetHeight;
+          dropdownMenu.classList.add("opacity-100", "translate-y-0");
+          dropdownMenu.classList.remove("opacity-0", "translate-y-2");
+        } else {
+          dropdownMenu.classList.remove("opacity-100", "translate-y-0");
+          dropdownMenu.classList.add("opacity-0", "translate-y-2");
+          setTimeout(() => {
+            dropdownMenu.classList.add("hidden");
+          }, 200); // Match transition duration
+        }
+      });
+
+      // Close dropdown if user clicks outside
+      window.addEventListener("click", (event) => {
+        if (
+          !dropdownButton.contains(event.target) &&
+          !dropdownMenu.contains(event.target)
+        ) {
+          dropdownMenu.classList.add("hidden", "opacity-0", "translate-y-2");
+          dropdownMenu.classList.remove("opacity-100", "translate-y-0");
+          dropdownButton.setAttribute("aria-expanded", "false");
+        }
+      });
+
+      class ChatInterface {
+        oauthMessage = {};
+
+        constructor() {
+          this.messages = document.getElementById("messages");
+          this.messageInput = document.getElementById("messageInput");
+          this.sendButton = document.getElementById("sendButton");
+          this.typingIndicator = document.getElementById("typingIndicator");
+          this.themeToggle = document.getElementById("themeToggle");
+          this.lightIcon = document.getElementById("lightIcon");
+          this.darkIcon = document.getElementById("darkIcon");
+          this.config = {};
+          this.isTyping = false;
+
+          this.setupEventListeners();
+          this.autoResizeTextarea();
+          this.startSession();
+        }
+
+        async startSession() {
+          let configResponse = await fetch("/config");
+          if (configResponse.status == 200) {
+            this.config = await configResponse.json();
+          } else
+            console.error(
+              "Could not load agent config: " + configResponse.status,
+            );
+
+          if (this.config.apigeeAgentUrl) {
+            let sessionResponse = await fetch(
+              this.config.apigeeAgentUrl +
+                `/apps/apigee_user_agent/users/${user_email}/sessions/${user_session}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              },
+            );
+
+            let responseText = await sessionResponse.text();
+            let initResult = await this.generateResponse(
+              "Give a short overview of your capabilities.",
+            );
+            if (!initResult) {
+              // try again
+              this.generateResponse(
+                "Give a short overview of your capabilities.",
+              );
             }
+          }
+        }
 
-            // USER
-            let config = {};
-            let user = undefined;
-            let user_email = "";
-            let user_session = "s_abc";
-            // let user_session =
-            //     "s_" + Math.floor(Math.random() * 10000).toString();
-            setUser();
-            fetch("/config")
-                .then((response) => {
-                    if (response.status == 200) return response.json();
-                    else
-                        console.error("Could not load app config from server.");
-                })
-                .then((appConfig) => {
-                    config = appConfig;
-                    firebase.initializeApp({
-                        apiKey: config.authApiKey,
-                        authDomain: config.authDomain,
-                    });
+        initTheme() {
+          const savedTheme = localStorage.getItem("theme") || "dark";
+          this.setTheme(savedTheme);
+        }
 
-                    firebase.auth().onAuthStateChanged((newUser) => {
-                        if (newUser) {
-                            user = newUser;
-                            user_email = newUser.email;
-                            localStorage.setItem("user_email", user.email);
-                            setUser();
-                        } else {
-                            setUser();
-                        }
-                    });
+        setTheme(theme) {
+          document.documentElement.setAttribute("data-theme", theme);
+          localStorage.setItem("theme", theme);
+        }
+
+        toggleTheme() {
+          const currentTheme =
+            document.documentElement.getAttribute("data-theme");
+          const newTheme = currentTheme === "dark" ? "light" : "dark";
+          this.setTheme(newTheme);
+        }
+
+        setupEventListeners() {
+          this.sendButton.addEventListener("click", () => this.sendMessage());
+
+          this.messageInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              this.sendMessage();
+            }
+          });
+
+          this.messageInput.addEventListener("input", () => {
+            this.autoResizeTextarea();
+          });
+        }
+
+        autoResizeTextarea() {
+          this.messageInput.style.height = "auto";
+          this.messageInput.style.height =
+            Math.min(this.messageInput.scrollHeight, 120) + "px";
+        }
+
+        async sendMessage() {
+          const text = this.messageInput.value.trim();
+          if (!text) return;
+
+          this.addMessage(text, "user");
+          this.messageInput.value = "";
+          this.autoResizeTextarea();
+          this.showTypingIndicator();
+
+          await this.generateResponse(text);
+        }
+
+        addMessage(text, sender) {
+          const messageDiv = document.createElement("div");
+          messageDiv.className = `message ${sender}`;
+
+          const avatar = document.createElement("div");
+          avatar.className = `avatar ${sender}`;
+          avatar.textContent = sender === "user" ? "U" : "AI";
+
+          const content = document.createElement("div");
+          content.className = "message-content";
+          content.textContent = text;
+
+          messageDiv.appendChild(avatar);
+          messageDiv.appendChild(content);
+
+          this.messages.appendChild(messageDiv);
+          this.scrollToBottom();
+        }
+
+        showTypingIndicator() {
+          this.typingIndicator.style.display = "flex";
+          this.scrollToBottom();
+        }
+
+        hideTypingIndicator() {
+          this.typingIndicator.style.display = "none";
+        }
+
+        async generateResponse(userMessage) {
+          let result = true;
+          try {
+            if (this.config.apigeeAgentUrl) {
+              let newResponse = await fetch(
+                this.config.apigeeAgentUrl + "/run",
+                {
+                  method: "POST",
+                  signal: AbortSignal.timeout(5000),
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    app_name: "apigee_user_agent",
+                    user_id: user_email,
+                    session_id: user_session,
+                    new_message: {
+                      role: "user",
+                      parts: [
+                        {
+                          text: userMessage,
+                        },
+                      ],
+                    },
+                    streaming: false,
+                  }),
+                },
+              );
+
+              if (newResponse.status == 200) {
+                let responseJson = await newResponse.json();
+                this.processResponse(responseJson);
+              } else {
+                console.log("Error calling ADK: " + newResponse.status);
+              }
+            } else {
+              console.error("Cannot call agent, no user agent URL configured.");
+            }
+          } catch (e) {
+            result = false;
+            this.hideTypingIndicator();
+            // await this.typeMessage(
+            //     "Unfortunately I can't connect to my service right now, maybe take a break and try again later?",
+            //     "ai",
+            // );
+          }
+
+          return result;
+        }
+
+        async processResponse(agentResponse) {
+          for (let response of agentResponse) {
+            if (
+              response["content"] &&
+              response["content"]["parts"] &&
+              response["content"]["parts"][0] &&
+              response["content"]["parts"][0]["text"]
+            ) {
+              await this.typeMessage(
+                response["content"]["parts"][0]["text"],
+                "ai",
+              );
+            } else if (
+              response["content"] &&
+              response["content"]["parts"] &&
+              response["content"]["parts"][0]["functionCall"] &&
+              response["content"]["parts"][0]["functionCall"] &&
+              response["content"]["parts"][0]["functionCall"]["args"] &&
+              response["content"]["parts"][0]["functionCall"]["args"][
+                "authConfig"
+              ]
+            ) {
+              this.oauthMessage =
+                response["content"]["parts"][0]["functionCall"];
+              localStorage.setItem(
+                "oauthMessage",
+                JSON.stringify(this.oauthMessage),
+              );
+              setTimeout(() => {
+                var event = new CustomEvent("oauth_redirect", {
+                  detail: this.oauthMessage,
                 });
-
-            function signOut() {
-                localStorage.removeItem("user_email");
-                firebase
-                    .auth()
-                    .signOut()
-                    .then(function () {
-                        window.location.href = "/";
-                    });
+                window.parent.document.dispatchEvent(event);
+              }, 3000);
             }
+          }
 
-            function setUser() {
-                user_email = localStorage.getItem("user_email");
-                if (user_email) {
-                    document.getElementById("account_button").style.display =
-                        "block";
-                    document.getElementById("sign_in_button").style.display =
-                        "none";
-                } else {
-                    document.getElementById("account_button").style.display =
-                        "none";
-                    document.getElementById("sign_in_button").style.display =
-                        "block";
-                }
-            }
+          this.hideTypingIndicator();
+        }
 
-            const dropdownButton = document.getElementById(
-                "account-dropdown-button",
-            );
-            const dropdownMenu = document.getElementById(
-                "account-dropdown-menu",
-            );
+        async typeMessage(text, sender) {
+          if (this.isTyping) {
+            this.isTyping = false;
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          }
+          const messageDiv = document.createElement("div");
+          messageDiv.className = `message ${sender}`;
 
-            // --- Dropdown Logic ---
-            dropdownButton.addEventListener("click", () => {
-                const isExpanded =
-                    dropdownButton.getAttribute("aria-expanded") === "true" ||
-                    false;
-                dropdownButton.setAttribute("aria-expanded", !isExpanded);
-                if (dropdownMenu.classList.contains("hidden")) {
-                    dropdownMenu.classList.remove("hidden");
-                    // Trigger a reflow to ensure the transition runs
-                    dropdownMenu.offsetHeight;
-                    dropdownMenu.classList.add("opacity-100", "translate-y-0");
-                    dropdownMenu.classList.remove("opacity-0", "translate-y-2");
-                } else {
-                    dropdownMenu.classList.remove(
-                        "opacity-100",
-                        "translate-y-0",
-                    );
-                    dropdownMenu.classList.add("opacity-0", "translate-y-2");
-                    setTimeout(() => {
-                        dropdownMenu.classList.add("hidden");
-                    }, 200); // Match transition duration
-                }
-            });
+          const avatar = document.createElement("div");
+          avatar.className = `avatar ${sender}`;
+          avatar.textContent = sender === "user" ? "U" : "AI";
 
-            // Close dropdown if user clicks outside
-            window.addEventListener("click", (event) => {
-                if (
-                    !dropdownButton.contains(event.target) &&
-                    !dropdownMenu.contains(event.target)
-                ) {
-                    dropdownMenu.classList.add(
-                        "hidden",
-                        "opacity-0",
-                        "translate-y-2",
-                    );
-                    dropdownMenu.classList.remove(
-                        "opacity-100",
-                        "translate-y-0",
-                    );
-                    dropdownButton.setAttribute("aria-expanded", "false");
-                }
-            });
+          const content = document.createElement("div");
+          content.className = "message-content";
 
-            class ChatInterface {
-                oauthMessage = {};
+          messageDiv.appendChild(avatar);
+          messageDiv.appendChild(content);
+          this.messages.appendChild(messageDiv);
 
-                constructor() {
-                    this.messages = document.getElementById("messages");
-                    this.messageInput = document.getElementById("messageInput");
-                    this.sendButton = document.getElementById("sendButton");
-                    this.typingIndicator =
-                        document.getElementById("typingIndicator");
-                    this.themeToggle = document.getElementById("themeToggle");
-                    this.lightIcon = document.getElementById("lightIcon");
-                    this.darkIcon = document.getElementById("darkIcon");
-                    this.config = {};
-                    this.isTyping = false;
+          this.isTyping = true;
+          for (let i = 0; i <= text.length; i++) {
+            // content.textContent = text.substring(0, i);
+            content.innerHTML = marked.parse(text.substring(0, i));
+            this.scrollToBottom();
+            if (!this.isTyping) break;
+            await new Promise((resolve) => setTimeout(resolve, 20));
+          }
+          this.isTyping = false;
+        }
 
-                    this.setupEventListeners();
-                    this.autoResizeTextarea();
-                    this.startSession();
-                }
+        scrollToBottom() {
+          this.messages.scrollTop = this.messages.scrollHeight;
+        }
+      }
 
-                async startSession() {
-                    let configResponse = await fetch("/config");
-                    if (configResponse.status == 200) {
-                        this.config = await configResponse.json();
-                    } else
-                        console.error(
-                            "Could not load agent config: " +
-                                configResponse.status,
-                        );
-
-                    if (this.config.apigeeAgentUrl) {
-                        let sessionResponse = await fetch(
-                            this.config.apigeeAgentUrl +
-                                `/apps/apigee_user_agent/users/${user_email}/sessions/${user_session}`,
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                            },
-                        );
-
-                        let responseText = await sessionResponse.text();
-                        let initResult = await this.generateResponse(
-                            "Give a short overview of your capabilities.",
-                        );
-                        if (!initResult) {
-                            // try again
-                            this.generateResponse(
-                                "Give a short overview of your capabilities.",
-                            );
-                        }
-                    }
-                }
-
-                initTheme() {
-                    const savedTheme = localStorage.getItem("theme") || "dark";
-                    this.setTheme(savedTheme);
-                }
-
-                setTheme(theme) {
-                    document.documentElement.setAttribute("data-theme", theme);
-                    localStorage.setItem("theme", theme);
-                }
-
-                toggleTheme() {
-                    const currentTheme =
-                        document.documentElement.getAttribute("data-theme");
-                    const newTheme = currentTheme === "dark" ? "light" : "dark";
-                    this.setTheme(newTheme);
-                }
-
-                setupEventListeners() {
-                    this.sendButton.addEventListener("click", () =>
-                        this.sendMessage(),
-                    );
-
-                    this.messageInput.addEventListener("keydown", (e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            this.sendMessage();
-                        }
-                    });
-
-                    this.messageInput.addEventListener("input", () => {
-                        this.autoResizeTextarea();
-                    });
-                }
-
-                autoResizeTextarea() {
-                    this.messageInput.style.height = "auto";
-                    this.messageInput.style.height =
-                        Math.min(this.messageInput.scrollHeight, 120) + "px";
-                }
-
-                async sendMessage() {
-                    const text = this.messageInput.value.trim();
-                    if (!text) return;
-
-                    this.addMessage(text, "user");
-                    this.messageInput.value = "";
-                    this.autoResizeTextarea();
-                    this.showTypingIndicator();
-
-                    await this.generateResponse(text);
-                }
-
-                addMessage(text, sender) {
-                    const messageDiv = document.createElement("div");
-                    messageDiv.className = `message ${sender}`;
-
-                    const avatar = document.createElement("div");
-                    avatar.className = `avatar ${sender}`;
-                    avatar.textContent = sender === "user" ? "U" : "AI";
-
-                    const content = document.createElement("div");
-                    content.className = "message-content";
-                    content.textContent = text;
-
-                    messageDiv.appendChild(avatar);
-                    messageDiv.appendChild(content);
-
-                    this.messages.appendChild(messageDiv);
-                    this.scrollToBottom();
-                }
-
-                showTypingIndicator() {
-                    this.typingIndicator.style.display = "flex";
-                    this.scrollToBottom();
-                }
-
-                hideTypingIndicator() {
-                    this.typingIndicator.style.display = "none";
-                }
-
-                async generateResponse(userMessage) {
-                    let result = true;
-                    try {
-                        if (this.config.apigeeAgentUrl) {
-                            let newResponse = await fetch(
-                                this.config.apigeeAgentUrl + "/run",
-                                {
-                                    method: "POST",
-                                    signal: AbortSignal.timeout(5000),
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                        app_name: "apigee_user_agent",
-                                        user_id: user_email,
-                                        session_id: user_session,
-                                        new_message: {
-                                            role: "user",
-                                            parts: [
-                                                {
-                                                    text: userMessage,
-                                                },
-                                            ],
-                                        },
-                                        streaming: false,
-                                    }),
-                                },
-                            );
-
-                            if (newResponse.status == 200) {
-                                let responseJson = await newResponse.json();
-                                this.processResponse(responseJson);
-                            } else {
-                                console.log(
-                                    "Error calling ADK: " + newResponse.status,
-                                );
-                            }
-                        } else {
-                            console.error(
-                                "Cannot call agent, no user agent URL configured.",
-                            );
-                        }
-                    } catch (e) {
-                        result = false;
-                        this.hideTypingIndicator();
-                        // await this.typeMessage(
-                        //     "Unfortunately I can't connect to my service right now, maybe take a break and try again later?",
-                        //     "ai",
-                        // );
-                    }
-
-                    return result;
-                }
-
-                async processResponse(agentResponse) {
-                    for (let response of agentResponse) {
-                        if (
-                            response["content"] &&
-                            response["content"]["parts"] &&
-                            response["content"]["parts"][0] &&
-                            response["content"]["parts"][0]["text"]
-                        ) {
-                            await this.typeMessage(
-                                response["content"]["parts"][0]["text"],
-                                "ai",
-                            );
-                        } else if (
-                            response["content"] &&
-                            response["content"]["parts"] &&
-                            response["content"]["parts"][0]["functionCall"] &&
-                            response["content"]["parts"][0]["functionCall"] &&
-                            response["content"]["parts"][0]["functionCall"][
-                                "args"
-                            ] &&
-                            response["content"]["parts"][0]["functionCall"][
-                                "args"
-                            ]["authConfig"]
-                        ) {
-                            this.oauthMessage =
-                                response["content"]["parts"][0]["functionCall"];
-                            localStorage.setItem(
-                                "oauthMessage",
-                                JSON.stringify(this.oauthMessage),
-                            );
-                            setTimeout(() => {
-                                var event = new CustomEvent("oauth_redirect", {
-                                    detail: this.oauthMessage,
-                                });
-                                window.parent.document.dispatchEvent(event);
-                            }, 3000);
-                        }
-                    }
-
-                    this.hideTypingIndicator();
-                }
-
-                async typeMessage(text, sender) {
-                    if (this.isTyping) {
-                        this.isTyping = false;
-                        await new Promise((resolve) =>
-                            setTimeout(resolve, 200),
-                        );
-                    }
-                    const messageDiv = document.createElement("div");
-                    messageDiv.className = `message ${sender}`;
-
-                    const avatar = document.createElement("div");
-                    avatar.className = `avatar ${sender}`;
-                    avatar.textContent = sender === "user" ? "U" : "AI";
-
-                    const content = document.createElement("div");
-                    content.className = "message-content";
-
-                    messageDiv.appendChild(avatar);
-                    messageDiv.appendChild(content);
-                    this.messages.appendChild(messageDiv);
-
-                    this.isTyping = true;
-                    for (let i = 0; i <= text.length; i++) {
-                        // content.textContent = text.substring(0, i);
-                        content.innerHTML = marked.parse(text.substring(0, i));
-                        this.scrollToBottom();
-                        if (!this.isTyping) break;
-                        await new Promise((resolve) => setTimeout(resolve, 20));
-                    }
-                    this.isTyping = false;
-                }
-
-                scrollToBottom() {
-                    this.messages.scrollTop = this.messages.scrollHeight;
-                }
-            }
-
-            new ChatInterface();
-        </script>
-    </body>
+      new ChatInterface();
+    </script>
+  </body>
 </html>

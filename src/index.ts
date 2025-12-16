@@ -48,6 +48,7 @@ app.use(
 // create default directories
 fs.mkdirSync(rootStorageDir + "templates", { recursive: true });
 fs.mkdirSync(rootStorageDir + "features", { recursive: true });
+fs.mkdirSync(rootStorageDir + "specs", { recursive: true });
 fs.mkdirSync(rootStorageDir + "temp", { recursive: true });
 
 // REST
