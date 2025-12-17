@@ -1132,7 +1132,8 @@ export class ApigeeConverter {
     // replace parameters from runtime (no, disable for now..)
     let tempFeature = feature; // this.featureReplaceParameters(feature, [], parameters);
     // set uid on feature usage
-    tempFeature.uid = (Math.random() + 1).toString(36).substring(7);
+    if (parameters["id"]) tempFeature.uid = parameters["id"];
+    else tempFeature.uid = (Math.random() + 1).toString(36).substring(7);
     if (tempFeature.endpoints && tempFeature.endpoints.length > 0) {
       for (let endpoint of tempFeature.endpoints) {
         if (endpoint.name != "default") {

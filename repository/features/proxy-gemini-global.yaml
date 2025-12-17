@@ -1,9 +1,9 @@
-name: proxy-gemini
-displayName: Gemini Product
+name: proxy-gemini-global
+displayName: Gemini Model API
 type: feature
 description: |
   This feature adds an endpoints with basepath at v1/gemini, and proxies
-  requests to the Vertex AI Gemini endpoint in a configured region.
+  requests to the Vertex AI Gemini global endpoint.
 
   **Prerequisites**
   - Vertex AI is enabled in the GCP Project.
@@ -27,7 +27,7 @@ description: |
   - Stores successful prompt token count in the **Apigee variable llm.promptTokenCount**
   - Stores successful response token count in the **Apigee variable llm.responseTokenCount**
   - Stores successful total token count in the **Apigee variable llm.totalTokenCount**
-  - Normal response from Gemini in OAI format.
+  - Normal response from the model in OAI format.
 categories:
   - llm
 parameters:
@@ -46,36 +46,25 @@ parameters:
     default: YOUR_PROJECT_ID
     examples:
       - YOUR_PROJECT_ID
-  - name: REGION
-    displayName: REGION
-    description: The GCP region that should be used for the Vertex AI Gemini endpoint.
-    default: europe-west1
-    examples:
-      - europe-west1
-      - us-east1
   - name: MODEL_ID
     displayName: MODEL_ID
-    description: The Gemini model to use for the request.
-    default: gemini-2.5-flash
+    description: The model to use for the request.
+    default: google/gemini-flash-latest
     examples:
-      - gemini-2.5-flash
-      - gemini-2.5-pro
-  - name: GEMINI_PATH
-    displayName: GEMINI_PATH
-    description: Configuration input for GEMINI_PATH
-    default: "aiplatform.googleapis.com/v1beta1/projects/{PROJECT_ID}/loca\
-      tions/global/endpoints/openapi/chat/completions"
-    examples: []
+      - google/gemini-flash-latest
+      - google/gemini-3-flash-preview
+      - google/gemini-3-pro-preview
+      - google/gemini-2.5-pro
 endpoints:
-  - name: gemini
-    basePath: "/v1/gemini"
+  - name: vertexai
+    basePath: /v1/gemini
     routes:
       - name: default
-        target: gemini
+        target: vertexai
     flows: []
     faultRules: []
 targets:
-  - name: gemini
+  - name: vertexai
     url: https://aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/global/endpoints/openapi/chat/completions
     auth: GoogleAccessToken
     scopes:
@@ -84,13 +73,13 @@ targets:
       - name: PreFlow
         mode: Request
         steps:
-          - name: JS-SetGeminiModel
-          - name: JS-SetGeminiPrompt
+          - name: JS-SetVertexModel
+          - name: JS-SetVertexPrompt
             condition: llm.promptInput != null
       - name: PostFlow
         mode: Response
         steps:
-          - name: EV-GeminiStoreInfo
+          - name: EV-VertexStoreInfo
       - name: EventFlow
         mode: Response
         steps:
@@ -106,16 +95,16 @@ targets:
             Scope:
               _text: https://www.googleapis.com/auth/cloud-platform
 policies:
-  - name: EV-GeminiStoreInfo
+  - name: EV-VertexStoreInfo
     type: ExtractVariables
     content:
       ExtractVariables:
         _attributes:
           continueOnError: "false"
           enabled: "true"
-          name: EV-GeminiStoreInfo
+          name: EV-VertexStoreInfo
         DisplayName:
-          _text: EV-GeminiStoreInfo
+          _text: EV-VertexStoreInfo
         Properties: {}
         IgnoreUnresolvedVariables:
           _text: "true"
@@ -143,34 +132,6 @@ policies:
           _text: response
         VariablePrefix:
           _text: llm
-  - name: JS-SetGeminiModel
-    type: Javascript
-    content:
-      Javascript:
-        _attributes:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-SetGeminiModel
-        DisplayName:
-          _text: JS-SetGeminiModel
-        Properties: {}
-        ResourceURL:
-          _text: jsc://set-gemini-model.js
-  - name: JS-SetGeminiPrompt
-    type: Javascript
-    content:
-      Javascript:
-        _attributes:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-SetGeminiPrompt
-        DisplayName:
-          _text: JS-SetGeminiPrompt
-        Properties: {}
-        ResourceURL:
-          _text: jsc://set-gemini-prompt.js
   - name: JS-SetStreamInfo
     type: Javascript
     content:
@@ -184,23 +145,48 @@ policies:
           _text: JS-SetStreamInfo
         Properties: {}
         ResourceURL:
-          _text: jsc://set-gemini-stream-info.js
+          _text: jsc://set-vertex-stream-info.js
+  - name: JS-SetVertexModel
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetVertexModel
+        DisplayName:
+          _text: JS-SetVertexModel
+        Properties: {}
+        ResourceURL:
+          _text: jsc://set-vertex-model.js
+  - name: JS-SetVertexPrompt
+    type: Javascript
+    content:
+      Javascript:
+        _attributes:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetVertexPrompt
+        DisplayName:
+          _text: JS-SetVertexPrompt
+        Properties: {}
+        ResourceURL:
+          _text: jsc://set-vertex-prompt.js
 resources:
-  - name: set-gemini-model.js
+  - name: set-vertex-model.js
     type: jsc
     content: |-
       var requestObject = request.content.asJSON;
-      var model = context.getVariable("propertyset.gemini.MODEL_ID");
+      var model = context.getVariable("propertyset.vertexai.MODEL_ID");
 
       if (requestObject) {
-        if (model.startsWith("google/"))
-          requestObject["model"] = model;
-        else
-          requestObject["model"] = "\"google/" + model + "\"";
+        requestObject["model"] = model;
       }
 
       context.setVariable('request.content', JSON.stringify(requestObject));
-  - name: set-gemini-prompt.js
+  - name: set-vertex-prompt.js
     type: jsc
     content: |-
       var requestObject = request.content.asJSON;
@@ -239,7 +225,7 @@ resources:
 
         return requestObject;
       }
-  - name: set-gemini-stream-info.js
+  - name: set-vertex-stream-info.js
     type: jsc
     content: |
       var streamString = context.getVariable("response.event.current.content");
@@ -261,7 +247,7 @@ resources:
             context.setVariable("llm.totalTokenCount", streamData["usage"]["total_tokens"]);
         }
       }
-  - name: gemini.properties
+  - name: vertexai.properties
     type: properties
     content: |
       MODEL_ID={MODEL_ID}
