@@ -16,6 +16,8 @@ categories:
   - services
 parameters:
   - name: BASE_PATH
+    paths:
+      - $.endpoints[:1].basePath
     description: The base path to offer the proxy on.
     default: /v1/cloudrun
     examples:

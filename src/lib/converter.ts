@@ -1133,7 +1133,24 @@ export class ApigeeConverter {
     let tempFeature = feature; // this.featureReplaceParameters(feature, [], parameters);
     // set uid on feature usage
     if (parameters["id"]) tempFeature.uid = parameters["id"];
-    else tempFeature.uid = (Math.random() + 1).toString(36).substring(7);
+    else {
+      let id = "";
+      let nameParts = tempFeature.name.split("-");
+      id = nameParts[Math.floor(nameParts.length / 2)] ?? "";
+      let origId = id;
+      let count = 0;
+      for (let feature of template.features) {
+        let featureParts = feature.split(".");
+        let existingId = featureParts.pop();
+        if (existingId == id) {
+          count++;
+          id = origId + count.toString();
+        }
+      }
+
+      tempFeature.uid = id;
+      // tempFeature.uid = (Math.random() + 1).toString(36).substring(7);
+    }
     if (tempFeature.endpoints && tempFeature.endpoints.length > 0) {
       for (let endpoint of tempFeature.endpoints) {
         if (endpoint.name != "default") {
@@ -1457,9 +1474,11 @@ export class ApigeeConverter {
           paramValue = parameters[parameter.name] ?? "";
 
         let replaceKey = "{" + parameter.name + "}";
-        if (parameter.path) {
-          jp.value(tempFeature, parameter.path, paramValue);
-          featureString = JSON.stringify(tempFeature);
+        if (parameter.paths) {
+          for (let path of parameter.paths) {
+            jp.value(tempFeature, path, paramValue);
+            featureString = JSON.stringify(tempFeature);
+          }
         } else {
           featureString = featureString.replaceAll(replaceKey, paramValue);
         }

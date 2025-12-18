@@ -32,7 +32,8 @@ categories:
   - llm
 parameters:
   - name: BASE_PATH
-    path: $.endpoints[:1].basePath
+    paths:
+      - $.endpoints[:1].basePath
     displayName: BASE_PATH
     description: The base path on the proxy to receive traffic.
     default: /v1/deepseek

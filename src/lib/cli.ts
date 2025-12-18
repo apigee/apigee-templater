@@ -91,11 +91,14 @@ export class cli {
     ) {
       // user wants to apply a feature, set input
       args["--input"] = args["_"][0];
+    } else if (args["_"] && args["_"][0] && args["--output"]) {
+      // user wants to output something, set input
+      args["--input"] = args["_"][0];
     } else if (args["_"] && args["_"][0]) {
       // user wants to create a new template or proxy, set output
       args["--output"] =
         !args["_"][0].toLowerCase().endsWith(".yaml") &&
-        !args["_"][0].toLowerCase().endsWith(".yaml")
+        !args["_"][0].toLowerCase().endsWith(".json")
           ? args["_"][0] + ".yaml"
           : args["_"][0];
     }

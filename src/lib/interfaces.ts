@@ -133,7 +133,7 @@ export class Feature {
 
 export class Parameter {
   name: string = "";
-  path?: string = "";
+  paths?: string[] = [];
   displayName: string = "";
   description: string = "";
   examples: string[] = [];
