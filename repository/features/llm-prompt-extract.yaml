@@ -71,12 +71,12 @@ resources:
         var result = 0;
 
         if (tokens_count_word_est > tokens_count_char_est)
-          result = tokens_count_word_est;
+          result = Math.round(tokens_count_word_est);
         else if (tokens_count_char_est > tokens_count_word_est)
-          result = tokens_count_word_est;
+          result = Math.round(tokens_count_word_est);
 
-        context.setVariable("llm.promptEstimatedTokenCount", result);
-        context.setVariable("quota.weight", result);
+        context.setVariable("llm.promptEstimatedTokenCount", result.toString().replace(".0", ""));
+        context.setVariable("quota.weight", result.toString().replace(".0", ""));
       }
 
       function getLastPrompt(requestObject) {

@@ -49,6 +49,7 @@ policies:
           continueOnError: "false"
           enabled: "true"
           name: Q-CheckQuota
+          type: calendar
         DisplayName:
           _text: Q-CheckQuota
         Properties: {}
@@ -71,10 +72,12 @@ policies:
           _text: "true"
         Synchronous:
           _text: "true"
-        CountOnly:
+        EnforceOnly:
           _text: "true"
         SharedName:
           _text: token-quota
+        StartTime:
+          _text: 2013-08-21 10:00:00
   - name: Q-UpdateQuota
     type: Quota
     content:
@@ -87,28 +90,30 @@ policies:
         DisplayName:
           _text: Q-UpdateQuota
         Properties: {}
+        Identifier:
+          _attributes:
+            ref: client_id
         Allow:
           _attributes:
-            count: "2000"
-            countRef: request.header.allowed_quota
+            countRef: quota.limit
         Interval:
           _attributes:
-            ref: request.header.quota_count
-          _text: "1"
-        Distributed:
-          _text: "false"
-        Synchronous:
-          _text: "false"
+            ref: quota.interval
         TimeUnit:
           _attributes:
-            ref: request.header.quota_timeout
-          _text: month
+            ref: quota.timeunit
+        MessageWeight:
+          _attributes:
+            ref: llm.totalTokenCount
+        Distributed:
+          _text: "true"
+        Synchronous:
+          _text: "true"
+        CountOnly:
+          _text: "true"
+        SharedName:
+          _text: token-quota
         StartTime:
           _text: 2013-08-21 10:00:00
-        AsynchronousConfiguration:
-          SyncIntervalInSeconds:
-            _text: "20"
-          SyncMessageCount:
-            _text: "5"
 resources: []
 tests: []

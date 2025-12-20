@@ -1688,7 +1688,7 @@ export class ApigeeConverter {
               proxyFlow.condition == featureFlow.condition
             ) {
               foundFlow = true;
-              proxyFlow.steps = featureFlow.steps.concat(proxyFlow.steps);
+              proxyFlow.steps = proxyFlow.steps.concat(featureFlow.steps);
               break;
             }
           }
@@ -1729,7 +1729,7 @@ export class ApigeeConverter {
               targetFlow.condition == featureFlow.condition
             ) {
               foundFlow = true;
-              targetFlow.steps = featureFlow.steps.concat(targetFlow.steps);
+              targetFlow.steps = targetFlow.steps.concat(featureFlow.steps);
               break;
             }
           }
