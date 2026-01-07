@@ -10,6 +10,7 @@ description: |
   ```sh
   gcloud services enable dlp.googleapis.com
   ```
+  - Your Apigee service account user should have the DLP User (dlp.user) role.
 
   **Inputs**
   - The input variable **llm.promptInput** will be sent to DLP to be masked.

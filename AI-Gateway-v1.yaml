@@ -1,0 +1,91 @@
+name: AI-Gateway-v1
+type: template
+description: API template for AI-Gateway-v1
+features:
+  - proxy-gemini-global.gemini
+  - proxy-deepseek-global.deepseek
+  - llm-prompt-extract.prompt
+  - llm-analytics.analytics
+  - llm-prompt-pii-mask.pii
+parameters:
+  - name: proxy-gemini-global.gemini.BASE_PATH
+    paths:
+      - $.endpoints[:1].basePath
+    displayName: BASE_PATH
+    description: The base path on the proxy to receive traffic.
+    default: /v1/gemini
+    examples:
+      - /v1/gemini
+      - /gemini
+      - /llm/gemini
+  - name: proxy-gemini-global.gemini.PROJECT_ID
+    displayName: PROJECT_ID
+    description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
+    default: YOUR_PROJECT_ID
+    examples:
+      - YOUR_PROJECT_ID
+  - name: proxy-gemini-global.gemini.MODEL_ID
+    displayName: MODEL_ID
+    description: The model to use for the request.
+    default: google/gemini-flash-latest
+    examples:
+      - google/gemini-flash-latest
+      - google/gemini-3-flash-preview
+      - google/gemini-3-pro-preview
+      - google/gemini-2.5-pro
+  - name: proxy-deepseek-global.deepseek.BASE_PATH
+    paths:
+      - $.endpoints[:1].basePath
+    displayName: BASE_PATH
+    description: The base path on the proxy to receive traffic.
+    default: /v1/deepseek
+    examples:
+      - /v1/deepseek
+      - /deepseek
+      - /llm/deepseek
+  - name: proxy-deepseek-global.deepseek.PROJECT_ID
+    displayName: PROJECT_ID
+    description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
+    default: YOUR_PROJECT_ID
+    examples:
+      - YOUR_PROJECT_ID
+  - name: proxy-deepseek-global.deepseek.REGION
+    displayName: REGION
+    description: The GCP region that should be used for the Vertex AI Gemini endpoint.
+    default: europe-west1
+    examples:
+      - europe-west1
+      - us-east1
+  - name: proxy-deepseek-global.deepseek.MODEL_ID
+    displayName: MODEL_ID
+    description: The model to use for the request.
+    default: deepseek-ai/deepseek-v3.2-maas
+    examples:
+      - deepseek-ai/deepseek-v3.2-maas
+  - name: llm-prompt-pii-mask.pii.PROJECT_ID
+    displayName: DLP Project Id
+    description: Configuration input for PROJECT_ID
+    default: apigee-prod13
+    examples: []
+endpoints:
+  - name: gemini-vertexai
+    basePath: /v1/gemini
+    routes:
+      - name: default
+        target: gemini-vertexai
+  - name: deepseek-vertexai
+    basePath: /v1/deepseek
+    routes:
+      - name: default
+        target: deepseek-vertexai
+targets:
+  - name: gemini-vertexai
+    url: https://aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/global/endpoints/openapi/chat/completions
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+  - name: deepseek-vertexai
+    url: https://aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/global/endpoints/openapi/chat/completions
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform

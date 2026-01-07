@@ -11,7 +11,7 @@
     "program": "dist/index.js",
     "stopOnEntry": false,
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
-    "envFile": ".env"
+    "envFile": ".env",
   },
   {
     "adapter": "JavaScript",
@@ -27,8 +27,8 @@
       "-o",
       "./repository/features",
       "-f",
-      "feature"
-    ]
+      "feature",
+    ],
   },
   {
     "adapter": "JavaScript",
@@ -44,12 +44,12 @@
       "-o",
       "./repository/features",
       "-f",
-      "feature"
-    ]
+      "feature",
+    ],
   },
   {
     "adapter": "JavaScript",
-    "label": "cli.js - export feature to apigee org",
+    "label": "cli.js - export template to apigee org",
     "type": "pwa-node",
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
@@ -57,10 +57,10 @@
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
     "args": [
       "-i",
-      "./repository/features/Feature-PROXY-Gemini-v1.yaml",
+      "./AI-Gateway-v1.yaml",
       "-o",
-      "apigee-prod13:"
-    ]
+      "apigee-hub-demo:AI-Gateway-v1",
+    ],
   },
   {
     "adapter": "JavaScript",
@@ -75,8 +75,8 @@
       "-o",
       "apigee-hub-demo:",
       "-a",
-      "./repository/features/Feature-TESTER-v1.yaml"
-    ]
+      "./repository/features/Feature-TESTER-v1.yaml",
+    ],
   },
   {
     "adapter": "JavaScript",
@@ -92,8 +92,8 @@
       "-o",
       "apigee-hub-demo:",
       "-r",
-      "./repository/features/Feature-TESTER-v1.yaml"
-    ]
+      "./repository/features/Feature-TESTER-v1.yaml",
+    ],
   },
   {
     "adapter": "JavaScript",
@@ -106,8 +106,8 @@
       "-i",
       "apigee-hub-demo:AI-Gateway-v1",
       "-a",
-      "./repository/features/Feature-PROXY-Gemini-v1.yaml"
-    ]
+      "./repository/features/Feature-PROXY-Gemini-v1.yaml",
+    ],
   },
   {
     "adapter": "JavaScript",
@@ -120,8 +120,8 @@
       "-i",
       "AI-Gateway-v2.local.yaml",
       "-r",
-      "./repository/features/proxy-gemini.yaml.3gzj2"
-    ]
+      "./repository/features/proxy-gemini.yaml.3gzj2",
+    ],
   },
   {
     "adapter": "JavaScript",
@@ -130,6 +130,6 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["test.local.yaml"]
-  }
+    "args": ["test.local.yaml"],
+  },
 ]

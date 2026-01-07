@@ -1,17 +1,14 @@
 import datetime
 import os
 from zoneinfo import ZoneInfo
+
+from fastapi.openapi.models import OAuth2, OAuthFlowAuthorizationCode, OAuthFlows
 from google.adk.agents import Agent
+from google.adk.auth import AuthCredential, AuthCredentialTypes, OAuth2Auth
 from google.adk.tools.mcp_tool.mcp_toolset import (
     MCPToolset,
     StreamableHTTPConnectionParams,
 )
-from fastapi.openapi.models import OAuth2
-from fastapi.openapi.models import OAuthFlowAuthorizationCode
-from fastapi.openapi.models import OAuthFlows
-from google.adk.auth import AuthCredential
-from google.adk.auth import AuthCredentialTypes
-from google.adk.auth import OAuth2Auth
 
 apigeeTemplaterMcpServer = (
     os.environ.get("APIGEE_TEMPLATER_MCP_URL", "http://localhost:8080") + "/mcp"
@@ -45,9 +42,7 @@ root_agent = Agent(
         MCPToolset(
             connection_params=StreamableHTTPConnectionParams(
                 url=apigeeTemplaterMcpServer,
-            ),
-            auth_scheme=auth_scheme,
-            auth_credential=auth_credential,
+            )
         )
     ],
 )

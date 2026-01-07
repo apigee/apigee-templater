@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>API Center</title>
+    <title>Agentic API Platform</title>
     <link rel="icon" type="image/x-icon" href="/favicon.png" />
     <script src="https://www.gstatic.com/firebasejs/8.0/firebase.js"></script>
     <style>
@@ -89,7 +89,9 @@
       }
 
       .sidebar-header {
-        padding: 1.5rem;
+        padding: 10px;
+        padding-top: 16px;
+        padding-bottom: 16px;
         border-bottom: 1px solid var(--border);
         display: flex;
         align-items: center;
@@ -387,7 +389,7 @@
             <!--<a href="/">-->
             <div class="logo-icon">A</div>
             <!--</a>-->
-            <span class="logo-text">API Center</span>
+            <span class="logo-text">Agentic API Platform</span>
           </div>
           <button class="theme-toggle" onclick="toggleTheme()">
             <svg
@@ -813,6 +815,7 @@
 
               setView(view);
             } else {
+              localStorage.removeItem("user_email");
               window.location.href = "/";
             }
           });

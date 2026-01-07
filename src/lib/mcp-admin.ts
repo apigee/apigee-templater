@@ -85,7 +85,7 @@ export class McpService {
         "features://main",
         {
           title: "Features",
-          description: "All features.",
+          description: "Returns all features as a string array.",
         },
         this.resourceFeaturesList,
       );
@@ -507,17 +507,22 @@ export class McpService {
         "featuresList",
         {
           title: "Features list tool",
-          description: "List all features that can be applied to templates.",
+          description:
+            "List all features as a string array that can be applied to templates.",
           inputSchema: {},
         },
         async () => {
           let features = await this.apigeeService.featuresList();
+          let featureStrings = [];
+          for (const feature of features) {
+            featureStrings.push(this.converter.featureToString(feature));
+          }
           if (features) {
             return {
               content: [
                 {
                   type: "text",
-                  text: `${JSON.stringify(features)}`,
+                  text: `${JSON.stringify(featureStrings)}`,
                 },
               ],
             };
@@ -1429,11 +1434,17 @@ export class McpService {
 
   public resourceFeaturesList = async (uri: URL) => {
     // load all features
+    let allFeatures = await this.apigeeService.featuresList();
+    let featureStrings = [];
+    for (const feature of allFeatures) {
+      featureStrings.push(this.converter.featureToString(feature));
+    }
+
     return {
       contents: [
         {
           uri: uri.href,
-          text: JSON.stringify(this.apigeeService.featuresList()),
+          text: JSON.stringify(featureStrings),
         },
       ],
     };

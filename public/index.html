@@ -3,10 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>API Center | Onboard & Secure Faster</title>
+    <title>Agentic API Platform</title>
     <link rel="icon" type="image/x-icon" href="/favicon.png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0/firebase.js"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
@@ -32,6 +33,45 @@
           },
         },
       };
+
+      // USER
+      let config = {};
+      let user = undefined;
+      let user_email = localStorage.getItem("user_email");
+      if (user_email) window.location.href = "/admin";
+
+      fetch("/config")
+        .then((response) => {
+          if (response.status == 200) return response.json();
+          else console.error("Could not load app config from server.");
+        })
+        .then((appConfig) => {
+          config = appConfig;
+          firebase.initializeApp({
+            apiKey: config.authApiKey,
+            authDomain: config.authDomain,
+          });
+
+          firebase.auth().onAuthStateChanged((newUser) => {
+            if (newUser) {
+              user = newUser;
+              localStorage.setItem("user_email", user.email);
+              window.location.href = "/admin";
+            } else {
+              localStorage.removeItem("user_email");
+            }
+          });
+        });
+
+      function signOut() {
+        localStorage.removeItem("user_email");
+        firebase
+          .auth()
+          .signOut()
+          .then(function () {
+            window.location.href = "/";
+          });
+      }
     </script>
     <style>
       [x-cloak] {
@@ -101,7 +141,7 @@
                 </svg>-->
               </div>
               <span class="text-xl font-extrabold tracking-tight"
-                >API<span class="text-brand-500"> Center</span></span
+                >Agentic<span class="text-brand-500"> API Platform</span></span
               >
             </div>
 
@@ -163,8 +203,9 @@
             <p
               class="max-w-2xl mx-auto text-lg md:text-xl text-slate-600 dark:text-slate-400 mb-10 leading-relaxed"
             >
-              API Center is the all-in-one platform to design, publish, and
-              scale your APIs. From side projects to enterprise infrastructure.
+              Agentic API Platform is the all-in-one platform to design,
+              publish, and scale your APIs. From side projects to enterprise
+              infrastructure.
             </p>
             <div
               class="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4"
@@ -350,9 +391,9 @@
               Last updated: December 2023
             </p>
             <p>
-              At API Center, we prioritize your privacy. This policy outlines
-              how we collect, use, and safeguard your information when you use
-              our platform for building and publishing APIs.
+              At API Practitioner, we prioritize your privacy. This policy
+              outlines how we collect, use, and safeguard your information when
+              you use our platform for building and publishing APIs.
             </p>
 
             <h2 class="text-2xl font-bold text-slate-900 dark:text-white">
@@ -421,7 +462,7 @@
               Effective Date: January 2024
             </p>
             <p>
-              By accessing or using API Center, you agree to be bound by these
+              By accessing or using API Builder, you agree to be bound by these
               terms. Please read them carefully.
             </p>
 
@@ -438,7 +479,7 @@
               2. Prohibited Content
             </h2>
             <p>
-              You agree not to use API Center for any illegal activities,
+              You agree not to use API Builder for any illegal activities,
               including but not limited to distribution of malware, phishing, or
               unauthorized data scraping.
             </p>
@@ -447,8 +488,8 @@
               3. Limitation of Liability
             </h2>
             <p>
-              API Center provides the service "as is". We are not liable for any
-              downtime or data loss incurred during the use of our beta or
+              API Builder provides the service "as is". We are not liable for
+              any downtime or data loss incurred during the use of our beta or
               standard tiers.
             </p>
           </div>
@@ -478,7 +519,7 @@
                   ></path>
                 </svg>-->
               </div>
-              <span class="font-bold">API Center</span>
+              <span class="font-bold">Agentic API Platform</span>
             </div>
             <div class="text-slate-500 text-sm">
               <!--&copy; 2024 API Center Inc. All rights reserved.-->

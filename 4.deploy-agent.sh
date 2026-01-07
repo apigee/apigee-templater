@@ -1,9 +1,9 @@
 # get service url
 SERVICE_URL=$(gcloud run services describe apigee-templater --format 'value(status.url)' --region $REGION --project $PROJECT_ID)
 # set correct mcp url in env file
-sed -i "s,^export APIGEE_TEMPLATER_MCP_URL=.*,export APIGEE_TEMPLATER_MCP_URL=$SERVICE_URL," ./agent/.env
+sed -i "s,^export APIGEE_TEMPLATER_MCP_URL=.*,export APIGEE_TEMPLATER_MCP_URL=$SERVICE_URL," ./agents-py/.env
 
-cd agent
+cd agents-py
 source .venv/bin/activate
 source .env
 

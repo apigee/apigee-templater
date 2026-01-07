@@ -1300,7 +1300,7 @@ export class ApigeeConverter {
     features.sort((a, b) => {
       let aPrio = a.priority ?? 100;
       let bPrio = b.priority ?? 100;
-      return bPrio - aPrio;
+      return aPrio - bPrio;
     });
 
     // first apply features with targets & endpoints

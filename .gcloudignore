@@ -6,4 +6,5 @@ build
 temp
 proxies
 .env
-/agent
+/agents-py
+/agents-ts
