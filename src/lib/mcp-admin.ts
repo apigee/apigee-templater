@@ -513,16 +513,26 @@ export class McpService {
         },
         async () => {
           let features = await this.apigeeService.featuresList();
-          let featureStrings = [];
+          let featureSummaries = [];
           for (const feature of features) {
-            featureStrings.push(this.converter.featureToString(feature));
+            featureSummaries.push({
+              name: feature.name,
+              displayName: feature.displayName,
+              description:
+                feature.description.length <= 120
+                  ? feature.description
+                  : feature.description.substring(0, 120) + "...",
+              parameterCount: feature.parameters.length,
+              endpointCount: feature.endpoints.length,
+              targetCount: feature.targets.length,
+            });
           }
           if (features) {
             return {
               content: [
                 {
                   type: "text",
-                  text: `${JSON.stringify(featureStrings)}`,
+                  text: `${JSON.stringify(featureSummaries)}`,
                 },
               ],
             };
