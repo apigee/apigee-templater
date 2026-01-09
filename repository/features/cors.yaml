@@ -13,17 +13,22 @@ description: |
 
   **Outputs**
   - The allowed headers are set according to the configuration, enabling CORS requests to be answered for allowed requests.
+priority: 5
 categories:
   - traffic
 parameters:
   - name: ALLOWED_ORIGINS
     description: The allowed origins of clients.
+    paths:
+      - $.policies[:1].content.CORS.AllowOrigins._text
     default: "*"
     examples:
       - "*"
       - "{request.header.origin}"
   - name: ALLOWED_HEADERS
     description: The allowed headers for clients to send.
+    paths:
+      - $.policies[:1].content.CORS.AllowHeaders._text
     default: origin, x-requested-with, accept, content-type
     examples:
       - origin, x-requested-with, accept, content-type
@@ -32,30 +37,12 @@ defaultEndpoint:
   basePath: /feature-http-cors-v1
   routes:
     - name: default
-      target: default
-  flows:
-    - name: OptionsPreFlight
-      mode: Request
-      condition: request.verb == "OPTIONS" AND request.header.origin != null AND
-        request.header.Access-Control-Request-Method != null
-      steps:
-        - name: CORS-AddCors
-  faultRules: []
-defaultTarget:
-  name: default
-  url: https://httpbin.org
   flows:
     - name: PreFlow
       mode: Request
       steps:
         - name: CORS-AddCors
-    - name: EventFlow
-      mode: Response
-      steps: []
   faultRules: []
-  httpTargetConnection:
-    URL:
-      _text: https://httpbin.org
 endpoints: []
 targets: []
 policies:
@@ -70,11 +57,11 @@ policies:
         DisplayName:
           _text: CORS-AddCors
         AllowOrigins:
-          _text: ALLOWED_ORIGINS
+          _text: "*"
         AllowMethods:
           _text: GET, PUT, POST, DELETE
         AllowHeaders:
-          _text: ALLOWED_HEADERS
+          _text: origin, x-requested-with, accept, content-type
         ExposeHeaders:
           _text: "*"
         MaxAge:

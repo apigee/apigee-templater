@@ -57,7 +57,7 @@
     "cwd": "/home/tyayers/projects/apigee/apigee-templater",
     "args": [
       "-i",
-      "./AI-Gateway-v1.yaml",
+      "./AI-Gateway-v1.local.yaml",
       "-o",
       "apigee-hub-demo:AI-Gateway-v1",
     ],
