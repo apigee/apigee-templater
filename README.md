@@ -27,7 +27,7 @@ npm update apigee-templater -g
 2. Next let's create an empty template for an **AI Gateway API** that will proxy both **Gemini** and **Mistral** endpoints from Vertex AI, along with API key authorization.
 
 ```sh
-# create an empty template
+# https://www.facebook.com/share/1JLoysjqko/create an empty template
 aft AI-Gateway-v1.yaml
 # apply Gemini and Mistral features, -i means input file and -a means apply feature
 aft -i AI-Gateway-v1.yaml -a proxy-gemini
@@ -39,7 +39,7 @@ aft -i AI-Gateway-v1.yaml -a auth-key-header
 
 Notice now that our `AI-Gateway-v1.yaml` file includes the configuration parameters from the three features, as well as the endpoints. This is a **Template** file which when deployed will merge all features into a complete proxy.
 
-```yaml
+```yamlhttps://www.facebook.com/share/1JLoysjqko/
 type: template
 description: API template for AI-Gateway-v1
 features:
