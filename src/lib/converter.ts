@@ -254,7 +254,7 @@ export class ApigeeConverter {
       newPolicy.name = policyJson[newPolicy.type]["_attributes"]["name"];
       if (policyJson["_declaration"]) delete policyJson["_declaration"];
       if (policyJson["_comment"]) delete policyJson["_comment"];
-      // policyJson = this.cleanXmlJson(policyJson);
+      policyJson = this.cleanXmlJson(policyJson);
       newPolicy.content = policyJson;
       newProxy.policies.push(newPolicy);
     }
@@ -2135,7 +2135,7 @@ export class ApigeeConverter {
     const newObj: any = {};
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
-        let newKey = key;
+        let newKey = this.toCamelCase(key);
 
         // Recursively transform the value and assign it to the new key.
         newObj[newKey] = this.removeXml(obj[key]);
@@ -2143,6 +2143,26 @@ export class ApigeeConverter {
     }
 
     return newObj;
+  }
+
+  public toCamelCase(str: string): string {
+    // Use regex to find words, splitting on caps, underscores, and hyphens
+    const words = str
+      .replace(/([a-z])([A-Z])/g, "$1 $2") // Space between lower and upper
+      .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2") // Space between acronym and next word
+      .replace(/[^a-zA-Z0-9]+/g, " ") // Replace non-alphanumeric with spaces
+      .trim()
+      .split(/\s+/);
+
+    if (words.length === 0) return "";
+
+    return words
+      .map((word, index) => {
+        const lower = word.toLowerCase();
+        if (index === 0) return lower;
+        return lower.charAt(0).toUpperCase() + lower.slice(1);
+      })
+      .join("");
   }
 
   public cleanJsonXml(input: any): any {

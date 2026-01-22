@@ -132,4 +132,13 @@
     "stopOnEntry": false,
     "args": ["test.local.yaml"],
   },
+  {
+    "adapter": "JavaScript",
+    "label": "cli.js - temp test",
+    "type": "pwa-node",
+    "request": "launch",
+    "program": "dist/bin/apigee-templater.js",
+    "stopOnEntry": false,
+    "args": ["-i", "AI-Gateway-v1.local.zip", "-o", "AI-Gateway-v1.local.yaml"],
+  },
 ]
