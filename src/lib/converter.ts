@@ -254,6 +254,7 @@ export class ApigeeConverter {
       newPolicy.name = policyJson[newPolicy.type]["_attributes"]["name"];
       if (policyJson["_declaration"]) delete policyJson["_declaration"];
       if (policyJson["_comment"]) delete policyJson["_comment"];
+      // clean-structure
       policyJson = this.cleanXmlJson(policyJson);
       newPolicy.content = policyJson;
       newProxy.policies.push(newPolicy);
@@ -299,11 +300,11 @@ export class ApigeeConverter {
       // save original target XML
       if (targetJson["TargetEndpoint"]["HTTPTargetConnection"]) {
         let targetXml = targetJson["TargetEndpoint"]["HTTPTargetConnection"];
-        // targetXml = this.cleanXmlJson(targetXml);
-        newTarget.httpTargetConnection = targetXml;
+        // clean-structure
+        newTarget.httpTargetConnection = this.cleanXmlJson(targetXml);
       } else if (targetJson["TargetEndpoint"]["LocalTargetConnection"]) {
         let targetXml = targetJson["TargetEndpoint"]["LocalTargetConnection"];
-        // targetXml = this.cleanXmlJson(targetXml);
+        // clean-structure
         newTarget.localTargetConnection = targetXml;
       }
 
