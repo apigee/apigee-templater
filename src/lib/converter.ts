@@ -255,7 +255,7 @@ export class ApigeeConverter {
       if (policyJson["_declaration"]) delete policyJson["_declaration"];
       if (policyJson["_comment"]) delete policyJson["_comment"];
       // clean-structure
-      policyJson = this.cleanXmlJson(policyJson);
+      policyJson = this.cleanXmlToJson(policyJson);
       newPolicy.content = policyJson;
       newProxy.policies.push(newPolicy);
     }
@@ -301,7 +301,7 @@ export class ApigeeConverter {
       if (targetJson["TargetEndpoint"]["HTTPTargetConnection"]) {
         let targetXml = targetJson["TargetEndpoint"]["HTTPTargetConnection"];
         // clean-structure
-        newTarget.httpTargetConnection = this.cleanXmlJson(targetXml);
+        newTarget.httpTargetConnection = this.cleanXmlToJson(targetXml);
       } else if (targetJson["TargetEndpoint"]["LocalTargetConnection"]) {
         let targetXml = targetJson["TargetEndpoint"]["LocalTargetConnection"];
         // clean-structure
@@ -793,11 +793,13 @@ export class ApigeeConverter {
 
         if (target.httpTargetConnection) {
           let targetJson = target.httpTargetConnection;
-          // targetJson = this.cleanJsonXml(targetJson);
+          // clean-structure
+          targetJson = this.cleanJsonToXml(targetJson);
           targetXml["TargetEndpoint"]["HTTPTargetConnection"] = targetJson;
         } else if (target.localTargetConnection) {
           let targetJson = target.localTargetConnection;
-          // targetJson = this.cleanJsonXml(targetJson);
+          // clean-structure
+          targetJson = this.cleanJsonToXml(targetJson);
           targetXml["TargetEndpoint"]["LocalTargetConnection"] = targetJson;
         } else if (target.url) {
           targetXml["TargetEndpoint"]["HTTPTargetConnection"] = {
@@ -878,7 +880,8 @@ export class ApigeeConverter {
       for (let policy of input["policies"]) {
         fs.mkdirSync(tempFilePath + "/apiproxy/policies", { recursive: true });
         let policyJson = policy["content"];
-        // policyJson = this.cleanJsonXml(policyJson);
+        // clean-structure
+        policyJson = this.cleanJsonToXml(policyJson);
         let policyContent = JSON.stringify(policyJson);
         let xmlString = xmljs.json2xml(policyContent, {
           compact: true,
@@ -2110,7 +2113,7 @@ export class ApigeeConverter {
     return this.proxyToStringArray(proxy).join("\n");
   }
 
-  public cleanXmlJson(input: any): any {
+  public cleanXmlToJson(input: any): any {
     if (input["_declaration"]) delete input["_declaration"];
     let result = this.removeXml(input);
     return result;
@@ -2166,48 +2169,65 @@ export class ApigeeConverter {
       .join("");
   }
 
-  public cleanJsonXml(input: any): any {
-    input = this.addXml(input);
-    let newInput: any = {
-      _declaration: {
-        _attributes: {
-          version: "1.0",
-          encoding: "UTF-8",
-          standalone: "yes",
-        },
-      },
-    };
-    for (const key in input) newInput[key] = input[key];
+  public cleanJsonToXml(input: any): any {
+    input = this.generateXml("", input);
+    return input;
+    // let newInput: any = {
+    //   _declaration: {
+    //     _attributes: {
+    //       version: "1.0",
+    //       encoding: "UTF-8",
+    //       standalone: "yes",
+    //     },
+    //   },
+    // };
+    // for (const key in input) newInput[key] = input[key];
 
-    return newInput;
+    // return newInput;
   }
 
-  public addXml(inputObject: any): any {
+  public generateXml(parentName: string, inputObject: any): any {
     if (typeof inputObject !== "object" || inputObject === null) {
       return inputObject;
     }
     if (Array.isArray(inputObject)) {
-      return inputObject.map((item) => this.addXml(item));
+      return inputObject.map((item) => this.generateXml("", item));
     }
 
     const newObject: any = {};
 
     for (const key in inputObject) {
       if (Object.prototype.hasOwnProperty.call(inputObject, key)) {
+        let newKey = key;
         const value = inputObject[key];
 
-        if (typeof value === "string") {
-          newObject[key] = {
+        if (newKey === "attributes") newKey = "_attributes";
+        else if (parentName !== "_attributes") {
+          newKey = this.removeCamelCase(newKey);
+        }
+
+        if (typeof value === "string" && parentName !== "_attributes") {
+          newObject[newKey] = {
             _text: value,
           };
         } else if (typeof value === "object" && value !== null) {
-          newObject[key] = this.addXml(value);
+          newObject[newKey] = this.generateXml(newKey, value);
         } else {
-          newObject[key] = value;
+          newObject[newKey] = value;
         }
       }
     }
 
     return newObject;
+  }
+
+  public removeCamelCase(str: string): string {
+    let result = str;
+    result = result.substring(0, 1).toUpperCase() + result.substring(1);
+    if (result.includes("Json")) result = result.replace("Json", "JSON");
+    if (result.includes("Url")) result = result.replace("Url", "URL");
+    if (result.includes("Cors")) result = result.replace("Cors", "CORS");
+    if (result.includes("Http")) result = result.replace("Http", "HTTP");
+    return result;
   }
 }

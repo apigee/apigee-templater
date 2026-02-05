@@ -139,6 +139,6 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["-i", "AI-Gateway-v1.local.zip", "-o", "AI-Gateway-v1.local.yaml"],
+    "args": ["-i", "test.local.yaml", "-o", "test.local.new.zip"],
   },
 ]
