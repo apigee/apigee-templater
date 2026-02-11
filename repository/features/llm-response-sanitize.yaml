@@ -27,25 +27,19 @@ policies:
   - name: SMR-SanitizeResponse
     type: SanitizeModelResponse
     content:
-      SanitizeModelResponse:
-        _attributes:
+      sanitizeModelResponse:
+        metadata:
           async: "false"
           continueOnError: "false"
           enabled: "true"
           name: SMR-SanitizeResponse
-        IgnoreUnresolvedVariables:
-          _text: "false"
-        DisplayName:
-          _text: SMR-SanitizeResponse
-        ModelArmor:
-          TemplateName:
-            _text: "{propertyset.model-armor.TEMPLATE_ID}"
-        UserPromptSource:
-          _text: "{jsonPath('$.contents[-1].parts[-1].text',request.content,true)}"
-        LLMResponseSource:
-          _text:
-            "{jsonPath('$.candidates[-1].content.parts[-1].text',response.content,tr\
-            ue)}"
+        ignoreUnresolvedVariables: "false"
+        displayName: SMR-SanitizeResponse
+        modelArmor:
+          templateName: "{propertyset.model-armor.TEMPLATE_ID}"
+        userPromptSource: "{jsonPath('$.contents[-1].parts[-1].text',request.content,true)}"
+        llmResponseSource: "{jsonPath('$.candidates[-1].content.parts[-1].text',respons\
+          e.content,true)}"
 resources:
   - name: model-armor.properties
     type: properties

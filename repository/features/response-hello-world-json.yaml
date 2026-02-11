@@ -1,4 +1,5 @@
 name: response-hello-world-json
+displayName: ""
 type: feature
 description: |
   If the proxy response is JSON, then a message property is added to the payload.
@@ -38,17 +39,15 @@ policies:
   - name: JS-AddHelloWorld
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-AddHelloWorld
-        DisplayName:
-          _text: JS-AddHelloWorld
-        Properties: {}
-        ResourceURL:
-          _text: jsc://hello-world.js
+        displayName: JS-AddHelloWorld
+        properties: {}
+        resourceUrl: jsc://hello-world.js
 resources:
   - name: hello-world.js
     type: jsc

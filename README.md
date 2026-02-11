@@ -1,10 +1,8 @@
 <p align="center"><img width="244" height="244" alt="Gemini_Generated_Image_62tjhy62tjhy62tj" src="https://github.com/user-attachments/assets/e977197c-f5c5-4593-bcc6-b60194280b74" />
-<br><b>Apigee Feature Templater v3</b></p>
+<br><b>Apigee Feature Templater v4</b></p>
 
-🚀 New experimental version v3. The previous version v2 is available in the [v2 branch](https://github.com/apigee/apigee-templater/tree/v2).
-
-# Apigee Feature Templater
-Apigee Feature Templater (or **aft**) is **an experimental tool** providing assisted API authoring through the use of **Feature** and **Template** definitions in JSON or YAML formats created and managed through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers. This tool is **experimental** and explores a feature-based approach to API proxy building and configuration.
+# Apigee Feature Templater 4
+Apigee Feature Templater (or **aft**) is a tool providing assisted API authoring through the use of **Feature** and **Template** definitions in JSON or YAML formats, created through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers.
 
 Check out the [wiki](https://github.com/apigee/apigee-templater/wiki) for more detailed documentation.
 
@@ -24,15 +22,15 @@ npm i apigee-templater -g
 npm update apigee-templater -g
 ```
 
-2. Next let's create an empty template for an **AI Gateway API** that will proxy both **Gemini** and **Mistral** endpoints from Vertex AI, along with API key authorization.
+2. Next let's create an empty template for an **AI Gateway API** that will proxy both **Gemini** and **Qwen** endpoints from Vertex AI, along with API key authorization.
 
 ```sh
 # create an empty template
 aft AI-Gateway-v1.yaml
-# apply Gemini and Mistral features, -i means input file and -a means apply feature
-aft -i AI-Gateway-v1.yaml -a proxy-gemini
-aft -i AI-Gateway-v1.yaml -a proxy-mistral
-aft -i AI-Gateway-v1.yaml -a auth-key-header
+# apply Gemini and Kimi features, -i means input file and -a means apply feature
+aft AI-Gateway-v1.yaml -a target-llm-gemini
+aft AI-Gateway-v1.yaml -a target-llm-qwen
+aft AI-Gateway-v1.yaml -a auth-key-header
 # when applying features with -a, we can use file or https paths,
 # or names from the ./repository/features directory.
 ```
@@ -40,40 +38,39 @@ aft -i AI-Gateway-v1.yaml -a auth-key-header
 Notice now that our `AI-Gateway-v1.yaml` file includes the configuration parameters from the three features, as well as the endpoints. This is a **Template** file which when deployed will merge all features into a complete proxy.
 
 ```yaml
+name: AI-Gateway-v1
 type: template
 description: API template for AI-Gateway-v1
 features:
-  - proxy-gemini.5vorvj
-  - proxy-mistral.4z32
-  - auth-key-header.pimaw
+  - target-llm-gemini.llm
+  - target-llm-qwen.llm1
+  - auth-key-header.key
 parameters:
-  # ... parameters from all features, these can be passed during
-  # deployment to customize the features ...
-  - name: auth-key-header.pimaw.API_KEY_HEADER_NAME
+  - name: auth-key-header.key.API_KEY_HEADER_NAME
     description: The header where the api key is checked.
     default: x-api-key
     examples:
       - x-api-key
       - x-apikey
 endpoints:
-  - name: 5vorvj-gemini
-    basePath: "{BASE_PATH}"
+  - name: llm-gemini
+    basePath: /v1/gemini
     routes:
       - name: default
-        target: 5vorvj-gemini
-  - name: 4z32-mistral
-    basePath: "{BASE_PATH}"
+        target: llm-gemini
+  - name: llm1-qwen
+    basePath: /v1/qwen
     routes:
       - name: default
-        target: 4z32-mistral
+        target: llm1-qwen
 targets:
-  - name: 5vorvj-gemini
-    url: https://{propertyset.gemini.GEMINI_PATH}
+  - name: llm-gemini
+    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
     auth: GoogleAccessToken
     scopes:
       - https://www.googleapis.com/auth/cloud-platform
-  - name: 4z32-mistral
-    url: https://{propertyset.mistral.MISTRAL_PATH}
+  - name: llm1-qwen
+    url: https://aiplatform.googleapis.com/v1/projects/apigee-prod13/locations/global/endpoints/openapi/chat/completions
     auth: GoogleAccessToken
     scopes:
       - https://www.googleapis.com/auth/cloud-platform
@@ -102,38 +99,56 @@ aft -i GCP_PROJECT_ID:Feature-DATA-HelloWorld-v1 -o DATA-HelloWorld-v1.yaml -f f
 ```
 The resulting example feature file contains all of the proxy logic, along with any propertysets converted into input parameters that can be configured. This feature takes a configurable message and adds it to the response payload, if it exists.
 ```yaml
-name: DATA-HelloWorld-v1
+name: response-hello-world-json
+displayName: ""
 type: feature
-description: Proxy for DATA-HelloWorld-v1
+description: |
+  If the proxy response is JSON, then a message property is added to the payload.
+
+  **Prerequisites**
+  - The message response is JSON.
+
+  **Inputs**
+  - A 'message' property is either sent as query parameter or retrieved from the properties file.
+
+  **Outputs**
+  - If the proxy response is JSON, then the message property is added to the payload.
+categories:
+  - traffic
 parameters:
   - name: MESSAGE
     displayName: MESSAGE
     description: Configuration input for MESSAGE
     default: Hello world!
-    examples: []
-endpointFlows:
-  - name: PostFlow
-    mode: Response
-    steps:
-      - name: JS-AddHelloWorld
-targetFlows: []
+    examples:
+      - Hello mars!
+      - Hello internet!
+defaultEndpoint:
+  name: default
+  basePath: /feature-data-helloworld-v1
+  routes:
+    - name: default
+  flows:
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: JS-AddHelloWorld
+  faultRules: []
 endpoints: []
 targets: []
 policies:
   - name: JS-AddHelloWorld
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-AddHelloWorld
-        DisplayName:
-          _text: JS-AddHelloWorld
-        Properties: {}
-        ResourceURL:
-          _text: jsc://hello-world.js
+        displayName: JS-AddHelloWorld
+        properties: {}
+        resourceUrl: jsc://hello-world.js
 resources:
   - name: hello-world.js
     type: jsc
@@ -168,30 +183,6 @@ aft -o HttpBin-Proxy-v1.yaml
 # and is the default -o output if nothing else is set
 aft -i HttpBin-Proxy-v1.yaml -a ./repository/features/PROXY-HttpBin-v1.yaml
 aft -i HttpBin-Proxy-v1.yaml -a ./repository/features/DATA-HelloWorld-v1.yaml
-```
-Here is the resulting feature template file after applying the above features.
-```yaml
-name: HttpBin-Proxy-v1
-type: template
-description: API template for HttpBin-Proxy-v1
-features:
-  - repository/features/PROXY-HttpBin-v1.yaml
-  - repository/features/DATA-HelloWorld-v1.yaml
-parameters:
-  - name: DATA-HelloWorld-v1.MESSAGE
-    displayName: MESSAGE
-    description: Configuration input for MESSAGE
-    default: Hello world!
-    examples: []
-endpoints:
-  - name: httpbin
-    basePath: /v1/httpbin
-    routes:
-      - name: default
-        target: httpbin
-targets:
-  - name: httpbin
-    url: https://httpbin.org
 ```
 This feature template file references two features, and also includes all parameters, endpoints and targets from all features into one bundle that can be deployed. If there would have been a conflict, it would have been output as a warning (with the last conflict winning).
 

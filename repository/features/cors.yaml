@@ -13,22 +13,17 @@ description: |
 
   **Outputs**
   - The allowed headers are set according to the configuration, enabling CORS requests to be answered for allowed requests.
-priority: 5
 categories:
   - traffic
 parameters:
   - name: ALLOWED_ORIGINS
     description: The allowed origins of clients.
-    paths:
-      - $.policies[:1].content.CORS.AllowOrigins._text
     default: "*"
     examples:
       - "*"
       - "{request.header.origin}"
   - name: ALLOWED_HEADERS
     description: The allowed headers for clients to send.
-    paths:
-      - $.policies[:1].content.CORS.AllowHeaders._text
     default: origin, x-requested-with, accept, content-type
     examples:
       - origin, x-requested-with, accept, content-type
@@ -49,28 +44,19 @@ policies:
   - name: CORS-AddCors
     type: CORS
     content:
-      CORS:
-        _attributes:
+      cors:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           name: CORS-AddCors
-        DisplayName:
-          _text: CORS-AddCors
-        AllowOrigins:
-          _text: "*"
-        AllowMethods:
-          _text: GET, PUT, POST, DELETE
-        AllowHeaders:
-          _text: origin, x-requested-with, accept, content-type
-        ExposeHeaders:
-          _text: "*"
-        MaxAge:
-          _text: "3628800"
-        AllowCredentials:
-          _text: "false"
-        GeneratePreflightResponse:
-          _text: "true"
-        IgnoreUnresolvedVariables:
-          _text: "true"
+        displayName: CORS-AddCors
+        allowOrigins: "*"
+        allowMethods: GET, PUT, POST, DELETE
+        allowHeaders: origin, x-requested-with, accept, content-type
+        exposeHeaders: "*"
+        maxAge: "3628800"
+        allowCredentials: "false"
+        generatePreflightResponse: "true"
+        ignoreUnresolvedVariables: "true"
 resources: []
 tests: []

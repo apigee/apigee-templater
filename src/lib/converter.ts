@@ -2140,7 +2140,9 @@ export class ApigeeConverter {
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
         let newKey = this.toCamelCase(key);
-
+        // metadata sounds cooler ;)
+        if (newKey === "attributes") newKey = "metadata";
+        if (newKey === "text") newKey = "value";
         // Recursively transform the value and assign it to the new key.
         newObj[newKey] = this.removeXml(obj[key]);
       }
@@ -2201,16 +2203,13 @@ export class ApigeeConverter {
         let newKey = key;
         const value = inputObject[key];
 
-        if (newKey === "attributes") newKey = "_attributes";
-        else if (parentName !== "_attributes") {
+        if (newKey === "metadata") newKey = "_attributes";
+        else if (newKey === "value") newKey = "_text";
+        else if (parentName !== "_attributes" && parentName != "_text") {
           newKey = this.removeCamelCase(newKey);
         }
 
-        if (typeof value === "string" && parentName !== "_attributes") {
-          newObject[newKey] = {
-            _text: value,
-          };
-        } else if (typeof value === "object" && value !== null) {
+        if (typeof value === "object" && value !== null) {
           newObject[newKey] = this.generateXml(newKey, value);
         } else {
           newObject[newKey] = value;
@@ -2228,6 +2227,7 @@ export class ApigeeConverter {
     if (result.includes("Url")) result = result.replace("Url", "URL");
     if (result.includes("Cors")) result = result.replace("Cors", "CORS");
     if (result.includes("Http")) result = result.replace("Http", "HTTP");
+    if (result.includes("Api")) result = result.replace("Api", "API");
     return result;
   }
 }

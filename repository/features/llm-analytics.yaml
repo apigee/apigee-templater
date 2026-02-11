@@ -42,39 +42,33 @@ policies:
   - name: DC-ModelInfo
     type: DataCapture
     content:
-      DataCapture:
-        _attributes:
+      dataCapture:
+        metadata:
           name: DC-ModelInfo
           continueOnError: "false"
           enabled: "true"
-        DisplayName:
-          _text: DC-ModelInfo
-        IgnoreUnresolvedVariables:
-          _text: "true"
-        Capture:
-          - Collect:
-              _attributes:
+        displayName: DC-ModelInfo
+        ignoreUnresolvedVariables: "true"
+        capture:
+          - collect:
+              metadata:
                 ref: llm.model
                 default: ""
-            DataCollector:
-              _text: dc_llm_model
-          - Collect:
-              _attributes:
+            dataCollector: dc_llm_model
+          - collect:
+              metadata:
                 ref: llm.promptTokenCount
                 default: "0"
-            DataCollector:
-              _text: dc_llm_prompt_token_count
-          - Collect:
-              _attributes:
+            dataCollector: dc_llm_prompt_token_count
+          - collect:
+              metadata:
                 ref: llm.responseTokenCount
                 default: "0"
-            DataCollector:
-              _text: dc_llm_response_token_count
-          - Collect:
-              _attributes:
+            dataCollector: dc_llm_response_token_count
+          - collect:
+              metadata:
                 ref: llm.totalTokenCount
                 default: "0"
-            DataCollector:
-              _text: dc_llm_total_token_count
+            dataCollector: dc_llm_total_token_count
 resources: []
 tests: []

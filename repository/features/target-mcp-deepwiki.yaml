@@ -1,9 +1,10 @@
-name: proxy-mcp-deepwiki
+name: target-mcp-deepwiki
+displayName: ""
 type: feature
 description: Feature-PROXY-DeepWiki-v1
-parameters: []
 categories:
   - services
+parameters: []
 endpoints:
   - name: deepwiki
     basePath: /v1/deepwiki
@@ -25,31 +26,28 @@ targets:
         steps: []
     faultRules: []
     httpTargetConnection:
-      Properties: {}
-      URL:
-        _text: https://mcp.deepwiki.com
+      properties: {}
+      url: https://mcp.deepwiki.com
 policies:
   - name: AM-SetEncoding
     type: AssignMessage
     content:
-      AssignMessage:
-        _attributes:
+      assignMessage:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           name: AM-SetEncoding
-        DisplayName:
-          _text: AM-SetEncoding
-        Properties: {}
-        Set:
-          Headers:
-            Header:
-              _attributes:
+        displayName: AM-SetEncoding
+        properties: {}
+        set:
+          headers:
+            header:
+              metadata:
                 name: Accept-Encoding
-              _text: gzip,deflate
-        IgnoreUnresolvedVariables:
-          _text: "true"
-        AssignTo:
-          _attributes:
+              text: gzip,deflate
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
             createNew: "false"
             transport: http
             type: request

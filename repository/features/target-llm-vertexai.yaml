@@ -1,9 +1,9 @@
-name: proxy-kimi-global
-displayName: Kimi Product
+name: proxy-llm-vertexai
+displayName: Vertex AI Model Garden
 type: feature
 description: |
-  This feature adds an endpoints with basepath at v1/kimi, and proxies
-  requests to the Vertex AI Kimi global endpoint.
+  This feature adds an endpoints with basepath at v1/gemini, and proxies
+  requests to the Vertex AI Gemini endpoint in a configured region.
 
   **Prerequisites**
   - Vertex AI is enabled in the GCP Project.
@@ -27,20 +27,20 @@ description: |
   - Stores successful prompt token count in the **Apigee variable llm.promptTokenCount**
   - Stores successful response token count in the **Apigee variable llm.responseTokenCount**
   - Stores successful total token count in the **Apigee variable llm.totalTokenCount**
-  - Normal response from the model in OAI format.
+  - Normal response from Gemini in OAI format.
 categories:
   - llm
 parameters:
   - name: BASE_PATH
-    paths:
-      - $.endpoints[:1].basePath
     displayName: BASE_PATH
     description: The base path on the proxy to receive traffic.
-    default: /v1/kimi
+    paths:
+      - $.endpoints[:1].basePath
+    default: /v1/gemini
     examples:
-      - /v1/kimi
-      - /kimi
-      - /llm/kimi
+      - /v1/gemini
+      - /gemini
+      - /llm/gemini
   - name: PROJECT_ID
     displayName: PROJECT_ID
     description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
@@ -56,13 +56,14 @@ parameters:
       - us-east1
   - name: MODEL_ID
     displayName: MODEL_ID
-    description: The model to use for the request.
-    default: moonshotai/kimi-k2-thinking-maas
+    description: The Gemini model to use for the request.
+    default: gemini-2.5-flash
     examples:
-      - moonshotai/kimi-k2-thinking-maas
+      - gemini-2.5-flash
+      - gemini-2.5-pro
 endpoints:
   - name: vertexai
-    basePath: /v1/kimi
+    basePath: /v1/gemini
     routes:
       - name: default
         target: vertexai
@@ -91,94 +92,79 @@ targets:
           - name: JS-SetStreamInfo
     faultRules: []
     httpTargetConnection:
-      Properties: {}
-      URL:
-        _text: https://aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/global/endpoints/openapi/chat/completions
-      Authentication:
-        GoogleAccessToken:
-          Scopes:
-            Scope:
-              _text: https://www.googleapis.com/auth/cloud-platform
+      properties: {}
+      url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
+      authentication:
+        googleAccessToken:
+          scopes:
+            scope: https://www.googleapis.com/auth/cloud-platform
 policies:
   - name: EV-VertexStoreInfo
     type: ExtractVariables
     content:
-      ExtractVariables:
-        _attributes:
+      extractVariables:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           name: EV-VertexStoreInfo
-        DisplayName:
-          _text: EV-VertexStoreInfo
-        Properties: {}
-        IgnoreUnresolvedVariables:
-          _text: "true"
-        JSONPayload:
-          Variable:
-            - _attributes:
+        displayName: EV-VertexStoreInfo
+        properties: {}
+        ignoreUnresolvedVariables: "true"
+        jsonPayload:
+          variable:
+            - metadata:
                 name: model
-              JSONPath:
-                _text: $.model
-            - _attributes:
+              jsonPath: $.model
+            - metadata:
                 name: promptTokenCount
-              JSONPath:
-                _text: $.usage.prompt_tokens
-            - _attributes:
+              jsonPath: $.usage.prompt_tokens
+            - metadata:
                 name: responseTokenCount
-              JSONPath:
-                _text: $.usage.completion_tokens
-            - _attributes:
+              jsonPath: $.usage.completion_tokens
+            - metadata:
                 name: totalTokenCount
-              JSONPath:
-                _text: $.usage.total_tokens
-        Source:
-          _attributes:
+              jsonPath: $.usage.total_tokens
+        source:
+          metadata:
             clearPayload: "false"
-          _text: response
-        VariablePrefix:
-          _text: llm
+          text: response
+        variablePrefix: llm
   - name: JS-SetStreamInfo
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-SetStreamInfo
-        DisplayName:
-          _text: JS-SetStreamInfo
-        Properties: {}
-        ResourceURL:
-          _text: jsc://set-vertex-stream-info.js
+        displayName: JS-SetStreamInfo
+        properties: {}
+        resourceUrl: jsc://set-vertex-stream-info.js
   - name: JS-SetVertexModel
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-SetVertexModel
-        DisplayName:
-          _text: JS-SetVertexModel
-        Properties: {}
-        ResourceURL:
-          _text: jsc://set-vertex-model.js
+        displayName: JS-SetVertexModel
+        properties: {}
+        resourceUrl: jsc://set-vertex-model.js
   - name: JS-SetVertexPrompt
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-SetVertexPrompt
-        DisplayName:
-          _text: JS-SetVertexPrompt
-        Properties: {}
-        ResourceURL:
-          _text: jsc://set-vertex-prompt.js
+        displayName: JS-SetVertexPrompt
+        properties: {}
+        resourceUrl: jsc://set-vertex-prompt.js
 resources:
   - name: set-vertex-model.js
     type: jsc

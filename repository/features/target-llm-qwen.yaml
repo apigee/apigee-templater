@@ -1,9 +1,9 @@
-name: proxy-gpt-global
-displayName: GPT Product
+name: target-llm-qwen
+displayName: Qwen Product
 type: feature
 description: |
-  This feature adds an endpoints with basepath at v1/gpt, and proxies
-  requests to the Vertex AI GPT global endpoint.
+  This feature adds an endpoints with basepath at v1/qwen, and proxies
+  requests to the Vertex AI Qwen global endpoint.
 
   **Prerequisites**
   - Vertex AI is enabled in the GCP Project.
@@ -36,11 +36,11 @@ parameters:
       - $.endpoints[:1].basePath
     displayName: BASE_PATH
     description: The base path on the proxy to receive traffic.
-    default: /v1/gpt
+    default: /v1/qwen
     examples:
-      - /v1/gpt
-      - /gpt
-      - /llm/gpt
+      - /v1/qwen
+      - /qwen
+      - /llm/qwen
   - name: PROJECT_ID
     displayName: PROJECT_ID
     description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
@@ -57,20 +57,20 @@ parameters:
   - name: MODEL_ID
     displayName: MODEL_ID
     description: The model to use for the request.
-    default: openai/gpt-oss-120b-maas
+    default: qwen/qwen3-next-80b-a3b-thinking-maas
     examples:
-      - openai/gpt-oss-120b-maas
+      - qwen/qwen3-next-80b-a3b-thinking-maas
 endpoints:
-  - name: vertexai
-    basePath: /v1/gpt
+  - name: qwen
+    basePath: /v1/qwen
     routes:
       - name: default
-        target: vertexai
+        target: qwen
     flows: []
     faultRules: []
 targets:
-  - name: vertexai
-    url: https://aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/global/endpoints/openapi/chat/completions
+  - name: qwen
+    url: https://aiplatform.googleapis.com/v1/projects/apigee-prod13/locations/global/endpoints/openapi/chat/completions
     auth: GoogleAccessToken
     scopes:
       - https://www.googleapis.com/auth/cloud-platform
@@ -91,94 +91,79 @@ targets:
           - name: JS-SetStreamInfo
     faultRules: []
     httpTargetConnection:
-      Properties: {}
-      URL:
-        _text: https://aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/global/endpoints/openapi/chat/completions
-      Authentication:
-        GoogleAccessToken:
-          Scopes:
-            Scope:
-              _text: https://www.googleapis.com/auth/cloud-platform
+      properties: {}
+      url: https://aiplatform.googleapis.com/v1/projects/apigee-prod13/locations/global/endpoints/openapi/chat/completions
+      authentication:
+        googleAccessToken:
+          scopes:
+            scope: https://www.googleapis.com/auth/cloud-platform
 policies:
   - name: EV-VertexStoreInfo
     type: ExtractVariables
     content:
-      ExtractVariables:
-        _attributes:
+      extractVariables:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           name: EV-VertexStoreInfo
-        DisplayName:
-          _text: EV-VertexStoreInfo
-        Properties: {}
-        IgnoreUnresolvedVariables:
-          _text: "true"
-        JSONPayload:
-          Variable:
-            - _attributes:
+        displayName: EV-VertexStoreInfo
+        properties: {}
+        ignoreUnresolvedVariables: "true"
+        jsonPayload:
+          variable:
+            - metadata:
                 name: model
-              JSONPath:
-                _text: $.model
-            - _attributes:
+              jsonPath: $.model
+            - metadata:
                 name: promptTokenCount
-              JSONPath:
-                _text: $.usage.prompt_tokens
-            - _attributes:
+              jsonPath: $.usage.prompt_tokens
+            - metadata:
                 name: responseTokenCount
-              JSONPath:
-                _text: $.usage.completion_tokens
-            - _attributes:
+              jsonPath: $.usage.completion_tokens
+            - metadata:
                 name: totalTokenCount
-              JSONPath:
-                _text: $.usage.total_tokens
-        Source:
-          _attributes:
+              jsonPath: $.usage.total_tokens
+        source:
+          metadata:
             clearPayload: "false"
-          _text: response
-        VariablePrefix:
-          _text: llm
+          value: response
+        variablePrefix: llm
   - name: JS-SetStreamInfo
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-SetStreamInfo
-        DisplayName:
-          _text: JS-SetStreamInfo
-        Properties: {}
-        ResourceURL:
-          _text: jsc://set-vertex-stream-info.js
+        displayName: JS-SetStreamInfo
+        properties: {}
+        resourceUrl: jsc://set-vertex-stream-info.js
   - name: JS-SetVertexModel
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-SetVertexModel
-        DisplayName:
-          _text: JS-SetVertexModel
-        Properties: {}
-        ResourceURL:
-          _text: jsc://set-vertex-model.js
+        displayName: JS-SetVertexModel
+        properties: {}
+        resourceUrl: jsc://set-vertex-model.js
   - name: JS-SetVertexPrompt
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-SetVertexPrompt
-        DisplayName:
-          _text: JS-SetVertexPrompt
-        Properties: {}
-        ResourceURL:
-          _text: jsc://set-vertex-prompt.js
+        displayName: JS-SetVertexPrompt
+        properties: {}
+        resourceUrl: jsc://set-vertex-prompt.js
 resources:
   - name: set-vertex-model.js
     type: jsc

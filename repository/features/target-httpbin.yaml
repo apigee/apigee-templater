@@ -1,4 +1,4 @@
-name: proxy-httpbin
+name: target-httpbin
 displayName: HttpBin Proxy
 type: feature
 description: Feature to proxy httpbin.org.
@@ -15,7 +15,7 @@ parameters:
       - /llm/httpbin
 endpoints:
   - name: httpbin
-    basePath: "{BASE_PATH}"
+    basePath: /v1/httpbin
     routes:
       - name: default
         target: httpbin
@@ -27,9 +27,8 @@ targets:
     flows: []
     faultRules: []
     httpTargetConnection:
-      Properties: {}
-      URL:
-        _text: https://httpbin.org
+      properties: {}
+      url: https://httpbin.org
 policies: []
 resources: []
 tests: []

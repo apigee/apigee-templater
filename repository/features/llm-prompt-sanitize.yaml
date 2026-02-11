@@ -76,59 +76,49 @@ policies:
   - name: JS-LogModelArmor
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-LogModelArmor
-        DisplayName:
-          _text: JS-LogModelArmor
-        Properties: {}
-        ResourceURL:
-          _text: jsc://log-modal-armor.js
+        displayName: JS-LogModelArmor
+        properties: {}
+        resourceUrl: jsc://log-modal-armor.js
   - name: RF-ArmorFault
     type: RaiseFault
     content:
-      RaiseFault:
-        _attributes:
+      raiseFault:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           name: RF-ArmorFault
-        DisplayName:
-          _text: RF-ArmorFault
-        Properties: {}
-        FaultResponse:
-          Set:
-            Headers: {}
-            Payload:
-              _attributes:
+        displayName: RF-ArmorFault
+        properties: {}
+        faultResponse:
+          set:
+            headers: {}
+            payload:
+              metadata:
                 contentType: text/plain
-              _text: Prompt content rejected.
-            StatusCode:
-              _text: "400"
-            ReasonPhrase:
-              _text: Server Error
-        IgnoreUnresolvedVariables:
-          _text: "true"
+              text: Prompt content rejected.
+            statusCode: "400"
+            reasonPhrase: Server Error
+        ignoreUnresolvedVariables: "true"
   - name: SUP-SanitizeRequest
     type: SanitizeUserPrompt
     content:
-      SanitizeUserPrompt:
-        _attributes:
+      sanitizeUserPrompt:
+        metadata:
           async: "false"
           continueOnError: "false"
           enabled: "true"
           name: SUP-SanitizeRequest
-        IgnoreUnresolvedVariables:
-          _text: "false"
-        DisplayName:
-          _text: SUP-SanitizeRequest
-        ModelArmor:
-          TemplateName:
-            _text: projects/{organization.name}/locations/{system.region.name}/templates/default-ma-template
-        UserPromptSource:
-          _text: "{llm.promptInput}"
+        ignoreUnresolvedVariables: "false"
+        displayName: SUP-SanitizeRequest
+        modelArmor:
+          templateName: projects/{organization.name}/locations/{system.region.name}/templates/default-ma-template
+        userPromptSource: "{llm.promptInput}"
 resources:
   - name: log-modal-armor.js
     type: jsc

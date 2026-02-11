@@ -1,4 +1,4 @@
-name: proxy-bigquery
+name: target-bigquery
 displayName: BigQuery Data Product
 type: feature
 description: proxy-bigquery
@@ -8,25 +8,25 @@ parameters:
   - name: ENTITY_NAME
     displayName: ENTITY_NAME
     description: Configuration input for ENTITY_NAME
-    default: "alphafold"
+    default: alphafold
     examples:
       - alphafold
       - bbcnews
   - name: BASE_PATH
     displayName: BASE_PATH
     description: Base path to access the data at.
-    default: "/{ENTITY_NAME}"
+    default: /{ENTITY_NAME}
     examples: []
   - name: DATA_NAME
     displayName: DATA_NAME
     description: The name of the dataset or the query to run.
-    default: "bigquery-public-data.deepmind_alphafold"
+    default: bigquery-public-data.deepmind_alphafold
     examples:
       - bigquery-public-data.deepmind_alphafold
       - bigquery-public-data.bbc_news
 endpoints:
   - name: bigquery
-    basePath: "/{ENTITY_NAME}"
+    basePath: /alphafold
     routes:
       - name: default
         target: bigquery
@@ -55,79 +55,65 @@ targets:
           - name: JS-RunPostTarget-Script
     faultRules: []
     httpTargetConnection:
-      Properties: {}
-      URL:
-        _text: https://bigquery.googleapis.com/bigquery/v2/projects/{organization.name}/queries
-      Authentication:
-        GoogleAccessToken:
-          Scopes:
-            Scope:
-              _text: https://www.googleapis.com/auth/bigquery
+      properties: {}
+      url: https://bigquery.googleapis.com/bigquery/v2/projects/{organization.name}/queries
+      authentication:
+        googleAccessToken:
+          scopes:
+            scope: https://www.googleapis.com/auth/cloud-platform
 policies:
   - name: EV-ExtractName
     type: ExtractVariables
     content:
-      ExtractVariables:
-        _attributes:
+      extractVariables:
+        metadata:
           name: EV-ExtractName
           enabled: "true"
-        DisplayName:
-          _text: EV-ExtractName
-        URIPath:
-          Pattern:
-            _text: /{entityName}
+        displayName: EV-ExtractName
+        uriPath:
+          pattern: /{entityName}
   - name: JS-RunPostTarget-Script
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           name: JS-RunPostTarget-Script
-        DisplayName:
-          _text: JS-RunPostTarget-Script
-        Properties: {}
-        ResourceURL:
-          _text: jsc://bigquery_posttarget.js
-        IncludeURL:
-          _text: jsc://bigquery_functions.js
+        displayName: JS-RunPostTarget-Script
+        properties: {}
+        resourceUrl: jsc://bigquery_posttarget.js
+        includeUrl: jsc://bigquery_functions.js
   - name: JS-RunPreTarget-Script
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           name: JS-RunPreTarget-Script
-        DisplayName:
-          _text: JS-RunPreTarget-Script
-        Properties: {}
-        ResourceURL:
-          _text: jsc://bigquery_pretarget.js
-        IncludeURL:
-          _text: jsc://bigquery_functions.js
+        displayName: JS-RunPreTarget-Script
+        properties: {}
+        resourceUrl: jsc://bigquery_pretarget.js
+        includeUrl: jsc://bigquery_functions.js
   - name: KVM-GetVariables
     type: KeyValueMapOperations
     content:
-      KeyValueMapOperations:
-        _attributes:
+      keyValueMapOperations:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           name: KVM-GetVariables
           mapIdentifier: marketplace-kvm
-        DisplayName:
-          _text: KVM-GetVariables
-        Properties: {}
-        ExclusiveCache:
-          _text: "false"
-        ExpiryTimeInSecs:
-          _text: "300"
-        Get:
-          _attributes:
+        displayName: KVM-GetVariables
+        properties: {}
+        exclusiveCache: "false"
+        expiryTimeInSecs: "300"
+        get:
+          metadata:
             assignTo: data.lookup
             index: "1"
-          Key:
-            Parameter:
-              _attributes:
+          key:
+            parameter:
+              metadata:
                 ref: entityName
-        Scope:
-          _text: environment
+        scope: environment
 resources:
   - name: bigquery_functions.js
     type: jsc

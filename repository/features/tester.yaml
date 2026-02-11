@@ -1,7 +1,9 @@
 name: tester
+displayName: ""
 uid: test
 type: feature
-description: Policies to help with unit testing proxies using the API Tester framework at https://tdd.upstr.dev.
+description: Policies to help with unit testing proxies using the API Tester
+  framework at https://tdd.upstr.dev.
 categories:
   - testing
 parameters:
@@ -47,102 +49,87 @@ policies:
   - name: JS-RunTest
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-RunTest
-        DisplayName:
-          _text: JS-RunTest
-        Properties: {}
-        ResourceURL:
-          _text: jsc://run-test.js
+        displayName: JS-RunTest
+        properties: {}
+        resourceUrl: jsc://run-test.js
   - name: JS-SetTestData
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-SetTestData
-        DisplayName:
-          _text: JS-SetTestData
-        Properties: {}
-        ResourceURL:
-          _text: jsc://set-test.js
+        displayName: JS-SetTestData
+        properties: {}
+        resourceUrl: jsc://set-test.js
   - name: JS-SetTestIds
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-SetTestIds
-        DisplayName:
-          _text: JS-SetTestIds
-        Properties: {}
-        ResourceURL:
-          _text: jsc://set-test-id.js
+        displayName: JS-SetTestIds
+        properties: {}
+        resourceUrl: jsc://set-test-id.js
   - name: SC-GetTestCases
     type: ServiceCallout
     content:
-      ServiceCallout:
-        _attributes:
+      serviceCallout:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           name: SC-GetTestCases
-        DisplayName:
-          _text: SC-GetTestCases
-        Properties: {}
-        Request:
-          _attributes:
+        displayName: SC-GetTestCases
+        properties: {}
+        request:
+          metadata:
             clearPayload: "true"
             variable: myRequest
-          IgnoreUnresolvedVariables:
-            _text: "false"
-        Response:
-          _text: upstreamResponse
-        HTTPTargetConnection:
-          Properties: {}
-          URL:
-            _text: https://tdd.upstr.dev/tests/{upstream.testId}
+          ignoreUnresolvedVariables: "false"
+        response: upstreamResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://tdd.upstr.dev/tests/{upstream.testId}
   - name: SC-SaveResults
     type: ServiceCallout
     content:
-      ServiceCallout:
-        _attributes:
+      serviceCallout:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           name: SC-SaveResults
-        DisplayName:
-          _text: SC-SaveResults
-        Properties: {}
-        Request:
-          _attributes:
+        displayName: SC-SaveResults
+        properties: {}
+        request:
+          metadata:
             clearPayload: "true"
             variable: myRequest
-          IgnoreUnresolvedVariables:
-            _text: "false"
-          Set:
-            Verb:
-              _text: POST
-            Payload:
-              _attributes:
+          ignoreUnresolvedVariables: "false"
+          set:
+            verb: POST
+            payload:
+              metadata:
                 contentType: application/json
-              _text: "
+              value: "
 
                 \        {upstream.testResults}
 
                 \      "
-        Response:
-          _text: calloutResponse
-        HTTPTargetConnection:
-          Properties: {}
-          URL:
-            _text: https://tdd.upstr.dev/tests/{upstream.testId}/results
+        response: calloutResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://tdd.upstr.dev/tests/{upstream.testId}/results
 resources:
   - name: run-test.js
     type: jsc

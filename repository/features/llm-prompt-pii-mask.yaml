@@ -10,7 +10,6 @@ description: |
   ```sh
   gcloud services enable dlp.googleapis.com
   ```
-  - Your Apigee service account user should have the DLP User (dlp.user) role.
 
   **Inputs**
   - The input variable **llm.promptInput** will be sent to DLP to be masked.
@@ -43,41 +42,36 @@ policies:
   - name: JS-SetMaskedRequest
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-SetMaskedRequest
-        DisplayName:
-          _text: JS-SetMaskedRequest
-        Properties: {}
-        ResourceURL:
-          _text: jsc://set-masked-prompt.js
+        displayName: JS-SetMaskedRequest
+        properties: {}
+        resourceUrl: jsc://set-masked-prompt.js
   - name: SC-SensitiveDataProtection
     type: ServiceCallout
     content:
-      ServiceCallout:
-        _attributes:
+      serviceCallout:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           name: SC-SensitiveDataProtection
-        DisplayName:
-          _text: SC-SensitiveDataProtection
-        Properties: {}
-        Request:
-          _attributes:
+        displayName: SC-SensitiveDataProtection
+        properties: {}
+        request:
+          metadata:
             clearPayload: "true"
             variable: myRequest
-          IgnoreUnresolvedVariables:
-            _text: "false"
-          Set:
-            Verb:
-              _text: POST
-            Payload:
-              _attributes:
+          ignoreUnresolvedVariables: "false"
+          set:
+            verb: POST
+            payload:
+              metadata:
                 contentType: application/json
-              _text: "
+              text: "
 
                 \        {
 
@@ -196,17 +190,14 @@ policies:
                 \        }
 
                 \      "
-        Response:
-          _text: sensitiveDataProtectionResponse
-        HTTPTargetConnection:
-          Properties: {}
-          URL:
-            _text: https://dlp.googleapis.com/v2/projects/{propertyset.dlp.PROJECT_ID}/content:deidentify
-          Authentication:
-            GoogleAccessToken:
-              Scopes:
-                Scope:
-                  _text: https://www.googleapis.com/auth/cloud-platform
+        response: sensitiveDataProtectionResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://dlp.googleapis.com/v2/projects/{propertyset.dlp.PROJECT_ID}/content:deidentify
+          authentication:
+            googleAccessToken:
+              scopes:
+                scope: https://www.googleapis.com/auth/cloud-platform
 resources:
   - name: set-masked-prompt.js
     type: jsc

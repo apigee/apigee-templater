@@ -1,4 +1,4 @@
-name: proxy-apigeemock
+name: target-apigeemock
 displayName: Apigee Mock Proxy
 type: feature
 description: proxy-apigeemock
@@ -19,9 +19,8 @@ targets:
     flows: []
     faultRules: []
     httpTargetConnection:
-      Properties: {}
-      URL:
-        _text: https://mocktarget.apigee.net
+      properties: {}
+      url: https://mocktarget.apigee.net
 policies: []
 resources: []
 tests: []

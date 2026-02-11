@@ -1,9 +1,9 @@
-name: proxy-qwen-global
-displayName: Qwen Product
+name: target-llm-kimi
+displayName: Kimi Product
 type: feature
 description: |
-  This feature adds an endpoints with basepath at v1/qwen, and proxies
-  requests to the Vertex AI Qwen global endpoint.
+  This feature adds an endpoints with basepath at v1/kimi, and proxies
+  requests to the Vertex AI Kimi global endpoint.
 
   **Prerequisites**
   - Vertex AI is enabled in the GCP Project.
@@ -36,11 +36,11 @@ parameters:
       - $.endpoints[:1].basePath
     displayName: BASE_PATH
     description: The base path on the proxy to receive traffic.
-    default: /v1/qwen
+    default: /v1/kimi
     examples:
-      - /v1/qwen
-      - /qwen
-      - /llm/qwen
+      - /v1/kimi
+      - /kimi
+      - /llm/kimi
   - name: PROJECT_ID
     displayName: PROJECT_ID
     description: The GCP project id that should be used for the Vertex AI Gemini endpoint.
@@ -57,12 +57,12 @@ parameters:
   - name: MODEL_ID
     displayName: MODEL_ID
     description: The model to use for the request.
-    default: qwen/qwen3-next-80b-a3b-thinking-maas
+    default: moonshotai/kimi-k2-thinking-maas
     examples:
-      - qwen/qwen3-next-80b-a3b-thinking-maas
+      - moonshotai/kimi-k2-thinking-maas
 endpoints:
   - name: vertexai
-    basePath: /v1/qwen
+    basePath: /v1/kimi
     routes:
       - name: default
         target: vertexai

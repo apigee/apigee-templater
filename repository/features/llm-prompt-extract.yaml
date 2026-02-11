@@ -38,17 +38,15 @@ policies:
   - name: JS-EstimateTokens
     type: Javascript
     content:
-      Javascript:
-        _attributes:
+      javascript:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-EstimateTokens
-        DisplayName:
-          _text: JS-EstimateTokens
-        Properties: {}
-        ResourceURL:
-          _text: jsc://estimate-tokens.js
+        displayName: JS-EstimateTokens
+        properties: {}
+        resourceUrl: jsc://estimate-tokens.js
 resources:
   - name: estimate-tokens.js
     type: jsc
@@ -71,12 +69,12 @@ resources:
         var result = 0;
 
         if (tokens_count_word_est > tokens_count_char_est)
-          result = Math.round(tokens_count_word_est);
+          result = tokens_count_word_est;
         else if (tokens_count_char_est > tokens_count_word_est)
-          result = Math.round(tokens_count_word_est);
+          result = tokens_count_word_est;
 
-        context.setVariable("llm.promptEstimatedTokenCount", result.toString().replace(".0", ""));
-        context.setVariable("quota.weight", result.toString().replace(".0", ""));
+        context.setVariable("llm.promptEstimatedTokenCount", result);
+        context.setVariable("quota.weight", result);
       }
 
       function getLastPrompt(requestObject) {

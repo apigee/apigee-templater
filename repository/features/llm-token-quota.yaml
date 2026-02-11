@@ -36,84 +36,67 @@ defaultTarget:
       steps: []
   faultRules: []
   httpTargetConnection:
-    URL:
-      _text: https://httpbin.org
+    url: https://httpbin.org
 endpoints: []
 targets: []
 policies:
   - name: Q-CheckQuota
     type: Quota
     content:
-      Quota:
-        _attributes:
+      quota:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           name: Q-CheckQuota
-          type: calendar
-        DisplayName:
-          _text: Q-CheckQuota
-        Properties: {}
-        Identifier:
-          _attributes:
+        displayName: Q-CheckQuota
+        properties: {}
+        identifier:
+          metadata:
             ref: client_id
-        Allow:
-          _attributes:
+        allow:
+          metadata:
             countRef: quota.limit
-        Interval:
-          _attributes:
+        interval:
+          metadata:
             ref: quota.interval
-        TimeUnit:
-          _attributes:
+        timeUnit:
+          metadata:
             ref: quota.timeunit
-        MessageWeight:
-          _attributes:
+        messageWeight:
+          metadata:
             ref: llm.promptEstimatedTokenCount
-        Distributed:
-          _text: "true"
-        Synchronous:
-          _text: "true"
-        EnforceOnly:
-          _text: "true"
-        SharedName:
-          _text: token-quota
-        StartTime:
-          _text: 2013-08-21 10:00:00
+        distributed: "true"
+        synchronous: "true"
+        countOnly: "true"
+        sharedName: token-quota
   - name: Q-UpdateQuota
     type: Quota
     content:
-      Quota:
-        _attributes:
+      quota:
+        metadata:
           continueOnError: "false"
           enabled: "true"
           name: Q-UpdateQuota
           type: calendar
-        DisplayName:
-          _text: Q-UpdateQuota
-        Properties: {}
-        Identifier:
-          _attributes:
-            ref: client_id
-        Allow:
-          _attributes:
-            countRef: quota.limit
-        Interval:
-          _attributes:
-            ref: quota.interval
-        TimeUnit:
-          _attributes:
-            ref: quota.timeunit
-        MessageWeight:
-          _attributes:
-            ref: llm.totalTokenCount
-        Distributed:
-          _text: "true"
-        Synchronous:
-          _text: "true"
-        CountOnly:
-          _text: "true"
-        SharedName:
-          _text: token-quota
-        StartTime:
-          _text: 2013-08-21 10:00:00
+        displayName: Q-UpdateQuota
+        properties: {}
+        allow:
+          metadata:
+            count: "2000"
+            countRef: request.header.allowed_quota
+        interval:
+          metadata:
+            ref: request.header.quota_count
+          text: "1"
+        distributed: "false"
+        synchronous: "false"
+        timeUnit:
+          metadata:
+            ref: request.header.quota_timeout
+          text: month
+        startTime: 2013-08-21 10:00:00
+        asynchronousConfiguration:
+          syncIntervalInSeconds: "20"
+          syncMessageCount: "5"
 resources: []
 tests: []

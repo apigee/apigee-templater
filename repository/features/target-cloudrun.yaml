@@ -1,4 +1,4 @@
-name: proxy-cloudrun
+name: target-cloudrun
 displayName: Cloud Run Services
 type: feature
 description: |
@@ -16,8 +16,6 @@ categories:
   - services
 parameters:
   - name: BASE_PATH
-    paths:
-      - $.endpoints[:1].basePath
     description: The base path to offer the proxy on.
     default: /v1/cloudrun
     examples:
@@ -31,7 +29,7 @@ parameters:
       - https://exampleservice-1.europe-west1.run.app
 endpoints:
   - name: cloudrun
-    basePath: "{BASE_PATH}"
+    basePath: /v1/cloudrun
     routes:
       - name: default
         target: cloudrun
@@ -39,17 +37,15 @@ endpoints:
     faultRules: []
 targets:
   - name: cloudrun
-    url: "{CLOUDRUN_URL}"
+    url: https://businessservice-323709580283.europe-west1.run.app
     flows: []
     faultRules: []
     httpTargetConnection:
-      Properties: {}
-      URL:
-        _text: "{CLOUDRUN_URL}"
-      Authentication:
-        GoogleIDToken:
-          Audience:
-            _text: "{CLOUDRUN_URL}"
+      properties: {}
+      url: https://businessservice-323709580283.europe-west1.run.app
+      authentication:
+        googleIdToken:
+          audience: https://businessservice-323709580283.europe-west1.run.app
 policies: []
 resources: []
 tests: []
