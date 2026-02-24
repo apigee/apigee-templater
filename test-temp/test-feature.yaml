@@ -1,0 +1,5 @@
+name: test-feature
+type: feature
+parameters:
+  - name: TEST_PARAM
+    default: default-value

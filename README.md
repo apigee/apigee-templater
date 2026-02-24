@@ -1,239 +1,102 @@
 <p align="center"><img width="244" height="244" alt="Gemini_Generated_Image_62tjhy62tjhy62tj" src="https://github.com/user-attachments/assets/e977197c-f5c5-4593-bcc6-b60194280b74" />
-<br><b>Apigee Feature Templater v4</b></p>
+<br><b>Apigee Feature Templater</b></p>
 
-# Apigee Feature Templater 4
-Apigee Feature Templater (or **aft**) is a tool providing assisted API authoring through the use of **Feature** and **Template** definitions in JSON or YAML formats, created through **CLI, MCP or REST** interfaces. The tool offers a **feature-driven** approach to API development, potentially scaling up API configuration and authoring to practioners in the organization who are not Apigee proxy developers.
+# Apigee Feature Templater (aft)
 
-Check out the [wiki](https://github.com/apigee/apigee-templater/wiki) for more detailed documentation.
+**Apigee Feature Templater** simplifies API authoring by using reusable **Feature** and **Template** definitions. It allows you to build APIs by composing features into templates, which can then be deployed as Apigee proxies.
 
-## Workflow
-1. Apigee proxy experts develop and test technical feature proxies that provide individual, reusable functionalities. This development uses all of the amazing Apigee tooling such as [apigeecli](https://github.com/apigee/apigeecli), [apigee-go-gen](https://github.com/apigee/apigee-go-gen), [apigelint](https://github.com/apigee/apigeelint), Apigee console, etc... Feature proxies have the **feature-** prefix, making them easy to recognize, import and export.
+## Installation
 
-2. The features are exported using **aft** to YAML or JSON files, with metadata and parameter configuration information, making it easier for non-experts to understand the capabilities and use the features. A sample repository is in this repo in the [./repository](https://github.com/apigee/apigee-templater/tree/main/repository/features) directory.
-
-3. Practioners can use the CLI, MCP agents or web tools using the REST interface to build and publish APIs using the feature building-blocks.
-
-## Getting started
-1. To begin let's install the tool in our local shell.
 ```sh
-# install apigee-templater with npm
 npm i apigee-templater -g
-# or update to the latest version
-npm update apigee-templater -g
 ```
 
-2. Next let's create an empty template for an **AI Gateway API** that will proxy both **Gemini** and **Qwen** endpoints from Vertex AI, along with API key authorization.
+## Concepts & Formats
 
-```sh
-# create an empty template
-aft AI-Gateway-v1.yaml
-# apply Gemini and Kimi features, -i means input file and -a means apply feature
-aft AI-Gateway-v1.yaml -a target-llm-gemini
-aft AI-Gateway-v1.yaml -a target-llm-qwen
-aft AI-Gateway-v1.yaml -a auth-key-header
-# when applying features with -a, we can use file or https paths,
-# or names from the ./repository/features directory.
+### 1. Feature
+A **Feature** is a reusable unit of API logic (policies, resources, parameters).
+Example `my-feature.yaml`:
+```yaml
+name: response-hello-world
+type: feature
+description: Adds a hello world message to the response.
+parameters:
+  - name: MESSAGE
+    default: Hello world!
+policies:
+  - name: JS-AddMessage
+    type: Javascript
+    content:
+      javascript:
+        resourceUrl: jsc://add-message.js
+resources:
+  - name: add-message.js
+    type: jsc
+    content: |
+      context.setVariable("response.content", "Hello world!");
 ```
 
-Notice now that our `AI-Gateway-v1.yaml` file includes the configuration parameters from the three features, as well as the endpoints. This is a **Template** file which when deployed will merge all features into a complete proxy.
-
+### 2. Template
+A **Template** composes multiple features into a proxy definition.
+Example `my-template.yaml`:
 ```yaml
 name: AI-Gateway-v1
 type: template
 description: API template for AI-Gateway-v1
 features:
-  - target-llm-gemini.llm
-  - target-llm-qwen.llm1
-  - auth-key-header.key
+  - target-llm-gemini
+  - auth-key-header
 parameters:
-  - name: auth-key-header.key.API_KEY_HEADER_NAME
-    description: The header where the api key is checked.
+  - name: auth-key-header.API_KEY_HEADER_NAME
     default: x-api-key
-    examples:
-      - x-api-key
-      - x-apikey
 endpoints:
-  - name: llm-gemini
+  - name: default
     basePath: /v1/gemini
     routes:
       - name: default
         target: llm-gemini
-  - name: llm1-qwen
-    basePath: /v1/qwen
-    routes:
-      - name: default
-        target: llm1-qwen
 targets:
   - name: llm-gemini
     url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
     auth: GoogleAccessToken
-    scopes:
-      - https://www.googleapis.com/auth/cloud-platform
-  - name: llm1-qwen
-    url: https://aiplatform.googleapis.com/v1/projects/apigee-prod13/locations/global/endpoints/openapi/chat/completions
-    auth: GoogleAccessToken
-    scopes:
-      - https://www.googleapis.com/auth/cloud-platform
 ```
 
-3. Export the **Template** to an Apigee org.
-
-```sh
-PROJECT_ID=YOUR_PROJECT_ID
-aft -i AI-Gateway-v1.yaml -o $PROJECT_ID:AI-Gateway-v1
-```
-
-Open the Apigee console and deploy the **AI-Gateway-v1** proxy to an Apigee environment, you can use both **Gemini** and **Mistral** at the `v1/gemini` and `v1/mistral` paths, each with API key authorization. You could also export / import to an Apigee ZIP bundle, and upload & deploy using your tool of choice.
-
-## Concepts
-### Features
-A feature JSON or YAML file models an individual functionality that can be reused in many proxies. A feature file also includes documentation, input parameter descriptions, as well as the complete feature logic, including resources and policies, completely self-contained. You can import/export Apigee proxies to feature files, making it easy to leverage the Apigee console or existing tooling for building features.
-
-### Example feature file
-A feature file can be created from an Apigee proxy ZIP, folder, or remote from an org. The `-f feature` at the end is important because it says convert the proxy format to a feature format with input parameter configuration, making it more reusable.
+### 3. Proxy
+A **Proxy** is a complete, standalone API definition that can be deployed directly. It is also the format used internally when a Template is processed.
+Example `my-proxy.yaml`:
 ```yaml
-# import extracted apigee proxy (from ./test/proxies/DATA-HelloWorld-v1)
-aft -i ./test/proxies/DATA-HelloWorld-v1 -o DATA-HelloWorld-v1.yaml -f feature
-# OR import from an Apigee org
-aft -i GCP_PROJECT_ID:Feature-DATA-HelloWorld-v1 -o DATA-HelloWorld-v1.yaml -f feature
-```
-The resulting example feature file contains all of the proxy logic, along with any propertysets converted into input parameters that can be configured. This feature takes a configurable message and adds it to the response payload, if it exists.
-```yaml
-name: response-hello-world-json
-displayName: ""
-type: feature
-description: |
-  If the proxy response is JSON, then a message property is added to the payload.
-
-  **Prerequisites**
-  - The message response is JSON.
-
-  **Inputs**
-  - A 'message' property is either sent as query parameter or retrieved from the properties file.
-
-  **Outputs**
-  - If the proxy response is JSON, then the message property is added to the payload.
-categories:
-  - traffic
-parameters:
-  - name: MESSAGE
-    displayName: MESSAGE
-    description: Configuration input for MESSAGE
-    default: Hello world!
-    examples:
-      - Hello mars!
-      - Hello internet!
-defaultEndpoint:
-  name: default
-  basePath: /feature-data-helloworld-v1
-  routes:
-    - name: default
-  flows:
-    - name: PostFlow
-      mode: Response
-      steps:
-        - name: JS-AddHelloWorld
-  faultRules: []
-endpoints: []
-targets: []
-policies:
-  - name: JS-AddHelloWorld
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-AddHelloWorld
-        displayName: JS-AddHelloWorld
-        properties: {}
-        resourceUrl: jsc://hello-world.js
-resources:
-  - name: hello-world.js
-    type: jsc
-    content: |-
-      var responseObject = response.content.asJSON;
-
-      if (responseObject) {
-        var message = context.getVariable("request.queryparam.message");
-        if (!message)
-          message = context.getVariable("propertyset.helloworld.MESSAGE");
-        if (!message)
-          message = "Hello world!";
-        responseObject["message"] = message;
-        context.setVariable("response.content", JSON.stringify(responseObject))
-      }
-  - name: helloworld.properties
-    type: properties
-    content: |
-      MESSAGE={MESSAGE}
-```
-## Templates
-Feature template files bundle multiple features with configuration parameters and documentation, making it easier to manage for proxy deployments.
-
-### Example feature template file
-An empty feature template file can be created using `aft -o FILENAME` which simply creates an empty output file. We could also add `-f feature`, however this is the default and is not needed for new files.
-
-```sh
-# create empty feature template file
-aft -o HttpBin-Proxy-v1.yaml
-
-# apply HttpBin and HelloWorld features, -i means input file,
-# and is the default -o output if nothing else is set
-aft -i HttpBin-Proxy-v1.yaml -a ./repository/features/PROXY-HttpBin-v1.yaml
-aft -i HttpBin-Proxy-v1.yaml -a ./repository/features/DATA-HelloWorld-v1.yaml
-```
-This feature template file references two features, and also includes all parameters, endpoints and targets from all features into one bundle that can be deployed. If there would have been a conflict, it would have been output as a warning (with the last conflict winning).
-
-Export this feature template to an Apigee org, or convert to an Apigee zip and deploy via [apigeecli](https://github.com/apigee/apigeecli).
-
-```sh
-# export to an apigee org
-aft -i HttpBin-Proxy-v1.yaml -o GCP_PROJECT_ID:HttpBinProxy-v1 -t $(gcloud auth print-access-token)
-# export to an Apigee zip
-aft -i HttpBin-Proxy-v1.yaml -o HttpBinProxy-v1.zip
+name: SimpleProxy-v1
+type: proxy
+description: A simple proxy definition.
+endpoints:
+  - name: default
+    basePath: /v1/simple
+    routes:
+      - name: default
+        target: default
+targets:
+  - name: default
+    url: https://mocktarget.apigee.net
 ```
 
-## REST & MCP server
-The above examples all use the `aft` CLI tool to work with features, however we can also use MCP or REST. After cloning this repository you can start the REST & MCP server using npm.
-```sh
-# install dependencies
-npm i
-# start server
-npm start
-```
-Sample REST calls can be found in the [wiki](https://github.com/apigee/apigee-templater/wiki).
+## Easy Commands
 
-Test the MCP server in a sample ADK agent [here](https://apigee-templater-agent-609874082793.europe-west1.run.app).
+- **Create a new template**:
+  ```sh
+  aft my-template.yaml
+  ```
 
-Sample agent requests:
+- **Apply a feature to a template**:
+  ```sh
+  aft my-template.yaml -a target-httpbin
+  ```
 
-> *List all proxies in the apigee org apigee-prod13.*
-
-> *Describe the proxy Llama-v1 in the org apigee-prod13.*
-
-> *Import the proxy Llama-v1 to a feature with the name AI-Llama-v1.*
-
-> *Create a new template named AI-Proxy-v1 with the features AI-Llama-v1, AI-Gemini-v1 and Auth-Key-Header-v1 applied.*
-
-> *Export a proxy from the template AI-Proxy-v1 and deploy it to the apigee org apigee-prod13 and environment dev.*
-
-## Limitations
-Currently these features are not yet supported:
-- Target fault rules and default fault rule are not yet converted. Endpoint faults are converted.
-- The MCP service does not yet use parameters when applying features, so currently only default values are used.
-
-## Contributing
-
-See the [contributing instructions](./CONTRIBUTING.md) to get started.
+- **Deploy a template (or proxy) to Apigee**:
+  ```sh
+  PROJECT_ID=my-gcp-project
+  aft -i my-template.yaml -o $PROJECT_ID:my-proxy-name
+  ```
 
 ## License
 
-All solutions within this repository are provided under the
-[Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license.
-Please see the [LICENSE](./LICENSE) file for more detailed terms and conditions.
-
-## Disclaimer
-
-This repository and its contents are not an official Google product.
+[Apache 2.0](./LICENSE) - Not an official Google product.

@@ -1,0 +1,4 @@
+name: test-template
+type: template
+features:
+  - test-feature
