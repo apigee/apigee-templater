@@ -139,6 +139,11 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["-i", "test.local.yaml", "-o", "test.local.new.zip"],
+    "args": [
+      "-i",
+      "./repository/features/target-llm-gemini-fallback.yaml",
+      "-o",
+      "apigee-prod13:feature-target-llm-gemini-fallback",
+    ],
   },
 ]

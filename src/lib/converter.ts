@@ -2228,6 +2228,9 @@ export class ApigeeConverter {
     if (result.includes("Cors")) result = result.replace("Cors", "CORS");
     if (result.includes("Http")) result = result.replace("Http", "HTTP");
     if (result.includes("Api")) result = result.replace("Api", "API");
+    if (result.includes("Xml")) result = result.replace("Xml", "XML");
+    if (result.includes("Uri")) result = result.replace("Uri", "URI");
+    if (result.includes("Id")) result = result.replace("Id", "ID");
     return result;
   }
 }

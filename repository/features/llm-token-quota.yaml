@@ -87,13 +87,13 @@ policies:
         interval:
           metadata:
             ref: request.header.quota_count
-          text: "1"
+          value: "1"
         distributed: "false"
         synchronous: "false"
         timeUnit:
           metadata:
             ref: request.header.quota_timeout
-          text: month
+          value: month
         startTime: 2013-08-21 10:00:00
         asynchronousConfiguration:
           syncIntervalInSeconds: "20"
