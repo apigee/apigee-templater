@@ -1,17 +1,17 @@
-name: response-hello-world-text
-displayName: ""
+name: response-helloworld
+displayName: "Hello World Feature"
 type: feature
 description: |
-  A message text is added to the payload.
+  If the proxy response is JSON, then a message property is added to the payload.
 
   **Prerequisites**
-  - The message response is text.
+  - None.
 
   **Inputs**
-  - A 'message' property is either sent as query parameter or retrieved from the properties file.
+  - An optional 'message' property is either sent as query parameter or retrieved from the properties file.
 
   **Outputs**
-  - The message text is appended to the payload.
+  - If the response is JSON, then a "message" property is added, or if the response is text, the message is concatenated.
 categories:
   - traffic
 parameters:
@@ -24,7 +24,7 @@ parameters:
       - Hello internet!
 defaultEndpoint:
   name: default
-  basePath: /feature-data-helloworld-v1
+  basePath: /helloworld
   routes:
     - name: default
   flows:
@@ -51,17 +51,31 @@ policies:
 resources:
   - name: hello-world.js
     type: jsc
-    content: |
+    content: |-
       var responseText = response.content;
       if (!responseText) responseText = "";
+
+      var responseObject = undefined;
+
+      try {
+        responseObject = JSON.parse(responseText);
+      } catch(e) {
+        print("Could not parse JSON.");
+      }
 
       var message = context.getVariable("request.queryparam.message");
       if (!message)
         message = context.getVariable("propertyset.helloworld.MESSAGE");
       if (!message)
         message = "Hello world!";
-      responseText += " " + message;
-      context.setVariable("response.content", responseText);
+
+      if (responseObject) {
+        responseObject["message"] = message;
+        context.setVariable("response.content", JSON.stringify(responseObject));
+      } else {
+        responseText = responseText + " " + message;
+        context.setVariable("response.content", responseText);
+      }
   - name: helloworld.properties
     type: properties
     content: |

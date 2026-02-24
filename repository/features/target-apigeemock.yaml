@@ -7,7 +7,7 @@ categories:
 parameters: []
 endpoints:
   - name: apigeemock
-    basePath: /feature-proxy-apigeemock
+    basePath: /apigeemock
     routes:
       - name: default
         target: apigeemock
