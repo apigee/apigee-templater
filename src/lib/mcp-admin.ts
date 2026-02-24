@@ -3,6 +3,7 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { any, z } from "zod";
 import * as YAML from "yaml";
@@ -1411,7 +1412,9 @@ export class McpService {
       );
 
       // Connect to the MCP server
-      await server.connect(transport);
+      // Cast to Transport is required because StreamableHTTPServerTransport definition in the SDK
+      // conflicts with exactOptionalPropertyTypes: true due to onclose/onerror optionality mismatch.
+      await server.connect(transport as unknown as Transport);
     } else {
       // Invalid request
       res.status(400).json({
