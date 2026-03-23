@@ -1,0 +1,23 @@
+name: HelloWorld-v1
+type: template
+description: API template for HelloWorld-v1
+features:
+  - target-apigeemock.apigeemock
+  - response-helloworld.helloworld
+parameters:
+  - name: response-helloworld.helloworld.MESSAGE
+    displayName: MESSAGE
+    description: Configuration input for MESSAGE
+    default: Hello world!
+    examples:
+      - Hello mars!
+      - Hello internet!
+endpoints:
+  - name: apigeemock-apigeemock
+    basePath: /apigeemock
+    routes:
+      - name: default
+        target: apigeemock-apigeemock
+targets:
+  - name: apigeemock-apigeemock
+    url: https://mocktarget.apigee.net
