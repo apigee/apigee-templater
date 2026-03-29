@@ -389,6 +389,8 @@ export class ApigeeConverter {
               if (sandbox.proxy) {
                 if (sandbox.proxy["description"])
                   newProxy.description = sandbox.proxy["description"];
+                if (sandbox.proxy["documentation"])
+                  newProxy.description = sandbox.proxy["documentation"];
                 if (sandbox.proxy["uid"]) newProxy.uid = sandbox.proxy["uid"];
                 if (sandbox.proxy["parameters"])
                   newProxy.parameters = sandbox.proxy["parameters"];
@@ -2057,6 +2059,7 @@ export class ApigeeConverter {
     if (newFeature.name.startsWith("feature-"))
       newFeature.name = newFeature.name.replace("feature-", "");
     newFeature.description = proxy.description;
+    newFeature.documentation = proxy.documentation ?? "";
     newFeature.parameters = proxy.parameters;
     if (proxy.uid) newFeature.uid = proxy.uid;
     if (proxy.priority) newFeature.priority = proxy.priority;
