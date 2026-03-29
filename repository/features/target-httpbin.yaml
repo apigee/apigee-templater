@@ -1,13 +1,15 @@
 name: target-httpbin
 displayName: HttpBin Proxy
 type: feature
-description: Feature to proxy httpbin.org.
+description: Add a target to httpbin.org to your proxy.
 categories:
   - services
 parameters:
   - name: BASE_PATH
     displayName: BASE_PATH
     description: The base path on the proxy to receive traffic.
+    paths:
+      - $.endpoints[:1].basePath
     default: /v1/httpbin
     examples:
       - /v1/httpbin

@@ -1,7 +1,8 @@
 name: response-helloworld
 displayName: "Hello World Feature"
 type: feature
-description: |
+description: Adds a configurable message (default Hello World!) to your proxy response.
+documentation: |
   If the proxy response is JSON, then a message property is added to the payload.
 
   **Prerequisites**

@@ -1,7 +1,8 @@
-name: auth-key-header
+name: general-auth
 displayName: Authentication Key Header
 type: feature
-description: |
+description: Applies an API key header authentication to any normal, non-LLM proxy.
+documentation: |
   This feature applies API key header authentication and authorization to the proxy flow.
 
   **Prerequisites**

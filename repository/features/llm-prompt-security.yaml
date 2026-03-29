@@ -1,0 +1,55 @@
+name: llm-security
+displayName: ""
+type: feature
+description: llm-security
+categories: []
+parameters: []
+defaultEndpoint:
+  name: default
+  basePath: /geminiproxy-v3
+  routes:
+    - name: default
+      target: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: SUP-SanitizePrompt
+  faultRules: []
+defaultTarget:
+  name: default
+  url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
+  auth: GoogleAccessToken
+  scopes:
+    - https://www.googleapis.com/auth/cloud-platform
+  flows:
+    - name: EventFlow
+      mode: Response
+      steps: []
+  faultRules: []
+  httpTargetConnection:
+    properties: {}
+    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
+    authentication:
+      googleAccessToken:
+        scopes:
+          scope: https://www.googleapis.com/auth/cloud-platform
+endpoints: []
+targets: []
+policies:
+  - name: SUP-SanitizePrompt
+    type: SanitizeUserPrompt
+    content:
+      sanitizeUserPrompt:
+        metadata:
+          async: "false"
+          continueOnError: "false"
+          enabled: "true"
+          name: SUP-SanitizePrompt
+        ignoreUnresolvedVariables: "false"
+        displayName: SUP-SanitizePrompt
+        modelArmor:
+          templateName: projects/{organization.name}/locations/{system.region.name}/templates/default-ma-template
+        userPromptSource: "{jsonPath('$.messages[-1].content',request.content,true)}"
+resources: []
+tests: []

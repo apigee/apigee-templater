@@ -1,7 +1,8 @@
 name: target-cloudrun
 displayName: Cloud Run Services
 type: feature
-description: |
+description: Turn any Google Cloud Run service into a managed API proxy & product.
+documentation: |
   Proxy your Cloud Run services through Apigee with this feature.
 
   **Prerequisites**

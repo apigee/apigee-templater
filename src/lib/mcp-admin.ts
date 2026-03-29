@@ -503,6 +503,49 @@ export class McpService {
         },
       );
 
+      // templateExportToApigee
+      server.registerTool(
+        "templateToProxy",
+        {
+          title: "Template to Proxy Convert Tool",
+          description: "Converts and exports a template to an proxy file.",
+          inputSchema: {
+            templateName: z.string(),
+          },
+        },
+        async ({ templateName }, authInfo) => {
+          let token: string =
+            authInfo.requestInfo?.headers.authorization &&
+            typeof authInfo.requestInfo?.headers.authorization === "string"
+              ? authInfo.requestInfo?.headers.authorization
+              : "";
+          let apigeeProxyRevision = "";
+          let proxy = await this.apigeeService.templateToProxy(
+            templateName,
+            this.converter,
+          );
+          if (proxy) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(proxy),
+                },
+              ],
+            };
+          } else {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `The template ${templateName} could not be converted to a proxy.`,
+                },
+              ],
+            };
+          }
+        },
+      );
+
       // featureList
       server.registerTool(
         "featuresList",

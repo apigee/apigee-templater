@@ -62,6 +62,7 @@ export class cli {
         "--format": String,
         "--applyFeature": String,
         "--removeFeature": String,
+        "--listFeatures": Boolean,
         "--parameters": String,
         "--token": String,
         "--help": Boolean,
@@ -74,6 +75,7 @@ export class cli {
         "-f": "--format",
         "-a": "--applyFeature",
         "-r": "--removeFeature",
+        "-l": "--listFeatures",
         "-p": "--parameters",
         "-t": "--token",
         "-h": "--help",
@@ -112,6 +114,7 @@ export class cli {
       format: args["--format"] || "",
       applyFeature: args["--applyFeature"] || "",
       removeFeature: args["--removeFeature"] || "",
+      listFeatures: args["--listFeatures"] || false,
       parameters: args["--parameters"] || "",
       token: args["--token"] || "",
       help: args["--help"] || false,
@@ -234,6 +237,21 @@ export class cli {
     );
   }
 
+  async printFeatures() {
+    console.log(
+      `${chalk.bold(chalk.magentaBright(`> Welcome to Apigee Feature Templater ${version}! All features:`))}`,
+    );
+
+    let allFeatures = await this.apigeeService.featuresList();
+
+    for (let feature of allFeatures) {
+      console.log(
+        `${feature.name}: ${chalk.italic(chalk.magentaBright(feature.description))} `,
+      );
+      // console.log(`${feature.name}`);
+    }
+  }
+
   processDataSpec(): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       let receivedData = "";
@@ -276,6 +294,11 @@ export class cli {
 
     if (options.version) {
       this.printVersion();
+      return;
+    }
+
+    if (options.listFeatures) {
+      await this.printFeatures();
       return;
     }
 
@@ -842,6 +865,7 @@ class cliArgs {
   format = "";
   applyFeature = "";
   removeFeature = "";
+  listFeatures = false;
   parameters = "";
   token = "";
   help = false;
@@ -874,7 +898,11 @@ const helpCommands = [
   },
   {
     name: "--removeFeature, -r",
-    description: "A feature name or path to remove from a template",
+    description: "A feature name or path to remove from a template.",
+  },
+  {
+    name: "--listFeatures, -l",
+    description: "List all features that can be applied to a template.",
   },
   {
     name: "--basePath, -b",

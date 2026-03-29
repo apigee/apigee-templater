@@ -1,7 +1,10 @@
 name: target-bigquery
 displayName: BigQuery Data Product
 type: feature
-description: proxy-bigquery
+description: Turn any Google BigQuery table or query into a fully-featured API product.
+documentation: |-
+  ## Prerequisites
+  * The service account user must have BigQuery Data Viewer (roles/bigquery.dataViewer) rights to read the data.
 categories:
   - data
 parameters:
@@ -15,6 +18,8 @@ parameters:
   - name: BASE_PATH
     displayName: BASE_PATH
     description: Base path to access the data at.
+    paths:
+      - $.endpoints[:1].basePath
     default: /{ENTITY_NAME}
     examples: []
   - name: DATA_NAME

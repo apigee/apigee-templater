@@ -1,0 +1,43 @@
+name: Gemini-Proxy-v1
+type: template
+description: API template for Gemini-Proxy-v1
+features:
+  - ../features/llm-target-vertexai.yaml.target
+parameters:
+  - name: llm-target-vertexai.target.MODEL
+    displayName: MODEL
+    description: Configuration input for MODEL
+    default: gemini
+    maps:
+      gemini: google/gemini-flash-latest
+      qwen: qwen/qwen3-next-80b-a3b-thinking-maas
+      kimi: moonshotai/kimi-k2-thinking-maas
+      gpt: openai/gpt-oss-120b-maas
+      deepseek: deepseek-ai/deepseek-v3.2-maas
+    examples:
+      - google/gemini-flash-latest
+      - google/gemini-2.5-pro
+      - google/gemini-3.1-pro-preview
+      - qwen/qwen3-next-80b-a3b-thinking-maas
+      - moonshotai/kimi-k2-thinking-maas
+      - openai/gpt-oss-120b-maas
+      - deepseek-ai/deepseek-v3.2-maas
+  - name: llm-target-vertexai.target.BASE_PATH
+    paths:
+      - $.endpoints[:1].basePath
+    displayName: BASE_PATH
+    description: The base path on the proxy to receive traffic.
+    default: /llm
+    examples:
+      - /llm
+      - /llm/gemini
+      - /llm/qwen
+endpoints:
+  - name: target-vertex
+    basePath: /feature-llm-target-vertexai
+    routes:
+      - name: default
+        target: target-vertex
+targets:
+  - name: target-vertex
+    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions

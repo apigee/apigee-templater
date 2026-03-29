@@ -1,0 +1,179 @@
+name: llm-auth
+displayName: ""
+type: feature
+description: Provides LLM auth with API key, LLM quota from API Product, and LLM analytics on model and token usage.
+documentation: ""
+categories: []
+parameters: []
+defaultEndpoint:
+  name: default
+  basePath: /geminiproxy-v2
+  routes:
+    - name: default
+      target: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: VA-VerifyKey
+        - name: AM-RemoveKey
+        - name: LTQ-QuotaEnforce
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: LTQ-QuotaCount
+          condition: response.content != ""
+        - name: DC-TokenAnalytics
+          condition: response.content != ""
+  faultRules: []
+defaultTarget:
+  name: default
+  url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
+  auth: GoogleAccessToken
+  scopes:
+    - https://www.googleapis.com/auth/cloud-platform
+  flows:
+    - name: EventFlow
+      mode: Response
+      steps:
+        - name: LTQ-QuotaCountEvent
+  faultRules: []
+  httpTargetConnection:
+    properties: {}
+    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
+    authentication:
+      googleAccessToken:
+        scopes:
+          scope: https://www.googleapis.com/auth/cloud-platform
+endpoints: []
+targets: []
+policies:
+  - name: AM-RemoveKey
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-RemoveKey
+        displayName: AM-RemoveKey
+        properties: {}
+        remove:
+          headers:
+            header:
+              metadata:
+                name: x-api-key
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: DC-TokenAnalytics
+    type: DataCapture
+    content:
+      dataCapture:
+        metadata:
+          name: DC-TokenAnalytics
+          continueOnError: "false"
+          enabled: "true"
+        displayName: DC-TokenAnalytics
+        ignoreUnresolvedVariables: "false"
+        capture:
+          - collect:
+              metadata:
+                ref: ratelimit.LTQ-QuotaCount.used.count
+                default: "0"
+            dataCollector: dc_llm_response_token_count
+          - collect:
+              metadata:
+                ref: ratelimit.LTQ-QuotaCount.model
+                default: "0"
+            dataCollector: dc_llm_model
+  - name: LTQ-QuotaCount
+    type: LLMTokenQuota
+    content:
+      llmTokenQuota:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: LTQ-QuotaCount
+          type: calendar
+        displayName: LTQ-QuotaCount
+        properties: {}
+        useQuotaConfigInApiProduct:
+          metadata:
+            stepName: VA-VerifyKey
+        countOnly: "true"
+        sharedName: llm-quota
+        distributed: "false"
+        synchronous: "false"
+        startTime: 2013-08-21 10:00:00
+        asynchronousConfiguration:
+          syncIntervalInSeconds: "20"
+          syncMessageCount: "5"
+        llmTokenUsageSource: "{jsonPath('$.usage.completion_tokens',response.content,true)}"
+        llmModelSource: "{jsonPath('$.model',request.content,true)}"
+  - name: LTQ-QuotaCountEvent
+    type: LLMTokenQuota
+    content:
+      llmTokenQuota:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: LTQ-QuotaCountEvent
+          type: calendar
+        displayName: LTQ-QuotaCountEvent
+        properties: {}
+        useQuotaConfigInApiProduct:
+          metadata:
+            stepName: VA-VerifyKey
+        countOnly: "true"
+        sharedName: llm-quota
+        distributed: "false"
+        synchronous: "false"
+        startTime: 2013-08-21 10:00:00
+        asynchronousConfiguration:
+          syncIntervalInSeconds: "20"
+          syncMessageCount: "5"
+        llmTokenUsageSource:
+          "{jsonPath('$.usage.completion_tokens',response.event.curr\
+          ent.data,true)}"
+        llmModelSource: "{jsonPath('$.model',request.content,true)}"
+  - name: LTQ-QuotaEnforce
+    type: LLMTokenQuota
+    content:
+      llmTokenQuota:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: LTQ-QuotaEnforce
+          type: calendar
+        displayName: LTQ-QuotaEnforce
+        properties: {}
+        useQuotaConfigInApiProduct:
+          metadata:
+            stepName: VA-VerifyKey
+        enforceOnly: "true"
+        sharedName: llm-quota
+        distributed: "false"
+        synchronous: "false"
+        startTime: 2013-08-21 10:00:00
+        asynchronousConfiguration:
+          syncIntervalInSeconds: "20"
+          syncMessageCount: "5"
+  - name: VA-VerifyKey
+    type: VerifyAPIKey
+    content:
+      verifyApiKey:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: VA-VerifyKey
+        displayName: VA-VerifyKey
+        properties: {}
+        apiKey:
+          metadata:
+            ref: request.header.x-api-key
+resources: []
+tests: []

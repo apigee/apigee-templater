@@ -307,7 +307,7 @@ export class ApigeeConverter {
         // clean-structure
         newTarget.localTargetConnection = targetXml;
       }
-
+      // request pre flow
       let requestPreFlow = this.flowXmlToJson(
         "PreFlow",
         "Request",
@@ -315,6 +315,7 @@ export class ApigeeConverter {
       );
       if (requestPreFlow && requestPreFlow.steps.length > 0)
         newTarget.flows.push(requestPreFlow);
+      // response pre flow
       let responsePreFlow = this.flowXmlToJson(
         "PreFlow",
         "Response",
@@ -322,6 +323,7 @@ export class ApigeeConverter {
       );
       if (responsePreFlow && responsePreFlow.steps.length > 0)
         newTarget.flows.push(responsePreFlow);
+      // request post flow
       let requestPostFlow = this.flowXmlToJson(
         "PostFlow",
         "Request",
@@ -329,6 +331,7 @@ export class ApigeeConverter {
       );
       if (requestPostFlow && requestPostFlow.steps.length > 0)
         newTarget.flows.push(requestPostFlow);
+      // response post flow
       let responsePostFlow = this.flowXmlToJson(
         "PostFlow",
         "Response",
@@ -336,12 +339,29 @@ export class ApigeeConverter {
       );
       if (responsePostFlow && responsePostFlow.steps.length > 0)
         newTarget.flows.push(responsePostFlow);
+      // event flow
       let eventFlow = this.flowXmlToJson(
         "EventFlow",
         "Response",
         targetJson["TargetEndpoint"],
       );
       if (eventFlow) newTarget.flows.push(eventFlow);
+      // default fault rule
+      if (targetJson["TargetEndpoint"]["DefaultFaultRule"]) {
+        newTarget.defaultFaultRule = this.flowXmlNodeToJson(
+          targetJson["TargetEndpoint"]["DefaultFaultRule"]["_attributes"][
+            "name"
+          ],
+          "",
+          targetJson["TargetEndpoint"]["DefaultFaultRule"],
+        ) as FaultRule;
+        if (targetJson["TargetEndpoint"]["DefaultFaultRule"]["AlwaysEnforce"]) {
+          newTarget.defaultFaultRule.alwaysEnforce =
+            targetJson["TargetEndpoint"]["DefaultFaultRule"]["AlwaysEnforce"][
+              "_text"
+            ];
+        }
+      }
       newProxy.targets.push(newTarget);
     }
 
@@ -414,6 +434,7 @@ export class ApigeeConverter {
                           ? propPieces[1]
                           : "",
                       examples: [],
+                      maps: {},
                     });
                   }
 
@@ -858,6 +879,21 @@ export class ApigeeConverter {
             }
             targetXml["TargetEndpoint"][flow.name][flow.mode] =
               this.flowJsonToXml(flow);
+          }
+        }
+
+        // default fault rule
+        if (target.defaultFaultRule) {
+          targetXml["TargetEndpoint"]["DefaultFaultRule"] = this.flowJsonToXml(
+            target.defaultFaultRule,
+          );
+          targetXml["TargetEndpoint"]["DefaultFaultRule"]["_attributes"] = {
+            name: target.defaultFaultRule.name,
+          };
+          if (target.defaultFaultRule.alwaysEnforce) {
+            targetXml["TargetEndpoint"]["DefaultFaultRule"]["AlwaysEnforce"] = {
+              _text: "true",
+            };
           }
         }
 
@@ -1400,6 +1436,8 @@ export class ApigeeConverter {
       ? newFeature.name
       : "feature-" + newFeature.name;
     newProxy.description = newFeature.description;
+    if (newFeature.documentation)
+      newProxy.documentation = newFeature.documentation;
     // keep original parameters, non-replaced
     newProxy.parameters = feature.parameters;
     if (newFeature.displayName) newProxy.displayName = newFeature.displayName;
@@ -1476,6 +1514,10 @@ export class ApigeeConverter {
           paramValue = parameters[proxyParamKey] ?? "";
         else if (parameters[parameter.name])
           paramValue = parameters[parameter.name] ?? "";
+
+        // apply map, if configured
+        if (parameter.maps && parameter.maps[paramValue])
+          paramValue = parameter.maps[paramValue] ?? paramValue;
 
         let replaceKey = "{" + parameter.name + "}";
         if (parameter.paths) {

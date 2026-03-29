@@ -1,18 +1,7 @@
 name: cors
 displayName: CORS
 type: feature
-description: |
-  This feature adds CORS handling to a proxy, with parameters for the allowed origins, methods and headers,
-  and allowing developer portal web applications to also access API endpoints for 'Try It Out' features.
-
-  **Prerequisites**
-  None.
-
-  **Inputs**
-  None.
-
-  **Outputs**
-  - The allowed headers are set according to the configuration, enabling CORS requests to be answered for allowed requests.
+description: Applies CORS handling to any proxy.
 categories:
   - traffic
 parameters:

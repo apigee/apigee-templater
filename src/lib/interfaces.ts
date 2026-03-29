@@ -36,6 +36,7 @@ export class Proxy {
   priority?: number;
   categories?: string[] = [];
   description: string = "";
+  documentation?: string = "";
   parameters: Parameter[] = [];
   endpoints: ProxyEndpoint[] = [];
   targets: ProxyTarget[] = [];
@@ -119,6 +120,7 @@ export class Feature {
   uid?: string;
   type: string = "feature";
   description: string = "";
+  documentation?: string = "";
   priority?: number;
   categories?: string[] = [];
   parameters: Parameter[] = [];
@@ -136,6 +138,7 @@ export class Parameter {
   paths?: string[] = [];
   displayName: string = "";
   description: string = "";
+  maps: { [key: string]: string } = {};
   examples: string[] = [];
   default: string = "";
 }

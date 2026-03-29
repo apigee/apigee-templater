@@ -95,17 +95,22 @@ export class ApigeeTemplaterService {
       let featureNames: string[] = fs.readdirSync(this.featuresPath);
 
       for (let featurePath of featureNames) {
-        if (featurePath.endsWith(".json")) {
-          let feature: Feature = JSON.parse(
-            fs.readFileSync(this.featuresPath + featurePath, "utf8"),
-          );
-          features.push(feature);
-        } else {
-          let feature: Feature = YAML.parse(
-            fs.readFileSync(this.featuresPath + featurePath, "utf8"),
-          );
-          features.push(feature);
-        }
+        try {
+          if (featurePath.endsWith(".json")) {
+            let feature: Feature = JSON.parse(
+              fs.readFileSync(this.featuresPath + featurePath, "utf8"),
+            );
+            if (feature && feature.type === "feature") features.push(feature);
+          } else if (
+            featurePath.endsWith(".yaml") ||
+            featurePath.endsWith(".yml")
+          ) {
+            let feature: Feature = YAML.parse(
+              fs.readFileSync(this.featuresPath + featurePath, "utf8"),
+            );
+            if (feature && feature.type === "feature") features.push(feature);
+          }
+        } catch (e) {}
       }
 
       let response = await fetch(this.remoteListUrl + "features");
