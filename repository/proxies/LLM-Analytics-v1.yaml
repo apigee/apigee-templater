@@ -1,0 +1,63 @@
+name: LLM-Analytics-v1
+displayName: "LLM Analytics"
+type: proxy
+categories:
+  - llm
+description: This proxy provides LLM analytics data ingestion for streaming LLM endpoints (with token usage information from last data frame).
+documentation: ~|
+  This proxy provides additional analytics ingestion, if needed, for example by streaming LLM endpoints.
+parameters: []
+endpoints:
+  - name: default
+    basePath: /llm-analytics-v1
+    routes:
+      - name: default
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: VA-VerifyKey
+          - name: DC-TokenAnalytics
+    faultRules: []
+targets: []
+policies:
+  - name: DC-TokenAnalytics
+    type: DataCapture
+    content:
+      dataCapture:
+        metadata:
+          name: DC-TokenAnalytics
+          continueOnError: "false"
+          enabled: "true"
+        displayName: DC-TokenAnalytics
+        ignoreUnresolvedVariables: "false"
+        capture:
+          - collect:
+              metadata:
+                default: "0"
+              source: request
+              jsonPayload:
+                jsonPath: $.responseTokenCount
+            dataCollector: dc_llm_response_token_count
+          - collect:
+              metadata:
+                default: "0"
+              source: request
+              jsonPayload:
+                jsonPath: $.model
+            dataCollector: dc_llm_model
+  - name: VA-VerifyKey
+    type: VerifyAPIKey
+    content:
+      verifyApiKey:
+        metadata:
+          continueOnError: "false"
+          enabled: "false"
+          name: VA-VerifyKey
+        displayName: VA-VerifyKey
+        properties: {}
+        apiKey:
+          metadata:
+            ref: request.header.x-api-key
+resources: []
+tests: []
