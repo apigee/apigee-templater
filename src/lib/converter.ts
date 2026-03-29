@@ -2273,6 +2273,7 @@ export class ApigeeConverter {
     if (result.includes("Xml")) result = result.replace("Xml", "XML");
     if (result.includes("Uri")) result = result.replace("Uri", "URI");
     if (result.includes("Id")) result = result.replace("Id", "ID");
+    if (result.includes("Llm")) result = result.replace("Llm", "LLM");
     return result;
   }
 }

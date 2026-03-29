@@ -22,7 +22,7 @@ categories:
 parameters: []
 defaultEndpoint:
   name: default
-  basePath: /geminiproxy-v2
+  basePath: /llm-auth
   routes:
     - name: default
       target: default
