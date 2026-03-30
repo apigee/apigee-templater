@@ -1,8 +1,10 @@
-name: llm-target-vertexom
-displayName: ""
+name: llm-vertex-openmodel
+displayName: LLM Vertex AI Open Model Target
 type: feature
-description: API template for Gemini-Proxy-v1
-categories: []
+description: Targets the Vertex AI Open Models using the Chat Completions Messages API (OAI compatible).
+categories:
+  - llm
+  - ai
 parameters:
   - name: MODEL
     displayName: MODEL
@@ -22,9 +24,9 @@ parameters:
       - moonshotai/kimi-k2-thinking-maas
       - openai/gpt-oss-120b-maas
       - deepseek-ai/deepseek-v3.2-maas
-  - name: MODEL_BACKUP
-    displayName: MODEL_BACKUP
-    description: Configuration input for MODEL_BACKUP
+  - name: MODEL_FALLBACK
+    displayName: MODEL_FALLBACK
+    description: Configuration input for MODEL_FALLBACK
     default: google/gemini-2.5-flash
     maps:
       gemini: google/gemini-flash-latest
@@ -45,14 +47,14 @@ parameters:
       - $.endpoints[:1].basePath
     displayName: BASE_PATH
     description: The base path on the proxy to receive traffic.
-    default: /v1/gemini
+    default: /v1/chat/completions
     examples:
       - /llm
       - /llm/gemini
       - /llm/qwen
 endpoints:
   - name: vertex
-    basePath: /v1/gemini
+    basePath: /v1/chat/completions
     routes:
       - name: default
         target: vertex
@@ -165,7 +167,7 @@ resources:
     type: jsc
     content: |-
       var requestObject = request.content.asJSON;
-      var model = context.getVariable("propertyset.vertexai.MODEL_BACKUP");
+      var model = context.getVariable("propertyset.vertexai.MODEL_FALLBACK");
 
       if (requestObject) {
         requestObject["model"] = model;
@@ -187,5 +189,5 @@ resources:
     type: properties
     content: |
       MODEL={MODEL}
-      MODEL_BACKUP={MODEL_BACKUP}
+      MODEL_FALLBACK={MODEL_FALLBACK}
 tests: []

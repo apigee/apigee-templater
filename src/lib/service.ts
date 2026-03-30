@@ -588,11 +588,18 @@ export class ApigeeTemplaterService {
         for (let templateFeature of template.features) {
           let featureName = templateFeature;
           let featureUid = "";
+          // FEATURE UID logic
           if (templateFeature.includes(".")) {
             let parts = templateFeature.split(".");
-            featureUid = parts[parts.length - 1] ?? featureUid;
-            parts.splice(parts.length - 1);
-            featureName = parts.join(".");
+            if (
+              parts[parts.length - 1] &&
+              parts[parts.length - 1] != "yaml" &&
+              parts[parts.length - 1] != "json"
+            ) {
+              featureUid = parts[parts.length - 1] ?? featureUid;
+              parts.splice(parts.length - 1);
+              featureName = parts.join(".");
+            }
           }
           let loadedFeature = await this.loadFeature(featureName);
           if (loadedFeature) {
