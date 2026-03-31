@@ -673,23 +673,27 @@ export class ApigeeConverter {
                 Flow: [],
               };
 
-            let flow = endpointXml["ProxyEndpoint"]["Flows"]["Flow"].find(
+            let endpointConditionFlow = endpointXml["ProxyEndpoint"]["Flows"][
+              "Flow"
+            ].find(
               (x: any) => x["_attributes"]["name"] === conditionalFlow.name,
             );
-            if (!flow) {
-              flow = {
+            if (!endpointConditionFlow) {
+              endpointConditionFlow = {
                 _attributes: {
-                  name: conditionalFlows[0]?.name,
+                  name: conditionalFlow.name,
                 },
                 Condition: {
-                  _text: conditionalFlows[0]?.condition,
+                  _text: conditionalFlow.condition,
                 },
               };
+              endpointXml["ProxyEndpoint"]["Flows"]["Flow"].push(
+                endpointConditionFlow,
+              );
             }
             if (conditionalFlow.mode)
-              flow[conditionalFlow.mode] = this.flowJsonToXml(
-                conditionalFlows[0],
-              );
+              endpointConditionFlow[conditionalFlow.mode] =
+                this.flowJsonToXml(conditionalFlow);
           }
         }
 
@@ -994,6 +998,14 @@ export class ApigeeConverter {
       for (let flow of sourceDoc["Flows"]["Flow"]) {
         let newFlows = this.flowsNodeToJson(flow);
         if (newFlows.length > 0) resultFlows = resultFlows.concat(newFlows);
+        else {
+          let emptyFlow: Flow = {
+            name: flow["_attributes"]["name"],
+            condition: flow["Condition"]["_text"],
+            steps: [],
+          };
+          resultFlows.push(emptyFlow);
+        }
       }
     } else if (sourceDoc && sourceDoc["Flows"] && sourceDoc["Flows"]["Flow"]) {
       let newFlows = this.flowsNodeToJson(sourceDoc["Flows"]["Flow"]);
