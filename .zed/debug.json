@@ -139,11 +139,6 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": [
-      "-i",
-      "QwenProxy-v1.local.yaml",
-      "-o",
-      "apigee-klab1:QwenProxy-v1",
-    ],
+    "args": ["-i", "ClaudeProxy.local.yaml", "-a", "llm-vertex-native"],
   },
 ]

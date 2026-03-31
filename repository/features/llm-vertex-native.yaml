@@ -1,37 +1,36 @@
 name: llm-vertex-native
 displayName: LLM Vertex AI Native Target
 type: feature
-description: Targets the Vertex AI native API endpoint for proxying any type of Vertex AI model.
+description: Targets the Vertex AI native API endpoint for proxying any type of
+  Vertex AI model.
 documentation: ""
 categories:
   - llm
   - ai
 parameters: []
-defaultEndpoint:
-  name: default
-  basePath: /v1/vertex
-  routes:
-    - name: default
-      target: default
-  flows: []
-  faultRules: []
-defaultTarget:
-  name: default
-  url: https://aiplatform.googleapis.com
-  auth: GoogleAccessToken
-  scopes:
-    - https://www.googleapis.com/auth/cloud-platform
-  flows: []
-  faultRules: []
-  httpTargetConnection:
-    properties: {}
+endpoints:
+  - name: vertex
+    basePath: /v1/vertex
+    routes:
+      - name: default
+        target: vertex
+    flows: []
+    faultRules: []
+targets:
+  - name: vertex
     url: https://aiplatform.googleapis.com
-    authentication:
-      googleAccessToken:
-        scopes:
-          scope: https://www.googleapis.com/auth/cloud-platform
-endpoints: []
-targets: []
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      properties: {}
+      url: https://aiplatform.googleapis.com
+      authentication:
+        googleAccessToken:
+          scopes:
+            scope: https://www.googleapis.com/auth/cloud-platform
 policies: []
 resources: []
 tests: []
