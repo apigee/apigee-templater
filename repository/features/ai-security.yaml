@@ -1,7 +1,7 @@
-name: llm-security
+name: ai-security
 displayName: ""
 type: feature
-description: llm-security
+description: aisecurity
 categories: []
 parameters: []
 defaultEndpoint:

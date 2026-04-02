@@ -1,28 +1,17 @@
-name: llm-auth
-displayName: LLM Auth Feature
+name: ai-auth
+displayName: AI Auth Feature
 type: feature
-description: The llm-auth feature adds authentication, authorization, quotas and analytics to the LLM access.
-documentation: ~|
-  Access to the LLM is managed through API Products in Apigee, that grant access and quotas to certain models.
-
-  **Prerequisites**
-  - LLM DataCollectors must be created in Apigee Analytics
-  ```sh
-  PROJECT_ID=YOUR_APIGEE_PROJECT
-  apigeecli datacollectors create -d "Model name" -n dc_llm_model -p STRING --org "$PROJECT_ID" --token $(gcloud auth print-access-token)
-  apigeecli datacollectors create -d "Total token count" -n dc_llm_total_token_count -p INTEGER --org "$PROJECT_ID" --token $(gcloud auth print-access-token)
-  apigeecli datacollectors create -d "Prompt token count" -n dc_llm_prompt_token_count -p INTEGER --org "$PROJECT_ID" --token $(gcloud auth print-access-token)
-  apigeecli datacollectors create -d "Total token count" -n dc_llm_response_token_count -p INTEGER --org "$PROJECT_ID" --token $(gcloud auth print-access-token)
-  ```
-
-  Important note - in order for streaming LLM access to store streaming LLM token analytics, you must also deploy
-  the **LLM-Analytics-v1** in your environment.
+description: The ai-auth feature adds authentication, authorization, quotas and
+  analytics to the AI access.
+documentation: |-
+  Access to the AI is managed through API Products in Apigee, that grant access and quotas to certain models.
 categories:
   - llm
+  - ai
 parameters: []
 defaultEndpoint:
   name: default
-  basePath: /llm-auth
+  basePath: /ai-auth
   routes:
     - name: default
       target: default
@@ -38,8 +27,6 @@ defaultEndpoint:
       steps:
         - name: LTQ-QuotaCount
           condition: response.content != ""
-        - name: DC-TokenAnalytics
-          condition: response.content != ""
   faultRules: []
 defaultTarget:
   name: default
@@ -52,10 +39,6 @@ defaultTarget:
       mode: Response
       steps:
         - name: LTQ-QuotaCountEvent
-        - name: JS-SendAnalytics
-          condition:
-            ratelimit.LTQ-QuotaCountEvent.used.count != "" AND analyticsSent !=
-            "true"
   faultRules: []
   httpTargetConnection:
     properties: {}
@@ -91,39 +74,6 @@ policies:
             createNew: "false"
             transport: http
             type: request
-  - name: DC-TokenAnalytics
-    type: DataCapture
-    content:
-      dataCapture:
-        metadata:
-          name: DC-TokenAnalytics
-          continueOnError: "false"
-          enabled: "true"
-        displayName: DC-TokenAnalytics
-        ignoreUnresolvedVariables: "false"
-        capture:
-          - collect:
-              metadata:
-                ref: ratelimit.LTQ-QuotaCount.used.count
-                default: "0"
-            dataCollector: dc_llm_response_token_count
-          - collect:
-              metadata:
-                ref: ratelimit.LTQ-QuotaCount.model
-                default: "0"
-            dataCollector: dc_llm_model
-  - name: JS-SendAnalytics
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-SendAnalytics
-        displayName: JS-SendAnalytics
-        properties: {}
-        resourceUrl: jsc://send-analytics.js
   - name: LTQ-QuotaCount
     type: LLMTokenQuota
     content:
@@ -209,25 +159,5 @@ policies:
         apiKey:
           metadata:
             ref: request.header.x-api-key
-resources:
-  - name: send-analytics.js
-    type: jsc
-    content: |-
-      var host = context.getVariable("originalHostName");
-      var tokenCount = context.getVariable("ratelimit.LTQ-QuotaCountEvent.used.count");
-
-      var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
-      var modelName = context.getVariable("ratelimit.LTQ-QuotaEnforce.model");
-      var headers = {"x-api-key": apiKey, "content-type": "application/json"};
-
-      if (tokenCount) {
-        print("Sending analytics to:" + 'https://' + host + "/llm-analytics-v1");
-        print(modelName + " - " + tokenCount);
-
-        var myRequest = new Request('https://' + host + "/llm-analytics-v1","POST", headers, '{"model": "' + modelName + '", "responseTokenCount": "'+ tokenCount + '"}');
-
-        httpClient.send(myRequest);
-
-        context.setVariable("analyticsSent", "true");
-      }
+resources: []
 tests: []

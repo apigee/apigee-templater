@@ -376,30 +376,31 @@ export class ApigeeConverter {
         );
 
         for (let resFile of resFiles) {
-          if (resFile === "templater-manifest.js") {
+          if (resFile === "metadata.js") {
             let manifestContent = fs.readFileSync(
               inputPath + "/apiproxy/resources/" + resType + "/" + resFile,
               "utf8",
             );
             if (manifestContent) {
-              const sandbox = { proxy: undefined };
+              const sandbox = { metadata: undefined };
               vm.createContext(sandbox);
               vm.runInContext(manifestContent, sandbox);
 
-              if (sandbox.proxy) {
-                if (sandbox.proxy["description"])
-                  newProxy.description = sandbox.proxy["description"];
-                if (sandbox.proxy["documentation"])
-                  newProxy.description = sandbox.proxy["documentation"];
-                if (sandbox.proxy["uid"]) newProxy.uid = sandbox.proxy["uid"];
-                if (sandbox.proxy["parameters"])
-                  newProxy.parameters = sandbox.proxy["parameters"];
-                if (sandbox.proxy["priority"])
-                  newProxy.priority = sandbox.proxy["priority"];
-                if (sandbox.proxy["displayName"])
-                  newProxy.displayName = sandbox.proxy["displayName"];
-                if (sandbox.proxy["categories"])
-                  newProxy.categories = sandbox.proxy["categories"];
+              if (sandbox.metadata) {
+                if (sandbox.metadata["description"])
+                  newProxy.description = sandbox.metadata["description"];
+                if (sandbox.metadata["documentation"])
+                  newProxy.documentation = sandbox.metadata["documentation"];
+                if (sandbox.metadata["uid"])
+                  newProxy.uid = sandbox.metadata["uid"];
+                if (sandbox.metadata["parameters"])
+                  newProxy.parameters = sandbox.metadata["parameters"];
+                if (sandbox.metadata["priority"])
+                  newProxy.priority = sandbox.metadata["priority"];
+                if (sandbox.metadata["displayName"])
+                  newProxy.displayName = sandbox.metadata["displayName"];
+                if (sandbox.metadata["categories"])
+                  newProxy.categories = sandbox.metadata["categories"];
               }
             }
           } else {
@@ -968,12 +969,25 @@ export class ApigeeConverter {
         recursive: true,
       });
       fs.writeFileSync(
-        tempFilePath + "/apiproxy/resources/jsc/templater-manifest.js",
-        `var proxy=${JSON.stringify(input, null, 2)};`,
+        tempFilePath + "/apiproxy/resources/jsc/metadata.js",
+        `var metadata=${JSON.stringify(
+          {
+            name: input["name"],
+            description: input["description"],
+            documentation: input["documentation"],
+            uid: input["uid"] ?? "",
+            parameters: input["parameters"],
+            priority: input["priority"],
+            displayName: input["displayName"],
+            categories: input["categories"],
+          },
+          null,
+          2,
+        )};`,
       );
       zipfile.addFile(
-        tempFilePath + "/apiproxy/resources/jsc/templater-manifest.js",
-        "apiproxy/resources/jsc/templater-manifest.js",
+        tempFilePath + "/apiproxy/resources/jsc/metadata.js",
+        "apiproxy/resources/jsc/metadata.js",
       );
 
       zipfile.outputStream
@@ -1455,9 +1469,7 @@ export class ApigeeConverter {
   ): Proxy {
     let newFeature = this.featureReplaceParameters(feature, [], parameters);
     let newProxy = new Proxy();
-    newProxy.name = newFeature.name.toLowerCase().startsWith("feature-")
-      ? newFeature.name
-      : "feature-" + newFeature.name;
+    newProxy.name = newFeature.name;
     newProxy.description = newFeature.description;
     if (newFeature.documentation)
       newProxy.documentation = newFeature.documentation;
@@ -2077,8 +2089,6 @@ export class ApigeeConverter {
   public proxyToFeature(proxy: Proxy): Feature {
     let newFeature = new Feature();
     newFeature.name = proxy.name;
-    if (newFeature.name.startsWith("feature-"))
-      newFeature.name = newFeature.name.replace("feature-", "");
     newFeature.description = proxy.description;
     newFeature.documentation = proxy.documentation ?? "";
     newFeature.parameters = proxy.parameters;
@@ -2208,6 +2218,7 @@ export class ApigeeConverter {
         let newKey = this.toCamelCase(key);
         // metadata sounds cooler ;)
         if (newKey === "attributes") newKey = "metadata";
+        if (newKey === "value") newKey = "setValue";
         if (newKey === "text") newKey = "value";
         // Recursively transform the value and assign it to the new key.
         newObj[newKey] = this.removeXml(obj[key]);
@@ -2271,6 +2282,7 @@ export class ApigeeConverter {
 
         if (newKey === "metadata") newKey = "_attributes";
         else if (newKey === "value") newKey = "_text";
+        else if (newKey === "setValue") newKey = "Value";
         else if (parentName !== "_attributes" && parentName != "_text") {
           newKey = this.removeCamelCase(newKey);
         }

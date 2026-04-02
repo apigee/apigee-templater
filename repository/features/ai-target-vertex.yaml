@@ -1,0 +1,539 @@
+name: ai-target-vertex
+displayName: AI Vertex AI Native Target
+type: feature
+description: Targets the Vertex AI native API endpoint for proxying any type of
+  Vertex AI model.
+documentation: |-
+  **Prerequisites**
+  - AI DataCollectors must be created in Apigee Analytics
+
+  ```sh
+  PROJECT_ID=YOUR_APIGEE_PROJECT
+  apigeecli datacollectors create -d "Model name" -n dc_ai_model -p STRING --org "$PROJECT_ID" --token $(gcloud auth print-access-token)
+  apigeecli datacollectors create -d "Total token count" -n dc_ai_total_token_count -p INTEGER --org "$PROJECT_ID" --token $(gcloud auth print-access-token)
+  apigeecli datacollectors create -d "Prompt token count" -n dc_ai_prompt_token_count -p INTEGER --org "$PROJECT_ID" --token $(gcloud auth print-access-token)
+  apigeecli datacollectors create -d "Total token count" -n dc_ai_response_token_count -p INTEGER --org "$PROJECT_ID" --token $(gcloud auth print-access-token)
+  apigeecli datacollectors create -d "Model response type" -n dc_ai_response_type -p STRING --org "$PROJECT_ID" --token $(gcloud auth print-access-token)
+  ```
+
+  Important note - in order for streaming LLM access to store streaming LLM token analytics, you must also deploy the **LLM-Analytics** proxy in your environment.
+categories:
+  - llm
+  - ai
+parameters:
+  - name: AllowedModelPatterns
+    displayName: AllowedModelPatterns
+    description: Configuration input for AllowedModelPatterns
+    default: ""
+    examples: []
+    maps: {}
+  - name: DeniedModelPatterns
+    displayName: DeniedModelPatterns
+    description: Configuration input for DeniedModelPatterns
+    default: ""
+    examples: []
+    maps: {}
+  - name: OverrideModel
+    displayName: OverrideModel
+    description: Configuration input for OverrideModel
+    default: ""
+    examples: []
+    maps: {}
+  - name: DefaultModel
+    displayName: DefaultModel
+    description: Configuration input for DefaultModel
+    default: ""
+    examples: []
+    maps: {}
+  - name: FallbackModel
+    displayName: FallbackModel
+    description: Configuration input for FallbackModel
+    default: ""
+    examples: []
+    maps: {}
+endpoints:
+  - name: vertex
+    basePath: /vertex
+    routes:
+      - name: default
+        target: vertex
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: KVM-LoadConfig
+          - name: AM-SaveHost
+          - name: JS-CheckModel
+    faultRules: []
+    defaultFaultRule:
+      name: default-fault
+      steps:
+        - name: JS-SetFallbackModel
+        - name: SC-FallbackModel
+        - name: AM-SetFallbackResponse
+        - name: JS-Analytics
+targets:
+  - name: vertex
+    url: https://aiplatform.googleapis.com
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+    faultRules: []
+    defaultFaultRule:
+      name: default-fault
+      steps:
+        - name: JS-SetFallbackModel
+        - name: SC-FallbackModel
+        - name: AM-SetFallbackResponse
+        - name: JS-Analytics
+    httpTargetConnection:
+      properties:
+        property:
+          metadata:
+            name: io.timeout.millis
+          value: "18000000"
+      url: https://aiplatform.googleapis.com
+policies:
+  - name: AM-SaveHost
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SaveHost
+        displayName: AM-SaveHost
+        properties: {}
+        assignVariable:
+          name: originalHostName
+          ref: request.header.host
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: AM-SetFallbackResponse
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetFallbackResponse
+        displayName: AM-SetFallbackResponse
+        properties: {}
+        copy:
+          metadata:
+            source: fallbackResponse
+          headers: {}
+          payload: "true"
+          statusCode: "true"
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: response
+  - name: JS-Analytics
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-Analytics
+        displayName: JS-Analytics
+        properties: {}
+        resourceUrl: jsc://analytics.js
+        includeUrl: jsc://ai-functions.js
+  - name: JS-CheckModel
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-CheckModel
+        displayName: JS-CheckModel
+        properties: {}
+        resourceUrl: jsc://model.js
+        includeUrl: jsc://ai-functions.js
+  - name: JS-SetFallbackModel
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetFallbackModel
+        displayName: JS-SetFallbackModel
+        properties: {}
+        resourceUrl: jsc://model-fallback.js
+  - name: KVM-LoadConfig
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: KVM-LoadConfig
+          mapIdentifier: AI-Config
+        displayName: KVM-LoadConfig
+        properties: {}
+        exclusiveCache: "false"
+        expiryTimeInSecs: "10"
+        initialEntries:
+          entry:
+            - key:
+                parameter: AllowedModelPatterns
+              setValue: ALL
+            - key:
+                parameter: DeniedModelPatterns
+              setValue: NONE
+            - key:
+                parameter: OverrideModel
+              setValue: NONE
+            - key:
+                parameter: DefaultModel
+              setValue: google/gemini-flash-latest
+            - key:
+                parameter: FallbackModel
+              setValue: google/gemini-flash-latest
+        get:
+          - metadata:
+              assignTo: ai.allowedModelPatterns
+              index: "1"
+            key:
+              parameter: AllowedModelPatterns
+          - metadata:
+              assignTo: ai.deniedModelPatterns
+              index: "1"
+            key:
+              parameter: DeniedModelPatterns
+          - metadata:
+              assignTo: ai.overrideModel
+              index: "1"
+            key:
+              parameter: OverrideModel
+          - metadata:
+              assignTo: ai.defaultModel
+              index: "1"
+            key:
+              parameter: DefaultModel
+          - metadata:
+              assignTo: ai.fallbackModel
+              index: "1"
+            key:
+              parameter: FallbackModel
+        scope: environment
+  - name: SC-FallbackModel
+    type: ServiceCallout
+    content:
+      serviceCallout:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: SC-FallbackModel
+        displayName: SC-FallbackModel
+        properties: {}
+        request:
+          metadata:
+            clearPayload: "true"
+            variable: fallbackRequest
+          set:
+            verb: POST
+            payload: "{request.content}"
+            headers:
+              header:
+                - metadata:
+                    name: Authorization
+                  value: "{request.header.authorization}"
+                - metadata:
+                    name: Content-Type
+                  value: application/json
+        response: fallbackResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
+resources:
+  - name: ai-functions.js
+    type: jsc
+    content: |
+      function getUsageData(contentString) {
+        var usageData = {
+          model: "",
+          requestTokenCount: 0,
+          responseTokenCount: 0,
+          totalTokenCount: 0,
+        };
+
+        if (
+          contentString &&
+          contentString != "[DONE]" &&
+          !contentString.startsWith("event: content_block_delta") &&
+          !contentString.startsWith("event: ping") &&
+          !contentString.startsWith("event: content_block_start") &&
+          !contentString.startsWith("event: content_block_stop") &&
+          !contentString.startsWith("event: message_stop")
+        ) {
+          contentString = contentString.replace("data: ", "");
+          contentString = contentString.replace("event: message_delta data:", "");
+          contentString = contentString.replace("event: message_delta", "");
+          contentString = contentString.replace("event: message_start", "");
+
+          try {
+            var contentData = JSON.parse(contentString);
+
+            // model
+            if (contentData["model"]) {
+              usageData.model = contentData["model"];
+            }
+            if (contentData["modelVersion"]) {
+              usageData.model = contentData["modelVersion"];
+            }
+            if (contentData["message"] && contentData["message"]["model"]) {
+              usageData.model = contentData["message"]["model"];
+            }
+
+            // requestTokenCount
+            // openmodels
+            if (contentData["usage"] && contentData["usage"]["prompt_tokens"]) {
+              usageData.requestTokenCount = contentData["usage"]["prompt_tokens"];
+            }
+            // claude
+            if (
+              contentData["message"] &&
+              contentData["message"]["usage"] &&
+              contentData["message"]["usage"]["input_tokens"]
+            ) {
+              usageData.requestTokenCount =
+                contentData["message"]["usage"]["input_tokens"];
+            }
+            if (contentData["usage"] && contentData["usage"]["input_tokens"]) {
+              usageData.requestTokenCount = contentData["usage"]["input_tokens"];
+            }
+            // gemini API
+            if (
+              contentData["usageMetadata"] &&
+              contentData["usageMetadata"]["promptTokenCount"]
+            ) {
+              usageData.requestTokenCount =
+                contentData["usageMetadata"]["promptTokenCount"];
+            }
+
+            // responseTokenCount
+            // openmodels
+            if (contentData["usage"] && contentData["usage"]["completion_tokens"])
+              usageData.responseTokenCount =
+                contentData["usage"]["completion_tokens"];
+            // claude
+            if (contentData["usage"] && contentData["usage"]["output_tokens"]) {
+              usageData.responseTokenCount = contentData["usage"]["output_tokens"];
+            }
+            // gemini
+            if (
+              contentData["usageMetadata"] &&
+              contentData["usageMetadata"]["candidatesTokenCount"]
+            ) {
+              usageData.responseTokenCount =
+                contentData["usageMetadata"]["candidatesTokenCount"];
+            }
+          } catch (e) {
+            print("Exception in processing stream data: " + e.message);
+          }
+        }
+
+        return usageData;
+      }
+
+      function testAllowedModels(requestInfo) {
+        var result = true;
+        if (
+          requestInfo.allowedModelPatterns &&
+          requestInfo.allowedModelPatterns != "ALL"
+        ) {
+          result = false;
+          var patterns = requestInfo.allowedModelPatterns.split(",");
+          for (var i = 0; i < patterns.length; i++) {
+            var pattern = patterns[i];
+            // var patternRegex = new RegExp(pattern);
+            if (requestInfo.type == "vertex") {
+              if (requestInfo.url.includes(pattern)) {
+                result = true;
+                break;
+              }
+              // if (patternRegex.test(requestInfo.url)) {
+              //   result = true;
+              //   break;
+              // }
+            } else if (
+              requestInfo.type == "oai" &&
+              requestInfo.requestContent["model"]
+            ) {
+              if (requestInfo.requestContent["model"].includes(pattern)) {
+                result = true;
+                break;
+              }
+            }
+          }
+        }
+
+        return result;
+      }
+
+      function testDeniedModels(requestInfo) {
+        var result = true;
+        if (
+          requestInfo.deniedModelPatterns &&
+          requestInfo.deniedModelPatterns != "NONE"
+        ) {
+          var patterns = requestInfo.deniedModelPatterns.split(",");
+          for (var i = 0; i < patterns.length; i++) {
+            var pattern = patterns[i];
+            // var patternRegex = new RegExp(pattern);
+            if (requestInfo.type == "vertex") {
+              if (requestInfo.url.includes(pattern)) {
+                result = false;
+                break;
+              }
+            } else if (
+              requestInfo.type == "oai" &&
+              requestInfo.requestContent["model"]
+            ) {
+              if (requestInfo.requestContent["model"].includes(pattern)) {
+                result = false;
+                break;
+              }
+            } else if (requestInfo.type == "oai") {
+              result = false;
+              break;
+            }
+          }
+        }
+
+        return result;
+      }
+
+      // this is to only export the function if in node
+      if (typeof exports !== "undefined") {
+        exports.getUsageData = getUsageData;
+        exports.testAllowedModels = testAllowedModels;
+        exports.testDeniedModels = testDeniedModels;
+      }
+  - name: analytics.js
+    type: jsc
+    content: |
+      var contentString = context.getVariable("response.event.current.content");
+      var type = "streaming";
+      if (!contentString) {
+        contentString = context.getVariable("response.content");
+        type = "non-streaming"
+      }
+      print(contentString);
+
+      var modelName = context.getVariable("llm.model");
+      var requestTokenCount = context.getVariable("llm.requestTokenCount");
+
+      var usageData = getUsageData(contentString);
+      if (usageData.model) context.setVariable("llm.model", usageData.model);
+      if (usageData.requestTokenCount) context.setVariable("llm.requestTokenCount", usageData.requestTokenCount);
+      if (modelName) usageData.model = modelName;
+      if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
+
+      if (usageData.responseTokenCount > 0) {
+        usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
+        usageData.type = type;
+        print("Sending analytics data: " + JSON.stringify(usageData));
+        var host = context.getVariable("originalHostName");
+        var headers = {"Content-Type": "application/json"};
+        var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
+        if (apiKey) headers["x-api-key"] = apiKey;
+        var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
+        print("Sending to: " + 'https://' + host + "/ai-analytics");
+        httpClient.send(myRequest);
+      }
+  - name: model-fallback.js
+    type: jsc
+    content: |-
+      var requestObject = request.content.asJSON;
+      var fallback_model = context.getVariable("propertyset.vertex.FallbackModel");
+      if (!fallback_model) fallback_model = context.getVariable("ai.fallbackModel");
+
+      if (requestObject) {
+        requestObject["model"] = fallback_model;
+        // turn off streaming in fallback mode
+        requestObject["stream"] = false;
+        context.setVariable('request.content', JSON.stringify(requestObject));
+      }
+  - name: model.js
+    type: jsc
+    content: |+
+      var allowed_model_patterns = context.getVariable("propertyset.vertex.AllowedModelPatterns");
+      var denied_model_patterns = context.getVariable("propertyset.vertex.DeniedModelPatterns");
+      var override_model = context.getVariable("propertyset.vertex.OverrideModel");
+      var default_model = context.getVariable("propertyset.vertex.DefaultModel");
+      if (!allowed_model_patterns) allowed_model_patterns = context.getVariable("ai.allowedModelPatterns");
+      if (!denied_model_patterns) denied_model_patterns = context.getVariable("ai.deniedModelPatterns");
+      if (!override_model) override_model = context.getVariable("ai.overrideModel");
+      if (!default_model) default_model = context.getVariable("ai.defaultModel");
+
+      var url = context.getVariable("proxy.url");
+      var requestContent = request.content.asJSON;
+      var callType = "vertex";
+      if (url.includes("/chat/completions")) callType = "oai";
+
+      var requestConfig = {
+        url: url,
+        type: callType,
+        requestContent: requestContent,
+        allowedModelPatterns: allowed_model_patterns,
+        deniedModelPatterns: denied_model_patterns
+      }
+
+      var allowResult = testAllowedModels(requestConfig);
+      var denyResult = testDeniedModels(requestConfig);
+
+      if (!allowResult) {
+        print("Model not allowed!");
+        context.setVariable("response.status.code", 403);
+        throw "Model not allowed!";
+      }
+
+      if (!denyResult) {
+        print("Model denied!");
+        context.setVariable("response.status.code", 403);
+        throw "Model denied!";
+      }
+
+      print("Default_model: " + default_model);
+      print("Request model: " + requestContent["model"]);
+
+      if (override_model && override_model != "NONE") {
+        requestContent["model"] = override_model;
+        context.setVariable('request.content', JSON.stringify(requestContent));
+      } else if (default_model && default_model != "NONE" && !requestContent["model"]) {
+        print("Default model set: " + default_model);
+        requestContent["model"] = default_model;
+        context.setVariable('request.content', JSON.stringify(requestContent));
+      }
+
+  - name: vertex.properties
+    type: properties
+    content: |
+      AllowedModelPatterns={AllowedModelPatterns}
+      DeniedModelPatterns={DeniedModelPatterns}
+      OverrideModel={OverrideModel}
+      DefaultModel={DefaultModel}
+      FallbackModel={FallbackModel}
+tests: []

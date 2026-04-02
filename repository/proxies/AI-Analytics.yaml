@@ -1,15 +1,16 @@
-name: LLM-Analytics-v1
-displayName: "LLM Analytics"
+name: AI-Analytics
+displayName: AI Analytics Proxy
 type: proxy
 categories:
   - llm
-description: This proxy provides LLM analytics data ingestion for streaming LLM endpoints (with token usage information from last data frame).
+  - ai
+description: This proxy provides AI analytics data ingestion for streaming LLM endpoints (with token usage information from last data frame).
 documentation: ~|
   This proxy provides additional analytics ingestion, if needed, for example by streaming LLM endpoints.
 parameters: []
 endpoints:
   - name: default
-    basePath: /llm-analytics-v1
+    basePath: /ai-analytics
     routes:
       - name: default
     flows:
