@@ -519,10 +519,10 @@ resources:
       print("Default_model: " + default_model);
       print("Request model: " + requestContent["model"]);
 
-      if (override_model && override_model != "NONE") {
+      if (override_model && override_model != "NONE" && callType == "oai") {
         requestContent["model"] = override_model;
         context.setVariable('request.content', JSON.stringify(requestContent));
-      } else if (default_model && default_model != "NONE" && !requestContent["model"]) {
+      } else if (default_model && default_model != "NONE" && !requestContent["model"] && callType == "oai") {
         print("Default model set: " + default_model);
         requestContent["model"] = default_model;
         context.setVariable('request.content', JSON.stringify(requestContent));
