@@ -1,4 +1,4 @@
-name: target-bigquery
+name: proxy-bigquery
 displayName: BigQuery Data Product
 type: feature
 description: Turn any Google BigQuery table or query into a fully-featured API product.

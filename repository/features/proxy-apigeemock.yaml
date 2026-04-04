@@ -1,4 +1,4 @@
-name: target-apigeemock
+name: proxy-apigeemock
 displayName: Apigee Mock Proxy
 type: feature
 description: Add a target to https://mocktarget.apigee.net to your proxy.

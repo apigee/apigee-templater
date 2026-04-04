@@ -1,8 +1,7 @@
-name: ai-target-vertex
+name: ai-proxy-vertex
 displayName: AI Vertex AI Native Target
 type: feature
-description: Targets the Vertex AI native API endpoint for proxying any type of
-  Vertex AI model.
+description: Proxies the endpoints for Vertex AI and Gemini.
 documentation: |-
   **Prerequisites**
   - AI DataCollectors must be created in Apigee Analytics
@@ -62,8 +61,9 @@ endpoints:
         mode: Request
         steps:
           - name: KVM-LoadConfig
-          - name: AM-SaveHost
+          - name: AM-SetVariables
           - name: JS-CheckModel
+          - name: JWT-Analytics
     faultRules: []
     defaultFaultRule:
       name: default-fault
@@ -85,6 +85,7 @@ targets:
         mode: Response
         steps:
           - name: JS-Analytics
+            condition: analyticsFinished != "true"
     faultRules: []
     defaultFaultRule:
       name: default-fault
@@ -101,25 +102,6 @@ targets:
           value: "18000000"
       url: https://aiplatform.googleapis.com
 policies:
-  - name: AM-SaveHost
-    type: AssignMessage
-    content:
-      assignMessage:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: AM-SaveHost
-        displayName: AM-SaveHost
-        properties: {}
-        assignVariable:
-          name: originalHostName
-          ref: request.header.host
-        ignoreUnresolvedVariables: "true"
-        assignTo:
-          metadata:
-            createNew: "false"
-            transport: http
-            type: request
   - name: AM-SetFallbackResponse
     type: AssignMessage
     content:
@@ -142,6 +124,32 @@ policies:
             createNew: "false"
             transport: http
             type: response
+  - name: AM-SetVariables
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetVariables
+        displayName: AM-SetVariables
+        properties: {}
+        remove:
+          headers:
+            header:
+              metadata:
+                name: accept-encoding
+        assignVariable:
+          - name: originalHostName
+            ref: request.header.host
+          - name: private.analyticsSecret
+            setValue: ApigeeDemoSecret
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
   - name: JS-Analytics
     type: Javascript
     content:
@@ -180,6 +188,26 @@ policies:
         displayName: JS-SetFallbackModel
         properties: {}
         resourceUrl: jsc://model-fallback.js
+  - name: JWT-Analytics
+    type: GenerateJWT
+    content:
+      generateJwt:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: JWT-Analytics
+        displayName: JWT-Analytics
+        algorithm: HS256
+        secretKey:
+          setValue:
+            metadata:
+              ref: private.analyticsSecret
+        subject: apigee-analytics
+        issuer: urn://apigee-x-JWT-policy-analytics
+        audience: analytics
+        expiresIn: 10m
+        additionalClaims: {}
+        outputVariable: analyticsJwt
   - name: KVM-LoadConfig
     type: KeyValueMapOperations
     content:
@@ -457,11 +485,15 @@ resources:
         print("Sending analytics data: " + JSON.stringify(usageData));
         var host = context.getVariable("originalHostName");
         var headers = {"Content-Type": "application/json"};
-        var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
-        if (apiKey) headers["x-api-key"] = apiKey;
+        var analyticsJwt = context.getVariable("analyticsJwt");
+        if (analyticsJwt) {
+          print(analyticsJwt);
+          headers["Authorization"] = "Bearer " + analyticsJwt;
+        }
         var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
         print("Sending to: " + 'https://' + host + "/ai-analytics");
         httpClient.send(myRequest);
+        context.setVariable("analyticsFinished", "true");
       }
   - name: model-fallback.js
     type: jsc

@@ -1,4 +1,4 @@
-name: target-httpbin
+name: proxy-httpbin
 displayName: HttpBin Proxy
 type: feature
 description: Add a target to httpbin.org to your proxy.

@@ -1,0 +1,301 @@
+name: ai-analytics
+displayName: Gemini Target
+type: feature
+description: Targets the Gemini native API endpoint for proxying Gemini requests.
+documentation: ""
+categories:
+  - llm
+  - ai
+parameters: []
+endpoints:
+  - name: default
+    basePath: /llm
+    routes:
+      - name: default
+        target: default
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: AM-SetVariables
+          - name: JWT-Analytics
+    faultRules: []
+targets:
+  - name: default
+    url: https://aiplatform.googleapis.com
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: analyticsFinished != "true"
+    faultRules: []
+    httpTargetConnection:
+      properties:
+        property:
+          metadata:
+            name: io.timeout.millis
+          value: "18000000"
+      url: https://generativelanguage.googleapis.com
+policies:
+  - name: AM-SetVariables
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetVariables
+        displayName: AM-SetVariables
+        properties: {}
+        assignVariable:
+          - name: originalHostName
+            ref: request.header.host
+          - name: private.analyticsSecret
+            setValue: ApigeeDemoSecret
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: JS-Analytics
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-Analytics
+        displayName: JS-Analytics
+        properties: {}
+        resourceUrl: jsc://analytics.js
+        includeUrl: jsc://ai-functions.js
+  - name: JWT-Analytics
+    type: GenerateJWT
+    content:
+      generateJwt:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: JWT-Analytics
+        displayName: JWT-Analytics
+        algorithm: HS256
+        secretKey:
+          setValue:
+            metadata:
+              ref: private.analyticsSecret
+        subject: apigee-analytics
+        issuer: urn://apigee-x-JWT-policy-analytics
+        audience: analytics
+        expiresIn: 10m
+        additionalClaims: {}
+        outputVariable: analyticsJwt
+resources:
+  - name: ai-functions.js
+    type: jsc
+    content: |
+      function getUsageData(contentString) {
+        var usageData = {
+          model: "",
+          requestTokenCount: 0,
+          responseTokenCount: 0,
+          totalTokenCount: 0,
+        };
+
+        if (
+          contentString &&
+          contentString != "[DONE]" &&
+          !contentString.startsWith("event: content_block_delta") &&
+          !contentString.startsWith("event: ping") &&
+          !contentString.startsWith("event: content_block_start") &&
+          !contentString.startsWith("event: content_block_stop") &&
+          !contentString.startsWith("event: message_stop")
+        ) {
+          contentString = contentString.replace("data: ", "");
+          contentString = contentString.replace("event: message_delta data:", "");
+          contentString = contentString.replace("event: message_delta", "");
+          contentString = contentString.replace("event: message_start", "");
+
+          try {
+            var contentData = JSON.parse(contentString);
+
+            // model
+            if (contentData["model"]) {
+              usageData.model = contentData["model"];
+            }
+            if (contentData["modelVersion"]) {
+              usageData.model = contentData["modelVersion"];
+            }
+            if (contentData["message"] && contentData["message"]["model"]) {
+              usageData.model = contentData["message"]["model"];
+            }
+
+            // requestTokenCount
+            // openmodels
+            if (contentData["usage"] && contentData["usage"]["prompt_tokens"]) {
+              usageData.requestTokenCount = contentData["usage"]["prompt_tokens"];
+            }
+            // claude
+            if (
+              contentData["message"] &&
+              contentData["message"]["usage"] &&
+              contentData["message"]["usage"]["input_tokens"]
+            ) {
+              usageData.requestTokenCount =
+                contentData["message"]["usage"]["input_tokens"];
+            }
+            if (contentData["usage"] && contentData["usage"]["input_tokens"]) {
+              usageData.requestTokenCount = contentData["usage"]["input_tokens"];
+            }
+            // gemini API
+            if (
+              contentData["usageMetadata"] &&
+              contentData["usageMetadata"]["promptTokenCount"]
+            ) {
+              usageData.requestTokenCount =
+                contentData["usageMetadata"]["promptTokenCount"];
+            }
+
+            // responseTokenCount
+            // openmodels
+            if (contentData["usage"] && contentData["usage"]["completion_tokens"])
+              usageData.responseTokenCount =
+                contentData["usage"]["completion_tokens"];
+            // claude
+            if (contentData["usage"] && contentData["usage"]["output_tokens"]) {
+              usageData.responseTokenCount = contentData["usage"]["output_tokens"];
+            }
+            // gemini
+            if (
+              contentData["usageMetadata"] &&
+              contentData["usageMetadata"]["candidatesTokenCount"]
+            ) {
+              usageData.responseTokenCount =
+                contentData["usageMetadata"]["candidatesTokenCount"];
+            }
+          } catch (e) {
+            print("Exception in processing stream data: " + e.message);
+          }
+        }
+
+        return usageData;
+      }
+
+      function testAllowedModels(requestInfo) {
+        var result = true;
+        if (
+          requestInfo.allowedModelPatterns &&
+          requestInfo.allowedModelPatterns != "ALL"
+        ) {
+          result = false;
+          var patterns = requestInfo.allowedModelPatterns.split(",");
+          for (var i = 0; i < patterns.length; i++) {
+            var pattern = patterns[i];
+            // var patternRegex = new RegExp(pattern);
+            if (requestInfo.type == "vertex") {
+              if (requestInfo.url.includes(pattern)) {
+                result = true;
+                break;
+              }
+              // if (patternRegex.test(requestInfo.url)) {
+              //   result = true;
+              //   break;
+              // }
+            } else if (
+              requestInfo.type == "oai" &&
+              requestInfo.requestContent["model"]
+            ) {
+              if (requestInfo.requestContent["model"].includes(pattern)) {
+                result = true;
+                break;
+              }
+            }
+          }
+        }
+
+        return result;
+      }
+
+      function testDeniedModels(requestInfo) {
+        var result = true;
+        if (
+          requestInfo.deniedModelPatterns &&
+          requestInfo.deniedModelPatterns != "NONE"
+        ) {
+          var patterns = requestInfo.deniedModelPatterns.split(",");
+          for (var i = 0; i < patterns.length; i++) {
+            var pattern = patterns[i];
+            // var patternRegex = new RegExp(pattern);
+            if (requestInfo.type == "vertex") {
+              if (requestInfo.url.includes(pattern)) {
+                result = false;
+                break;
+              }
+            } else if (
+              requestInfo.type == "oai" &&
+              requestInfo.requestContent["model"]
+            ) {
+              if (requestInfo.requestContent["model"].includes(pattern)) {
+                result = false;
+                break;
+              }
+            } else if (requestInfo.type == "oai") {
+              result = false;
+              break;
+            }
+          }
+        }
+
+        return result;
+      }
+
+      // this is to only export the function if in node
+      if (typeof exports !== "undefined") {
+        exports.getUsageData = getUsageData;
+        exports.testAllowedModels = testAllowedModels;
+        exports.testDeniedModels = testDeniedModels;
+      }
+  - name: analytics.js
+    type: jsc
+    content: |
+      var contentString = context.getVariable("response.event.current.content");
+      var type = "streaming";
+      if (!contentString) {
+        contentString = context.getVariable("response.content");
+        type = "non-streaming"
+      }
+      print(contentString);
+
+      var modelName = context.getVariable("llm.model");
+      var requestTokenCount = context.getVariable("llm.requestTokenCount");
+
+      var usageData = getUsageData(contentString);
+      if (usageData.model) context.setVariable("llm.model", usageData.model);
+      if (usageData.requestTokenCount) context.setVariable("llm.requestTokenCount", usageData.requestTokenCount);
+      if (modelName) usageData.model = modelName;
+      if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
+
+      if (usageData.responseTokenCount > 0) {
+        usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
+        usageData.type = type;
+        print("Sending analytics data: " + JSON.stringify(usageData));
+        var host = context.getVariable("originalHostName");
+        var headers = {"Content-Type": "application/json"};
+        var analyticsJwt = context.getVariable("analyticsJwt");
+        if (analyticsJwt) {
+          print(analyticsJwt);
+          headers["Authorization"] = "Bearer " + analyticsJwt;
+        }
+        var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
+        print("Sending to: " + 'https://' + host + "/ai-analytics");
+        httpClient.send(myRequest);
+        context.setVariable("analyticsFinished", "true");
+      }
+tests: []
