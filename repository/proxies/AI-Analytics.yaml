@@ -61,7 +61,7 @@ policies:
               source: request
               jsonPayload:
                 jsonPath: $.model
-            dataCollector: dc_llm_model
+            dataCollector: dc_ai_model
           - collect:
               metadata:
                 default: "0"
@@ -75,7 +75,7 @@ policies:
               source: request
               jsonPayload:
                 jsonPath: $.responseTokenCount
-            dataCollector: dc_llm_response_token_count
+            dataCollector: dc_ai_response_token_count
           - collect:
               metadata:
                 default: "0"
