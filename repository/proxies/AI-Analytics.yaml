@@ -18,32 +18,11 @@ endpoints:
       - name: PreFlow
         mode: Request
         steps:
-          - name: AM-SetVariables
-          - name: EV-ExtractToken
-          - name: JWT-VerifyToken
+          - name: VA-VerifyKey
           - name: DC-TokenAnalytics
     faultRules: []
 targets: []
 policies:
-  - name: AM-SetVariables
-    type: AssignMessage
-    content:
-      assignMessage:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: AM-SetVariables
-        displayName: AM-SetVariables
-        properties: {}
-        assignVariable:
-          name: private.analyticsSecret
-          setValue: ApigeeDemoSecret
-        ignoreUnresolvedVariables: "true"
-        assignTo:
-          metadata:
-            createNew: "false"
-            transport: http
-            type: request
   - name: DC-TokenAnalytics
     type: DataCapture
     content:
@@ -56,85 +35,47 @@ policies:
         ignoreUnresolvedVariables: "false"
         capture:
           - collect:
-              metadata:
-                default: "0"
               source: request
               jsonPayload:
                 jsonPath: $.model
             dataCollector: dc_ai_model
           - collect:
-              metadata:
-                default: "0"
               source: request
               jsonPayload:
                 jsonPath: $.requestTokenCount
             dataCollector: dc_ai_prompt_token_count
           - collect:
-              metadata:
-                default: "0"
               source: request
               jsonPayload:
                 jsonPath: $.responseTokenCount
             dataCollector: dc_ai_response_token_count
           - collect:
-              metadata:
-                default: "0"
               source: request
               jsonPayload:
                 jsonPath: $.totalTokenCount
             dataCollector: dc_ai_total_token_count
           - collect:
-              metadata:
-                default: "0"
               source: request
               jsonPayload:
                 jsonPath: $.type
             dataCollector: dc_ai_response_type
           - collect:
-              metadata:
-                default: "0"
               source: request
               jsonPayload:
                 jsonPath: $.timeToFirstToken
             dataCollector: dc_ai_time_first_token
-  - name: EV-ExtractToken
-    type: ExtractVariables
+  - name: VA-VerifyKey
+    type: VerifyAPIKey
     content:
-      extractVariables:
+      verifyApiKey:
         metadata:
           continueOnError: "false"
           enabled: "true"
-          name: EV-ExtractToken
-        displayName: EV-ExtractToken
+          name: VA-VerifyKey
+        displayName: VA-VerifyKey
         properties: {}
-        source: request
-        header:
+        apiKey:
           metadata:
-            name: Authorization
-          pattern:
-            metadata:
-              ignoreCase: "false"
-            value: Bearer {jwtToken}
-        variablePrefix: analytics
-        ignoreUnresolvedVariables: "true"
-  - name: JWT-VerifyToken
-    type: VerifyJWT
-    content:
-      verifyJwt:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: JWT-VerifyToken
-        displayName: JWT-VerifyToken
-        algorithm: HS256
-        source: analytics.jwtToken
-        secretKey:
-          setValue:
-            metadata:
-              ref: private.analyticsSecret
-        subject: apigee-analytics
-        issuer: urn://apigee-x-JWT-policy-analytics
-        audience: analytics
-        additionalClaims: {}
+            ref: request.header.x-api-key
 resources: []
 tests: []

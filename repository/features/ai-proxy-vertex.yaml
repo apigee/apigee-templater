@@ -79,7 +79,6 @@ endpoints:
           - name: KVM-LoadConfig
           - name: AM-SetVariables
           - name: JS-CheckModel
-          - name: JWT-Analytics
     faultRules: []
 targets:
   - name: vertex
@@ -151,8 +150,6 @@ policies:
         assignVariable:
           - name: originalHostName
             ref: request.header.host
-          - name: private.analyticsSecret
-            setValue: ApigeeDemoSecret
         ignoreUnresolvedVariables: "true"
         assignTo:
           metadata:
@@ -197,26 +194,6 @@ policies:
         displayName: JS-SetFallbackModel
         properties: {}
         resourceUrl: jsc://model-fallback.js
-  - name: JWT-Analytics
-    type: GenerateJWT
-    content:
-      generateJwt:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: JWT-Analytics
-        displayName: JWT-Analytics
-        algorithm: HS256
-        secretKey:
-          setValue:
-            metadata:
-              ref: private.analyticsSecret
-        subject: apigee-analytics
-        issuer: urn://apigee-x-JWT-policy-analytics
-        audience: analytics
-        expiresIn: 10m
-        additionalClaims: {}
-        outputVariable: analyticsJwt
   - name: KVM-LoadConfig
     type: KeyValueMapOperations
     content:
@@ -522,10 +499,9 @@ resources:
         print("Sending analytics data: " + JSON.stringify(usageData));
         var host = context.getVariable("originalHostName");
         var headers = {"Content-Type": "application/json"};
-        var analyticsJwt = context.getVariable("analyticsJwt");
-        if (analyticsJwt) {
-          print(analyticsJwt);
-          headers["Authorization"] = "Bearer " + analyticsJwt;
+        var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
+        if (apiKey) {
+          headers["x-api-key"] = apiKey;
         }
         var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
         print("Sending to: " + 'https://' + host + "/ai-analytics");
