@@ -3,8 +3,9 @@ displayName: AI Auth Feature
 type: feature
 description: The ai-auth feature adds authentication, authorization, quotas and
   analytics to the AI access.
-documentation: |-
-  Access to the AI is managed through API Products in Apigee, that grant access and quotas to certain models.
+documentation: Access to the AI is managed through API Products in Apigee, that
+  grant access and quotas to certain models.
+priority: 110
 categories:
   - llm
   - ai
@@ -21,12 +22,14 @@ defaultEndpoint:
       steps:
         - name: VA-VerifyKey
         - name: AM-RemoveKey
+        - name: JS-GetModel
         - name: LTQ-QuotaEnforce
+          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
     - name: PostFlow
       mode: Response
       steps:
         - name: LTQ-QuotaCount
-          condition: response.content != ""
+          condition: ai.responseTokenCount != null
   faultRules: []
 defaultTarget:
   name: default
@@ -38,7 +41,8 @@ defaultTarget:
     - name: EventFlow
       mode: Response
       steps:
-        - name: LTQ-QuotaCountEvent
+        - name: LTQ-QuotaCount
+          condition: ai.responseTokenCount != null
   faultRules: []
   httpTargetConnection:
     properties: {}
@@ -74,6 +78,26 @@ policies:
             createNew: "false"
             transport: http
             type: request
+  - name: JS-GetModel
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-GetModel
+        displayName: JS-GetModel
+        properties: {}
+        source: "
+
+          \    var modelName = getModelName(context.getVariable(\"proxy.url\"),
+          request.content);
+
+          \    context.setVariable(\"ai.model\", modelName);
+
+          \  "
+        includeUrl: jsc://ai-functions.js
   - name: LTQ-QuotaCount
     type: LLMTokenQuota
     content:
@@ -96,34 +120,8 @@ policies:
         asynchronousConfiguration:
           syncIntervalInSeconds: "20"
           syncMessageCount: "5"
-        llmTokenUsageSource: "{jsonPath('$.usage.completion_tokens',response.content,true)}"
-        llmModelSource: "{jsonPath('$.model',request.content,true)}"
-  - name: LTQ-QuotaCountEvent
-    type: LLMTokenQuota
-    content:
-      llmTokenQuota:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: LTQ-QuotaCountEvent
-          type: calendar
-        displayName: LTQ-QuotaCountEvent
-        properties: {}
-        useQuotaConfigInApiProduct:
-          metadata:
-            stepName: VA-VerifyKey
-        countOnly: "true"
-        sharedName: llm-quota
-        distributed: "false"
-        synchronous: "false"
-        startTime: 2013-08-21 10:00:00
-        asynchronousConfiguration:
-          syncIntervalInSeconds: "20"
-          syncMessageCount: "5"
-        llmTokenUsageSource:
-          "{jsonPath('$.usage.completion_tokens',response.event.curr\
-          ent.data,true)}"
-        llmModelSource: "{jsonPath('$.model',request.content,true)}"
+        llmTokenUsageSource: "{ai.responseTokenCount}"
+        llmModelSource: "{ai.model}"
   - name: LTQ-QuotaEnforce
     type: LLMTokenQuota
     content:
@@ -146,6 +144,7 @@ policies:
         asynchronousConfiguration:
           syncIntervalInSeconds: "20"
           syncMessageCount: "5"
+        llmModelSource: "{ai.model}"
   - name: VA-VerifyKey
     type: VerifyAPIKey
     content:
@@ -159,5 +158,191 @@ policies:
         apiKey:
           metadata:
             ref: request.header.x-api-key
-resources: []
+resources:
+  - name: ai-functions.js
+    type: jsc
+    content: |
+      function getModelName(urlString, contentString) {
+        var modelName = "unknown";
+        if (urlString && urlString.includes("/models/")) {
+          // claude url format
+          var urlPieces = urlString.split("/models/");
+          if (urlPieces.length > 1) {
+            var urlPieces2 = urlPieces[1].split(":");
+            if (urlPieces2.length > 0) {
+              modelName = urlPieces2[0];
+            }
+          }
+        } else if (contentString) {
+          try {
+            var contentData = JSON.parse(contentString);
+            if (contentData && contentData["model"]) modelName = contentData["model"];
+          } catch (e) {}
+        }
+
+        return modelName;
+      }
+
+      function getUsageData(contentString) {
+        var usageData = {
+          model: "",
+          requestTokenCount: 0,
+          responseTokenCount: 0,
+          totalTokenCount: 0,
+        };
+
+        if (
+          contentString &&
+          contentString != "[DONE]" &&
+          !contentString.startsWith("event: content_block_delta") &&
+          !contentString.startsWith("event: ping") &&
+          !contentString.startsWith("event: content_block_start") &&
+          !contentString.startsWith("event: content_block_stop") &&
+          !contentString.startsWith("event: message_stop")
+        ) {
+          contentString = contentString.replace("data: ", "");
+          contentString = contentString.replace("event: message_delta data:", "");
+          contentString = contentString.replace("event: message_delta", "");
+          contentString = contentString.replace("event: message_start", "");
+
+          try {
+            var contentData = JSON.parse(contentString);
+
+            // model
+            if (contentData["model"]) {
+              usageData.model = contentData["model"];
+            }
+            if (contentData["modelVersion"]) {
+              usageData.model = contentData["modelVersion"];
+            }
+            if (contentData["message"] && contentData["message"]["model"]) {
+              usageData.model = contentData["message"]["model"];
+            }
+
+            // requestTokenCount
+            // openmodels
+            if (contentData["usage"] && contentData["usage"]["prompt_tokens"]) {
+              usageData.requestTokenCount = contentData["usage"]["prompt_tokens"];
+            }
+            // claude
+            if (
+              contentData["message"] &&
+              contentData["message"]["usage"] &&
+              contentData["message"]["usage"]["input_tokens"]
+            ) {
+              usageData.requestTokenCount =
+                contentData["message"]["usage"]["input_tokens"];
+            }
+            if (contentData["usage"] && contentData["usage"]["input_tokens"]) {
+              usageData.requestTokenCount = contentData["usage"]["input_tokens"];
+            }
+            // gemini API
+            if (
+              contentData["usageMetadata"] &&
+              contentData["usageMetadata"]["promptTokenCount"]
+            ) {
+              usageData.requestTokenCount =
+                contentData["usageMetadata"]["promptTokenCount"];
+            }
+
+            // responseTokenCount
+            // openmodels
+            if (contentData["usage"] && contentData["usage"]["completion_tokens"])
+              usageData.responseTokenCount =
+                contentData["usage"]["completion_tokens"];
+            // claude
+            if (contentData["usage"] && contentData["usage"]["output_tokens"]) {
+              usageData.responseTokenCount = contentData["usage"]["output_tokens"];
+            }
+            // gemini
+            if (
+              contentData["usageMetadata"] &&
+              contentData["usageMetadata"]["candidatesTokenCount"]
+            ) {
+              usageData.responseTokenCount =
+                contentData["usageMetadata"]["candidatesTokenCount"];
+            }
+          } catch (e) {
+            print("Exception in processing stream data: " + e.message);
+          }
+        }
+
+        return usageData;
+      }
+
+      function testAllowedModels(requestInfo) {
+        var result = true;
+        if (
+          requestInfo.allowedModelPatterns &&
+          requestInfo.allowedModelPatterns != "ALL"
+        ) {
+          result = false;
+          var patterns = requestInfo.allowedModelPatterns.split(",");
+          for (var i = 0; i < patterns.length; i++) {
+            var pattern = patterns[i];
+            // var patternRegex = new RegExp(pattern);
+            if (requestInfo.type == "vertex") {
+              if (requestInfo.url.includes(pattern)) {
+                result = true;
+                break;
+              }
+              // if (patternRegex.test(requestInfo.url)) {
+              //   result = true;
+              //   break;
+              // }
+            } else if (
+              requestInfo.type == "oai" &&
+              requestInfo.requestContent["model"]
+            ) {
+              if (requestInfo.requestContent["model"].includes(pattern)) {
+                result = true;
+                break;
+              }
+            }
+          }
+        }
+
+        return result;
+      }
+
+      function testDeniedModels(requestInfo) {
+        var result = true;
+        if (
+          requestInfo.deniedModelPatterns &&
+          requestInfo.deniedModelPatterns != "NONE"
+        ) {
+          var patterns = requestInfo.deniedModelPatterns.split(",");
+          for (var i = 0; i < patterns.length; i++) {
+            var pattern = patterns[i];
+            // var patternRegex = new RegExp(pattern);
+            if (requestInfo.type == "vertex") {
+              if (requestInfo.url.includes(pattern)) {
+                result = false;
+                break;
+              }
+            } else if (
+              requestInfo.type == "oai" &&
+              requestInfo.requestContent["model"]
+            ) {
+              if (requestInfo.requestContent["model"].includes(pattern)) {
+                result = false;
+                break;
+              }
+            } else if (requestInfo.type == "oai") {
+              result = false;
+              break;
+            }
+          }
+        }
+
+        return result;
+      }
+
+      // this is to only export the function if in node
+      if (typeof exports !== "undefined") {
+        exports.getModelName = getModelName;
+        exports.getUsageData = getUsageData;
+        exports.testAllowedModels = testAllowedModels;
+        exports.testDeniedModels = testDeniedModels;
+      }
 tests: []

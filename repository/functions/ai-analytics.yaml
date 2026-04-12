@@ -33,7 +33,7 @@ targets:
         mode: Response
         steps:
           - name: JS-Analytics
-            condition: analyticsFinished != "true"
+            condition: ai.responseTokenCount == null
     faultRules: []
     httpTargetConnection:
       properties:
@@ -195,7 +195,7 @@ resources:
           requestInfo.allowedModelPatterns != "ALL"
         ) {
           result = false;
-          var patterns = requestInfo.allowedModelPatterns.split(",");
+          var patterns = requestInfo.allowedModelPatterns.split(";");
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
@@ -229,7 +229,7 @@ resources:
           requestInfo.deniedModelPatterns &&
           requestInfo.deniedModelPatterns != "NONE"
         ) {
-          var patterns = requestInfo.deniedModelPatterns.split(",");
+          var patterns = requestInfo.deniedModelPatterns.split(";");
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
@@ -273,16 +273,24 @@ resources:
       }
       print(contentString);
 
-      var modelName = context.getVariable("llm.model");
-      var requestTokenCount = context.getVariable("llm.requestTokenCount");
-
+      var modelName = context.getVariable("ai.model");
+      var requestTokenCount = context.getVariable("ai.requestTokenCount");
+      var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
+      if (!timeToFirstToken) {
+        var request_start_time = context.getVariable('client.received.start.timestamp');
+        var timeNow = Date.now();
+        timeToFirstToken = timeNow - request_start_time;
+        context.setVariable("ai.timeToFirstToken", timeToFirstToken);
+      }
       var usageData = getUsageData(contentString);
-      if (usageData.model) context.setVariable("llm.model", usageData.model);
-      if (usageData.requestTokenCount) context.setVariable("llm.requestTokenCount", usageData.requestTokenCount);
+      if (usageData.model) context.setVariable("ai.model", usageData.model);
+      if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
       if (modelName) usageData.model = modelName;
       if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
+      if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
 
       if (usageData.responseTokenCount > 0) {
+        context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
         usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
         usageData.type = type;
         print("Sending analytics data: " + JSON.stringify(usageData));
@@ -296,6 +304,5 @@ resources:
         var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
         print("Sending to: " + 'https://' + host + "/ai-analytics");
         httpClient.send(myRequest);
-        context.setVariable("analyticsFinished", "true");
       }
 tests: []

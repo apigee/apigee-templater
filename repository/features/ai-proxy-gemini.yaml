@@ -2,7 +2,21 @@ name: ai-proxy-gemini
 displayName: Gemini Target
 type: feature
 description: Targets the Gemini native API endpoint for proxying Gemini requests.
-documentation: ""
+documentation: |-
+  **Prerequisites**
+  - AI DataCollectors must be created in Apigee Analytics
+
+  ```sh
+  PROJECT_ID=YOUR_APIGEE_PROJECT
+  apigeecli datacollectors create -d "Model name" -n dc_ai_model -p STRING --org "$PROJECT_ID" --default-token
+  apigeecli datacollectors create -d "Total token count" -n dc_ai_total_token_count -p INTEGER --org "$PROJECT_ID" --default-token
+  apigeecli datacollectors create -d "Prompt token count" -n dc_ai_prompt_token_count -p INTEGER --org "$PROJECT_ID" --default-token
+  apigeecli datacollectors create -d "Total token count" -n dc_ai_response_token_count -p INTEGER --org "$PROJECT_ID" --default-token
+  apigeecli datacollectors create -d "Model response type" -n dc_ai_response_type -p STRING --org "$PROJECT_ID" --default-token
+  apigeecli datacollectors create -d "Time to first token" -n dc_ai_time_first_token -p INTEGER --org "$PROJECT_ID" --default-token
+  ```
+
+  Important note - in order for streaming LLM access to store streaming LLM token analytics, you must also deploy the **LLM-Analytics** proxy in your environment.
 categories:
   - llm
   - ai
@@ -101,6 +115,27 @@ resources:
   - name: ai-functions.js
     type: jsc
     content: |
+      function getModelName(urlString, contentString) {
+        var modelName = "unknown";
+        if (urlString && urlString.includes("/models/")) {
+          // claude url format
+          var urlPieces = urlString.split("/models/");
+          if (urlPieces.length > 1) {
+            var urlPieces2 = urlPieces[1].split(":");
+            if (urlPieces2.length > 0) {
+              modelName = urlPieces2[0];
+            }
+          }
+        } else if (contentString) {
+          try {
+            var contentData = JSON.parse(contentString);
+            if (contentData && contentData["model"]) modelName = contentData["model"];
+          } catch (e) {}
+        }
+
+        return modelName;
+      }
+
       function getUsageData(contentString) {
         var usageData = {
           model: "",
@@ -275,12 +310,19 @@ resources:
 
       var modelName = context.getVariable("llm.model");
       var requestTokenCount = context.getVariable("llm.requestTokenCount");
-
+      var timeToFirstToken = context.getVariable("llm.timeToFirstToken");
+      if (!timeToFirstToken) {
+        var request_start_time = context.getVariable('client.received.start.timestamp');
+        var timeNow = Date.now();
+        timeToFirstToken = timeNow - request_start_time;
+        context.setVariable("llm.timeToFirstToken", timeToFirstToken);
+      }
       var usageData = getUsageData(contentString);
       if (usageData.model) context.setVariable("llm.model", usageData.model);
       if (usageData.requestTokenCount) context.setVariable("llm.requestTokenCount", usageData.requestTokenCount);
       if (modelName) usageData.model = modelName;
       if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
+      if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
 
       if (usageData.responseTokenCount > 0) {
         usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;

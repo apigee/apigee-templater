@@ -4,9 +4,10 @@ type: proxy
 categories:
   - llm
   - ai
-description: This proxy provides AI analytics data ingestion for streaming LLM endpoints (with token usage information from last data frame).
-documentation: ~|
-  This proxy provides additional analytics ingestion, if needed, for example by streaming LLM endpoints.
+description: This proxy provides AI analytics data ingestion for streaming LLM
+  endpoints (with token usage information from last data frame).
+documentation: ~| This proxy provides additional analytics ingestion, if needed,
+  for example by streaming LLM endpoints.
 parameters: []
 endpoints:
   - name: default
@@ -17,11 +18,32 @@ endpoints:
       - name: PreFlow
         mode: Request
         steps:
-          - name: VA-VerifyKey
+          - name: AM-SetVariables
+          - name: EV-ExtractToken
+          - name: JWT-VerifyToken
           - name: DC-TokenAnalytics
     faultRules: []
 targets: []
 policies:
+  - name: AM-SetVariables
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetVariables
+        displayName: AM-SetVariables
+        properties: {}
+        assignVariable:
+          name: private.analyticsSecret
+          setValue: ApigeeDemoSecret
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
   - name: DC-TokenAnalytics
     type: DataCapture
     content:
@@ -38,6 +60,20 @@ policies:
                 default: "0"
               source: request
               jsonPayload:
+                jsonPath: $.model
+            dataCollector: dc_llm_model
+          - collect:
+              metadata:
+                default: "0"
+              source: request
+              jsonPayload:
+                jsonPath: $.requestTokenCount
+            dataCollector: dc_ai_prompt_token_count
+          - collect:
+              metadata:
+                default: "0"
+              source: request
+              jsonPayload:
                 jsonPath: $.responseTokenCount
             dataCollector: dc_llm_response_token_count
           - collect:
@@ -45,20 +81,60 @@ policies:
                 default: "0"
               source: request
               jsonPayload:
-                jsonPath: $.model
-            dataCollector: dc_llm_model
-  - name: VA-VerifyKey
-    type: VerifyAPIKey
+                jsonPath: $.totalTokenCount
+            dataCollector: dc_ai_total_token_count
+          - collect:
+              metadata:
+                default: "0"
+              source: request
+              jsonPayload:
+                jsonPath: $.type
+            dataCollector: dc_ai_response_type
+          - collect:
+              metadata:
+                default: "0"
+              source: request
+              jsonPayload:
+                jsonPath: $.timeToFirstToken
+            dataCollector: dc_ai_time_first_token
+  - name: EV-ExtractToken
+    type: ExtractVariables
     content:
-      verifyApiKey:
+      extractVariables:
         metadata:
           continueOnError: "false"
-          enabled: "false"
-          name: VA-VerifyKey
-        displayName: VA-VerifyKey
+          enabled: "true"
+          name: EV-ExtractToken
+        displayName: EV-ExtractToken
         properties: {}
-        apiKey:
+        source: request
+        header:
           metadata:
-            ref: request.header.x-api-key
+            name: Authorization
+          pattern:
+            metadata:
+              ignoreCase: "false"
+            value: Bearer {jwtToken}
+        variablePrefix: analytics
+        ignoreUnresolvedVariables: "true"
+  - name: JWT-VerifyToken
+    type: VerifyJWT
+    content:
+      verifyJwt:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: JWT-VerifyToken
+        displayName: JWT-VerifyToken
+        algorithm: HS256
+        source: analytics.jwtToken
+        secretKey:
+          setValue:
+            metadata:
+              ref: private.analyticsSecret
+        subject: apigee-analytics
+        issuer: urn://apigee-x-JWT-policy-analytics
+        audience: analytics
+        additionalClaims: {}
 resources: []
 tests: []

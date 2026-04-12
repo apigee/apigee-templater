@@ -329,11 +329,16 @@ export class cli {
       // create new template
       let basePath = options.basePath;
       // if (!basePath) basePath = "/" + options.name.toLowerCase().replaceAll(" ", "-")
-      template = this.converter.templateCreate(
-        options.name,
-        basePath,
-        options.targetUrl,
-      );
+      if (options.format == "feature") {
+        feature = new Feature();
+        feature.name = options.name;
+      } else {
+        template = this.converter.templateCreate(
+          options.name,
+          basePath,
+          options.targetUrl,
+        );
+      }
       if (!options.output) options.output = options.name + ".yaml";
     } else if (options.input.includes(":")) {
       // this is an apigee proxy reference
@@ -558,6 +563,12 @@ export class cli {
             applyFeature,
             inputParameters,
           );
+        } else if (feature && applyFeature) {
+          feature = this.converter.proxyApplyFeature(
+            feature,
+            applyFeature,
+            inputParameters,
+          );
         } else if (!applyFeature) {
           console.error(`Could not load feature ${relativePath}.`);
         }
@@ -711,6 +722,7 @@ export class cli {
             );
           } else if (options.output.includes(":")) {
             let outputPath = await this.converter.proxyToApigeeZip(proxy);
+            if (!options.name) options.name = proxy.name;
             let pieces = options.output.split(":");
             let lastRevision = "";
             // export to apigee

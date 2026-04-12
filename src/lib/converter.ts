@@ -1519,6 +1519,189 @@ export class ApigeeConverter {
     return newProxy;
   }
 
+  public featureApplyFeature(
+    originalFeature: Feature,
+    feature: Feature,
+    parameters: { [key: string]: string } = {},
+  ): Proxy {
+    // save original parameters, no don't do it, not needed.
+    // proxy.parameters = proxy.parameters.concat(feature.parameters);
+
+    // replace parameters from runtime
+    let tempFeature = this.featureReplaceParameters(
+      feature,
+      originalFeature.parameters,
+      parameters,
+    );
+
+    // merge endpoint flows
+    if (tempFeature.defaultEndpoint) {
+      for (let endpoint of originalFeature.endpoints) {
+        for (let featureFlow of tempFeature.defaultEndpoint.flows) {
+          let foundFlow = false;
+          for (let proxyFlow of endpoint.flows) {
+            if (
+              proxyFlow.name == featureFlow.name &&
+              proxyFlow.mode == featureFlow.mode &&
+              proxyFlow.condition == featureFlow.condition
+            ) {
+              foundFlow = true;
+              proxyFlow.steps = proxyFlow.steps.concat(featureFlow.steps);
+              break;
+            }
+          }
+
+          if (!foundFlow) {
+            let newFlow = new Flow(
+              featureFlow.name,
+              featureFlow.mode,
+              featureFlow.condition,
+            );
+            newFlow.steps = newFlow.steps.concat(featureFlow.steps);
+            endpoint.flows.push(newFlow);
+          }
+        }
+
+        if (tempFeature.defaultEndpoint.defaultFaultRule) {
+          if (endpoint.defaultFaultRule) {
+            endpoint.defaultFaultRule.steps =
+              endpoint.defaultFaultRule.steps.concat(
+                tempFeature.defaultEndpoint.defaultFaultRule.steps,
+              );
+          } else
+            endpoint.defaultFaultRule =
+              tempFeature.defaultEndpoint.defaultFaultRule;
+        }
+      }
+    }
+
+    // merge target flows
+    if (tempFeature.defaultTarget) {
+      for (let target of originalFeature.targets) {
+        for (let featureFlow of tempFeature.defaultTarget.flows) {
+          let foundFlow = false;
+          for (let targetFlow of target.flows) {
+            if (
+              targetFlow.name == featureFlow.name &&
+              targetFlow.mode == featureFlow.mode &&
+              targetFlow.condition == featureFlow.condition
+            ) {
+              foundFlow = true;
+              targetFlow.steps = targetFlow.steps.concat(featureFlow.steps);
+              break;
+            }
+          }
+
+          if (!foundFlow) {
+            let newFlow = new Flow(
+              featureFlow.name,
+              featureFlow.mode,
+              featureFlow.condition,
+            );
+            newFlow.steps = newFlow.steps.concat(featureFlow.steps);
+            target.flows.push(newFlow);
+          }
+        }
+
+        if (tempFeature.defaultTarget.defaultFaultRule) {
+          if (target.defaultFaultRule) {
+            target.defaultFaultRule.steps =
+              target.defaultFaultRule.steps.concat(
+                tempFeature.defaultTarget.defaultFaultRule.steps,
+              );
+          } else
+            target.defaultFaultRule =
+              tempFeature.defaultTarget.defaultFaultRule;
+        }
+      }
+    }
+
+    // if feature has endpoints
+    if (tempFeature.endpoints && tempFeature.endpoints.length > 0) {
+      // first set name with id
+      for (let tempEndpoint of tempFeature.endpoints) {
+        // rename endpoint names with uid
+        if (tempFeature.uid) {
+          tempEndpoint.name = tempFeature.uid + "-" + tempEndpoint.name;
+
+          for (let tempRoute of tempEndpoint.routes) {
+            if (tempRoute.target) {
+              tempRoute.target = tempFeature.uid + "-" + tempRoute.target;
+            }
+          }
+        }
+        let endpointIndex = originalFeature.endpoints.findIndex(
+          (x) => x.name === tempEndpoint.name,
+        );
+        if (endpointIndex === -1) {
+          originalFeature.endpoints.push(tempEndpoint);
+        } else {
+          console.log(
+            `\n!! Conflict detected in proxy apply feature - endpoint "${tempEndpoint.name}" already exists, overwriting...\n`,
+          );
+          originalFeature.endpoints[endpointIndex] = tempEndpoint;
+        }
+      }
+    }
+
+    // if feature has targets
+    if (tempFeature.targets && tempFeature.targets.length > 0) {
+      for (let tempTarget of tempFeature.targets) {
+        // rename targets with uid
+        if (tempFeature.uid) {
+          tempTarget.name = tempFeature.uid + "-" + tempTarget.name;
+        }
+        let targetIndex = originalFeature.targets.findIndex(
+          (x) => x.name === tempTarget.name,
+        );
+        if (targetIndex === -1) {
+          originalFeature.targets.push(tempTarget);
+        } else {
+          console.log(
+            `\n!! Conflict detected in proxy apply feature - target "${tempTarget.name}" already exists, overwriting...\n`,
+          );
+          originalFeature.targets[targetIndex] = tempTarget;
+        }
+      }
+    }
+
+    // merge policies
+    if (tempFeature.policies && tempFeature.policies.length > 0) {
+      for (let policy of tempFeature.policies) {
+        let policyIndex = originalFeature.policies.findIndex(
+          (x) => x.name === policy.name,
+        );
+        if (policyIndex === -1) {
+          originalFeature.policies.push(policy);
+        } else {
+          console.log(
+            `\n!! Conflict detected in proxy apply feature - policy "${policy.name}" already exists, overwriting...\n`,
+          );
+          originalFeature.policies[policyIndex] = policy;
+        }
+      }
+    }
+
+    // merge resources
+    if (tempFeature.resources && tempFeature.resources.length > 0) {
+      for (let resource of tempFeature.resources) {
+        let resourceIndex = originalFeature.resources.findIndex(
+          (x) => x.name === resource.name,
+        );
+        if (resourceIndex === -1) {
+          originalFeature.resources.push(resource);
+        } else {
+          console.log(
+            `\n!! Conflict detected in proxy apply feature - resource "${resource.name}" already exists, overwriting...\n`,
+          );
+          originalFeature.resources[resourceIndex] = resource;
+        }
+      }
+    }
+
+    return originalFeature;
+  }
+
   public featureReplaceParameters(
     feature: Feature,
     proxyParameters: Parameter[],
@@ -2310,6 +2493,7 @@ export class ApigeeConverter {
     if (result.includes("Uri")) result = result.replace("Uri", "URI");
     if (result.includes("Id")) result = result.replace("Id", "ID");
     if (result.includes("Llm")) result = result.replace("Llm", "LLM");
+    if (result.includes("Jwt")) result = result.replace("Jwt", "JWT");
     return result;
   }
 }
