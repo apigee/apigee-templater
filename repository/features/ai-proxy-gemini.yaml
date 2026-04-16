@@ -285,24 +285,26 @@ resources:
       }
       print(contentString);
 
-      var modelName = context.getVariable("llm.model");
-      var requestTokenCount = context.getVariable("llm.requestTokenCount");
-      var timeToFirstToken = context.getVariable("llm.timeToFirstToken");
+      var modelName = context.getVariable("ai.model");
+      var requestTokenCount = context.getVariable("ai.requestTokenCount");
+      var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
       if (!timeToFirstToken) {
         var request_start_time = context.getVariable('client.received.start.timestamp');
         var timeNow = Date.now();
         timeToFirstToken = timeNow - request_start_time;
-        context.setVariable("llm.timeToFirstToken", timeToFirstToken);
+        context.setVariable("ai.timeToFirstToken", timeToFirstToken);
       }
       var usageData = getUsageData(contentString);
-      if (usageData.model) context.setVariable("llm.model", usageData.model);
-      if (usageData.requestTokenCount) context.setVariable("llm.requestTokenCount", usageData.requestTokenCount);
+      if (usageData.model) context.setVariable("ai.model", usageData.model);
+      if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
       if (modelName) usageData.model = modelName;
       if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
       if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
 
       if (usageData.responseTokenCount > 0) {
+        context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
         usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
+        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount);
         usageData.type = type;
         print("Sending analytics data: " + JSON.stringify(usageData));
         var host = context.getVariable("originalHostName");
@@ -314,6 +316,5 @@ resources:
         var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
         print("Sending to: " + 'https://' + host + "/ai-analytics");
         httpClient.send(myRequest);
-        context.setVariable("analyticsFinished", "true");
       }
 tests: []

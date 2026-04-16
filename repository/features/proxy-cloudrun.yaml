@@ -16,7 +16,7 @@ documentation: |
 categories:
   - services
 parameters:
-  - name: BASE_PATH
+  - name: BasePath
     paths:
       - $.endpoints[:1].basePath
     description: The base path to offer the proxy on.
@@ -24,7 +24,7 @@ parameters:
     examples:
       - /v1/crservice
       - /salesorderservice
-  - name: CLOUDRUN_URL
+  - name: CloudRunUrl
     paths:
       - $.targets[:1].url
       - $.targets[:1].httpTargetConnection.url

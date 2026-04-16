@@ -285,7 +285,7 @@ resources:
     type: jsc
     content: |
       function getModelName(urlString, contentString) {
-        var modelName = "";
+        var modelName = "unknown";
         if (urlString && urlString.includes("/models/")) {
           // claude url format
           var urlPieces = urlString.split("/models/");
@@ -303,6 +303,39 @@ resources:
         }
 
         return modelName;
+      }
+
+      function getPrompts(contentString) {
+        var promptInfo = {
+          userPrompt: "",
+          allUserPrompts: "",
+        };
+
+        try {
+          var contentData = JSON.parse(contentString);
+
+          if (contentData && contentData["contents"]) {
+            for (i = contentData["contents"].length - 1; i >= 0; i--) {
+              var content = contentData["contents"][i];
+              if (content && content["role"] == "user" && content["parts"]) {
+                for (p = content["parts"].length - 1; p >= 0; p--) {
+                  var part = content["parts"][p];
+                  if (!promptInfo.userPrompt && content["parts"][p]["text"]) {
+                    promptInfo.userPrompt = content["parts"][p]["text"];
+                  }
+
+                  if (content["parts"][p]["text"]) {
+                    promptInfo.allUserPrompts += " " + content["parts"][p]["text"];
+                  }
+                }
+              }
+            }
+          }
+        } catch (e) {
+          print("Exception in processing data: " + e.message);
+        }
+
+        return promptInfo;
       }
 
       function getUsageData(contentString) {
@@ -399,7 +432,7 @@ resources:
           requestInfo.allowedModelPatterns != "ALL"
         ) {
           result = false;
-          var patterns = requestInfo.allowedModelPatterns.split(",");
+          var patterns = requestInfo.allowedModelPatterns.split(";");
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
@@ -433,7 +466,7 @@ resources:
           requestInfo.deniedModelPatterns &&
           requestInfo.deniedModelPatterns != "NONE"
         ) {
-          var patterns = requestInfo.deniedModelPatterns.split(",");
+          var patterns = requestInfo.deniedModelPatterns.split(";");
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
@@ -462,6 +495,8 @@ resources:
 
       // this is to only export the function if in node
       if (typeof exports !== "undefined") {
+        exports.getModelName = getModelName;
+        exports.getPrompts = getPrompts;
         exports.getUsageData = getUsageData;
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;
@@ -477,24 +512,26 @@ resources:
       }
       print(contentString);
 
-      var modelName = context.getVariable("llm.model");
-      var requestTokenCount = context.getVariable("llm.requestTokenCount");
-      var timeToFirstToken = context.getVariable("llm.timeToFirstToken");
+      var modelName = context.getVariable("ai.model");
+      var requestTokenCount = context.getVariable("ai.requestTokenCount");
+      var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
       if (!timeToFirstToken) {
         var request_start_time = context.getVariable('client.received.start.timestamp');
         var timeNow = Date.now();
         timeToFirstToken = timeNow - request_start_time;
-        context.setVariable("llm.timeToFirstToken", timeToFirstToken);
+        context.setVariable("ai.timeToFirstToken", timeToFirstToken);
       }
       var usageData = getUsageData(contentString);
-      if (usageData.model) context.setVariable("llm.model", usageData.model);
-      if (usageData.requestTokenCount) context.setVariable("llm.requestTokenCount", usageData.requestTokenCount);
+      if (usageData.model) context.setVariable("ai.model", usageData.model);
+      if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
       if (modelName) usageData.model = modelName;
       if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
       if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
 
       if (usageData.responseTokenCount > 0) {
+        context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
         usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
+        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount);
         usageData.type = type;
         print("Sending analytics data: " + JSON.stringify(usageData));
         var host = context.getVariable("originalHostName");
@@ -506,7 +543,6 @@ resources:
         var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
         print("Sending to: " + 'https://' + host + "/ai-analytics");
         httpClient.send(myRequest);
-        context.setVariable("analyticsFinished", "true");
       }
   - name: model-fallback.js
     type: jsc
@@ -548,6 +584,9 @@ resources:
 
       var allowResult = testAllowedModels(requestConfig);
       var denyResult = testDeniedModels(requestConfig);
+      var promptInfo = getPrompts(requestContent);
+
+      if (promptInfo.userPrompt) context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
 
       if (!allowResult) {
         print("Model not allowed!");
