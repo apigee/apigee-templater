@@ -8,9 +8,9 @@ categories:
   - ai
   - security
 parameters:
-  - name: MODEL_ARMOR_TEMPLATE
-    displayName: MODEL_ARMOR_TEMPLATE
-    description: Configuration input for MODEL_ARMOR_TEMPLATE
+  - name: ModelArmorTemplate
+    displayName: ModelArmorTemplate
+    description: Configuration input for ModelArmorTemplate
     default: projects/apigee-klab1/locations/europe-west1/templates/default-ma-template
     examples: []
     maps: {}
@@ -32,7 +32,17 @@ defaultEndpoint:
 defaultTarget:
   name: default
   url: https://aiplatform.googleapis.com
-  flows: []
+  flows:
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: JS-Analytics
+          condition: response.content != ""
+    - name: EventFlow
+      mode: Response
+      steps:
+        - name: JS-Analytics
+          condition: ai.responseTokenCount == null
   faultRules: []
   httpTargetConnection:
     properties: {}
@@ -101,7 +111,9 @@ policies:
           var url = context.getVariable("proxy.url");
           var requestContent = request.content.asJSON;
           var callType = "vertex";
-          if (url.includes("/chat/completions")) callType = "oai";
+          var callStreaming = "non-streaming";
+          if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
+          if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
 
           var requestConfig = {
             url: url,
@@ -114,6 +126,11 @@ policies:
           var allowResult = testAllowedModels(requestConfig);
           var denyResult = testDeniedModels(requestConfig);
           var promptInfo = getPrompts(requestContent);
+          var modelName = getModelName(url, request.content);
+
+          context.setVariable("ai.model", modelName);
+          context.setVariable("ai.requestType", callStreaming);
+          context.setVariable("ai.apiType", callType);
 
           if (promptInfo.userPrompt)
             context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
@@ -213,7 +230,7 @@ policies:
         ignoreUnresolvedVariables: "false"
         displayName: SUP-SanitizePrompt
         modelArmor:
-          templateName: "{propertyset.security.MODEL_ARMOR_TEMPLATE}"
+          templateName: "{propertyset.security.ModelArmorTemplate}"
         userPromptSource: "{ai.requestPrompt}"
 resources:
   - name: ai-functions.js
@@ -234,6 +251,10 @@ resources:
           try {
             var contentData = JSON.parse(contentString);
             if (contentData && contentData["model"]) modelName = contentData["model"];
+            if (modelName.includes("/")) {
+              var modelNamePieces = modelName.split("/");
+              modelName = modelNamePieces[modelNamePieces.length - 1];
+            }
           } catch (e) {}
         }
 
@@ -325,6 +346,10 @@ resources:
             }
             if (contentData["message"] && contentData["message"]["model"]) {
               usageData.model = contentData["message"]["model"];
+            }
+            if (usageData.model.includes("/")) {
+              var modelNamePieces = usageData.model.split("/");
+              usageData.model = modelNamePieces[modelNamePieces.length - 1];
             }
 
             // requestTokenCount
@@ -500,5 +525,5 @@ resources:
   - name: security.properties
     type: properties
     content: |
-      MODEL_ARMOR_TEMPLATE={MODEL_ARMOR_TEMPLATE}
+      ModelArmorTemplate={ModelArmorTemplate}
 tests: []

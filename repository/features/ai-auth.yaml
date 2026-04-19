@@ -5,7 +5,7 @@ description: The ai-auth feature adds authentication, authorization, quotas and
   analytics to the AI access.
 documentation: Access to the AI is managed through API Products in Apigee, that
   grant access and quotas to certain models.
-priority: 110
+priority: 10
 categories:
   - llm
   - ai
@@ -20,16 +20,19 @@ defaultEndpoint:
     - name: PreFlow
       mode: Request
       steps:
+        - name: KVM-LoadConfig
+        - name: AM-SetVariables
+        - name: JS-CheckModel
         - name: VA-VerifyKey
         - name: AM-RemoveKey
-        - name: JS-GetModel
         - name: LTQ-QuotaEnforce
           condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
     - name: PostFlow
       mode: Response
       steps:
         - name: LTQ-QuotaCount
-          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null AND ai.totalTokenCount != null
+          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
+            AND ai.totalTokenCount != null
   faultRules: []
 defaultTarget:
   name: default
@@ -41,8 +44,16 @@ defaultTarget:
     - name: EventFlow
       mode: Response
       steps:
+        - name: JS-Analytics
+          condition: ai.responseTokenCount == null
         - name: LTQ-QuotaCount
-          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null AND ai.totalTokenCount != null
+          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
+            AND ai.totalTokenCount != null
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: JS-Analytics
+          condition: response.content != ""
   faultRules: []
   httpTargetConnection:
     properties: {}
@@ -78,26 +89,6 @@ policies:
             createNew: "false"
             transport: http
             type: request
-  - name: JS-GetModel
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-GetModel
-        displayName: JS-GetModel
-        properties: {}
-        source: "
-
-          \    var modelName = getModelName(context.getVariable(\"proxy.url\"),
-          request.content);
-
-          \    context.setVariable(\"ai.model\", modelName);
-
-          \  "
-        includeUrl: jsc://ai-functions.js
   - name: LTQ-QuotaCount
     type: LLMTokenQuota
     content:
@@ -206,7 +197,9 @@ policies:
           var url = context.getVariable("proxy.url");
           var requestContent = request.content.asJSON;
           var callType = "vertex";
-          if (url.includes("/chat/completions")) callType = "oai";
+          var callStreaming = "non-streaming";
+          if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
+          if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
 
           var requestConfig = {
             url: url,
@@ -219,6 +212,11 @@ policies:
           var allowResult = testAllowedModels(requestConfig);
           var denyResult = testDeniedModels(requestConfig);
           var promptInfo = getPrompts(requestContent);
+          var modelName = getModelName(url, request.content);
+
+          context.setVariable("ai.model", modelName);
+          context.setVariable("ai.requestType", callStreaming);
+          context.setVariable("ai.apiType", callType);
 
           if (promptInfo.userPrompt)
             context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
@@ -338,6 +336,10 @@ resources:
           try {
             var contentData = JSON.parse(contentString);
             if (contentData && contentData["model"]) modelName = contentData["model"];
+            if (modelName.includes("/")) {
+              var modelNamePieces = modelName.split("/");
+              modelName = modelNamePieces[modelNamePieces.length - 1];
+            }
           } catch (e) {}
         }
 
@@ -429,6 +431,10 @@ resources:
             }
             if (contentData["message"] && contentData["message"]["model"]) {
               usageData.model = contentData["message"]["model"];
+            }
+            if (usageData.model.includes("/")) {
+              var modelNamePieces = usageData.model.split("/");
+              usageData.model = modelNamePieces[modelNamePieces.length - 1];
             }
 
             // requestTokenCount

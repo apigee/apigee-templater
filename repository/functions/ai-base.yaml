@@ -30,6 +30,7 @@ defaultEndpoint:
   flows:
     - name: PreFlow
       mode: Request
+      position: top
       steps:
         - name: KVM-LoadConfig
         - name: AM-SetVariables
@@ -41,14 +42,16 @@ defaultTarget:
   flows:
     - name: PostFlow
       mode: Response
+      position: top
       steps:
         - name: JS-Analytics
           condition: response.content != ""
     - name: EventFlow
       mode: Response
+      position: top
       steps:
         - name: JS-Analytics
-          condition: ai.responseTokenCount != ""
+          condition: ai.responseTokenCount == null
   faultRules: []
   httpTargetConnection:
     properties:
@@ -84,6 +87,19 @@ policies:
             createNew: "false"
             transport: http
             type: request
+  - name: JS-Analytics
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-Analytics
+        displayName: JS-Analytics
+        properties: {}
+        resourceUrl: jsc://analytics.js
+        includeUrl: jsc://ai-functions.js
   - name: JS-CheckModel
     type: Javascript
     content:
@@ -108,7 +124,9 @@ policies:
           var url = context.getVariable("proxy.url");
           var requestContent = request.content.asJSON;
           var callType = "vertex";
-          if (url.includes("/chat/completions")) callType = "oai";
+          var callStreaming = "non-streaming";
+          if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
+          if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
 
           var requestConfig = {
             url: url,
@@ -121,6 +139,11 @@ policies:
           var allowResult = testAllowedModels(requestConfig);
           var denyResult = testDeniedModels(requestConfig);
           var promptInfo = getPrompts(requestContent);
+          var modelName = getModelName(url, request.content);
+
+          context.setVariable("ai.model", modelName);
+          context.setVariable("ai.requestType", callStreaming);
+          context.setVariable("ai.apiType", callType);
 
           if (promptInfo.userPrompt)
             context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
@@ -208,19 +231,6 @@ policies:
             key:
               parameter: FallbackModel
         scope: environment
-  - name: JS-Analytics
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-Analytics
-        displayName: JS-Analytics
-        properties: {}
-        resourceUrl: jsc://analytics.js
-        includeUrl: jsc://ai-functions.js
 resources:
   - name: ai-functions.js
     type: jsc

@@ -21,7 +21,7 @@ categories:
   - llm
   - ai
 parameters:
-  - name: BasePath
+  - name: VertexBasePath
     paths:
       - $.endpoints[:1].basePath
     description: The base path to offer the AI proxy on.
@@ -96,7 +96,7 @@ targets:
         mode: Response
         steps:
           - name: JS-Analytics
-            condition: ai.responseTokenCount != ""
+            condition: ai.responseTokenCount == null
     faultRules: []
     defaultFaultRule:
       name: default-fault
@@ -200,7 +200,9 @@ policies:
           var url = context.getVariable("proxy.url");
           var requestContent = request.content.asJSON;
           var callType = "vertex";
-          if (url.includes("/chat/completions")) callType = "oai";
+          var callStreaming = "non-streaming";
+          if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
+          if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
 
           var requestConfig = {
             url: url,
@@ -213,6 +215,11 @@ policies:
           var allowResult = testAllowedModels(requestConfig);
           var denyResult = testDeniedModels(requestConfig);
           var promptInfo = getPrompts(requestContent);
+          var modelName = getModelName(url, request.content);
+
+          context.setVariable("ai.model", modelName);
+          context.setVariable("ai.requestType", callStreaming);
+          context.setVariable("ai.apiType", callType);
 
           if (promptInfo.userPrompt)
             context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
@@ -364,6 +371,10 @@ resources:
           try {
             var contentData = JSON.parse(contentString);
             if (contentData && contentData["model"]) modelName = contentData["model"];
+            if (modelName.includes("/")) {
+              var modelNamePieces = modelName.split("/");
+              modelName = modelNamePieces[modelNamePieces.length - 1];
+            }
           } catch (e) {}
         }
 
@@ -455,6 +466,10 @@ resources:
             }
             if (contentData["message"] && contentData["message"]["model"]) {
               usageData.model = contentData["message"]["model"];
+            }
+            if (usageData.model.includes("/")) {
+              var modelNamePieces = usageData.model.split("/");
+              usageData.model = modelNamePieces[modelNamePieces.length - 1];
             }
 
             // requestTokenCount

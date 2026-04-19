@@ -575,33 +575,70 @@ export class cli {
       } else if (options.removeFeature) {
         process.chdir(startDir);
         if (!options.output) options.output = options.input;
-        let relativePath = options.removeFeature;
-        let id = options.removeFeature;
-        let parts = relativePath.split(".");
-        if (parts.length > 1) {
-          id = parts[parts.length - 1] ?? id;
-          parts.splice(parts.length - 1);
-          relativePath = parts.join(".") ?? options.removeFeature;
-        }
-        if (fs.existsSync(relativePath)) {
-          // this is a path, get relative path
+        if (template) {
+          let templateFeatures: Feature[] = [];
+          for (let featurePath of template.features) {
+            let relativePath = featurePath;
+            relativePath = path.relative(
+              path.dirname(options.output),
+              relativePath,
+            );
+            let tempFeature = await this.apigeeService.featureGet(relativePath);
+            if (tempFeature) templateFeatures.push(tempFeature);
+          }
+
+          let relativePath = options.removeFeature;
           relativePath = path.relative(
             path.dirname(options.output),
             relativePath,
           );
-        }
-        let removeFeature = await this.apigeeService.featureGet(relativePath);
-        if (template && removeFeature) {
-          removeFeature.uid = id;
-          template = this.converter.templateRemoveFeature(
-            template,
-            removeFeature,
+          let removeFeature = await this.apigeeService.featureGet(relativePath);
+          if (removeFeature)
+            template = this.converter.templateRemoveFeature(
+              template,
+              templateFeatures,
+              relativePath,
+              removeFeature,
+            );
+        } else if (feature) {
+          let relativePath = options.removeFeature;
+          relativePath = path.relative(
+            path.dirname(options.output),
+            relativePath,
           );
-        } else if (proxy && removeFeature) {
-          proxy = this.converter.proxyRemoveFeature(proxy, removeFeature);
-        } else if (!removeFeature) {
-          console.error(`Could not load feature ${relativePath}.`);
+          let removeFeature = await this.apigeeService.featureGet(relativePath);
+          if (removeFeature)
+            this.converter.featureRemoveFeature(feature, removeFeature);
         }
+
+        // let relativePath = options.removeFeature;
+        // // let id = options.removeFeature;
+        // let parts = relativePath.split(".");
+        // if (parts.length > 1) {
+        //   // id = parts[parts.length - 1] ?? id;
+        //   parts.splice(parts.length - 1);
+        //   relativePath = parts.join(".") ?? options.removeFeature;
+        // }
+
+        // if (fs.existsSync(relativePath)) {
+        //   // this is a path, get relative path
+        //   relativePath = path.relative(
+        //     path.dirname(options.output),
+        //     relativePath,
+        //   );
+        // }
+        // let removeFeature = await this.apigeeService.featureGet(relativePath);
+        // if (template && removeFeature) {
+        //   // removeFeature.uid = id;
+        //   template = this.converter.templateRemoveFeature(
+        //     template,
+        //     removeFeature,
+        //   );
+        // } else if (proxy && removeFeature) {
+        //   proxy = this.converter.proxyRemoveFeature(proxy, removeFeature);
+        // } else if (!removeFeature) {
+        //   console.error(`Could not load feature ${relativePath}.`);
+        // }
       }
 
       // HALF TIME - generally print generated output overview

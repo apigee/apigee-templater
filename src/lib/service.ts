@@ -461,7 +461,12 @@ export class ApigeeTemplaterService {
         );
         return undefined;
       } else {
-        template = converter.templateRemoveFeature(template, feature);
+        template = converter.templateRemoveFeature(
+          template,
+          [],
+          featureName,
+          feature,
+        );
       }
 
       fs.writeFileSync(
