@@ -1,46 +1,64 @@
-name: ai-analytics
-displayName: Gemini Target
+name: ai-base
+displayName: AI Base Functions
 type: feature
 description: Targets the Gemini native API endpoint for proxying Gemini requests.
-documentation: ""
+documentation: |-
+  **Prerequisites**
+  - AI DataCollectors must be created in Apigee Analytics
+
+  ```sh
+  PROJECT_ID=YOUR_APIGEE_PROJECT
+  apigeecli datacollectors create -d "Model name" -n dc_ai_model -p STRING --org "$PROJECT_ID" --default-token
+  apigeecli datacollectors create -d "Total token count" -n dc_ai_total_token_count -p INTEGER --org "$PROJECT_ID" --default-token
+  apigeecli datacollectors create -d "Prompt token count" -n dc_ai_prompt_token_count -p INTEGER --org "$PROJECT_ID" --default-token
+  apigeecli datacollectors create -d "Total token count" -n dc_ai_response_token_count -p INTEGER --org "$PROJECT_ID" --default-token
+  apigeecli datacollectors create -d "Model response type" -n dc_ai_response_type -p STRING --org "$PROJECT_ID" --default-token
+  apigeecli datacollectors create -d "Time to first token" -n dc_ai_time_first_token -p INTEGER --org "$PROJECT_ID" --default-token
+  ```
+
+  Important note - in order for streaming LLM access to store streaming LLM token analytics, you must also deploy the **LLM-Analytics** proxy in your environment.
 categories:
   - llm
   - ai
 parameters: []
-endpoints:
-  - name: default
-    basePath: /llm
-    routes:
-      - name: default
-        target: default
-    flows:
-      - name: PreFlow
-        mode: Request
-        steps:
-          - name: AM-SetVariables
-    faultRules: []
-targets:
-  - name: default
+defaultEndpoint:
+  name: default
+  basePath: /ai-base
+  routes:
+    - name: default
+      target: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: KVM-LoadConfig
+        - name: AM-SetVariables
+        - name: JS-CheckModel
+  faultRules: []
+defaultTarget:
+  name: default
+  url: https://aiplatform.googleapis.com
+  flows:
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: JS-Analytics
+          condition: response.content != ""
+    - name: EventFlow
+      mode: Response
+      steps:
+        - name: JS-Analytics
+          condition: ai.responseTokenCount != ""
+  faultRules: []
+  httpTargetConnection:
+    properties:
+      property:
+        metadata:
+          name: io.timeout.millis
+        value: "18000000"
     url: https://aiplatform.googleapis.com
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: ai.responseTokenCount == null
-    faultRules: []
-    httpTargetConnection:
-      properties:
-        property:
-          metadata:
-            name: io.timeout.millis
-          value: "18000000"
-      url: https://generativelanguage.googleapis.com
+endpoints: []
+targets: []
 policies:
   - name: AM-SetVariables
     type: AssignMessage
@@ -52,15 +70,144 @@ policies:
           name: AM-SetVariables
         displayName: AM-SetVariables
         properties: {}
+        remove:
+          headers:
+            header:
+              metadata:
+                name: accept-encoding
         assignVariable:
-          - name: originalHostName
-            ref: request.header.host
+          name: originalHostName
+          ref: request.header.host
         ignoreUnresolvedVariables: "true"
         assignTo:
           metadata:
             createNew: "false"
             transport: http
             type: request
+  - name: JS-CheckModel
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-CheckModel
+        displayName: JS-CheckModel
+        properties: {}
+        source: |
+          var allowed_model_patterns = context.getVariable("propertyset.vertex.AllowedModelPatterns");
+          var denied_model_patterns = context.getVariable("propertyset.vertex.DeniedModelPatterns");
+          var override_model = context.getVariable("propertyset.vertex.OverrideModel");
+          var default_model = context.getVariable("propertyset.vertex.DefaultModel");
+          if (!allowed_model_patterns) allowed_model_patterns = context.getVariable("ai.allowedModelPatterns");
+          if (!denied_model_patterns) denied_model_patterns = context.getVariable("ai.deniedModelPatterns");
+          if (!override_model) override_model = context.getVariable("ai.overrideModel");
+          if (!default_model) default_model = context.getVariable("ai.defaultModel");
+
+          var url = context.getVariable("proxy.url");
+          var requestContent = request.content.asJSON;
+          var callType = "vertex";
+          if (url.includes("/chat/completions")) callType = "oai";
+
+          var requestConfig = {
+            url: url,
+            type: callType,
+            requestContent: requestContent,
+            allowedModelPatterns: allowed_model_patterns,
+            deniedModelPatterns: denied_model_patterns
+          }
+
+          var allowResult = testAllowedModels(requestConfig);
+          var denyResult = testDeniedModels(requestConfig);
+          var promptInfo = getPrompts(requestContent);
+
+          if (promptInfo.userPrompt)
+            context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
+          else
+            print("Could not find user prompt!");
+
+          if (!allowResult) {
+            print("Model not allowed!");
+            context.setVariable("response.status.code", 403);
+            throw "Model not allowed!";
+          }
+
+          if (!denyResult) {
+            print("Model denied!");
+            context.setVariable("response.status.code", 403);
+            throw "Model denied!";
+          }
+
+          print("Default_model: " + default_model);
+          print("Request model: " + requestContent["model"]);
+
+          if (override_model && override_model != "NONE" && callType == "oai") {
+            requestContent["model"] = override_model;
+            context.setVariable('request.content', JSON.stringify(requestContent));
+          } else if (default_model && default_model != "NONE" && !requestContent["model"] && callType == "oai") {
+            print("Default model set: " + default_model);
+            requestContent["model"] = default_model;
+            context.setVariable('request.content', JSON.stringify(requestContent));
+          }
+        includeUrl: jsc://ai-functions.js
+  - name: KVM-LoadConfig
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: KVM-LoadConfig
+          mapIdentifier: AI-Config
+        displayName: KVM-LoadConfig
+        properties: {}
+        exclusiveCache: "false"
+        expiryTimeInSecs: "10"
+        initialEntries:
+          entry:
+            - key:
+                parameter: AllowedModelPatterns
+              setValue: ALL
+            - key:
+                parameter: DeniedModelPatterns
+              setValue: NONE
+            - key:
+                parameter: OverrideModel
+              setValue: NONE
+            - key:
+                parameter: DefaultModel
+              setValue: google/gemini-flash-latest
+            - key:
+                parameter: FallbackModel
+              setValue: google/gemini-flash-latest
+        get:
+          - metadata:
+              assignTo: ai.allowedModelPatterns
+              index: "1"
+            key:
+              parameter: AllowedModelPatterns
+          - metadata:
+              assignTo: ai.deniedModelPatterns
+              index: "1"
+            key:
+              parameter: DeniedModelPatterns
+          - metadata:
+              assignTo: ai.overrideModel
+              index: "1"
+            key:
+              parameter: OverrideModel
+          - metadata:
+              assignTo: ai.defaultModel
+              index: "1"
+            key:
+              parameter: DefaultModel
+          - metadata:
+              assignTo: ai.fallbackModel
+              index: "1"
+            key:
+              parameter: FallbackModel
+        scope: environment
   - name: JS-Analytics
     type: Javascript
     content:
@@ -93,40 +240,62 @@ resources:
           try {
             var contentData = JSON.parse(contentString);
             if (contentData && contentData["model"]) modelName = contentData["model"];
+            if (modelName.includes("/")) {
+              var modelNamePieces = modelName.split("/");
+              modelName = modelNamePieces[modelNamePieces.length - 1];
+            }
           } catch (e) {}
         }
 
         return modelName;
       }
 
-      function getPrompts(contentString) {
+      function getPrompts(contentData) {
         var promptInfo = {
           userPrompt: "",
           allUserPrompts: "",
         };
 
-        try {
-          var contentData = JSON.parse(contentString);
+        if (contentData && contentData["contents"]) {
+          // gemini format
+          for (i = contentData["contents"].length - 1; i >= 0; i--) {
+            var content = contentData["contents"][i];
+            if (
+              content &&
+              content["role"] &&
+              content["role"].toLowerCase() == "user" &&
+              content["parts"]
+            ) {
+              for (p = content["parts"].length - 1; p >= 0; p--) {
+                var part = content["parts"][p];
+                if (!promptInfo.userPrompt && content["parts"][p]["text"]) {
+                  promptInfo.userPrompt = content["parts"][p]["text"];
+                }
 
-          if (contentData && contentData["contents"]) {
-            for (i = contentData["contents"].length - 1; i >= 0; i--) {
-              var content = contentData["contents"][i];
-              if (content && content["role"] == "user" && content["parts"]) {
-                for (p = content["parts"].length - 1; p >= 0; p--) {
-                  var part = content["parts"][p];
-                  if (!promptInfo.userPrompt && content["parts"][p]["text"]) {
-                    promptInfo.userPrompt = content["parts"][p]["text"];
-                  }
-
-                  if (content["parts"][p]["text"]) {
-                    promptInfo.allUserPrompts += " " + content["parts"][p]["text"];
-                  }
+                if (content["parts"][p]["text"]) {
+                  promptInfo.allUserPrompts += " " + content["parts"][p]["text"];
                 }
               }
             }
           }
-        } catch (e) {
-          print("Exception in processing data: " + e.message);
+        } else if (contentData && contentData["messages"]) {
+          // oapi format
+          for (i = contentData["messages"].length - 1; i >= 0; i--) {
+            var message = contentData["messages"][i];
+            if (
+              message &&
+              message["role"] &&
+              message["role"].toLowerCase() == "user"
+            ) {
+              if (!promptInfo.userPrompt && message["content"]) {
+                promptInfo.userPrompt = message["content"];
+              }
+
+              if (message["content"]) {
+                promptInfo.allUserPrompts += " " + message["content"];
+              }
+            }
+          }
         }
 
         return promptInfo;
@@ -166,6 +335,10 @@ resources:
             }
             if (contentData["message"] && contentData["message"]["model"]) {
               usageData.model = contentData["message"]["model"];
+            }
+            if (usageData.model.includes("/")) {
+              var modelNamePieces = usageData.model.split("/");
+              usageData.model = modelNamePieces[modelNamePieces.length - 1];
             }
 
             // requestTokenCount
@@ -212,7 +385,7 @@ resources:
                 contentData["usageMetadata"]["candidatesTokenCount"];
             }
           } catch (e) {
-            print("Exception in processing stream data: " + e.message);
+            print("Exception in getUsageData: " + JSON.stringify(e));
           }
         }
 
@@ -325,7 +498,7 @@ resources:
       if (usageData.responseTokenCount > 0) {
         context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
         usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
-        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount);
+        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
         usageData.type = type;
         print("Sending analytics data: " + JSON.stringify(usageData));
         var host = context.getVariable("originalHostName");

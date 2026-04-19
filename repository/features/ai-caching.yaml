@@ -1,0 +1,102 @@
+name: ai-caching
+displayName: ""
+type: feature
+description: ai-caching
+documentation: ""
+categories: []
+parameters:
+  - name: VertexPredictUrl
+    displayName: VertexPredictUrl
+    description: Configuration input for VertexPredictUrl
+    default: https://europe-west1-aiplatform.googleapis.com/v1/projects/apigee-klab1/locations/europe-west1/publishers/google/models/text-embedding-004:predict
+    examples: []
+    maps: {}
+  - name: VertexSearchUrl
+    displayName: VertexSearchUrl
+    description: Configuration input for VertexSearchUrl
+    default: https://1509539040.europe-west1-978892257176.vdb.vertexai.goog/v1/projects/apigee-klab1/locations/europe-west1/indexEndpoints/5228226168586502144:findNeighbors
+    examples: []
+    maps: {}
+  - name: VertexUpsertUrl
+    displayName: VertexUpsertUrl
+    description: Configuration input for VertexUpsertUrl
+    default: https://europe-west1-aiplatform.googleapis.com/v1/projects/apigee-klab1/locations/europe-west1/indexes/5231146471469875200:upsertDatapoints
+    examples: []
+    maps: {}
+defaultEndpoint:
+  name: default
+  basePath: /ai-caching
+  routes:
+    - name: default
+      target: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: SCL-Semantic-Cache-Lookup
+  faultRules: []
+defaultTarget:
+  name: default
+  url: https://aiplatform.googleapis.com
+  auth: GoogleAccessToken
+  scopes:
+    - https://www.googleapis.com/auth/cloud-platform
+  flows:
+    - name: PreFlow
+      mode: Response
+      steps:
+        - name: SCP-Semantic-Cache-Populate
+  faultRules: []
+  httpTargetConnection:
+    properties: {}
+    url: https://aiplatform.googleapis.com
+    authentication:
+      googleAccessToken:
+        scopes:
+          scope: https://www.googleapis.com/auth/cloud-platform
+endpoints: []
+targets: []
+policies:
+  - name: SCL-Semantic-Cache-Lookup
+    type: SemanticCacheLookup
+    content:
+      semanticCacheLookup:
+        metadata:
+          async: "false"
+          continueOnError: "false"
+          enabled: "true"
+          name: SCL-Semantic-Cache-Lookup
+        displayName: Semantic Cache Lookup
+        ignoreUnresolvedVariables: "false"
+        userPromptSource: "{jsonPath('$.contents[-1].parts[-1].text',request.content,true)}"
+        embeddings:
+          vertexAi:
+            url: "{propertyset.caching.VertexPredictUrl}"
+        similaritySearch:
+          vertexAi:
+            url: "{propertyset.caching.VertexSearchUrl}"
+            deployedIndexId: semantic_cache
+            threshold: "0.95"
+  - name: SCP-Semantic-Cache-Populate
+    type: SemanticCachePopulate
+    content:
+      semanticCachePopulate:
+        metadata:
+          async: "false"
+          continueOnError: "false"
+          enabled: "true"
+          name: SCP-Semantic-Cache-Populate
+        displayName: Semantic Cache Populate
+        ignoreUnresolvedVariables: "false"
+        similaritySearch:
+          vertexAi:
+            url: "{propertyset.caching.VertexUpsertUrl}"
+        ttlInSeconds: "60"
+resources:
+  - name: caching.properties
+    type: properties
+    content: |
+      VertexPredictUrl={VertexPredictUrl}
+      VertexSearchUrl={VertexSearchUrl}
+      VertexUpsertUrl={VertexUpsertUrl}
+tests: []

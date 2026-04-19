@@ -1091,11 +1091,17 @@ export class ApigeeConverter {
       resultFlow.steps.push(newStep);
     }
 
+    if (sourceDoc["_attributes"]["position"])
+      resultFlow.position = sourceDoc["_attributes"]["position"];
+
     return resultFlow;
   }
 
   public flowJsonToXml(sourceDoc: any): any {
     let result: any = {};
+    // position
+    if (sourceDoc["position"])
+      result["_attributes"]["position"] = sourceDoc["position"];
     if (sourceDoc && sourceDoc["steps"] && sourceDoc["steps"].length > 1) {
       result["Step"] = [];
       for (let step of sourceDoc["steps"]) {
@@ -1528,146 +1534,41 @@ export class ApigeeConverter {
     // proxy.parameters = proxy.parameters.concat(feature.parameters);
 
     // replace parameters from runtime
-    let tempFeature = this.featureReplaceParameters(
+    let applyFeature = this.featureReplaceParameters(
       feature,
       originalFeature.parameters,
       parameters,
     );
 
     // merge endpoint flows
-    if (tempFeature.defaultEndpoint) {
+    if (applyFeature.defaultEndpoint) {
+      // default endpoint
+      if (originalFeature.defaultEndpoint)
+        this.featureMergeEndpoints(
+          applyFeature,
+          originalFeature.defaultEndpoint,
+        );
+
       for (let endpoint of originalFeature.endpoints) {
-        for (let featureFlow of tempFeature.defaultEndpoint.flows) {
-          let foundFlow = false;
-          for (let proxyFlow of endpoint.flows) {
-            if (
-              proxyFlow.name == featureFlow.name &&
-              proxyFlow.mode == featureFlow.mode &&
-              proxyFlow.condition == featureFlow.condition
-            ) {
-              foundFlow = true;
-              proxyFlow.steps = proxyFlow.steps.concat(featureFlow.steps);
-              break;
-            }
-          }
-
-          if (!foundFlow) {
-            let newFlow = new Flow(
-              featureFlow.name,
-              featureFlow.mode,
-              featureFlow.condition,
-            );
-            newFlow.steps = newFlow.steps.concat(featureFlow.steps);
-            endpoint.flows.push(newFlow);
-          }
-        }
-
-        if (tempFeature.defaultEndpoint.defaultFaultRule) {
-          if (endpoint.defaultFaultRule) {
-            endpoint.defaultFaultRule.steps =
-              endpoint.defaultFaultRule.steps.concat(
-                tempFeature.defaultEndpoint.defaultFaultRule.steps,
-              );
-          } else
-            endpoint.defaultFaultRule =
-              tempFeature.defaultEndpoint.defaultFaultRule;
-        }
+        this.featureMergeEndpoints(applyFeature, endpoint);
       }
     }
 
     // merge target flows
-    if (tempFeature.defaultTarget) {
+    if (applyFeature.defaultTarget) {
+      if (originalFeature.defaultTarget)
+        this.featureMergeTargets(applyFeature, originalFeature.defaultTarget);
       for (let target of originalFeature.targets) {
-        for (let featureFlow of tempFeature.defaultTarget.flows) {
-          let foundFlow = false;
-          for (let targetFlow of target.flows) {
-            if (
-              targetFlow.name == featureFlow.name &&
-              targetFlow.mode == featureFlow.mode &&
-              targetFlow.condition == featureFlow.condition
-            ) {
-              foundFlow = true;
-              targetFlow.steps = targetFlow.steps.concat(featureFlow.steps);
-              break;
-            }
-          }
-
-          if (!foundFlow) {
-            let newFlow = new Flow(
-              featureFlow.name,
-              featureFlow.mode,
-              featureFlow.condition,
-            );
-            newFlow.steps = newFlow.steps.concat(featureFlow.steps);
-            target.flows.push(newFlow);
-          }
-        }
-
-        if (tempFeature.defaultTarget.defaultFaultRule) {
-          if (target.defaultFaultRule) {
-            target.defaultFaultRule.steps =
-              target.defaultFaultRule.steps.concat(
-                tempFeature.defaultTarget.defaultFaultRule.steps,
-              );
-          } else
-            target.defaultFaultRule =
-              tempFeature.defaultTarget.defaultFaultRule;
-        }
+        this.featureMergeTargets(applyFeature, target);
       }
     }
 
-    // if feature has endpoints
-    if (tempFeature.endpoints && tempFeature.endpoints.length > 0) {
-      // first set name with id
-      for (let tempEndpoint of tempFeature.endpoints) {
-        // rename endpoint names with uid
-        if (tempFeature.uid) {
-          tempEndpoint.name = tempFeature.uid + "-" + tempEndpoint.name;
-
-          for (let tempRoute of tempEndpoint.routes) {
-            if (tempRoute.target) {
-              tempRoute.target = tempFeature.uid + "-" + tempRoute.target;
-            }
-          }
-        }
-        let endpointIndex = originalFeature.endpoints.findIndex(
-          (x) => x.name === tempEndpoint.name,
-        );
-        if (endpointIndex === -1) {
-          originalFeature.endpoints.push(tempEndpoint);
-        } else {
-          console.log(
-            `\n!! Conflict detected in proxy apply feature - endpoint "${tempEndpoint.name}" already exists, overwriting...\n`,
-          );
-          originalFeature.endpoints[endpointIndex] = tempEndpoint;
-        }
-      }
-    }
-
-    // if feature has targets
-    if (tempFeature.targets && tempFeature.targets.length > 0) {
-      for (let tempTarget of tempFeature.targets) {
-        // rename targets with uid
-        if (tempFeature.uid) {
-          tempTarget.name = tempFeature.uid + "-" + tempTarget.name;
-        }
-        let targetIndex = originalFeature.targets.findIndex(
-          (x) => x.name === tempTarget.name,
-        );
-        if (targetIndex === -1) {
-          originalFeature.targets.push(tempTarget);
-        } else {
-          console.log(
-            `\n!! Conflict detected in proxy apply feature - target "${tempTarget.name}" already exists, overwriting...\n`,
-          );
-          originalFeature.targets[targetIndex] = tempTarget;
-        }
-      }
-    }
+    // currently assuming that apply-features will not bring their own endpoints
+    // or targets, if this changes copy logic from proxyApplyFeature...
 
     // merge policies
-    if (tempFeature.policies && tempFeature.policies.length > 0) {
-      for (let policy of tempFeature.policies) {
+    if (applyFeature.policies && applyFeature.policies.length > 0) {
+      for (let policy of applyFeature.policies) {
         let policyIndex = originalFeature.policies.findIndex(
           (x) => x.name === policy.name,
         );
@@ -1683,8 +1584,8 @@ export class ApigeeConverter {
     }
 
     // merge resources
-    if (tempFeature.resources && tempFeature.resources.length > 0) {
-      for (let resource of tempFeature.resources) {
+    if (applyFeature.resources && applyFeature.resources.length > 0) {
+      for (let resource of applyFeature.resources) {
         let resourceIndex = originalFeature.resources.findIndex(
           (x) => x.name === resource.name,
         );
@@ -1700,6 +1601,109 @@ export class ApigeeConverter {
     }
 
     return originalFeature;
+  }
+
+  public featureMergeEndpoints(applyFeature: Feature, endpoint: ProxyEndpoint) {
+    if (applyFeature.defaultEndpoint) {
+      for (let featureFlow of applyFeature.defaultEndpoint.flows) {
+        let foundFlow = false;
+        for (let proxyFlow of endpoint.flows) {
+          if (
+            proxyFlow.name == featureFlow.name &&
+            proxyFlow.mode == featureFlow.mode &&
+            proxyFlow.condition == featureFlow.condition
+          ) {
+            foundFlow = true;
+            for (let step of featureFlow.steps) {
+              let stepIndex = proxyFlow.steps.findIndex(
+                (x) => x.name === step.name,
+              );
+              if (stepIndex === -1) {
+                proxyFlow.steps.push(step);
+              } else {
+                console.log(
+                  `Same step name ${step.name} found in proxy flow ${proxyFlow.name}, overwriting...\n`,
+                );
+                proxyFlow.steps[stepIndex] = step;
+              }
+            }
+            break;
+          }
+        }
+
+        if (!foundFlow) {
+          let newFlow = new Flow(
+            featureFlow.name,
+            featureFlow.mode,
+            featureFlow.condition,
+          );
+          newFlow.steps = newFlow.steps.concat(featureFlow.steps);
+          endpoint.flows.push(newFlow);
+        }
+      }
+
+      if (applyFeature.defaultEndpoint.defaultFaultRule) {
+        if (endpoint.defaultFaultRule) {
+          endpoint.defaultFaultRule.steps =
+            endpoint.defaultFaultRule.steps.concat(
+              applyFeature.defaultEndpoint.defaultFaultRule.steps,
+            );
+        } else
+          endpoint.defaultFaultRule =
+            applyFeature.defaultEndpoint.defaultFaultRule;
+      }
+    }
+  }
+
+  public featureMergeTargets(applyFeature: Feature, target: ProxyTarget) {
+    if (applyFeature.defaultTarget) {
+      for (let featureFlow of applyFeature.defaultTarget.flows) {
+        let foundFlow = false;
+        for (let targetFlow of target.flows) {
+          if (
+            targetFlow.name == featureFlow.name &&
+            targetFlow.mode == featureFlow.mode &&
+            targetFlow.condition == featureFlow.condition
+          ) {
+            foundFlow = true;
+            for (let step of featureFlow.steps) {
+              let stepIndex = targetFlow.steps.findIndex(
+                (x) => x.name === step.name,
+              );
+              if (stepIndex === -1) {
+                targetFlow.steps.push(step);
+              } else {
+                console.log(
+                  `Same step name ${step.name} found in target flow ${targetFlow.name}, overwriting...\n`,
+                );
+                targetFlow.steps[stepIndex] = step;
+              }
+            }
+            // targetFlow.steps = targetFlow.steps.concat(featureFlow.steps);
+            break;
+          }
+        }
+
+        if (!foundFlow) {
+          let newFlow = new Flow(
+            featureFlow.name,
+            featureFlow.mode,
+            featureFlow.condition,
+          );
+          newFlow.steps = newFlow.steps.concat(featureFlow.steps);
+          target.flows.push(newFlow);
+        }
+      }
+
+      if (applyFeature.defaultTarget.defaultFaultRule) {
+        if (target.defaultFaultRule) {
+          target.defaultFaultRule.steps = target.defaultFaultRule.steps.concat(
+            applyFeature.defaultTarget.defaultFaultRule.steps,
+          );
+        } else
+          target.defaultFaultRule = applyFeature.defaultTarget.defaultFaultRule;
+      }
+    }
   }
 
   public featureReplaceParameters(
@@ -2494,6 +2498,8 @@ export class ApigeeConverter {
     if (result.includes("Id")) result = result.replace("Id", "ID");
     if (result.includes("Llm")) result = result.replace("Llm", "LLM");
     if (result.includes("Jwt")) result = result.replace("Jwt", "JWT");
+    if (result.includes("Ai")) result = result.replace("Ai", "AI");
+    if (result.includes("Ttl")) result = result.replace("Ttl", "TTL");
     return result;
   }
 }

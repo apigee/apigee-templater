@@ -139,6 +139,11 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["-i", "ClaudeProxy.local.yaml", "-a", "llm-vertex-native"],
+    "args": [
+      "-i",
+      "./repository/features/ai-caching.yaml",
+      "-a",
+      "./repository/functions/ai-base.yaml",
+    ],
   },
 ]

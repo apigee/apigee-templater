@@ -564,7 +564,7 @@ export class cli {
             inputParameters,
           );
         } else if (feature && applyFeature) {
-          feature = this.converter.proxyApplyFeature(
+          feature = this.converter.featureApplyFeature(
             feature,
             applyFeature,
             inputParameters,

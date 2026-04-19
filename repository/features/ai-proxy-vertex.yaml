@@ -83,6 +83,9 @@ endpoints:
 targets:
   - name: vertex
     url: https://aiplatform.googleapis.com
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
     flows:
       - name: PostFlow
         mode: Response
@@ -93,7 +96,7 @@ targets:
         mode: Response
         steps:
           - name: JS-Analytics
-            condition: analyticsFinished != "true"
+            condition: ai.responseTokenCount != ""
     faultRules: []
     defaultFaultRule:
       name: default-fault
@@ -109,6 +112,10 @@ targets:
             name: io.timeout.millis
           value: "18000000"
       url: https://aiplatform.googleapis.com
+      authentication:
+        googleAccessToken:
+          scopes:
+            scope: https://www.googleapis.com/auth/cloud-platform
 policies:
   - name: AM-SetFallbackResponse
     type: AssignMessage
@@ -148,8 +155,8 @@ policies:
               metadata:
                 name: accept-encoding
         assignVariable:
-          - name: originalHostName
-            ref: request.header.host
+          name: originalHostName
+          ref: request.header.host
         ignoreUnresolvedVariables: "true"
         assignTo:
           metadata:
@@ -180,7 +187,61 @@ policies:
           name: JS-CheckModel
         displayName: JS-CheckModel
         properties: {}
-        resourceUrl: jsc://model.js
+        source: |
+          var allowed_model_patterns = context.getVariable("propertyset.vertex.AllowedModelPatterns");
+          var denied_model_patterns = context.getVariable("propertyset.vertex.DeniedModelPatterns");
+          var override_model = context.getVariable("propertyset.vertex.OverrideModel");
+          var default_model = context.getVariable("propertyset.vertex.DefaultModel");
+          if (!allowed_model_patterns) allowed_model_patterns = context.getVariable("ai.allowedModelPatterns");
+          if (!denied_model_patterns) denied_model_patterns = context.getVariable("ai.deniedModelPatterns");
+          if (!override_model) override_model = context.getVariable("ai.overrideModel");
+          if (!default_model) default_model = context.getVariable("ai.defaultModel");
+
+          var url = context.getVariable("proxy.url");
+          var requestContent = request.content.asJSON;
+          var callType = "vertex";
+          if (url.includes("/chat/completions")) callType = "oai";
+
+          var requestConfig = {
+            url: url,
+            type: callType,
+            requestContent: requestContent,
+            allowedModelPatterns: allowed_model_patterns,
+            deniedModelPatterns: denied_model_patterns
+          }
+
+          var allowResult = testAllowedModels(requestConfig);
+          var denyResult = testDeniedModels(requestConfig);
+          var promptInfo = getPrompts(requestContent);
+
+          if (promptInfo.userPrompt)
+            context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
+          else
+            print("Could not find user prompt!");
+
+          if (!allowResult) {
+            print("Model not allowed!");
+            context.setVariable("response.status.code", 403);
+            throw "Model not allowed!";
+          }
+
+          if (!denyResult) {
+            print("Model denied!");
+            context.setVariable("response.status.code", 403);
+            throw "Model denied!";
+          }
+
+          print("Default_model: " + default_model);
+          print("Request model: " + requestContent["model"]);
+
+          if (override_model && override_model != "NONE" && callType == "oai") {
+            requestContent["model"] = override_model;
+            context.setVariable('request.content', JSON.stringify(requestContent));
+          } else if (default_model && default_model != "NONE" && !requestContent["model"] && callType == "oai") {
+            print("Default model set: " + default_model);
+            requestContent["model"] = default_model;
+            context.setVariable('request.content', JSON.stringify(requestContent));
+          }
         includeUrl: jsc://ai-functions.js
   - name: JS-SetFallbackModel
     type: Javascript
@@ -280,6 +341,10 @@ policies:
         httpTargetConnection:
           properties: {}
           url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
+          authentication:
+            googleAccessToken:
+              scopes:
+                scope: https://www.googleapis.com/auth/cloud-platform
 resources:
   - name: ai-functions.js
     type: jsc
@@ -305,34 +370,52 @@ resources:
         return modelName;
       }
 
-      function getPrompts(contentString) {
+      function getPrompts(contentData) {
         var promptInfo = {
           userPrompt: "",
           allUserPrompts: "",
         };
 
-        try {
-          var contentData = JSON.parse(contentString);
+        if (contentData && contentData["contents"]) {
+          // gemini format
+          for (i = contentData["contents"].length - 1; i >= 0; i--) {
+            var content = contentData["contents"][i];
+            if (
+              content &&
+              content["role"] &&
+              content["role"].toLowerCase() == "user" &&
+              content["parts"]
+            ) {
+              for (p = content["parts"].length - 1; p >= 0; p--) {
+                var part = content["parts"][p];
+                if (!promptInfo.userPrompt && content["parts"][p]["text"]) {
+                  promptInfo.userPrompt = content["parts"][p]["text"];
+                }
 
-          if (contentData && contentData["contents"]) {
-            for (i = contentData["contents"].length - 1; i >= 0; i--) {
-              var content = contentData["contents"][i];
-              if (content && content["role"] == "user" && content["parts"]) {
-                for (p = content["parts"].length - 1; p >= 0; p--) {
-                  var part = content["parts"][p];
-                  if (!promptInfo.userPrompt && content["parts"][p]["text"]) {
-                    promptInfo.userPrompt = content["parts"][p]["text"];
-                  }
-
-                  if (content["parts"][p]["text"]) {
-                    promptInfo.allUserPrompts += " " + content["parts"][p]["text"];
-                  }
+                if (content["parts"][p]["text"]) {
+                  promptInfo.allUserPrompts += " " + content["parts"][p]["text"];
                 }
               }
             }
           }
-        } catch (e) {
-          print("Exception in processing data: " + e.message);
+        } else if (contentData && contentData["messages"]) {
+          // oapi format
+          for (i = contentData["messages"].length - 1; i >= 0; i--) {
+            var message = contentData["messages"][i];
+            if (
+              message &&
+              message["role"] &&
+              message["role"].toLowerCase() == "user"
+            ) {
+              if (!promptInfo.userPrompt && message["content"]) {
+                promptInfo.userPrompt = message["content"];
+              }
+
+              if (message["content"]) {
+                promptInfo.allUserPrompts += " " + message["content"];
+              }
+            }
+          }
         }
 
         return promptInfo;
@@ -418,7 +501,7 @@ resources:
                 contentData["usageMetadata"]["candidatesTokenCount"];
             }
           } catch (e) {
-            print("Exception in processing stream data: " + e.message);
+            print("Exception in getUsageData: " + JSON.stringify(e));
           }
         }
 
@@ -531,7 +614,7 @@ resources:
       if (usageData.responseTokenCount > 0) {
         context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
         usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
-        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount);
+        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
         usageData.type = type;
         print("Sending analytics data: " + JSON.stringify(usageData));
         var host = context.getVariable("originalHostName");
@@ -557,61 +640,6 @@ resources:
         requestObject["stream"] = false;
         context.setVariable('request.content', JSON.stringify(requestObject));
       }
-  - name: model.js
-    type: jsc
-    content: |+
-      var allowed_model_patterns = context.getVariable("propertyset.vertex.AllowedModelPatterns");
-      var denied_model_patterns = context.getVariable("propertyset.vertex.DeniedModelPatterns");
-      var override_model = context.getVariable("propertyset.vertex.OverrideModel");
-      var default_model = context.getVariable("propertyset.vertex.DefaultModel");
-      if (!allowed_model_patterns) allowed_model_patterns = context.getVariable("ai.allowedModelPatterns");
-      if (!denied_model_patterns) denied_model_patterns = context.getVariable("ai.deniedModelPatterns");
-      if (!override_model) override_model = context.getVariable("ai.overrideModel");
-      if (!default_model) default_model = context.getVariable("ai.defaultModel");
-
-      var url = context.getVariable("proxy.url");
-      var requestContent = request.content.asJSON;
-      var callType = "vertex";
-      if (url.includes("/chat/completions")) callType = "oai";
-
-      var requestConfig = {
-        url: url,
-        type: callType,
-        requestContent: requestContent,
-        allowedModelPatterns: allowed_model_patterns,
-        deniedModelPatterns: denied_model_patterns
-      }
-
-      var allowResult = testAllowedModels(requestConfig);
-      var denyResult = testDeniedModels(requestConfig);
-      var promptInfo = getPrompts(requestContent);
-
-      if (promptInfo.userPrompt) context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
-
-      if (!allowResult) {
-        print("Model not allowed!");
-        context.setVariable("response.status.code", 403);
-        throw "Model not allowed!";
-      }
-
-      if (!denyResult) {
-        print("Model denied!");
-        context.setVariable("response.status.code", 403);
-        throw "Model denied!";
-      }
-
-      print("Default_model: " + default_model);
-      print("Request model: " + requestContent["model"]);
-
-      if (override_model && override_model != "NONE" && callType == "oai") {
-        requestContent["model"] = override_model;
-        context.setVariable('request.content', JSON.stringify(requestContent));
-      } else if (default_model && default_model != "NONE" && !requestContent["model"] && callType == "oai") {
-        print("Default model set: " + default_model);
-        requestContent["model"] = default_model;
-        context.setVariable('request.content', JSON.stringify(requestContent));
-      }
-
   - name: vertex.properties
     type: properties
     content: |

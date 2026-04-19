@@ -67,6 +67,7 @@ export class Route {
 export class Flow {
   name: string;
   mode?: string;
+  position?: string;
   condition?: string;
   steps: Step[] = [];
 
