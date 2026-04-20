@@ -20,9 +20,50 @@ endpoints:
         steps:
           - name: VA-VerifyKey
           - name: DC-TokenAnalytics
+          - name: EV-ExtractPayload
+          - name: AM-SetVariables
+          - name: KVM-GetBudgets
+          - name: JS-UpdateBudgets
     faultRules: []
 targets: []
 policies:
+  - name: AM-SetVariables
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetVariables
+        displayName: AM-SetVariables
+        properties: {}
+        assignVariable:
+          - name: ai.costCenterModelBudgetKey
+            template: CostCenterModelBudget-{ai.costCenter}-{ai.model}
+          - name: ai.costCenterModelUsageKey
+            template: CostCenterModelUsage-{ai.costCenter}-{ai.model}
+          - name: ai.costCenterBudgetKey
+            template: CostCenterBudget-{ai.costCenter}
+          - name: ai.costCenterUsageKey
+            template: CostCenterUsage-{ai.costCenter}
+          - name: ai.userModelBudgetKey
+            template: UserModelBudget-{developer.email}-{ai.model}
+          - name: ai.userModelUsageKey
+            template: UserModelUsage-{developer.email}-{ai.model}
+          - name: ai.userBudgetKey
+            template: UserBudget-{developer.email}
+          - name: ai.userUsageKey
+            template: UserUsage-{developer.email}
+        source:
+          metadata:
+            clearPayload: "false"
+          value: request
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
   - name: DC-TokenAnalytics
     type: DataCapture
     content:
@@ -32,7 +73,7 @@ policies:
           continueOnError: "false"
           enabled: "true"
         displayName: DC-TokenAnalytics
-        ignoreUnresolvedVariables: "false"
+        ignoreUnresolvedVariables: "true"
         capture:
           - collect:
               source: request
@@ -64,6 +105,69 @@ policies:
               jsonPayload:
                 jsonPath: $.timeToFirstToken
             dataCollector: dc_ai_time_first_token
+          - collect:
+              source: request
+              jsonPayload:
+                jsonPath: $.costCenter
+            dataCollector: dc_ai_cost_center
+  - name: EV-ExtractPayload
+    type: ExtractVariables
+    content:
+      extractVariables:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: EV-ExtractPayload
+        displayName: EV-ExtractPayload
+        properties: {}
+        ignoreUnresolvedVariables: "true"
+        jsonPayload:
+          variable:
+            - metadata:
+                name: model
+              jsonPath: $.model
+            - metadata:
+                name: costCenter
+              jsonPath: $.costCenter
+        variablePrefix: ai
+  - name: JS-UpdateBudgets
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-UpdateBudgets
+        displayName: JS-UpdateBudgets
+        properties: {}
+        source: "
+
+          var usageData = request.content.asJSON;
+
+          \  "
+  - name: KVM-GetBudgets
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: KVM-GetBudgets
+          mapIdentifier: AI-Config
+        displayName: KVM-GetBudgets
+        properties: {}
+        exclusiveCache: "false"
+        expiryTimeInSecs: "300"
+        get:
+          metadata:
+            assignTo: ai.costCenterBudget
+            index: "1"
+          key:
+            parameter:
+              metadata:
+                ref: myvar
+        scope: environment
   - name: VA-VerifyKey
     type: VerifyAPIKey
     content:

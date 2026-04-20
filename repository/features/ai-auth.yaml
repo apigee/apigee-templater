@@ -1,70 +1,87 @@
 name: ai-auth
 displayName: AI Auth Feature
-type: feature
-description: The ai-auth feature adds authentication, authorization, quotas and
-  analytics to the AI access.
-documentation: Access to the AI is managed through API Products in Apigee, that
-  grant access and quotas to certain models.
+type: proxy
 priority: 10
 categories:
   - llm
   - ai
+description: The ai-auth feature adds authentication, authorization, quotas and
+  analytics to the AI access.
+documentation: Access to the AI is managed through API Products in Apigee, that
+  grant access and quotas to certain models.
 parameters: []
-defaultEndpoint:
-  name: default
-  basePath: /ai-auth
-  routes:
-    - name: default
-      target: default
-  flows:
-    - name: PreFlow
-      mode: Request
-      steps:
-        - name: KVM-LoadConfig
-        - name: AM-SetVariables
-        - name: JS-CheckModel
-        - name: VA-VerifyKey
-        - name: AM-RemoveKey
-        - name: LTQ-QuotaEnforce
-          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
-    - name: PostFlow
-      mode: Response
-      steps:
-        - name: LTQ-QuotaCount
-          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
-            AND ai.totalTokenCount != null
-  faultRules: []
-defaultTarget:
-  name: default
-  url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
-  auth: GoogleAccessToken
-  scopes:
-    - https://www.googleapis.com/auth/cloud-platform
-  flows:
-    - name: EventFlow
-      mode: Response
-      steps:
-        - name: JS-Analytics
-          condition: ai.responseTokenCount == null
-        - name: LTQ-QuotaCount
-          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
-            AND ai.totalTokenCount != null
-    - name: PostFlow
-      mode: Response
-      steps:
-        - name: JS-Analytics
-          condition: response.content != ""
-  faultRules: []
-  httpTargetConnection:
-    properties: {}
-    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
-    authentication:
-      googleAccessToken:
-        scopes:
-          scope: https://www.googleapis.com/auth/cloud-platform
-endpoints: []
-targets: []
+endpoints:
+  - name: default
+    basePath: /ai-auth
+    routes:
+      - name: default
+        target: default
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: KVM-LoadConfig
+          - name: AM-SetVariables
+          - name: JS-CheckModel
+          - name: VA-VerifyKey
+          - name: AM-RemoveKey
+          - name: LTQ-QuotaEnforce
+            condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
+          - name: AE-LoadAttributes
+          - name: JS-CheckBudget
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: LTQ-QuotaCount
+            condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
+              AND ai.totalTokenCount != null
+    faultRules: []
+targets:
+  - name: default
+    url: https://aiplatform.googleapis.com
+    auth: GoogleAccessToken
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: ai.responseTokenCount == null
+          - name: LTQ-QuotaCount
+            condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
+              AND ai.totalTokenCount != null
+    faultRules: []
+    httpTargetConnection:
+      properties: {}
+      url: https://aiplatform.googleapis.com
+      authentication:
+        googleAccessToken:
+          scopes:
+            scope: https://www.googleapis.com/auth/cloud-platform
 policies:
+  - name: AE-LoadAttributes
+    type: AccessEntity
+    content:
+      accessEntity:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AE-LoadAttributes
+        displayName: AE-LoadAttributes
+        properties: {}
+        entityIdentifier:
+          metadata:
+            type: consumerkey
+            ref: client_id
+        entityType:
+          metadata:
+            setValue: developer
   - name: AM-RemoveKey
     type: AssignMessage
     content:
@@ -89,66 +106,6 @@ policies:
             createNew: "false"
             transport: http
             type: request
-  - name: LTQ-QuotaCount
-    type: LLMTokenQuota
-    content:
-      llmTokenQuota:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: LTQ-QuotaCount
-          type: calendar
-        displayName: LTQ-QuotaCount
-        properties: {}
-        useQuotaConfigInApiProduct:
-          metadata:
-            stepName: VA-VerifyKey
-        countOnly: "true"
-        sharedName: llm-quota
-        distributed: "false"
-        synchronous: "false"
-        startTime: 2013-08-21 10:00:00
-        asynchronousConfiguration:
-          syncIntervalInSeconds: "20"
-          syncMessageCount: "5"
-        llmTokenUsageSource: "{ai.totalTokenCount}"
-        llmModelSource: "{ai.model}"
-  - name: LTQ-QuotaEnforce
-    type: LLMTokenQuota
-    content:
-      llmTokenQuota:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: LTQ-QuotaEnforce
-          type: calendar
-        displayName: LTQ-QuotaEnforce
-        properties: {}
-        useQuotaConfigInApiProduct:
-          metadata:
-            stepName: VA-VerifyKey
-        enforceOnly: "true"
-        sharedName: llm-quota
-        distributed: "false"
-        synchronous: "false"
-        startTime: 2013-08-21 10:00:00
-        asynchronousConfiguration:
-          syncIntervalInSeconds: "20"
-          syncMessageCount: "5"
-        llmModelSource: "{ai.model}"
-  - name: VA-VerifyKey
-    type: VerifyAPIKey
-    content:
-      verifyApiKey:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: VA-VerifyKey
-        displayName: VA-VerifyKey
-        properties: {}
-        apiKey:
-          metadata:
-            ref: request.header.x-api-key
   - name: AM-SetVariables
     type: AssignMessage
     content:
@@ -173,6 +130,86 @@ policies:
             createNew: "false"
             transport: http
             type: request
+  - name: JS-Analytics
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-Analytics
+        displayName: JS-Analytics
+        properties: {}
+        source: |
+          
+          var contentString = context.getVariable("response.event.current.content");
+          var type = "streaming";
+          if (!contentString) {
+            contentString = context.getVariable("response.content");
+            type = "non-streaming"
+          }
+          print(contentString);
+
+          var modelName = context.getVariable("ai.model");
+          var requestTokenCount = context.getVariable("ai.requestTokenCount");
+          var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
+          if (!timeToFirstToken) {
+            var request_start_time = context.getVariable('client.received.start.timestamp');
+            var timeNow = Date.now();
+            timeToFirstToken = timeNow - request_start_time;
+            context.setVariable("ai.timeToFirstToken", timeToFirstToken);
+          }
+          var usageData = getUsageData(contentString);
+          if (usageData.model) context.setVariable("ai.model", usageData.model);
+          if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
+          if (modelName) usageData.model = modelName;
+          if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
+          if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
+
+          if (usageData.responseTokenCount > 0) {
+            var costCenter = context.getVariable("ai.costCenter");
+            if (costCenter)
+              usageData.costCenter = costCenter;
+            else
+              usageData.costCenter = "unknown";
+
+            context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
+            usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
+            context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
+            usageData.type = type;
+            print("Sending analytics data: " + JSON.stringify(usageData));
+            var host = context.getVariable("originalHostName");
+            var headers = {"Content-Type": "application/json"};
+            var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
+            if (apiKey) {
+              headers["x-api-key"] = apiKey;
+            }
+            var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
+            print("Sending to: " + 'https://' + host + "/ai-analytics");
+            httpClient.send(myRequest);
+          }
+        includeUrl: jsc://ai-functions.js
+  - name: JS-CheckBudget
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-CheckBudget
+        displayName: JS-CheckBudget
+        properties: {}
+        source: "
+
+          var costCenter =
+          context.getVariable(\"AccessEntity.ChildNodes.AE-LoadAttributes.Devel\
+          oper.Attributes.Attribute.1.Value\");
+
+          if (costCenter) context.setVariable(\"ai.costCenter\", costCenter);
+
+          \  "
   - name: JS-CheckModel
     type: Javascript
     content:
@@ -304,19 +341,66 @@ policies:
             key:
               parameter: FallbackModel
         scope: environment
-  - name: JS-Analytics
-    type: Javascript
+  - name: LTQ-QuotaCount
+    type: LLMTokenQuota
     content:
-      javascript:
+      llmTokenQuota:
         metadata:
           continueOnError: "false"
           enabled: "true"
-          timeLimit: "200"
-          name: JS-Analytics
-        displayName: JS-Analytics
+          name: LTQ-QuotaCount
+          type: calendar
+        displayName: LTQ-QuotaCount
         properties: {}
-        resourceUrl: jsc://analytics.js
-        includeUrl: jsc://ai-functions.js
+        useQuotaConfigInApiProduct:
+          metadata:
+            stepName: VA-VerifyKey
+        countOnly: "true"
+        sharedName: llm-quota
+        distributed: "false"
+        synchronous: "false"
+        startTime: 2013-08-21 10:00:00
+        asynchronousConfiguration:
+          syncIntervalInSeconds: "20"
+          syncMessageCount: "5"
+        llmTokenUsageSource: "{ai.totalTokenCount}"
+        llmModelSource: "{ai.model}"
+  - name: LTQ-QuotaEnforce
+    type: LLMTokenQuota
+    content:
+      llmTokenQuota:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: LTQ-QuotaEnforce
+          type: calendar
+        displayName: LTQ-QuotaEnforce
+        properties: {}
+        useQuotaConfigInApiProduct:
+          metadata:
+            stepName: VA-VerifyKey
+        enforceOnly: "true"
+        sharedName: llm-quota
+        distributed: "false"
+        synchronous: "false"
+        startTime: 2013-08-21 10:00:00
+        asynchronousConfiguration:
+          syncIntervalInSeconds: "20"
+          syncMessageCount: "5"
+        llmModelSource: "{ai.model}"
+  - name: VA-VerifyKey
+    type: VerifyAPIKey
+    content:
+      verifyApiKey:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: VA-VerifyKey
+        displayName: VA-VerifyKey
+        properties: {}
+        apiKey:
+          metadata:
+            ref: request.header.x-api-key
 resources:
   - name: ai-functions.js
     type: jsc
@@ -563,48 +647,5 @@ resources:
         exports.getUsageData = getUsageData;
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;
-      }
-  - name: analytics.js
-    type: jsc
-    content: |
-      var contentString = context.getVariable("response.event.current.content");
-      var type = "streaming";
-      if (!contentString) {
-        contentString = context.getVariable("response.content");
-        type = "non-streaming"
-      }
-      print(contentString);
-
-      var modelName = context.getVariable("ai.model");
-      var requestTokenCount = context.getVariable("ai.requestTokenCount");
-      var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
-      if (!timeToFirstToken) {
-        var request_start_time = context.getVariable('client.received.start.timestamp');
-        var timeNow = Date.now();
-        timeToFirstToken = timeNow - request_start_time;
-        context.setVariable("ai.timeToFirstToken", timeToFirstToken);
-      }
-      var usageData = getUsageData(contentString);
-      if (usageData.model) context.setVariable("ai.model", usageData.model);
-      if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
-      if (modelName) usageData.model = modelName;
-      if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
-      if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
-
-      if (usageData.responseTokenCount > 0) {
-        context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
-        usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
-        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
-        usageData.type = type;
-        print("Sending analytics data: " + JSON.stringify(usageData));
-        var host = context.getVariable("originalHostName");
-        var headers = {"Content-Type": "application/json"};
-        var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
-        if (apiKey) {
-          headers["x-api-key"] = apiKey;
-        }
-        var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
-        print("Sending to: " + 'https://' + host + "/ai-analytics");
-        httpClient.send(myRequest);
       }
 tests: []
