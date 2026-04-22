@@ -2356,8 +2356,10 @@ export class ApigeeConverter {
 
         if (newKey === "metadata") newKey = "_attributes";
         else if (newKey === "value") newKey = "_text";
-        else if (newKey === "setValue") newKey = "Value";
-        else if (parentName !== "_attributes" && parentName != "_text") {
+        else if (newKey === "setValue") {
+          if (parentName === "_attributes") newKey = "value";
+          else newKey = "Value";
+        } else if (parentName !== "_attributes" && parentName != "_text") {
           newKey = this.removeCamelCase(newKey);
         }
 
@@ -2382,7 +2384,8 @@ export class ApigeeConverter {
     if (result.includes("Api")) result = result.replace("Api", "API");
     if (result.includes("Xml")) result = result.replace("Xml", "XML");
     if (result.includes("Uri")) result = result.replace("Uri", "URI");
-    if (result.includes("Id")) result = result.replace("Id", "ID");
+    if (result.includes("Id") && result != "EntityIdentifier")
+      result = result.replace("Id", "ID");
     if (result.includes("Llm")) result = result.replace("Llm", "LLM");
     if (result.includes("Jwt")) result = result.replace("Jwt", "JWT");
     if (result.includes("Ai")) result = result.replace("Ai", "AI");

@@ -1,8 +1,10 @@
 name: ai-caching
 displayName: ""
 type: feature
-description: ai-caching
-documentation: ""
+description: Applies Apigee semantic caching to the AI model proxy.
+documentation: |
+  ## Prerequisites
+  * Set up your Vertex AI search index as described here: https://docs.cloud.google.com/apigee/docs/api-platform/tutorials/using-semantic-caching-policies.
 categories: []
 parameters:
   - name: VertexPredictUrl

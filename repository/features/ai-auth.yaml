@@ -1,69 +1,71 @@
 name: ai-auth
 displayName: AI Auth Feature
-type: proxy
-priority: 10
-categories:
-  - llm
-  - ai
+type: feature
 description: The ai-auth feature adds authentication, authorization, quotas and
   analytics to the AI access.
 documentation: Access to the AI is managed through API Products in Apigee, that
   grant access and quotas to certain models.
+priority: 10
+categories:
+  - llm
+  - ai
 parameters: []
-endpoints:
-  - name: default
-    basePath: /ai-auth
-    routes:
-      - name: default
-        target: default
-    flows:
-      - name: PreFlow
-        mode: Request
-        steps:
-          - name: KVM-LoadConfig
-          - name: AM-SetVariables
-          - name: JS-CheckModel
-          - name: VA-VerifyKey
-          - name: AM-RemoveKey
-          - name: LTQ-QuotaEnforce
-            condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
-          - name: AE-LoadAttributes
-          - name: JS-CheckBudget
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: LTQ-QuotaCount
-            condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
-              AND ai.totalTokenCount != null
-    faultRules: []
-targets:
-  - name: default
+defaultEndpoint:
+  name: default
+  basePath: /ai-auth
+  routes:
+    - name: default
+      target: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: KVM-LoadConfig
+        - name: AM-SetVariables
+        - name: JS-CheckModel
+        - name: VA-VerifyKey
+        - name: AM-RemoveKey
+        - name: LTQ-QuotaEnforce
+          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
+        - name: AE-LoadAttributes
+        - name: JS-CheckBudget
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: LTQ-QuotaCount
+          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
+            AND ai.totalTokenCount != null
+  faultRules: []
+defaultTarget:
+  name: default
+  url: https://aiplatform.googleapis.com
+  auth: GoogleAccessToken
+  scopes:
+    - https://www.googleapis.com/auth/cloud-platform
+  flows:
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: JS-Analytics
+          condition: response.content != ""
+    - name: EventFlow
+      mode: Response
+      steps:
+        - name: JS-Analytics
+          condition: ai.responseTokenCount == null
+        - name: LTQ-QuotaCount
+          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
+            AND ai.totalTokenCount != null
+  faultRules: []
+  httpTargetConnection:
+    properties: {}
     url: https://aiplatform.googleapis.com
-    auth: GoogleAccessToken
-    scopes:
-      - https://www.googleapis.com/auth/cloud-platform
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: ai.responseTokenCount == null
-          - name: LTQ-QuotaCount
-            condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
-              AND ai.totalTokenCount != null
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://aiplatform.googleapis.com
-      authentication:
-        googleAccessToken:
-          scopes:
-            scope: https://www.googleapis.com/auth/cloud-platform
+    authentication:
+      googleAccessToken:
+        scopes:
+          scope: https://www.googleapis.com/auth/cloud-platform
+endpoints: []
+targets: []
 policies:
   - name: AE-LoadAttributes
     type: AccessEntity

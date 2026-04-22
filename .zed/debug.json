@@ -141,9 +141,9 @@
     "stopOnEntry": false,
     "args": [
       "-i",
-      "./AI-VertexGemini.local.yaml",
-      "-r",
-      "./repository/features/ai-proxy-vertex.yaml",
+      "./AI-VertexGeminiCached.local.yaml",
+      "-o",
+      "test.local.zip",
     ],
   },
 ]
