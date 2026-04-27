@@ -144,7 +144,6 @@ policies:
         displayName: JS-Analytics
         properties: {}
         source: |
-          
           var contentString = context.getVariable("response.event.current.content");
           var type = "streaming";
           if (!contentString) {
