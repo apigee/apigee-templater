@@ -1,8 +1,8 @@
 name: AI-VertexModels
 type: template
-description: API template for AI-VertexModels
+description: API template for Gemini Agent Platform models
 features:
-  - ../features/ai-proxy-vertex.yaml
+  - ../features/ai-proxy-agentplatform.yaml
   - ../features/ai-auth.yaml
 parameters:
   - name: VertexBasePath

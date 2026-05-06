@@ -2388,6 +2388,7 @@ export class ApigeeConverter {
       result = result.replace("Id", "ID");
     if (result.includes("Llm")) result = result.replace("Llm", "LLM");
     if (result.includes("Jwt")) result = result.replace("Jwt", "JWT");
+    if (result.includes("Jwks")) result = result.replace("Jwks", "JWKS");
     if (result.includes("Ai")) result = result.replace("Ai", "AI");
     if (result.includes("Ttl")) result = result.replace("Ttl", "TTL");
     return result;

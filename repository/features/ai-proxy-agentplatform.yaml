@@ -1,7 +1,7 @@
-name: ai-proxy-vertex
-displayName: AI Vertex AI Native Target
+name: ai-proxy-agentplatform
+displayName: AI Gemini Agent Platform Model Proxy
 type: feature
-description: Proxies the endpoints for Vertex AI and Gemini.
+description: Proxies the endpoints for Gemini Agent Platform models.
 documentation: |-
   **Prerequisites**
   - AI DataCollectors must be created in Apigee Analytics
