@@ -1,5 +1,4 @@
 <p align="center"><img width="244" height="244" alt="aft logo" src="https://public-files.tyler-ayers.workers.dev/aft.png" />
-<br><b>Apigee Feature Templater</b></p>
 
 # Apigee Feature Templater (aft) 🚀
 
