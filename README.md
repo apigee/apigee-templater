@@ -1,4 +1,4 @@
-<p align="center"><img width="244" height="244" alt="Gemini_Generated_Image_62tjhy62tjhy62tj" src="https://github.com/user-attachments/assets/e977197c-f5c5-4593-bcc6-b60194280b74" />
+<p align="center"><img width="244" height="244" alt="aft logo" src="https://public-files.tyler-ayers.workers.dev/aft.png" />
 <br><b>Apigee Feature Templater</b></p>
 
 # Apigee Feature Templater (aft) 🚀
