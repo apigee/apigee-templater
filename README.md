@@ -58,7 +58,7 @@ aft -i SimpleProxy-v1.yaml -o MyApigeeOrg:SimpleProxy-v1:MyApigeeEnvironment
 aft -i SimpleProxy-v1.yaml -o MyApigeeOrg:SimpleProxy-v1:MyApigeeEnvironment:mysa@myproject.iam.gserviceaccount.com
 ```
 
-### Feature templating
+## Feature templating
 Feature templating is a powerful way to abstract feature definitions and apply them flexibly to proxy templates. 
 
 With feature templating, Apigee expert teams can create the features, and anyone can then create and deploy full secured & compliant API proxies, with canonical features like security, authn/authz, logging, transformations, etc.. built-in.
@@ -70,7 +70,7 @@ Let's create an AI model proxy for Gemini in a few simple feature commands.
 aft AI-Gemini.yaml
 ```
 
-## Add a proxy feature
+### Add a proxy feature
 You can find the built-in features for each release in this repository under `./repository/features', or just create your own and reference as files.
 
 ```bash
