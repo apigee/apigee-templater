@@ -383,64 +383,19 @@ export class cli {
           proxy.description = "Proxy for " + proxy.name;
       }
     } else if (fs.existsSync(options.input)) {
-      let stats = fs.statSync(options.input);
-      if (stats.isDirectory()) {
+      let file = await this.loadFile(options.name, options.input);
+      if (file && file["type"] === "template") template = file as Template;
+      else if (file && file["type"] === "proxy") proxy = file as Proxy;
+      else if (file && file["type"] === "feature") feature = file as Feature;
+      else if (file) {
         console.log(
-          ` > Exporting all features from ${options.input} to ${options.output}.`,
+          `${chalk.bold(chalk.redBright(`> Error reading '${options.input}', could not determine its type: \n ${JSON.stringify(file, null, 2)}`))}`,
         );
-        // try to export all features to an apigee org
-        let files = fs.readdirSync(options.input);
-        for (let fileName of files) {
-          let file = await this.loadFile("", options.input + "/" + fileName);
-          console.log(
-            ` > Exporting file ${fileName} to an Apigee feature proxy.`,
-          );
-
-          proxy = this.converter.featureToProxy(file, inputParameters);
-          if (options.applyFeature) {
-            let testFeature = await this.apigeeService.featureGet(
-              options.applyFeature,
-            );
-            if (testFeature && testFeature.name != proxy.name)
-              proxy = this.converter.proxyApplyFeature(
-                proxy,
-                testFeature,
-                inputParameters,
-              );
-          }
-          let outputPath = await this.converter.proxyToApigeeZip(proxy);
-          let lastRevision = "";
-          // export to apigee
-          if (!options.token) {
-            let token = await auth.getAccessToken();
-            if (token) options.token = token;
-          }
-          if (options.output.endsWith(":"))
-            options.output = options.output.replace(":", "");
-          lastRevision = await this.apigeeService.apigeeProxyExport(
-            proxy.name,
-            outputPath,
-            options.output,
-            "Bearer " + options.token,
-          );
-          fs.rmSync(outputPath);
-        }
         return;
-      } else {
-        let file = await this.loadFile(options.name, options.input);
-        if (file && file["type"] === "template") template = file as Template;
-        else if (file && file["type"] === "proxy") proxy = file as Proxy;
-        else if (file && file["type"] === "feature") feature = file as Feature;
-        else if (file) {
-          console.log(
-            `${chalk.bold(chalk.redBright(`> Error reading '${options.input}', could not determine its type: \n ${JSON.stringify(file, null, 2)}`))}`,
-          );
-          return;
-        }
-        // change working directory so that path resolutions will work
-        let dirName = path.dirname(options.input);
-        process.chdir(dirName);
       }
+      // change working directory so that path resolutions will work
+      let dirName = path.dirname(options.input);
+      process.chdir(dirName);
     } else {
       // try to load it from remote repositories
       template = await this.apigeeService.templateGet(options.input);
@@ -471,54 +426,6 @@ export class cli {
         );
         for (let proxy of proxyList["proxies"]) {
           console.log(` - ${proxy["name"]}`);
-        }
-      } else if (
-        proxyList &&
-        proxyList["proxies"] &&
-        proxyList["proxies"].length > 0
-      ) {
-        // try to import all apigee proxies to features
-        for (let apigeeProxy of proxyList["proxies"]) {
-          if (
-            apigeeProxy["name"] &&
-            apigeeProxy["name"].toLowerCase().startsWith("feature-")
-          ) {
-            console.log(`Exporting - ${apigeeProxy["name"]}`);
-            let apigeePath = await this.apigeeService.apigeeProxyGet(
-              apigeeProxy["name"],
-              options.input,
-              "Bearer " + options.token,
-            );
-            if (apigeePath) {
-              proxy = await this.converter.apigeeZipToProxy(
-                apigeeProxy["name"],
-                apigeePath,
-              );
-              fs.rmSync(apigeePath);
-
-              if (options.removeFeature) {
-                let testFeature = await this.apigeeService.featureGet(
-                  options.removeFeature,
-                );
-                if (testFeature && testFeature.name != proxy.name)
-                  proxy =
-                    this.converter.proxyRemoveFeature(proxy, testFeature) ??
-                    proxy;
-              }
-              feature = this.converter.proxyToFeature(proxy);
-              let filePath = options.output.endsWith("/")
-                ? options.output + feature.name + ".yaml"
-                : options.output + "/" + feature.name + ".yaml";
-
-              fs.writeFileSync(
-                filePath,
-                YAML.stringify(feature, {
-                  aliasDuplicateObjects: false,
-                  blockQuote: "literal",
-                }),
-              );
-            }
-          }
         }
       }
       return;
@@ -610,35 +517,6 @@ export class cli {
           if (removeFeature)
             this.converter.featureRemoveFeature(feature, removeFeature);
         }
-
-        // let relativePath = options.removeFeature;
-        // // let id = options.removeFeature;
-        // let parts = relativePath.split(".");
-        // if (parts.length > 1) {
-        //   // id = parts[parts.length - 1] ?? id;
-        //   parts.splice(parts.length - 1);
-        //   relativePath = parts.join(".") ?? options.removeFeature;
-        // }
-
-        // if (fs.existsSync(relativePath)) {
-        //   // this is a path, get relative path
-        //   relativePath = path.relative(
-        //     path.dirname(options.output),
-        //     relativePath,
-        //   );
-        // }
-        // let removeFeature = await this.apigeeService.featureGet(relativePath);
-        // if (template && removeFeature) {
-        //   // removeFeature.uid = id;
-        //   template = this.converter.templateRemoveFeature(
-        //     template,
-        //     removeFeature,
-        //   );
-        // } else if (proxy && removeFeature) {
-        //   proxy = this.converter.proxyRemoveFeature(proxy, removeFeature);
-        // } else if (!removeFeature) {
-        //   console.error(`Could not load feature ${relativePath}.`);
-        // }
       }
 
       // HALF TIME - generally print generated output overview

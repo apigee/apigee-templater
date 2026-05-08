@@ -113,35 +113,31 @@ export class ApigeeTemplaterService {
         } catch (e) {}
       }
 
-      let response = await fetch(this.remoteListUrl + "features");
+      featureNames = fs.readdirSync(import.meta.dirname + "/../features");
 
-      if (response.status == 200) {
-        let remoteFeatures: any = await response.json();
-        if (remoteFeatures && remoteFeatures.length > 0) {
-          for (let feature of remoteFeatures) {
-            if (
-              feature &&
-              feature["name"] &&
-              (feature["name"].endsWith(".json") ||
-                feature["name"].endsWith(".yaml"))
-            ) {
-              let downloadResponse = await fetch(feature["download_url"]);
-              if (downloadResponse.status == 200) {
-                let remoteFeature: Feature;
-                if (feature["name"].endsWith(".json"))
-                  remoteFeature = (await downloadResponse.json()) as Feature;
-                else {
-                  let remoteFeatureText = await downloadResponse.text();
-                  remoteFeature = YAML.parse(remoteFeatureText) as Feature;
-                }
-                let featureExistsIndex = features.findIndex(
-                  (x) => x.name == remoteFeature.name,
-                );
-                if (featureExistsIndex == -1) features.push(remoteFeature);
-              }
-            }
+      for (let featurePath of featureNames) {
+        try {
+          if (featurePath.endsWith(".json")) {
+            let feature: Feature = JSON.parse(
+              fs.readFileSync(
+                import.meta.dirname + "/../features/" + featurePath,
+                "utf8",
+              ),
+            );
+            if (feature && feature.type === "feature") features.push(feature);
+          } else if (
+            featurePath.endsWith(".yaml") ||
+            featurePath.endsWith(".yml")
+          ) {
+            let feature: Feature = YAML.parse(
+              fs.readFileSync(
+                import.meta.dirname + "/../features/" + featurePath,
+                "utf8",
+              ),
+            );
+            if (feature && feature.type === "feature") features.push(feature);
           }
-        }
+        } catch (e) {}
       }
 
       if (features && features.length > 0)
@@ -377,27 +373,23 @@ export class ApigeeTemplaterService {
             else if (tempName.endsWith(".json")) foundJson = true;
           }
         } else {
-          // try to fetch remotely
+          // try to fetch from dist directory
           let fileName = tempName.endsWith(".json")
-            ? tempName
-            : tempName + ".json";
-          let response = await fetch(
-            this.remoteGetBaseUrl + "features/" + fileName,
-          );
-          if (response.status == 200) foundJson = true;
+            ? import.meta.dirname + "/../features/" + tempName
+            : import.meta.dirname + "/../features/" + tempName + ".json";
 
-          if (response.status == 404) {
+          if (fs.existsSync(fileName)) {
+            featureString = fs.readFileSync(fileName, "utf8");
+            foundJson = true;
+          } else {
             fileName = tempName.endsWith(".yaml")
-              ? tempName
-              : tempName + ".yaml";
-            response = await fetch(
-              this.remoteGetBaseUrl + "features/" + fileName,
-            );
-            if (response.status == 200) foundYaml = true;
-          }
+              ? import.meta.dirname + "/../features/" + tempName
+              : import.meta.dirname + "/../features/" + tempName + ".yaml";
 
-          if (response.status == 200) {
-            featureString = await response.text();
+            if (fs.existsSync(fileName)) {
+              featureString = fs.readFileSync(fileName, "utf8");
+              foundYaml = true;
+            }
           }
         }
       }

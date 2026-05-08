@@ -2383,6 +2383,7 @@ export class ApigeeConverter {
     if (result.includes("Http")) result = result.replace("Http", "HTTP");
     if (result.includes("Api")) result = result.replace("Api", "API");
     if (result.includes("Xml")) result = result.replace("Xml", "XML");
+    if (result.includes("Xsl")) result = result.replace("Xsl", "XSL");
     if (result.includes("Uri")) result = result.replace("Uri", "URI");
     if (result.includes("Id") && result != "EntityIdentifier")
       result = result.replace("Id", "ID");
@@ -2391,6 +2392,10 @@ export class ApigeeConverter {
     if (result.includes("Jwks")) result = result.replace("Jwks", "JWKS");
     if (result.includes("Ai")) result = result.replace("Ai", "AI");
     if (result.includes("Ttl")) result = result.replace("Ttl", "TTL");
+    if (result.includes("Ssl")) result = result.replace("Ssl", "SSL");
+    if (result.includes("Oas")) result = result.replace("Oas", "OAS");
+    if (result.includes("Saml")) result = result.replace("Saml", "SAML");
+    if (result.includes("Hmac")) result = result.replace("Hmac", "HMAC");
     return result;
   }
 }

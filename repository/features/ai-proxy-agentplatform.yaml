@@ -21,11 +21,11 @@ categories:
   - llm
   - ai
 parameters:
-  - name: VertexBasePath
+  - name: ModelBasePath
     paths:
       - $.endpoints[:1].basePath
     description: The base path to offer the AI proxy on.
-    default: /vertex
+    default: /model
     examples:
       - /gemini
       - /llm
@@ -67,11 +67,11 @@ parameters:
       - google/gemini-flash-latest
     maps: {}
 endpoints:
-  - name: vertex
-    basePath: /vertex
+  - name: agentplatform
+    basePath: /model
     routes:
       - name: default
-        target: vertex
+        target: agentplatform
     flows:
       - name: PreFlow
         mode: Request
@@ -81,7 +81,7 @@ endpoints:
           - name: JS-CheckModel
     faultRules: []
 targets:
-  - name: vertex
+  - name: agentplatform
     url: https://aiplatform.googleapis.com
     auth: GoogleAccessToken
     scopes:
@@ -234,10 +234,10 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          var allowed_model_patterns = context.getVariable("propertyset.vertex.AllowedModelPatterns");
-          var denied_model_patterns = context.getVariable("propertyset.vertex.DeniedModelPatterns");
-          var override_model = context.getVariable("propertyset.vertex.OverrideModel");
-          var default_model = context.getVariable("propertyset.vertex.DefaultModel");
+          var allowed_model_patterns = context.getVariable("propertyset.agentplatform.AllowedModelPatterns");
+          var denied_model_patterns = context.getVariable("propertyset.agentplatform.DeniedModelPatterns");
+          var override_model = context.getVariable("propertyset.agentplatform.OverrideModel");
+          var default_model = context.getVariable("propertyset.agentplatform.DefaultModel");
           if (!allowed_model_patterns) allowed_model_patterns = context.getVariable("ai.allowedModelPatterns");
           if (!denied_model_patterns) denied_model_patterns = context.getVariable("ai.deniedModelPatterns");
           if (!override_model) override_model = context.getVariable("ai.overrideModel");
@@ -245,7 +245,7 @@ policies:
 
           var url = context.getVariable("proxy.url");
           var requestContent = request.content.asJSON;
-          var callType = "vertex";
+          var callType = "agentplatform";
           var callStreaming = "non-streaming";
           if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
           if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
@@ -580,7 +580,7 @@ resources:
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
-            if (requestInfo.type == "vertex") {
+            if (requestInfo.type == "agentplatform") {
               if (requestInfo.url.includes(pattern)) {
                 result = true;
                 break;
@@ -614,7 +614,7 @@ resources:
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
-            if (requestInfo.type == "vertex") {
+            if (requestInfo.type == "agentplatform") {
               if (requestInfo.url.includes(pattern)) {
                 result = false;
                 break;
@@ -692,7 +692,7 @@ resources:
     type: jsc
     content: |-
       var requestObject = request.content.asJSON;
-      var fallback_model = context.getVariable("propertyset.vertex.FallbackModel");
+      var fallback_model = context.getVariable("propertyset.agentplatform.FallbackModel");
       if (!fallback_model) fallback_model = context.getVariable("ai.fallbackModel");
 
       if (requestObject) {
@@ -701,7 +701,7 @@ resources:
         requestObject["stream"] = false;
         context.setVariable('request.content', JSON.stringify(requestObject));
       }
-  - name: vertex.properties
+  - name: agentplatform.properties
     type: properties
     content: |
       AllowedModelPatterns={AllowedModelPatterns}

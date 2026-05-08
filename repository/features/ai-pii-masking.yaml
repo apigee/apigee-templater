@@ -1,7 +1,8 @@
-name: llm-prompt-pii-mask
-displayName: LLM PII Data Masking
+name: ai-pii-masking
+displayName: AI PII Masking
 type: feature
-description: |
+description: Adds automatic PII data masking to the AI request prompt.
+documentation: |
   This feature masks PII data email addresses and telephone numbers from
   incoming prompt requests using GCP Data Loss Prevention.
 
