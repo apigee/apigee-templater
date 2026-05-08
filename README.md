@@ -110,7 +110,7 @@ You can always take the changed proxy, and convert back to a feature definition,
 aft -i MyApigeeOrg:HelloWorldFeature -o response-helloworld.yaml -f feature
 ```
 
-Notice the `-f feature` command line parameter - this means save this proxy as a feature, with extra metadata for parameters, documentation and more.
+Notice the `-f feature` command line parameter - this means save this proxy as a feature, with extra metadata for parameters, documentation and other metadata.
 
 ## License 📜
 
