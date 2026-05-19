@@ -2,7 +2,7 @@
 
 # Apigee Feature Templater (aft) v4
 
-**Apigee Feature Templater** is a command line tool to help manage Apigee templates & proxies. It can easily convert between **Apigee X proxies,** **Apigee exported bundles**, **YAML** & **JSON** formats, as well as merge capabilities for features and templates.
+**Apigee Feature Templater** is a command line tool to help manage Apigee templates & proxies. It can easily convert between **Apigee X proxies,** **Apigee exported bundles**, **YAML** & **JSON** formats, as well as bringing merge capabilities for features and templates.
 
 ## Features
 * 🔋 **Batteries included** - all conversions in all directions from a simple CLI, with complete resources and policies in a single YAML or JSON file.
@@ -30,9 +30,21 @@ cd apigee-templater
 aft -h
 ```
 
-The easiest way to get started is to do some Apigee proxy conversions.
+### Example proxy YAML
+The proxy YAML & JSON formats is easy to understand and edit, with all proxy flows, policies, & resources in one YAML / JSON structure.
+
+```yaml
+
+```
+Click here for an interactive explanation of the YAML proxy format.
+
+<a href="https://your-destination-link.com">
+  <img src="https://iili.io/ByOJ8N9.png" alt="Alt Text" width="300" />
+</a>
 
 ## Conversions
+
+The easiest way to get started is to do some Apigee proxy conversions.
 
 ### Convert an Apigee bundle to YAML
 ```sh
