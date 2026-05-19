@@ -31,6 +31,13 @@ aft -h
 ```
 
 ### Example proxy YAML
+
+Click [here](https://iili.io/ByOhMmJ.png) for an interactive explanation of the YAML proxy format.
+
+<a href="https://apigee.github.io/apigee-templater">
+  <img src="https://iili.io/ByOhMmJ.png" alt="Alt Text" width="300" />
+</a>
+
 The proxy YAML & JSON formats is easy to understand and edit, with all proxy flows, policies, & resources in one YAML / JSON structure.
 
 ```yaml
@@ -85,12 +92,6 @@ aft -i SimpleProxy-v1.yaml -o MyApigeeOrg:SimpleProxy-v1
 aft -i SimpleProxy-v1.yaml -o SimpleProxy-v1.zip
 apigeecli apis create bundle -f SimpleProxy-v1.zip --name SimpleProxy-v1 -o MyApigeeOrg --default-token
 ```
-
-Click here for an interactive explanation of the YAML proxy format.
-
-<a href="https://apigee.github.io/apigee-templater">
-  <img src="https://iili.io/ByOJ8N9.png" alt="Alt Text" width="300" />
-</a>
 
 ## Conversions
 
