@@ -34,11 +34,61 @@ aft -h
 The proxy YAML & JSON formats is easy to understand and edit, with all proxy flows, policies, & resources in one YAML / JSON structure.
 
 ```yaml
-
+name: SimpleProxy-v1
+displayName: SimpleProxy-v1
+type: proxy
+description: A simple proxy to the Apigee mock target.
+endpoints:
+  - name: default
+    basePath: /v1/simple-proxy
+    routes:
+      - name: default
+        target: default
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-SetResponse
+    faultRules: []
+targets:
+  - name: default
+    url: https://mocktarget.apigee.net
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      url: https://mocktarget.apigee.net
+policies:
+  - name: JS-SetResponse
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetResponse
+        displayName: JS-SetResponse
+        properties: {}
+    source: |-
+      print("hello world!!");
+      context.proxyResponse.content += "hello world!";
+resources: []
 ```
+
+To deploy this proxy in your org, you could do **either** of these steps:
+
+```bash
+# Deploy directly from YAML to Apigee X
+aft -i SimpleProxy-v1.yaml -o MyApigeeOrg:SimpleProxy-v1
+
+# Or first convert to an Apigee bundle, and then deploy with apigeecli
+aft -i SimpleProxy-v1.yaml -o SimpleProxy-v1.zip
+apigeecli apis create bundle -f SimpleProxy-v1.zip --name SimpleProxy-v1 -o MyApigeeOrg --default-token
+```
+
 Click here for an interactive explanation of the YAML proxy format.
 
-<a href="https://your-destination-link.com">
+<a href="https://apigee.github.io/apigee-templater">
   <img src="https://iili.io/ByOJ8N9.png" alt="Alt Text" width="300" />
 </a>
 
