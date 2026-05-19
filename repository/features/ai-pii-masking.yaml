@@ -11,25 +11,15 @@ documentation: |
   ```sh
   gcloud services enable dlp.googleapis.com
   ```
-
-  **Inputs**
-  - The input variable **llm.promptInput** will be sent to DLP to be masked.
-
-  **Outputs**
-  - The DLM masked result is set back into the variable **llm.promptInput**.
 categories:
   - llm
-parameters:
-  - name: PROJECT_ID
-    displayName: DLP Project Id
-    description: Configuration input for PROJECT_ID
-    default: apigee-prod13
-    examples: []
+parameters: []
 defaultEndpoint:
   name: default
-  basePath: /feature-llm-promptmask-v1
+  basePath: /piimasking
   routes:
     - name: default
+      target: default
   flows:
     - name: PreFlow
       mode: Request
@@ -37,171 +27,43 @@ defaultEndpoint:
         - name: KVM-LoadConfig
         - name: AM-SetVariables
         - name: JS-CheckModel
+        - name: AM-SetText
         - name: SC-SensitiveDataProtection
+          condition: sdp.text != null
         - name: JS-SetMaskedRequest
+          condition: sdp.text != null
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: JS-GetResponse
+        - name: SC-SensitiveDataProtection
+        - name: JS-SetResponse
   faultRules: []
+defaultTarget:
+  name: default
+  url: https://aiplatform.googleapis.com
+  flows: []
+  faultRules: []
+  httpTargetConnection:
+    properties: {}
+    url: https://aiplatform.googleapis.com
 endpoints: []
 targets: []
 policies:
-  - name: JS-SetMaskedRequest
-    type: Javascript
+  - name: AM-SetText
+    type: AssignMessage
     content:
-      javascript:
+      assignMessage:
         metadata:
           continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-SetMaskedRequest
-        displayName: JS-SetMaskedRequest
+          enabled: "false"
+          name: AM-SetText
+        displayName: AM-SetText
         properties: {}
-        resourceUrl: jsc://set-masked-prompt.js
-  - name: SC-SensitiveDataProtection
-    type: ServiceCallout
-    content:
-      serviceCallout:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: SC-SensitiveDataProtection
-        displayName: SC-SensitiveDataProtection
-        properties: {}
-        request:
-          metadata:
-            clearPayload: "true"
-            variable: myRequest
-          ignoreUnresolvedVariables: "false"
-          set:
-            verb: POST
-            payload:
-              metadata:
-                contentType: application/json
-              text: "
-
-                \        {
-
-                \          \"item\": {
-
-                \            \"value\": \"{llm.promptInput}\"
-
-                \          },
-
-                \          \"deidentifyConfig\":{
-
-                \            \"infoTypeTransformations\":{
-
-                \              \"transformations\":[
-
-                \                {
-
-                \                  \"infoTypes\":[
-
-                \                    {
-
-                \                      \"name\":\"EMAIL_ADDRESS\"
-
-                \                    }
-
-                \                  ],
-
-                \                  \"primitiveTransformation\":{
-
-                \                    \"characterMaskConfig\":{
-
-                \                      \"maskingCharacter\":\"*\",
-
-                \                      \"reverseOrder\":false,
-
-                \                      \"charactersToIgnore\":[
-
-                \                        {
-
-                \                          \"charactersToSkip\":\"@\"
-
-                \                        }
-
-                \                      ]
-
-                \                    }
-
-                \                  }
-
-                \                },
-
-                \                {
-
-                \                  \"infoTypes\":[
-
-                \                    {
-
-                \                      \"name\":\"PHONE_NUMBER\"
-
-                \                    }
-
-                \                  ],
-
-                \                  \"primitiveTransformation\":{
-
-                \                    \"replaceConfig\":{
-
-                \                      \"newValue\":{
-
-                \                        \"stringValue\":\"[telephone-number]\"
-
-                \                      }
-
-                \                    }
-
-                \                  }
-
-                \                }
-
-                \              ]
-
-                \            }
-
-                \          },
-
-                \          \"inspectConfig\": {
-
-                \            \"infoTypes\": [
-
-                \              {
-
-                \                \"name\": \"PHONE_NUMBER\"
-
-                \              },
-
-                \              {
-
-                \                \"name\":\"EMAIL_ADDRESS\"
-
-                \              }
-
-                \            ],
-
-                \            \"minLikelihood\": \"POSSIBLE\",
-
-                \            \"limits\": {
-
-                \              \"maxFindingsPerItem\": 0
-
-                \            },
-
-                \            \"includeQuote\": true
-
-                \          }
-
-                \        }
-
-                \      "
-        response: sensitiveDataProtectionResponse
-        httpTargetConnection:
-          properties: {}
-          url: https://dlp.googleapis.com/v2/projects/{propertyset.dlp.PROJECT_ID}/content:deidentify
-          authentication:
-            googleAccessToken:
-              scopes:
-                scope: https://www.googleapis.com/auth/cloud-platform
+        assignVariable:
+          name: sdp.text
+          ref: ai.requestPrompt
+        ignoreUnresolvedVariables: "true"
   - name: AM-SetVariables
     type: AssignMessage
     content:
@@ -359,6 +221,103 @@ policies:
             context.setVariable('request.content', JSON.stringify(requestContent));
           }
         includeUrl: jsc://ai-functions.js
+  - name: JS-GetResponse
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-GetResponse
+        displayName: JS-GetResponse
+        properties: {}
+        source: "
+
+          \    var responseContent = response.content.asJSON;
+
+          \    var responseText = getResponse(responseContent);
+
+          \    context.setVariable(\"sdp.text\", responseText);
+
+          \  "
+        includeUrl: jsc://ai-functions.js
+  - name: JS-SetMaskedRequest
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetMaskedRequest
+        displayName: JS-SetMaskedRequest
+        properties: {}
+        source: "\
+
+          \    var maskedResponseObj =
+          JSON.parse(context.getVariable(\"sensitiveDataProtectionResponse.cont\
+          ent\"));
+
+          \    print(\"Masked response JSON: \"+
+          JSON.stringify(maskedResponseObj));
+
+
+          \    if (maskedResponseObj[\"item\"]) {
+
+          \      if (maskedResponseObj[\"item\"][\"value\"]) {
+
+          \        var requestContent = request.content.asJSON;
+
+          \        var maskedRequestContent = setPrompt(requestContent,
+          maskedResponseObj[\"item\"][\"value\"]);
+
+          \        context.setVariable('request.content',
+          JSON.stringify(maskedRequestContent));
+
+          \      }
+
+          \    }
+
+          \  "
+        includeUrl: jsc://ai-functions.js
+  - name: JS-SetResponse
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetResponse
+        displayName: JS-SetResponse
+        properties: {}
+        source: "
+
+          \    var maskedResponseObj =
+          JSON.parse(context.getVariable(\"sensitiveDataProtectionResponse.cont\
+          ent\"));
+
+          \    var responseContent = response.content.asJSON;
+
+          \   \
+
+          \    if (maskedResponseObj[\"item\"]) {
+
+          \      if (maskedResponseObj[\"item\"][\"value\"]) {
+
+          \        var maskedResponse = setResponse(responseContent,
+          maskedResponseObj[\"item\"][\"value\"]);
+
+          \        context.setVariable(\"response.content\",
+          JSON.stringify(maskedResponse));
+
+          \      }
+
+          \    }
+
+          \  "
+        includeUrl: jsc://ai-functions.js
   - name: KVM-LoadConfig
     type: KeyValueMapOperations
     content:
@@ -416,20 +375,120 @@ policies:
             key:
               parameter: FallbackModel
         scope: environment
-resources:
-  - name: set-masked-prompt.js
-    type: jsc
-    content: |-
-      var maskedResponseObj = JSON.parse(context.getVariable("sensitiveDataProtectionResponse.content"));
-      print("sdp response json: "+ JSON.stringify(maskedResponseObj));
+  - name: SC-SensitiveDataProtection
+    type: ServiceCallout
+    content:
+      serviceCallout:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: SC-SensitiveDataProtection
+        displayName: SC-SensitiveDataProtection
+        properties: {}
+        request:
+          metadata:
+            clearPayload: "true"
+            variable: myRequest
+          ignoreUnresolvedVariables: "false"
+          set:
+            verb: POST
+            payload:
+              metadata:
+                contentType: application/json
+              value: "
 
-      if (maskedResponseObj["item"] && maskedResponseObj["item"]["value"]) {
-        context.setVariable("llm.promptInput", maskedResponseObj["item"]["value"]);
-      }
-  - name: dlp.properties
-    type: properties
-    content: |
-      PROJECT_ID={PROJECT_ID}
+                \        {
+
+                \          \"item\": {
+
+                \            \"value\": \"{sdp.text}\"
+
+                \          },
+
+                \          \"deidentifyConfig\":{
+
+                \            \"infoTypeTransformations\":{
+
+                \              \"transformations\":[
+
+                \                {
+
+                \                  \"infoTypes\":[
+
+                \                    {
+
+                \                      \"name\":\"EMAIL_ADDRESS\"
+
+                \                    }
+
+                \                  ],
+
+                \                  \"primitiveTransformation\":{
+
+                \                    \"characterMaskConfig\":{
+
+                \                      \"maskingCharacter\":\"*\",
+
+                \                      \"reverseOrder\":false,
+
+                \                      \"charactersToIgnore\":[
+
+                \                        {
+
+                \                          \"charactersToSkip\":\"@\"
+
+                \                        }
+
+                \                      ]
+
+                \                    }
+
+                \                  }
+
+                \                }
+
+                \              ]
+
+                \            }
+
+                \          },
+
+                \          \"inspectConfig\": {
+
+                \            \"infoTypes\": [
+
+                \              {
+
+                \                \"name\":\"EMAIL_ADDRESS\"
+
+                \              }
+
+                \            ],
+
+                \            \"minLikelihood\": \"POSSIBLE\",
+
+                \            \"limits\": {
+
+                \              \"maxFindingsPerItem\": 0
+
+                \            },
+
+                \            \"includeQuote\": true
+
+                \          }
+
+                \        }
+
+                \      "
+        response: sensitiveDataProtectionResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://dlp.googleapis.com/v2/projects/{organization.name}/content:deidentify
+          authentication:
+            googleAccessToken:
+              scopes:
+                scope: https://www.googleapis.com/auth/cloud-platform
+resources:
   - name: ai-functions.js
     type: jsc
     content: |
@@ -490,11 +549,7 @@ resources:
           // oapi format
           for (i = contentData["messages"].length - 1; i >= 0; i--) {
             var message = contentData["messages"][i];
-            if (
-              message &&
-              message["role"] &&
-              message["role"].toLowerCase() == "user"
-            ) {
+            if (message && message["role"] && message["role"].toLowerCase() == "user") {
               if (!promptInfo.userPrompt && message["content"]) {
                 promptInfo.userPrompt = message["content"];
               }
@@ -507,6 +562,130 @@ resources:
         }
 
         return promptInfo;
+      }
+
+      function setPrompt(contentData, userPrompt) {
+        if (contentData && contentData["contents"]) {
+          // gemini format
+          for (i = contentData["contents"].length - 1; i >= 0; i--) {
+            var content = contentData["contents"][i];
+            if (
+              content &&
+              content["role"] &&
+              content["role"].toLowerCase() == "user" &&
+              content["parts"]
+            ) {
+              for (p = content["parts"].length - 1; p >= 0; p--) {
+                var part = content["parts"][p];
+                if (content["parts"][p]["text"]) {
+                  content["parts"][p]["text"] = userPrompt;
+                  break;
+                }
+              }
+            }
+          }
+        } else if (contentData && contentData["messages"]) {
+          // oapi format
+          for (i = contentData["messages"].length - 1; i >= 0; i--) {
+            var message = contentData["messages"][i];
+            if (message && message["role"] && message["role"].toLowerCase() == "user") {
+              if (message["content"]) {
+                message["content"] = userPrompt;
+                break;
+              }
+            }
+          }
+        }
+
+        return contentData;
+      }
+
+      function getResponse(contentData) {
+        var responseText = "";
+
+        if (contentData && contentData["candidates"] && contentData["candidates"].length > 0) {
+          // gemini format
+          for (i = contentData["candidates"].length - 1; i >= 0; i--) {
+            var candidate = contentData["candidates"][i];
+            if (
+              candidate &&
+              candidate["content"] &&
+              candidate["content"]["parts"] &&
+              candidate["content"]["parts"].length > 0
+            ) {
+              for (p = candidate["content"]["parts"].length - 1; p >= 0; p--) {
+                var part = candidate["content"]["parts"][p];
+                if (part && part["text"]) {
+                  responseText = part["text"];
+                  break;
+                }
+              }
+            }
+          }
+        } else if (contentData && contentData["choices"] && contentData["choices"].length > 0) {
+          // openmodel format
+          for (i = contentData["choices"].length - 1; i >= 0; i--) {
+            var choice = contentData["choices"][i];
+            if (choice && choice["message"] && choice["message"]["content"]) {
+              responseText = choice["message"]["content"];
+              break;
+            }
+          }
+        } else if (contentData && contentData["content"] && contentData["content"].length > 0) {
+          // claude format
+          for (i = contentData["content"].length - 1; i >= 0; i--) {
+            var content = contentData["content"][i];
+            if (content && content["type"] == "text") {
+              responseText = content["text"];
+              break;
+            }
+          }
+        }
+
+        return responseText;
+      }
+
+      function setResponse(contentData, content) {
+        if (contentData && contentData["candidates"] && contentData["candidates"].length > 0) {
+          // gemini format
+          for (i = contentData["candidates"].length - 1; i >= 0; i--) {
+            var candidate = contentData["candidates"][i];
+            if (
+              candidate &&
+              candidate["content"] &&
+              candidate["content"]["parts"] &&
+              candidate["content"]["parts"].length > 0
+            ) {
+              for (p = candidate["content"]["parts"].length - 1; p >= 0; p--) {
+                var part = candidate["content"]["parts"][p];
+                if (part && part["text"]) {
+                  part["text"] = content;
+                  break;
+                }
+              }
+            }
+          }
+        } else if (contentData && contentData["choices"] && contentData["choices"].length > 0) {
+          // openmodel format
+          for (i = contentData["choices"].length - 1; i >= 0; i--) {
+            var choice = contentData["choices"][i];
+            if (choice && choice["message"] && choice["message"]["content"]) {
+              choice["message"]["content"] = content;
+              break;
+            }
+          }
+        } else if (contentData && contentData["content"] && contentData["content"].length > 0) {
+          // claude format
+          for (i = contentData["content"].length - 1; i >= 0; i--) {
+            var claudeContent = contentData["content"][i];
+            if (claudeContent && claudeContent["type"] == "text") {
+              claudeContent["text"] = content;
+              break;
+            }
+          }
+        }
+
+        return contentData;
       }
 
       function getUsageData(contentString) {
@@ -560,37 +739,27 @@ resources:
               contentData["message"]["usage"] &&
               contentData["message"]["usage"]["input_tokens"]
             ) {
-              usageData.requestTokenCount =
-                contentData["message"]["usage"]["input_tokens"];
+              usageData.requestTokenCount = contentData["message"]["usage"]["input_tokens"];
             }
             if (contentData["usage"] && contentData["usage"]["input_tokens"]) {
               usageData.requestTokenCount = contentData["usage"]["input_tokens"];
             }
             // gemini API
-            if (
-              contentData["usageMetadata"] &&
-              contentData["usageMetadata"]["promptTokenCount"]
-            ) {
-              usageData.requestTokenCount =
-                contentData["usageMetadata"]["promptTokenCount"];
+            if (contentData["usageMetadata"] && contentData["usageMetadata"]["promptTokenCount"]) {
+              usageData.requestTokenCount = contentData["usageMetadata"]["promptTokenCount"];
             }
 
             // responseTokenCount
             // openmodels
             if (contentData["usage"] && contentData["usage"]["completion_tokens"])
-              usageData.responseTokenCount =
-                contentData["usage"]["completion_tokens"];
+              usageData.responseTokenCount = contentData["usage"]["completion_tokens"];
             // claude
             if (contentData["usage"] && contentData["usage"]["output_tokens"]) {
               usageData.responseTokenCount = contentData["usage"]["output_tokens"];
             }
             // gemini
-            if (
-              contentData["usageMetadata"] &&
-              contentData["usageMetadata"]["candidatesTokenCount"]
-            ) {
-              usageData.responseTokenCount =
-                contentData["usageMetadata"]["candidatesTokenCount"];
+            if (contentData["usageMetadata"] && contentData["usageMetadata"]["candidatesTokenCount"]) {
+              usageData.responseTokenCount = contentData["usageMetadata"]["candidatesTokenCount"];
             }
           } catch (e) {
             print("Exception in getUsageData: " + JSON.stringify(e));
@@ -602,16 +771,13 @@ resources:
 
       function testAllowedModels(requestInfo) {
         var result = true;
-        if (
-          requestInfo.allowedModelPatterns &&
-          requestInfo.allowedModelPatterns != "ALL"
-        ) {
+        if (requestInfo.allowedModelPatterns && requestInfo.allowedModelPatterns != "ALL") {
           result = false;
           var patterns = requestInfo.allowedModelPatterns.split(";");
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
-            if (requestInfo.type == "agentplatform") {
+            if (requestInfo.type == "vertex") {
               if (requestInfo.url.includes(pattern)) {
                 result = true;
                 break;
@@ -620,10 +786,7 @@ resources:
               //   result = true;
               //   break;
               // }
-            } else if (
-              requestInfo.type == "oai" &&
-              requestInfo.requestContent["model"]
-            ) {
+            } else if (requestInfo.type == "oai" && requestInfo.requestContent["model"]) {
               if (requestInfo.requestContent["model"].includes(pattern)) {
                 result = true;
                 break;
@@ -637,23 +800,17 @@ resources:
 
       function testDeniedModels(requestInfo) {
         var result = true;
-        if (
-          requestInfo.deniedModelPatterns &&
-          requestInfo.deniedModelPatterns != "NONE"
-        ) {
+        if (requestInfo.deniedModelPatterns && requestInfo.deniedModelPatterns != "NONE") {
           var patterns = requestInfo.deniedModelPatterns.split(";");
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
-            if (requestInfo.type == "agentplatform") {
+            if (requestInfo.type == "vertex") {
               if (requestInfo.url.includes(pattern)) {
                 result = false;
                 break;
               }
-            } else if (
-              requestInfo.type == "oai" &&
-              requestInfo.requestContent["model"]
-            ) {
+            } else if (requestInfo.type == "oai" && requestInfo.requestContent["model"]) {
               if (requestInfo.requestContent["model"].includes(pattern)) {
                 result = false;
                 break;
@@ -672,8 +829,20 @@ resources:
       if (typeof exports !== "undefined") {
         exports.getModelName = getModelName;
         exports.getPrompts = getPrompts;
+        exports.setPrompt = setPrompt;
+        exports.getResponse = getResponse;
+        exports.setResponse = setResponse;
         exports.getUsageData = getUsageData;
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;
+      }
+  - name: set-masked-prompt.js
+    type: jsc
+    content: |-
+      var maskedResponseObj = JSON.parse(context.getVariable("sensitiveDataProtectionResponse.content"));
+      print("sdp response json: "+ JSON.stringify(maskedResponseObj));
+
+      if (maskedResponseObj["item"] && maskedResponseObj["item"]["value"]) {
+        context.setVariable("llm.promptInput", maskedResponseObj["item"]["value"]);
       }
 tests: []

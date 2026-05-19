@@ -10,14 +10,7 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": [
-      "-i",
-      "./repository/filters/ai-base.yaml",
-      "-o",
-      "./repository/filters/ai-base2.yaml",
-      "-f",
-      "feature",
-    ],
+    "args": ["-b", "/test", "-u", "https://mocktarget.apigee.net", "-o", "test.local.zip"],
   },
   {
     "adapter": "JavaScript",

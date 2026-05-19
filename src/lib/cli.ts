@@ -167,7 +167,7 @@ export class cli {
             type: "input",
             name: "targetUrl",
             message: "Do you want to add a target url to receive traffic?",
-            default: "https://httpbin.org",
+            default: "https://mocktarget.apigee.net",
             transformer: (input: string) => {
               return input.replace(/ /g, "-");
             },
@@ -202,7 +202,11 @@ export class cli {
       else {
         result = this.sanitizeName(secondary, "");
       }
-    } else if (primary.toLowerCase().endsWith(".yaml") || primary.toLowerCase().endsWith(".json")) {
+    } else if (
+      primary.toLowerCase().endsWith(".yaml") ||
+      primary.toLowerCase().endsWith(".json") ||
+      primary.toLowerCase().endsWith(".zip")
+    ) {
       result = path.basename(primary, path.extname(primary));
     } else if (primary) {
       result = this.sanitizeName(secondary, "");

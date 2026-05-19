@@ -390,6 +390,94 @@ resources:
         return contentData;
       }
 
+      function getResponse(contentData) {
+        var responseText = "";
+
+        if (contentData && contentData["candidates"] && contentData["candidates"].length > 0) {
+          // gemini format
+          for (i = contentData["candidates"].length - 1; i >= 0; i--) {
+            var candidate = contentData["candidates"][i];
+            if (
+              candidate &&
+              candidate["content"] &&
+              candidate["content"]["parts"] &&
+              candidate["content"]["parts"].length > 0
+            ) {
+              for (p = candidate["content"]["parts"].length - 1; p >= 0; p--) {
+                var part = candidate["content"]["parts"][p];
+                if (part && part["text"]) {
+                  responseText = part["text"];
+                  break;
+                }
+              }
+            }
+          }
+        } else if (contentData && contentData["choices"] && contentData["choices"].length > 0) {
+          // openmodel format
+          for (i = contentData["choices"].length - 1; i >= 0; i--) {
+            var choice = contentData["choices"][i];
+            if (choice && choice["message"] && choice["message"]["content"]) {
+              responseText = choice["message"]["content"];
+              break;
+            }
+          }
+        } else if (contentData && contentData["content"] && contentData["content"].length > 0) {
+          // claude format
+          for (i = contentData["content"].length - 1; i >= 0; i--) {
+            var content = contentData["content"][i];
+            if (content && content["type"] == "text") {
+              responseText = content["text"];
+              break;
+            }
+          }
+        }
+
+        return responseText;
+      }
+
+      function setResponse(contentData, content) {
+        if (contentData && contentData["candidates"] && contentData["candidates"].length > 0) {
+          // gemini format
+          for (i = contentData["candidates"].length - 1; i >= 0; i--) {
+            var candidate = contentData["candidates"][i];
+            if (
+              candidate &&
+              candidate["content"] &&
+              candidate["content"]["parts"] &&
+              candidate["content"]["parts"].length > 0
+            ) {
+              for (p = candidate["content"]["parts"].length - 1; p >= 0; p--) {
+                var part = candidate["content"]["parts"][p];
+                if (part && part["text"]) {
+                  part["text"] = content;
+                  break;
+                }
+              }
+            }
+          }
+        } else if (contentData && contentData["choices"] && contentData["choices"].length > 0) {
+          // openmodel format
+          for (i = contentData["choices"].length - 1; i >= 0; i--) {
+            var choice = contentData["choices"][i];
+            if (choice && choice["message"] && choice["message"]["content"]) {
+              choice["message"]["content"] = content;
+              break;
+            }
+          }
+        } else if (contentData && contentData["content"] && contentData["content"].length > 0) {
+          // claude format
+          for (i = contentData["content"].length - 1; i >= 0; i--) {
+            var claudeContent = contentData["content"][i];
+            if (claudeContent && claudeContent["type"] == "text") {
+              claudeContent["text"] = content;
+              break;
+            }
+          }
+        }
+
+        return contentData;
+      }
+
       function getUsageData(contentString) {
         var usageData = {
           model: "",
@@ -532,6 +620,8 @@ resources:
         exports.getModelName = getModelName;
         exports.getPrompts = getPrompts;
         exports.setPrompt = setPrompt;
+        exports.getResponse = getResponse;
+        exports.setResponse = setResponse;
         exports.getUsageData = getUsageData;
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;

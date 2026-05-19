@@ -30,9 +30,11 @@ categories:
 parameters:
   - name: ModelArmorTemplate
     displayName: ModelArmorTemplate
-    description: Configuration input for ModelArmorTemplate
-    default: projects/apigee-klab1/locations/europe-west1/templates/default-ma-template
-    examples: []
+    description: The Model Armor template name. The project and region are taken from the Apigee organization.
+    default: default-ma-template
+    examples:
+      - default-ma-template
+      - ma-template1
     maps: {}
 defaultEndpoint:
   name: default
@@ -296,7 +298,7 @@ policies:
         ignoreUnresolvedVariables: "false"
         displayName: SUP-SanitizePrompt
         modelArmor:
-          templateName: "{propertyset.security.ModelArmorTemplate}"
+          templateName: projects/{organization.name}/locations/{system.region.name}/templates/{propertyset.security.ModelArmorTemplate}
         userPromptSource: "{ai.requestPrompt}"
 resources:
   - name: ai-functions.js
