@@ -9,6 +9,7 @@ documentation: |-
   ```sh
   PROJECT_ID=YOUR_APIGEE_PROJECT
   apigeecli datacollectors create -d "Model name" -n dc_ai_model -p STRING --org "$PROJECT_ID" --default-token
+  apigeecli datacollectors create -d "Model cost center" -n dc_ai_cost_center -p STRING --org "$PROJECT_ID" --default-token
   apigeecli datacollectors create -d "Total token count" -n dc_ai_total_token_count -p INTEGER --org "$PROJECT_ID" --default-token
   apigeecli datacollectors create -d "Prompt token count" -n dc_ai_prompt_token_count -p INTEGER --org "$PROJECT_ID" --default-token
   apigeecli datacollectors create -d "Total token count" -n dc_ai_response_token_count -p INTEGER --org "$PROJECT_ID" --default-token

@@ -2,7 +2,27 @@ name: ai-security
 displayName: AI Security
 type: feature
 description: AI Security feature that applies prompt request masking & screening.
-documentation: ""
+documentation: |
+  ## Prerequisites
+
+  You will need a Model Armor template to use this policy for AI security prompt screening. You can create a default template in your Google Cloud with this command.
+
+  ```sh
+  gcloud config set api_endpoint_overrides/modelarmor "https://modelarmor.$GOOGLE_CLOUD_LOCATION.rep.googleapis.com/"
+  gcloud model-armor templates create default-ma-template --project=$GOOGLE_CLOUD_PROJECT --location=$GOOGLE_CLOUD_LOCATION \
+      --rai-settings-filters='[{ "filterType": "HATE_SPEECH", "confidenceLevel": "MEDIUM_AND_ABOVE" },{ "filterType": "HARASSMENT", "confidenceLevel": "MEDIUM_AND_ABOVE" },{ "filterType": "SEXUALLY_EXPLICIT", "confidenceLevel": "MEDIUM_AND_ABOVE" }]' \
+      --basic-config-filter-enforcement=enabled  \
+      --pi-and-jailbreak-filter-settings-enforcement=enabled \
+      --pi-and-jailbreak-filter-settings-confidence-level=HIGH \
+      --malicious-uri-filter-settings-enforcement=enabled \
+      --template-metadata-custom-llm-response-safety-error-code=798 \
+      --template-metadata-custom-llm-response-safety-error-message="test template llm response evaluation failed" \
+      --template-metadata-custom-prompt-safety-error-code=799 \
+      --template-metadata-custom-prompt-safety-error-message="test template prompt evaluation failed" \
+      --template-metadata-ignore-partial-invocation-failures \
+      --template-metadata-log-operations \
+      --template-metadata-log-sanitize-operations
+  ```
 categories:
   - llm
   - ai

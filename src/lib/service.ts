@@ -63,8 +63,7 @@ export class ApigeeTemplaterService {
             if (
               template &&
               template["name"] &&
-              (template["name"].endsWith(".json") ||
-                template["name"].endsWith(".yaml"))
+              (template["name"].endsWith(".json") || template["name"].endsWith(".yaml"))
             ) {
               let downloadResponse = await fetch(template["download_url"]);
               if (downloadResponse.status == 200) {
@@ -72,19 +71,15 @@ export class ApigeeTemplaterService {
                 let remoteTemplateText = await downloadResponse.text();
                 if (template["name"].endsWith(".yaml"))
                   remoteTemplate = YAML.parse(remoteTemplateText) as Template;
-                else
-                  remoteTemplate = JSON.parse(remoteTemplateText) as Template;
-                let templateExistsIndex = templates.findIndex(
-                  (x) => x.name == remoteTemplate.name,
-                );
+                else remoteTemplate = JSON.parse(remoteTemplateText) as Template;
+                let templateExistsIndex = templates.findIndex((x) => x.name == remoteTemplate.name);
                 if (templateExistsIndex == -1) templates.push(remoteTemplate);
               }
             }
           }
         }
       }
-      if (templates && templates.length > 0)
-        this.templateListCache = templates.map((x) => x.name);
+      if (templates && templates.length > 0) this.templateListCache = templates.map((x) => x.name);
       resolve(templates);
     });
   }
@@ -101,10 +96,7 @@ export class ApigeeTemplaterService {
               fs.readFileSync(this.featuresPath + featurePath, "utf8"),
             );
             if (feature && feature.type === "feature") features.push(feature);
-          } else if (
-            featurePath.endsWith(".yaml") ||
-            featurePath.endsWith(".yml")
-          ) {
+          } else if (featurePath.endsWith(".yaml") || featurePath.endsWith(".yml")) {
             let feature: Feature = YAML.parse(
               fs.readFileSync(this.featuresPath + featurePath, "utf8"),
             );
@@ -119,29 +111,19 @@ export class ApigeeTemplaterService {
         try {
           if (featurePath.endsWith(".json")) {
             let feature: Feature = JSON.parse(
-              fs.readFileSync(
-                import.meta.dirname + "/../features/" + featurePath,
-                "utf8",
-              ),
+              fs.readFileSync(import.meta.dirname + "/../features/" + featurePath, "utf8"),
             );
             if (feature && feature.type === "feature") features.push(feature);
-          } else if (
-            featurePath.endsWith(".yaml") ||
-            featurePath.endsWith(".yml")
-          ) {
+          } else if (featurePath.endsWith(".yaml") || featurePath.endsWith(".yml")) {
             let feature: Feature = YAML.parse(
-              fs.readFileSync(
-                import.meta.dirname + "/../features/" + featurePath,
-                "utf8",
-              ),
+              fs.readFileSync(import.meta.dirname + "/../features/" + featurePath, "utf8"),
             );
             if (feature && feature.type === "feature") features.push(feature);
           }
         } catch (e) {}
       }
 
-      if (features && features.length > 0)
-        this.featureListCache = features.map((x) => x.name);
+      if (features && features.length > 0) this.featureListCache = features.map((x) => x.name);
       resolve(features);
     });
   }
@@ -153,14 +135,10 @@ export class ApigeeTemplaterService {
 
       for (let proxyPath of proxyNames) {
         if (proxyPath.endsWith(".json")) {
-          let proxy: Proxy = JSON.parse(
-            fs.readFileSync(this.proxiesPath + proxyPath, "utf8"),
-          );
+          let proxy: Proxy = JSON.parse(fs.readFileSync(this.proxiesPath + proxyPath, "utf8"));
           proxies.push(proxy);
         } else if (proxyPath.endsWith(".yaml")) {
-          let proxy: Proxy = YAML.parse(
-            fs.readFileSync(this.proxiesPath + proxyPath, "utf8"),
-          );
+          let proxy: Proxy = YAML.parse(fs.readFileSync(this.proxiesPath + proxyPath, "utf8"));
           proxies.push(proxy);
         }
       }
@@ -174,8 +152,7 @@ export class ApigeeTemplaterService {
             if (
               proxy &&
               proxy["name"] &&
-              (proxy["name"].endsWith(".json") ||
-                proxy["name"].endsWith(".yaml"))
+              (proxy["name"].endsWith(".json") || proxy["name"].endsWith(".yaml"))
             ) {
               let downloadResponse = await fetch(proxy["download_url"]);
               if (downloadResponse.status == 200) {
@@ -184,9 +161,7 @@ export class ApigeeTemplaterService {
                 if (proxy["name"].endsWith(".yaml"))
                   remoteProxy = YAML.parse(remoteTemplateText) as Proxy;
                 else remoteProxy = JSON.parse(remoteTemplateText) as Proxy;
-                let proxyExistsIndex = proxies.findIndex(
-                  (x) => x.name == remoteProxy.name,
-                );
+                let proxyExistsIndex = proxies.findIndex((x) => x.name == remoteProxy.name);
                 if (proxyExistsIndex == -1) proxies.push(remoteProxy);
               }
             }
@@ -208,16 +183,10 @@ export class ApigeeTemplaterService {
 
       if (!tempName.endsWith(".json") && !tempName.endsWith(".yaml")) {
         if (fs.existsSync(this.templatesPath + tempName + ".json")) {
-          templateString = fs.readFileSync(
-            this.templatesPath + tempName + ".json",
-            "utf8",
-          );
+          templateString = fs.readFileSync(this.templatesPath + tempName + ".json", "utf8");
           foundJson = true;
         } else if (fs.existsSync(this.templatesPath + tempName + ".yaml")) {
-          templateString = fs.readFileSync(
-            this.templatesPath + tempName + ".yaml",
-            "utf8",
-          );
+          templateString = fs.readFileSync(this.templatesPath + tempName + ".yaml", "utf8");
           foundYaml = true;
         }
       } else if (fs.existsSync(tempName)) {
@@ -228,19 +197,13 @@ export class ApigeeTemplaterService {
 
       if (!foundJson && !foundYaml) {
         // try to fetch remotely
-        let fileName = tempName.endsWith(".json")
-          ? tempName
-          : tempName + ".json";
-        let response = await fetch(
-          this.remoteGetBaseUrl + "templates/" + fileName,
-        );
+        let fileName = tempName.endsWith(".json") ? tempName : tempName + ".json";
+        let response = await fetch(this.remoteGetBaseUrl + "templates/" + fileName);
         if (response.status == 200) foundJson = true;
 
         if (response.status == 404) {
           fileName = tempName.endsWith(".yaml") ? tempName : tempName + ".yaml";
-          response = await fetch(
-            this.remoteGetBaseUrl + "templates/" + fileName,
-          );
+          response = await fetch(this.remoteGetBaseUrl + "templates/" + fileName);
           if (response.status == 200) foundYaml = true;
         }
 
@@ -268,16 +231,10 @@ export class ApigeeTemplaterService {
 
       if (!tempName.endsWith(".json") && !tempName.endsWith(".yaml")) {
         if (fs.existsSync(this.proxiesPath + tempName + ".json")) {
-          proxyString = fs.readFileSync(
-            this.proxiesPath + tempName + ".json",
-            "utf8",
-          );
+          proxyString = fs.readFileSync(this.proxiesPath + tempName + ".json", "utf8");
           foundJson = true;
         } else if (fs.existsSync(this.proxiesPath + tempName + ".yaml")) {
-          proxyString = fs.readFileSync(
-            this.proxiesPath + tempName + ".yaml",
-            "utf8",
-          );
+          proxyString = fs.readFileSync(this.proxiesPath + tempName + ".yaml", "utf8");
           foundYaml = true;
         }
       } else if (fs.existsSync(tempName)) {
@@ -288,12 +245,8 @@ export class ApigeeTemplaterService {
 
       if (!foundJson && !foundYaml) {
         // try to fetch remotely
-        let fileName = tempName.endsWith(".json")
-          ? tempName
-          : tempName + ".json";
-        let response = await fetch(
-          this.remoteGetBaseUrl + "proxies/" + fileName,
-        );
+        let fileName = tempName.endsWith(".json") ? tempName : tempName + ".json";
+        let response = await fetch(this.remoteGetBaseUrl + "proxies/" + fileName);
         if (response.status == 200) foundJson = true;
 
         if (response.status == 404) {
@@ -317,10 +270,7 @@ export class ApigeeTemplaterService {
   }
 
   public proxyImport(proxy: Proxy) {
-    fs.writeFileSync(
-      this.proxiesPath + proxy.name + ".json",
-      JSON.stringify(proxy, null, 2),
-    );
+    fs.writeFileSync(this.proxiesPath + proxy.name + ".json", JSON.stringify(proxy, null, 2));
   }
 
   public templateImport(template: Template) {
@@ -346,16 +296,10 @@ export class ApigeeTemplaterService {
         foundYaml = false;
       let featureString = "";
       if (fs.existsSync(this.featuresPath + tempName + ".json")) {
-        featureString = fs.readFileSync(
-          this.featuresPath + tempName + ".json",
-          "utf8",
-        );
+        featureString = fs.readFileSync(this.featuresPath + tempName + ".json", "utf8");
         foundJson = true;
       } else if (fs.existsSync(this.featuresPath + tempName + ".yaml")) {
-        featureString = fs.readFileSync(
-          this.featuresPath + tempName + ".yaml",
-          "utf8",
-        );
+        featureString = fs.readFileSync(this.featuresPath + tempName + ".yaml", "utf8");
         foundYaml = true;
       } else if (fs.existsSync(tempName)) {
         featureString = fs.readFileSync(tempName, "utf8");
@@ -420,11 +364,7 @@ export class ApigeeTemplaterService {
         );
         return undefined;
       } else {
-        template = converter.templateApplyFeature(
-          template,
-          feature,
-          featureName,
-        );
+        template = converter.templateApplyFeature(template, feature, featureName);
       }
 
       fs.writeFileSync(
@@ -453,12 +393,7 @@ export class ApigeeTemplaterService {
         );
         return undefined;
       } else {
-        template = converter.templateRemoveFeature(
-          template,
-          [],
-          featureName,
-          feature,
-        );
+        template = converter.templateRemoveFeature(template, [], featureName, feature);
       }
 
       fs.writeFileSync(
@@ -487,10 +422,7 @@ export class ApigeeTemplaterService {
   }
 
   public featureImport(feature: Feature): Feature {
-    fs.writeFileSync(
-      this.featuresPath + feature.name + ".json",
-      JSON.stringify(feature, null, 2),
-    );
+    fs.writeFileSync(this.featuresPath + feature.name + ".json", JSON.stringify(feature, null, 2));
 
     return feature;
   }
@@ -561,11 +493,7 @@ export class ApigeeTemplaterService {
       let template: Template | undefined = await this.templateGet(templateName);
 
       if (template) {
-        proxy = await this.templateObjectToProxy(
-          template,
-          converter,
-          parameters,
-        );
+        proxy = await this.templateObjectToProxy(template, converter, parameters);
       }
 
       resolve(proxy);
@@ -583,37 +511,15 @@ export class ApigeeTemplaterService {
       if (template) {
         let features: Feature[] = [];
         for (let templateFeature of template.features) {
-          let featureName = templateFeature;
-          let featureUid = "";
-          // FEATURE UID logic
-          if (templateFeature.includes(".")) {
-            let parts = templateFeature.split(".");
-            if (
-              parts[parts.length - 1] &&
-              parts[parts.length - 1] != "yaml" &&
-              parts[parts.length - 1] != "json"
-            ) {
-              featureUid = parts[parts.length - 1] ?? featureUid;
-              parts.splice(parts.length - 1);
-              featureName = parts.join(".");
-            }
-          }
-          let loadedFeature = await this.loadFeature(featureName);
+          let loadedFeature = await this.loadFeature(templateFeature);
           if (loadedFeature) {
-            if (featureUid) loadedFeature.uid = featureUid;
             features.push(loadedFeature);
           } else {
             // abort, could not load feature
-            console.error(`Could not load feature ${featureName}.`);
+            console.error(`Could not load feature ${templateFeature}.`);
             resolve(undefined);
           }
         }
-
-        // const uniqueFeatures = Array.from(
-        //   new Set(features.map((a) => a.name)),
-        // ).map((name) => {
-        //   return features.find((a) => a.name === name);
-        // }) as Feature[];
 
         proxy = converter.templateToProxy(template, features, parameters);
       }
@@ -646,15 +552,11 @@ export class ApigeeTemplaterService {
   }
 
   public apigeeOrgProxiesCache(apigeeOrg: string): string[] {
-    if (this.apigeeProxyListCache[apigeeOrg])
-      return this.apigeeProxyListCache[apigeeOrg];
+    if (this.apigeeProxyListCache[apigeeOrg]) return this.apigeeProxyListCache[apigeeOrg];
     else return [];
   }
 
-  public async apigeeProxiesList(
-    apigeeOrg: string,
-    token: string,
-  ): Promise<any | undefined> {
+  public async apigeeProxiesList(apigeeOrg: string, token: string): Promise<any | undefined> {
     return new Promise(async (resolve, reject) => {
       let response = await fetch(
         `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/apis?includeRevisions=true&includeMetaData=true`,
@@ -668,9 +570,7 @@ export class ApigeeTemplaterService {
       if (response.status === 200) {
         let responseBody: any = await response.json();
         if (responseBody && responseBody.length) {
-          this.apigeeProxyListCache[apigeeOrg] = responseBody.map(
-            (x: any) => x.name,
-          );
+          this.apigeeProxyListCache[apigeeOrg] = responseBody.map((x: any) => x.name);
         }
         resolve(responseBody);
       } else {
@@ -708,19 +608,14 @@ export class ApigeeTemplaterService {
         });
         if (response.status == 200) {
           let arrayBuffer = await response.arrayBuffer();
-          fs.writeFileSync(
-            this.tempPath + proxyName + ".zip",
-            Buffer.from(arrayBuffer),
-          );
+          fs.writeFileSync(this.tempPath + proxyName + ".zip", Buffer.from(arrayBuffer));
           resolve(this.tempPath + proxyName + ".zip");
         } else {
           resolve(undefined);
         }
       } else {
         let message = await response.text();
-        console.log(
-          " > Apigee proxy GET response: " + response.status + " - " + message,
-        );
+        console.log(" > Apigee proxy GET response: " + response.status + " - " + message);
         resolve(undefined);
       }
     });
@@ -754,10 +649,7 @@ export class ApigeeTemplaterService {
         });
         if (response.status == 200) {
           let arrayBuffer = await response.arrayBuffer();
-          fs.writeFileSync(
-            this.tempPath + sharedFlowName + ".zip",
-            Buffer.from(arrayBuffer),
-          );
+          fs.writeFileSync(this.tempPath + sharedFlowName + ".zip", Buffer.from(arrayBuffer));
           resolve(this.tempPath + sharedFlowName + ".zip");
         } else {
           resolve(undefined);
@@ -778,17 +670,10 @@ export class ApigeeTemplaterService {
   ): Promise<Template | undefined> {
     return new Promise(async (resolve, reject) => {
       let template: Template | undefined = undefined;
-      let apigeeProxyPath = await this.apigeeProxyGet(
-        proxyName,
-        apigeeOrg,
-        token,
-      );
+      let apigeeProxyPath = await this.apigeeProxyGet(proxyName, apigeeOrg, token);
 
       if (apigeeProxyPath) {
-        let proxy = await converter.apigeeZipToProxy(
-          proxyName,
-          apigeeProxyPath,
-        );
+        let proxy = await converter.apigeeZipToProxy(proxyName, apigeeProxyPath);
         if (proxy) {
           template = converter.proxyToTemplate(proxy);
         }
@@ -828,12 +713,7 @@ export class ApigeeTemplaterService {
         else resolve(latestRevisionId);
       } else {
         let responseText = await response.text();
-        console.log(
-          "> Apigee proxy EXPORT error: " +
-            response.status +
-            ", " +
-            responseText,
-        );
+        console.log("> Apigee proxy EXPORT error: " + response.status + ", " + responseText);
         resolve("");
       }
     });

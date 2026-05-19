@@ -35,9 +35,7 @@ import { start } from "repl";
 import { relative } from "path/win32";
 
 process.on("uncaughtException", function (e) {
-  console.error(
-    `${chalk.redBright("! Error: An unexpected error occurred. " + e.message)}`,
-  );
+  console.error(`${chalk.redBright("! Error: An unexpected error occurred. " + e.message)}`);
 });
 
 /**
@@ -86,11 +84,7 @@ export class cli {
       },
     );
 
-    if (
-      (args["--applyFeature"] || args["--removeFeature"]) &&
-      args["_"] &&
-      args["_"][0]
-    ) {
+    if ((args["--applyFeature"] || args["--removeFeature"]) && args["_"] && args["_"][0]) {
       // user wants to apply a feature, set input
       args["--input"] = args["_"][0];
     } else if (args["_"] && args["_"][0] && args["--output"]) {
@@ -208,10 +202,7 @@ export class cli {
       else {
         result = this.sanitizeName(secondary, "");
       }
-    } else if (
-      primary.toLowerCase().endsWith(".yaml") ||
-      primary.toLowerCase().endsWith(".json")
-    ) {
+    } else if (primary.toLowerCase().endsWith(".yaml") || primary.toLowerCase().endsWith(".json")) {
       result = path.basename(primary, path.extname(primary));
     } else if (primary) {
       result = this.sanitizeName(secondary, "");
@@ -225,16 +216,12 @@ export class cli {
       `${chalk.bold(chalk.magentaBright(`> Welcome to Apigee Feature Templater ${version}! All parameters:`))}`,
     );
     for (const line of helpCommands) {
-      console.log(
-        `${line.name}: ${chalk.italic(chalk.magentaBright(line.description))} `,
-      );
+      console.log(`${line.name}: ${chalk.italic(chalk.magentaBright(line.description))} `);
     }
   }
 
   printVersion() {
-    console.log(
-      `${chalk.bold(chalk.magentaBright(`> Apigee Feature Templater ${version}.`))}`,
-    );
+    console.log(`${chalk.bold(chalk.magentaBright(`> Apigee Feature Templater ${version}.`))}`);
   }
 
   async printFeatures() {
@@ -245,9 +232,7 @@ export class cli {
     let allFeatures = await this.apigeeService.featuresList();
 
     for (let feature of allFeatures) {
-      console.log(
-        `${feature.name}: ${chalk.italic(chalk.magentaBright(feature.description))} `,
-      );
+      console.log(`${feature.name}: ${chalk.italic(chalk.magentaBright(feature.description))} `);
       // console.log(`${feature.name}`);
     }
   }
@@ -333,11 +318,7 @@ export class cli {
         feature = new Feature();
         feature.name = options.name;
       } else {
-        template = this.converter.templateCreate(
-          options.name,
-          basePath,
-          options.targetUrl,
-        );
+        template = this.converter.templateCreate(options.name, basePath, options.targetUrl);
       }
       if (!options.output) options.output = options.name + ".yaml";
     } else if (options.input.includes(":")) {
@@ -356,11 +337,7 @@ export class cli {
         );
         if (apigeePath) {
           let importParameters = options.format == "feature";
-          proxy = await this.converter.apigeeZipToProxy(
-            options.name,
-            apigeePath,
-            importParameters,
-          );
+          proxy = await this.converter.apigeeZipToProxy(options.name, apigeePath, importParameters);
           fs.rmSync(apigeePath);
         } else {
           // try shared flows
@@ -371,16 +348,12 @@ export class cli {
           );
 
           if (sharedFlowPath) {
-            proxy = await this.converter.apigeeSharedFlowZipToProxy(
-              options.name,
-              sharedFlowPath,
-            );
+            proxy = await this.converter.apigeeSharedFlowZipToProxy(options.name, sharedFlowPath);
             fs.rmSync(sharedFlowPath);
           }
         }
 
-        if (proxy && !proxy.description)
-          proxy.description = "Proxy for " + proxy.name;
+        if (proxy && !proxy.description) proxy.description = "Proxy for " + proxy.name;
       }
     } else if (fs.existsSync(options.input)) {
       let file = await this.loadFile(options.name, options.input);
@@ -399,28 +372,20 @@ export class cli {
     } else {
       // try to load it from remote repositories
       template = await this.apigeeService.templateGet(options.input);
-      if (!template)
-        feature = await this.apigeeService.featureGet(options.input);
+      if (!template) feature = await this.apigeeService.featureGet(options.input);
     }
 
     if (!template && !proxy && !feature) {
-      // as a last test, maybe the input is an apigee org and we can get a proxy list
       if (!options.token) {
         let token = await auth.getAccessToken();
         if (token) options.token = token;
       }
-      if (options.input.endsWith(":"))
-        options.input = options.input.replace(":", "");
+      if (options.input.endsWith(":")) options.input = options.input.replace(":", "");
       let proxyList = await this.apigeeService.apigeeProxiesList(
         options.input,
         `Bearer ${options.token}`,
       );
-      if (
-        !options.output &&
-        proxyList &&
-        proxyList["proxies"] &&
-        proxyList["proxies"].length > 0
-      ) {
+      if (!options.output && proxyList && proxyList["proxies"] && proxyList["proxies"].length > 0) {
         console.log(
           `${chalk.bold(chalk.magentaBright(`> Apigee org ${options.input} proxies, get proxy info with -i '${options.input}:NAME'`))}`,
         );
@@ -437,8 +402,7 @@ export class cli {
         if (options.output.includes(":") && !inputParameters["PROJECT_ID"]) {
           // set PROJECT_ID with included project
           let pieces = options.output.split(":");
-          if (pieces.length >= 1 && pieces[0])
-            inputParameters["PROJECT_ID"] = pieces[0];
+          if (pieces.length >= 1 && pieces[0]) inputParameters["PROJECT_ID"] = pieces[0];
         }
 
         let relativePath = options.applyFeature;
@@ -448,14 +412,9 @@ export class cli {
           fs.existsSync(path.dirname(options.output))
         ) {
           // this is a path, get relative path from output
-          relativePath = path.relative(
-            path.dirname(options.output),
-            options.applyFeature,
-          );
+          relativePath = path.relative(path.dirname(options.output), options.applyFeature);
         }
-        let applyFeature = await this.apigeeService.featureGet(
-          options.applyFeature,
-        );
+        let applyFeature = await this.apigeeService.featureGet(options.applyFeature);
 
         if (template && applyFeature)
           template = this.converter.templateApplyFeature(
@@ -465,17 +424,9 @@ export class cli {
             inputParameters,
           );
         else if (proxy && applyFeature) {
-          proxy = this.converter.proxyApplyFeature(
-            proxy,
-            applyFeature,
-            inputParameters,
-          );
+          proxy = this.converter.proxyApplyFeature(proxy, applyFeature, inputParameters);
         } else if (feature && applyFeature) {
-          feature = this.converter.featureApplyFeature(
-            feature,
-            applyFeature,
-            inputParameters,
-          );
+          feature = this.converter.featureApplyFeature(feature, applyFeature, inputParameters);
         } else if (!applyFeature) {
           console.error(`Could not load feature ${relativePath}.`);
         }
@@ -486,19 +437,13 @@ export class cli {
           let templateFeatures: Feature[] = [];
           for (let featurePath of template.features) {
             let relativePath = featurePath;
-            relativePath = path.relative(
-              path.dirname(options.output),
-              relativePath,
-            );
+            relativePath = path.relative(path.dirname(options.output), relativePath);
             let tempFeature = await this.apigeeService.featureGet(relativePath);
             if (tempFeature) templateFeatures.push(tempFeature);
           }
 
           let relativePath = options.removeFeature;
-          relativePath = path.relative(
-            path.dirname(options.output),
-            relativePath,
-          );
+          relativePath = path.relative(path.dirname(options.output), relativePath);
           let removeFeature = await this.apigeeService.featureGet(relativePath);
           if (removeFeature)
             template = this.converter.templateRemoveFeature(
@@ -509,33 +454,23 @@ export class cli {
             );
         } else if (feature) {
           let relativePath = options.removeFeature;
-          relativePath = path.relative(
-            path.dirname(options.output),
-            relativePath,
-          );
+          relativePath = path.relative(path.dirname(options.output), relativePath);
           let removeFeature = await this.apigeeService.featureGet(relativePath);
-          if (removeFeature)
-            this.converter.featureRemoveFeature(feature, removeFeature);
+          if (removeFeature) this.converter.featureRemoveFeature(feature, removeFeature);
         }
       }
 
       // HALF TIME - generally print generated output overview
       if (proxy) {
-        console.log(
-          `${chalk.bold(chalk.magentaBright(`> Proxy ${proxy.name} overview: `))}`,
-        );
+        console.log(`${chalk.bold(chalk.magentaBright(`> Proxy ${proxy.name} overview: `))}`);
         console.log(this.converter.proxyToString(proxy));
         if (!options.format) options.format = "proxy";
       } else if (template) {
-        console.log(
-          `${chalk.bold(chalk.magentaBright(`> Template ${template.name} overview: `))}`,
-        );
+        console.log(`${chalk.bold(chalk.magentaBright(`> Template ${template.name} overview: `))}`);
         console.log(this.converter.templateToString(template));
         if (!options.format) options.format = "template";
       } else if (feature) {
-        console.log(
-          `${chalk.bold(chalk.magentaBright(`> Feature ${feature.name} overview: `))}`,
-        );
+        console.log(`${chalk.bold(chalk.magentaBright(`> Feature ${feature.name} overview: `))}`);
         console.log(this.converter.featureToString(feature));
         if (!options.format) options.format = "feature";
       } else {
@@ -561,56 +496,37 @@ export class cli {
         } else if (feature) {
           proxy = this.converter.featureToProxy(feature, inputParameters);
           if (options.applyFeature) {
-            let testFeature = await this.apigeeService.featureGet(
-              options.applyFeature,
-            );
+            let testFeature = await this.apigeeService.featureGet(options.applyFeature);
             if (testFeature)
-              proxy = this.converter.proxyApplyFeature(
-                proxy,
-                testFeature,
-                inputParameters,
-              );
+              proxy = this.converter.proxyApplyFeature(proxy, testFeature, inputParameters);
           }
         }
         process.chdir(startDir);
-        let removeDir = options.output.toLowerCase().endsWith(".dir")
-          ? false
-          : true;
-        if (proxy)
-          outputPath = await this.converter.proxyToApigeeZip(proxy, removeDir);
+        let removeDir = options.output.toLowerCase().endsWith(".dir") ? false : true;
+        if (proxy) outputPath = await this.converter.proxyToApigeeZip(proxy, removeDir);
         if (proxy && outputPath) {
           if (options.output.toLowerCase().endsWith(".dir")) {
             // remove zip
             fs.rmSync(outputPath);
-            fs.cpSync(
-              outputPath.replace(".zip", ""),
-              options.output.replace(".dir", ""),
-              { recursive: true },
-            );
+            fs.cpSync(outputPath.replace(".zip", ""), options.output.replace(".dir", ""), {
+              recursive: true,
+            });
             fs.rmdirSync(outputPath.replace(".zip", ""), { recursive: true });
-          } else if (
-            outputPath != options.output &&
-            outputPath != "./" + options.output
-          ) {
+          } else if (outputPath != options.output && outputPath != "./" + options.output) {
             fs.copyFileSync(outputPath, options.output);
             fs.rmSync(outputPath);
           }
 
-          console.log(
-            `${chalk.bold(chalk.magentaBright("> Proxy written to " + options.output))}`,
-          );
+          console.log(`${chalk.bold(chalk.magentaBright("> Proxy written to " + options.output))}`);
         } else {
-          console.log(
-            `${chalk.bold(chalk.redBright("> Error, could not write proxy zip."))}`,
-          );
+          console.log(`${chalk.bold(chalk.redBright("> Error, could not write proxy zip."))}`);
           return;
         }
       } else if (options.output && options.format == "proxy") {
         if (options.output.includes(":") && !inputParameters["PROJECT_ID"]) {
           // set PROJECT_ID with included project
           let pieces = options.output.split(":");
-          if (pieces.length >= 1 && pieces[0])
-            inputParameters["PROJECT_ID"] = pieces[0];
+          if (pieces.length >= 1 && pieces[0]) inputParameters["PROJECT_ID"] = pieces[0];
         }
 
         if (template) {
@@ -654,13 +570,7 @@ export class cli {
               );
             }
             // deploy to apigee
-            if (
-              pieces &&
-              pieces.length > 2 &&
-              pieces[0] &&
-              pieces[2] &&
-              lastRevision
-            ) {
+            if (pieces && pieces.length > 2 && pieces[0] && pieces[2] && lastRevision) {
               let serviceAccount = "";
               let environment = pieces[2];
               if (pieces.length === 4 && pieces[3]) serviceAccount = pieces[3];
@@ -678,13 +588,9 @@ export class cli {
             fs.rmSync(outputPath);
           }
 
-          console.log(
-            `${chalk.bold(chalk.magentaBright("> Proxy written to " + options.output))}`,
-          );
+          console.log(`${chalk.bold(chalk.magentaBright("> Proxy written to " + options.output))}`);
         } else {
-          console.log(
-            `${chalk.bold(chalk.redBright("> Error, could not create proxy."))}`,
-          );
+          console.log(`${chalk.bold(chalk.redBright("> Error, could not create proxy."))}`);
           return;
         }
       } else if (options.output && options.format == "template") {
@@ -716,20 +622,13 @@ export class cli {
           if (options.removeFeature) {
             // let outputDir = path.dirname(options.output);
             // process.chdir(outputDir);
-            let testFeature = await this.apigeeService.featureGet(
-              options.removeFeature,
-            );
-            if (testFeature)
-              proxy =
-                this.converter.proxyRemoveFeature(proxy, testFeature) ?? proxy;
+            let testFeature = await this.apigeeService.featureGet(options.removeFeature);
+            if (testFeature) proxy = this.converter.proxyRemoveFeature(proxy, testFeature) ?? proxy;
           }
           if (proxy) feature = this.converter.proxyToFeature(proxy);
         }
-        // process.chdir(startDir);
+        process.chdir(startDir);
         if (feature) {
-          // if (!feature.uid)
-          //   feature.uid = (0 | (Math.random() * 9e6)).toString(36);
-
           this.converter.featureUpdateParameters(feature, inputParameters);
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(feature, null, 2));
@@ -802,8 +701,7 @@ class cliArgs {
 const helpCommands = [
   {
     name: "--input, -i",
-    description:
-      "Input path to ZIP, JSON or YAML file, or an Apigee proxy in ORG:PROXY format.",
+    description: "Input path to ZIP, JSON or YAML file, or an Apigee proxy in ORG:PROXY format.",
   },
   {
     name: "--name, -n",
@@ -811,13 +709,11 @@ const helpCommands = [
   },
   {
     name: "--output, -o",
-    description:
-      "An optional file output name and type (e.g. AI-Template-v1.yaml).",
+    description: "An optional file output name and type (e.g. AI-Template-v1.yaml).",
   },
   {
     name: "--format, -f",
-    description:
-      "An optional format to convert the input into: 'proxy', 'template' or 'feature'.",
+    description: "An optional format to convert the input into: 'proxy', 'template' or 'feature'.",
   },
   {
     name: "--applyFeature, -a",

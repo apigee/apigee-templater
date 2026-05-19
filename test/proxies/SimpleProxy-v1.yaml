@@ -1,5 +1,5 @@
 name: SimpleProxy-v1
-displayName: ""
+displayName: SimpleProxy-v1
 type: proxy
 categories: []
 description: SimpleProxy-v1
@@ -45,12 +45,8 @@ policies:
           name: JS-SetResponse
         displayName: JS-SetResponse
         properties: {}
-        resourceUrl: jsc://set-response.js
-resources:
-  - name: set-response.js
-    type: jsc
-    content: |-
-      print("hello world!!");
+        source: |-
+          print("hello world!!");
 
-      context.proxyResponse.content += "hello world!";
+          context.proxyResponse.content += "hello world!";
 tests: []

@@ -1,6 +1,6 @@
-<p align="center"><img width="244" height="244" alt="aft logo" src="https://github.com/tyayers/public-files/blob/main/apigee/aft-4.jpg?raw=true" />
+<p align="center"><img width="244" height="244" alt="aft logo" src="https://iili.io/ByXOiJa.png" />
 
-# Apigee Feature Templater (aft) 🛥
+# Apigee Feature Templater (aft) v4
 
 **Apigee Feature Templater** is a command line tool to help manage Apigee templates & proxies. It can easily convert between **Apigee X proxies,** **Apigee exported bundles**, **YAML** & **JSON** formats, as well as merge capabilities for features and templates.
 
@@ -111,6 +111,31 @@ aft -i MyApigeeOrg:HelloWorldFeature -o response-helloworld.yaml -f feature
 ```
 
 Notice the `-f feature` command line parameter - this means save this proxy as a feature, with extra metadata for parameters, documentation and other metadata.
+
+### Common variables
+
+These Apigee variable names are commonly used in features, making extension and re-use esaier.
+
+* **ai.model** - The name of the AI model being used or requested, for example **gemini-flash-latest**.
+* **ai.requestType** - The type of AI request being made, either **streaming** or **non-streaming**.
+* **ai.apiType** - The API type of the AI request, currently eitehr **agentplatform** for Model Garden requests, or **oai** for the standard messaging format.
+* **ai.requestPrompt** - The user's request prompt to the AI model.
+* **ai.requestTokenCount** - The request token count to the AI model.
+* **ai.responseTokenCount** - The response token count data from the AI model.
+* **ai.totalTokenCount** - The total request and response token count.
+* **ai.timeToFirstToken** - The number of milliseconds until the first token is returned by the AI model.
+
+### Common data collectors
+
+These data collectors are commonly used in features, making extension and re-use easier.
+
+* **dc_ai_model** - STRING - The name of the AI model being used or requested.
+* **dc_ai_cost_center** - STRING - The name of the cost center of the user.
+* **dc_ai_total_token_count** - INTEGER - The total token count of the request & response.
+* **dc_ai_prompt_token_count** - INTEGER - The request prompt token count.
+* **dc_ai_response_token_count** - INTEGER - The response prompt token count.
+* **dc_ai_response_type** - STRING - either `streaming` or `non-streaming`.
+* **dc_ai_time_first_token** - INTEGER - The time in milliseconds to the first token response of the model.
 
 ## License 📜
 

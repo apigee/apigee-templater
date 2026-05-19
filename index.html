@@ -1,0 +1,1173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SimpleProxy-v1.yaml · Apigee Proxy YAML Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-0: #0a0e1a;
+        --bg-1: #0f1424;
+        --bg-2: #161c33;
+        --bg-3: #1e263f;
+        --border: rgba(255, 255, 255, 0.08);
+        --border-strong: rgba(255, 255, 255, 0.16);
+        --text: #e8ecf5;
+        --text-dim: #98a1b8;
+        --text-faint: #5f6885;
+        --accent: #7c5cff;
+        --accent-2: #00d4ff;
+        --accent-3: #ff6b9d;
+        --accent-4: #ffb547;
+        --green: #2ee6a6;
+        --red: #ff5e7e;
+
+        /* YAML token colors */
+        --yaml-key: #7cc4ff;
+        --yaml-key-2: #b9a8ff;
+        --yaml-string: #2ee6a6;
+        --yaml-number: #ffb547;
+        --yaml-bool: #ff6b9d;
+        --yaml-null: #ff6b9d;
+        --yaml-dash: #ff6b9d;
+        --yaml-pipe: #ffb547;
+        --yaml-anchor: #00d4ff;
+        --yaml-comment: #5f6885;
+        --yaml-punc: #5f6885;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        background: var(--bg-0);
+        color: var(--text);
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        font-size: 15px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background:
+          radial-gradient(
+            ellipse 80% 50% at 20% 0%,
+            rgba(124, 92, 255, 0.18),
+            transparent 50%
+          ),
+          radial-gradient(
+            ellipse 60% 40% at 80% 10%,
+            rgba(0, 212, 255, 0.12),
+            transparent 50%
+          ),
+          radial-gradient(
+            ellipse 50% 40% at 50% 100%,
+            rgba(255, 107, 157, 0.08),
+            transparent 50%
+          );
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .grid-bg {
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+          linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.025) 1px,
+            transparent 1px
+          );
+        background-size: 48px 48px;
+        mask-image: radial-gradient(
+          ellipse 80% 80% at 50% 0%,
+          #000 30%,
+          transparent 80%
+        );
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 40px 28px;
+      }
+
+      /* YAML viewer */
+      .yaml-viewer {
+        background: #06080f;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+      }
+
+      .yaml-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        background: rgba(255, 255, 255, 0.025);
+        border-bottom: 1px solid var(--border);
+      }
+      .yaml-filename {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        color: var(--text-dim);
+      }
+      .yaml-filename .file-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        display: grid;
+        place-items: center;
+        font-size: 9px;
+        font-weight: 700;
+        color: #fff;
+      }
+      .yaml-traffic {
+        display: flex;
+        gap: 6px;
+      }
+      .yaml-traffic span {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+      }
+      .yaml-traffic span:nth-child(1) {
+        background: #ff5e7e;
+      }
+      .yaml-traffic span:nth-child(2) {
+        background: #ffb547;
+      }
+      .yaml-traffic span:nth-child(3) {
+        background: #2ee6a6;
+      }
+
+      /* Code area */
+      .yaml-body {
+        --line-h: 24px;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 14px;
+        line-height: var(--line-h);
+      }
+
+      .gutter {
+        background: rgba(255, 255, 255, 0.015);
+        color: var(--text-faint);
+        padding: 18px 14px 18px 18px;
+        text-align: right;
+        user-select: none;
+        border-right: 1px solid var(--border);
+        font-size: 12.5px;
+      }
+      .gutter span {
+        display: block;
+        height: var(--line-h);
+        line-height: var(--line-h);
+      }
+
+      .yaml-code {
+        padding: 18px 22px;
+        overflow-x: auto;
+        color: var(--text);
+        counter-reset: line;
+      }
+      .yaml-code .line {
+        display: block;
+        height: var(--line-h);
+        line-height: var(--line-h);
+        white-space: pre;
+        border-radius: 4px;
+        padding: 0 6px;
+        margin: 0 -6px;
+        transition: background 0.12s ease;
+      }
+      .yaml-code .line:hover {
+        background: rgba(124, 92, 255, 0.06);
+      }
+
+      /* Token classes */
+      .y-key {
+        color: var(--yaml-key);
+        font-weight: 500;
+      }
+      .y-key-top {
+        color: var(--yaml-key-2);
+        font-weight: 600;
+      }
+      .y-string {
+        color: var(--yaml-string);
+      }
+      .y-number {
+        color: var(--yaml-number);
+      }
+      .y-bool {
+        color: var(--yaml-bool);
+      }
+      .y-null {
+        color: var(--yaml-null);
+        font-style: italic;
+      }
+      .y-dash {
+        color: var(--yaml-dash);
+        font-weight: 700;
+      }
+      .y-pipe {
+        color: var(--yaml-pipe);
+        font-weight: 700;
+      }
+      .y-punc {
+        color: var(--yaml-punc);
+      }
+      .y-comment {
+        color: var(--yaml-comment);
+        font-style: italic;
+      }
+      .y-empty {
+        color: var(--yaml-comment);
+      }
+
+      /* Hoverable tokens */
+      .tip-target {
+        cursor: help;
+        border-bottom: 1px dotted transparent;
+        transition:
+          border-color 0.15s ease,
+          background 0.15s ease;
+        padding: 0 1px;
+        border-radius: 2px;
+      }
+      .tip-target:hover {
+        border-bottom-color: currentColor;
+        background: rgba(124, 92, 255, 0.12);
+      }
+
+      /* ===== Tooltip ===== */
+      .tooltip {
+        position: fixed;
+        z-index: 1000;
+        max-width: 380px;
+        pointer-events: none;
+        opacity: 0;
+        transform: translateY(8px) scale(0.96);
+        transition:
+          opacity 0.18s ease,
+          transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+        background: linear-gradient(180deg, #1c2240, #11162a);
+        border: 1px solid rgba(124, 92, 255, 0.35);
+        border-radius: 12px;
+        padding: 14px 16px;
+        box-shadow:
+          0 20px 60px rgba(0, 0, 0, 0.6),
+          0 0 0 1px rgba(255, 255, 255, 0.04),
+          0 0 30px rgba(124, 92, 255, 0.25);
+        backdrop-filter: blur(20px);
+      }
+      .tooltip.visible {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      .tooltip-title {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--accent-2);
+        margin-bottom: 4px;
+        font-family: "JetBrains Mono", monospace;
+        letter-spacing: 0.02em;
+      }
+      .tooltip-kind {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+        margin-bottom: 8px;
+      }
+      .tooltip-body {
+        font-size: 13px;
+        color: var(--text);
+        line-height: 1.55;
+      }
+      .tooltip-body code {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        background: rgba(124, 92, 255, 0.18);
+        color: #c4b6ff;
+        padding: 1px 6px;
+        border-radius: 4px;
+      }
+      .tooltip-body strong {
+        color: var(--accent-2);
+        font-weight: 600;
+      }
+
+      /* Animations */
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .yaml-viewer {
+        animation: fadeUp 0.5s ease both;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--bg-3);
+        border-radius: 5px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #2a3354;
+      }
+
+      @media (max-width: 640px) {
+        .container {
+          padding: 20px 12px;
+        }
+        .yaml-code {
+          padding: 14px;
+          font-size: 12.5px;
+        }
+        .gutter {
+          padding: 14px 10px 14px 12px;
+          font-size: 11.5px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="grid-bg"></div>
+
+    <main class="container">
+      <div class="yaml-viewer">
+        <div class="yaml-header">
+          <div class="yaml-filename">
+            <div class="file-icon">Y</div>
+            <span>SimpleProxy-v1.yaml</span>
+          </div>
+          <div class="yaml-traffic">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+
+        <div class="yaml-body">
+          <div class="gutter" id="gutter"></div>
+          <div class="yaml-code" id="yaml-code"><!-- lines injected --></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Tooltip element -->
+    <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true">
+      <div class="tooltip-kind" id="tooltip-kind"></div>
+      <div class="tooltip-title" id="tooltip-title"></div>
+      <div class="tooltip-body" id="tooltip-body"></div>
+    </div>
+
+    <script>
+      // ============================================================
+      // YAML lines, with token-level annotations.
+      // Each line is an array of tokens. A token can be:
+      //   { t: 'text',  v: '...' }                   plain (whitespace, etc.)
+      //   { t: 'punc',  v: '...' }                   YAML punctuation, no tip
+      //   { t: <class>, v: '...', kind, title, tip } highlighted, with optional tooltip
+      // Classes map to CSS .y-* classes.
+      // ============================================================
+
+      const T = (t, v, extra) => Object.assign({ t, v }, extra || {});
+
+      // Re-usable tooltip definitions (tooltip metadata only).
+      const TIP = {
+        // top-level keys
+        name: {
+          kind: "TOP-LEVEL KEY",
+          title: "name",
+          tip: "The internal identifier for this proxy. Used by Apigee CLI tools and the management API to reference this artifact. Must be unique within an environment.",
+        },
+        displayName: {
+          kind: "TOP-LEVEL KEY",
+          title: "displayName",
+          tip: "The human-friendly label shown in the Apigee UI. Often equal to <code>name</code>, but may be more descriptive.",
+        },
+        type: {
+          kind: "TOP-LEVEL KEY",
+          title: "type",
+          tip: "The kind of Apigee artifact. <code>proxy</code> = an API proxy. Other values include <code>sharedflow</code> for reusable flow bundles.",
+        },
+        categories: {
+          kind: "TOP-LEVEL KEY",
+          title: "categories",
+          tip: "Tags used to group proxies in the Apigee catalog UI. <code>[]</code> means no categories assigned (flow style for an empty list).",
+        },
+        description: {
+          kind: "TOP-LEVEL KEY",
+          title: "description",
+          tip: "A short human-readable description of what this proxy does. Shown in the Apigee UI proxy listing.",
+        },
+        documentation: {
+          kind: "TOP-LEVEL KEY",
+          title: "documentation",
+          tip: 'Longer-form docs (often Markdown) explaining the proxy. The empty string <code>""</code> here means no documentation provided.',
+        },
+        parameters: {
+          kind: "TOP-LEVEL KEY",
+          title: "parameters",
+          tip: "Templating parameters that can be substituted at deployment time. Lets one YAML produce multiple environment-specific proxies.",
+        },
+        endpoints: {
+          kind: "TOP-LEVEL KEY",
+          title: "endpoints",
+          tip: "A <strong>list</strong> of proxy endpoints. Each endpoint defines a basePath, route rules, and flows. Most proxies have a single <code>default</code> endpoint.",
+        },
+        targets: {
+          kind: "TOP-LEVEL KEY",
+          title: "targets",
+          tip: "A list of backend services this proxy can route to. Each target has a URL plus optional connection settings (timeouts, TLS, load balancing).",
+        },
+        policies: {
+          kind: "TOP-LEVEL KEY",
+          title: "policies",
+          tip: "A list of reusable processing units. Apigee provides 30+ built-in policy types: JavaScript, OAuth, Quota, JSON Threat Protection, XML/JSON conversion, and more.",
+        },
+        resources: {
+          kind: "TOP-LEVEL KEY",
+          title: "resources",
+          tip: "Files bundled with the proxy — JS, JSON schemas, XSL stylesheets, Python. Referenced by policies via <code>jsc://</code>, <code>xsl://</code>, or <code>py://</code> URLs.",
+        },
+        tests: {
+          kind: "TOP-LEVEL KEY",
+          title: "tests",
+          tip: "A list of automated test cases for this proxy. The Apigee Templater toolchain can run these against a deployed proxy to verify behavior.",
+        },
+
+        // endpoint properties
+        ep_name: {
+          kind: "PROPERTY",
+          title: "endpoints[].name",
+          tip: "The endpoint identifier. <code>default</code> is conventional for single-endpoint proxies.",
+        },
+        basePath: {
+          kind: "PROPERTY",
+          title: "basePath",
+          tip: "The URL path prefix that triggers this endpoint. Requests to <code>https://your-org.apigee.net/v1/simple-proxy/*</code> hit this proxy.",
+        },
+        routes: {
+          kind: "PROPERTY",
+          title: "routes",
+          tip: "Conditional rules that pick which target serves a request. Routes are evaluated <strong>top-down</strong> — the first matching condition wins.",
+        },
+        route_name: {
+          kind: "PROPERTY",
+          title: "routes[].name",
+          tip: "A label for this route rule. Useful for debugging and trace tools.",
+        },
+        condition: {
+          kind: "PROPERTY",
+          title: "condition",
+          tip: "An Apigee expression (using flow variables like <code>proxy.pathsuffix</code>, <code>request.verb</code>, etc.) that decides whether this route matches.",
+        },
+        target: {
+          kind: "PROPERTY",
+          title: "target",
+          tip: "The name of the target backend (defined under <code>targets:</code>) to forward matching requests to.",
+        },
+        flows: {
+          kind: "PROPERTY",
+          title: "flows",
+          tip: "Pipelines of policies that run during the request/response lifecycle. Each flow has a <code>mode</code> (Request or Response) and a list of <code>steps</code>.",
+        },
+        flow_name: {
+          kind: "PROPERTY",
+          title: "flows[].name",
+          tip: "A label for this flow. Common conventions: <code>PreFlow</code>, <code>PostFlow</code>, or any descriptive name.",
+        },
+        mode: {
+          kind: "PROPERTY",
+          title: "mode",
+          tip: "<strong>Request</strong> = runs before the call to backend. <strong>Response</strong> = runs after the backend responds, before returning to the client.",
+        },
+        steps: {
+          kind: "PROPERTY",
+          title: "steps",
+          tip: "Ordered list of policies to execute when this flow runs. Each step references a policy by name.",
+        },
+        step_name: {
+          kind: "PROPERTY",
+          title: "steps[].name",
+          tip: "The name of a policy defined under <code>policies:</code>. Steps execute sequentially in the listed order.",
+        },
+        faultRules: {
+          kind: "PROPERTY",
+          title: "faultRules",
+          tip: "Custom error handlers that fire when a policy or backend call fails. Empty here means Apigee's default error handling is used.",
+        },
+
+        // target properties
+        tgt_name: {
+          kind: "PROPERTY",
+          title: "targets[].name",
+          tip: "The target backend identifier. Referenced by routes via the <code>target:</code> field.",
+        },
+        url: {
+          kind: "PROPERTY",
+          title: "url",
+          tip: "The upstream service URL. All requests routed to this target are forwarded here.",
+        },
+        tgt_flows: {
+          kind: "PROPERTY",
+          title: "targets[].flows",
+          tip: "Target-scoped flows that run only for this backend. Useful for backend-specific transforms or auth headers.",
+        },
+        httpTargetConnection: {
+          kind: "PROPERTY",
+          title: "httpTargetConnection",
+          tip: "Detailed HTTP connection config — supports advanced options: SSL info, load balancing servers, properties, and headers.",
+        },
+
+        // policy properties
+        policy_name: {
+          kind: "PROPERTY",
+          title: "policies[].name",
+          tip: "The policy identifier. Referenced by flow steps. Apigee convention: <code>{TYPE}-{Action}</code>, e.g. <code>JS-SetResponse</code>.",
+        },
+        policy_type: {
+          kind: "PROPERTY",
+          title: "policies[].type",
+          tip: "Which Apigee policy this is. <code>Javascript</code> runs custom JS in Apigee's Rhino engine. Other types: <code>OAuthV2</code>, <code>Quota</code>, <code>SpikeArrest</code>, <code>AssignMessage</code>, etc.",
+        },
+        content: {
+          kind: "PROPERTY",
+          title: "content",
+          tip: "The policy's configuration body. Its shape depends on the policy <code>type</code>. For Javascript policies, contains a <code>javascript</code> sub-object.",
+        },
+        javascript: {
+          kind: "PROPERTY",
+          title: "javascript",
+          tip: "Configuration block specific to the JavaScript policy type. Contains metadata, properties, and a resourceUrl pointing to the JS file.",
+        },
+        metadata: {
+          kind: "PROPERTY",
+          title: "metadata",
+          tip: "Common policy metadata that Apigee uses for execution control.",
+        },
+        continueOnError: {
+          kind: "PROPERTY",
+          title: "continueOnError",
+          tip: "If <code>true</code>, the flow continues even when this policy throws. <code>false</code> (default) means the proxy enters fault handling immediately on error.",
+        },
+        enabled: {
+          kind: "PROPERTY",
+          title: "enabled",
+          tip: "If <code>true</code>, the policy executes when its flow runs. Set to <code>false</code> to disable without deleting it.",
+        },
+        timeLimit: {
+          kind: "PROPERTY",
+          title: "timeLimit",
+          tip: "Maximum execution time in milliseconds. Long-running JS is killed to prevent runaway scripts from blocking the proxy. Note: quoted as a string here per the schema.",
+        },
+        properties: {
+          kind: "PROPERTY",
+          title: "properties",
+          tip: "Free-form key/value config available to the JavaScript at runtime via <code>properties.get('key')</code>. Empty <code>{}</code> here.",
+        },
+        resourceUrl: {
+          kind: "PROPERTY",
+          title: "resourceUrl",
+          tip: "Locates the JavaScript file. Scheme <code>jsc://</code> means the file is bundled inside this proxy as a <code>resources[]</code> entry of type <code>jsc</code>.",
+        },
+
+        // resource properties
+        res_name: {
+          kind: "PROPERTY",
+          title: "resources[].name",
+          tip: "The resource filename. Referenced by policies via the <code>resourceUrl</code> field, e.g. <code>jsc://set-response.js</code>.",
+        },
+        res_type: {
+          kind: "PROPERTY",
+          title: "resources[].type",
+          tip: "The resource kind. <code>jsc</code> = JavaScript-Compiled. Other types: <code>xsl</code>, <code>py</code>, <code>wsdl</code>, <code>xsd</code>, <code>jar</code>, <code>properties</code>.",
+        },
+        res_content: {
+          kind: "PROPERTY",
+          title: "resources[].content",
+          tip: "The actual resource body, embedded inline. Combined with the <code>|</code> literal block scalar to preserve formatting.",
+        },
+
+        // YAML structural / value tooltips
+        dash: {
+          kind: "YAML SYNTAX",
+          title: "- (sequence item)",
+          tip: "A dash followed by a space begins a new list element. Indented properties below it form a mapping that is the list item.",
+        },
+        pipe: {
+          kind: "YAML SYNTAX",
+          title: "|- (literal block scalar)",
+          tip: "The pipe <code>|</code> preserves newlines in a multi-line string. The <code>-</code> suffix means strip trailing newlines. Common for embedding code.",
+        },
+        empty_list: {
+          kind: "YAML VALUE",
+          title: "[] (empty list)",
+          tip: "The flow-style empty sequence. Equivalent to writing nothing under a list key, but explicit and unambiguous.",
+        },
+        empty_str: {
+          kind: "YAML VALUE",
+          title: '"" (empty string)',
+          tip: "An explicitly empty string value. Without the quotes, an unset YAML value would be parsed as <code>null</code>.",
+        },
+        empty_map: {
+          kind: "YAML VALUE",
+          title: "{} (empty mapping)",
+          tip: "The flow-style empty mapping. Equivalent to a key with no children.",
+        },
+        qstring: {
+          kind: "YAML VALUE",
+          title: "quoted string",
+          tip: 'Quotes are needed when the value contains YAML reserved characters (<code>:</code>, <code>#</code>) or could be misread as a number/boolean (e.g. <code>"true"</code>, <code>"200"</code>).',
+        },
+        pathsuffix: {
+          kind: "APIGEE EXPRESSION",
+          title: "proxy.pathsuffix",
+          tip: "A built-in Apigee flow variable: the part of the request path <strong>after</strong> the basePath. For <code>/v1/simple-proxy/get</code>, this evaluates to <code>/get</code>.",
+        },
+        jsc_url: {
+          kind: "APIGEE URL SCHEME",
+          title: "jsc://",
+          tip: "Apigee URL scheme for bundled JavaScript resources. The path after <code>jsc://</code> must match a <code>resources[].name</code> of type <code>jsc</code>.",
+        },
+      };
+
+      // Helper to make a hoverable token
+      const TIPK = (cls, val, key) => T(cls, val, { tip: TIP[key] });
+
+      // ============================================================
+      // The YAML, line-by-line, with token annotations.
+      // ============================================================
+      const LINES = [
+        // 1: name
+        [
+          T("text", ""),
+          T("y-key-top", "name", { tip: TIP.name, anchor: "l-name" }),
+          T("punc", ": "),
+          T("y-string", "SimpleProxy-v1"),
+        ],
+        // 2: displayName
+        [
+          T("y-key-top", "displayName", {
+            tip: TIP.displayName,
+            anchor: "l-displayName",
+          }),
+          T("punc", ": "),
+          T("y-string", "SimpleProxy-v1"),
+        ],
+        // 3: type
+        [
+          T("y-key-top", "type", { tip: TIP.type, anchor: "l-type" }),
+          T("punc", ": "),
+          T("y-string", "proxy"),
+        ],
+        // 4: categories: []
+        [
+          T("y-key-top", "categories", {
+            tip: TIP.categories,
+            anchor: "l-categories",
+          }),
+          T("punc", ": "),
+          T("y-punc", "[]", { tip: TIP.empty_list }),
+        ],
+        // 5: description
+        [
+          T("y-key-top", "description", {
+            tip: TIP.description,
+            anchor: "l-description",
+          }),
+          T("punc", ": "),
+          T("y-string", "SimpleProxy-v1"),
+        ],
+        // 6: documentation: ""
+        [
+          T("y-key-top", "documentation", {
+            tip: TIP.documentation,
+            anchor: "l-documentation",
+          }),
+          T("punc", ": "),
+          T("y-string", '""', { tip: TIP.empty_str }),
+        ],
+        // 7: parameters: []
+        [
+          T("y-key-top", "parameters", {
+            tip: TIP.parameters,
+            anchor: "l-parameters",
+          }),
+          T("punc", ": "),
+          T("y-punc", "[]", { tip: TIP.empty_list }),
+        ],
+
+        // 8: endpoints:
+        [
+          T("y-key-top", "endpoints", {
+            tip: TIP.endpoints,
+            anchor: "l-endpoints",
+          }),
+          T("punc", ":"),
+        ],
+        // 9:   - name: default
+        [
+          T("text", "  "),
+          T("y-dash", "- ", { tip: TIP.dash }),
+          T("y-key", "name", { tip: TIP.ep_name }),
+          T("punc", ": "),
+          T("y-string", "default"),
+        ],
+        // 10:    basePath: /v1/simple-proxy
+        [
+          T("text", "    "),
+          T("y-key", "basePath", { tip: TIP.basePath }),
+          T("punc", ": "),
+          T("y-string", "/v1/simple-proxy"),
+        ],
+        // 11:    routes:
+        [
+          T("text", "    "),
+          T("y-key", "routes", { tip: TIP.routes, anchor: "l-routes" }),
+          T("punc", ":"),
+        ],
+        // 12:      - name: get
+        [
+          T("text", "      "),
+          T("y-dash", "- ", { tip: TIP.dash }),
+          T("y-key", "name", { tip: TIP.route_name }),
+          T("punc", ": "),
+          T("y-string", "get"),
+        ],
+        // 13:        condition: proxy.pathsuffix = "/get"
+        [
+          T("text", "        "),
+          T("y-key", "condition", { tip: TIP.condition }),
+          T("punc", ": "),
+          T("y-string", "proxy.pathsuffix", { tip: TIP.pathsuffix }),
+          T("y-string", " = "),
+          T("y-string", '"/get"', { tip: TIP.qstring }),
+        ],
+        // 14:        target: httpbin
+        [
+          T("text", "        "),
+          T("y-key", "target", { tip: TIP.target }),
+          T("punc", ": "),
+          T("y-string", "httpbin"),
+        ],
+        // 15:      - name: default
+        [
+          T("text", "      "),
+          T("y-dash", "- ", { tip: TIP.dash }),
+          T("y-key", "name", { tip: TIP.route_name }),
+          T("punc", ": "),
+          T("y-string", "default"),
+        ],
+        // 16:        target: default
+        [
+          T("text", "        "),
+          T("y-key", "target", { tip: TIP.target }),
+          T("punc", ": "),
+          T("y-string", "default"),
+        ],
+        // 17:    flows:
+        [
+          T("text", "    "),
+          T("y-key", "flows", { tip: TIP.flows, anchor: "l-flows" }),
+          T("punc", ":"),
+        ],
+        // 18:      - name: PostFlow
+        [
+          T("text", "      "),
+          T("y-dash", "- ", { tip: TIP.dash }),
+          T("y-key", "name", { tip: TIP.flow_name }),
+          T("punc", ": "),
+          T("y-string", "PostFlow"),
+        ],
+        // 19:        mode: Response
+        [
+          T("text", "        "),
+          T("y-key", "mode", { tip: TIP.mode }),
+          T("punc", ": "),
+          T("y-string", "Response"),
+        ],
+        // 20:        steps:
+        [
+          T("text", "        "),
+          T("y-key", "steps", { tip: TIP.steps }),
+          T("punc", ":"),
+        ],
+        // 21:          - name: JS-SetResponse
+        [
+          T("text", "          "),
+          T("y-dash", "- ", { tip: TIP.dash }),
+          T("y-key", "name", { tip: TIP.step_name }),
+          T("punc", ": "),
+          T("y-string", "JS-SetResponse"),
+        ],
+        // 22:    faultRules: []
+        [
+          T("text", "    "),
+          T("y-key", "faultRules", {
+            tip: TIP.faultRules,
+            anchor: "l-faultRules",
+          }),
+          T("punc", ": "),
+          T("y-punc", "[]", { tip: TIP.empty_list }),
+        ],
+
+        // 23: targets:
+        [
+          T("y-key-top", "targets", { tip: TIP.targets, anchor: "l-targets" }),
+          T("punc", ":"),
+        ],
+        // 24:   - name: default
+        [
+          T("text", "  "),
+          T("y-dash", "- ", { tip: TIP.dash }),
+          T("y-key", "name", { tip: TIP.tgt_name }),
+          T("punc", ": "),
+          T("y-string", "default"),
+        ],
+        // 25:    url: https://mocktarget.apigee.net
+        [
+          T("text", "    "),
+          T("y-key", "url", { tip: TIP.url }),
+          T("punc", ": "),
+          T("y-string", "https://mocktarget.apigee.net"),
+        ],
+        // 26:    flows: []
+        [
+          T("text", "    "),
+          T("y-key", "flows", { tip: TIP.tgt_flows }),
+          T("punc", ": "),
+          T("y-punc", "[]", { tip: TIP.empty_list }),
+        ],
+        // 27:    faultRules: []
+        [
+          T("text", "    "),
+          T("y-key", "faultRules", { tip: TIP.faultRules }),
+          T("punc", ": "),
+          T("y-punc", "[]", { tip: TIP.empty_list }),
+        ],
+        // 28:    httpTargetConnection:
+        [
+          T("text", "    "),
+          T("y-key", "httpTargetConnection", { tip: TIP.httpTargetConnection }),
+          T("punc", ":"),
+        ],
+        // 29:      url: https://mocktarget.apigee.net
+        [
+          T("text", "      "),
+          T("y-key", "url", { tip: TIP.url }),
+          T("punc", ": "),
+          T("y-string", "https://mocktarget.apigee.net"),
+        ],
+        // 30:   - name: httpbin
+        [
+          T("text", "  "),
+          T("y-dash", "- ", { tip: TIP.dash }),
+          T("y-key", "name", { tip: TIP.tgt_name }),
+          T("punc", ": "),
+          T("y-string", "httpbin"),
+        ],
+        // 31:    url: https://httpbin.org
+        [
+          T("text", "    "),
+          T("y-key", "url", { tip: TIP.url }),
+          T("punc", ": "),
+          T("y-string", "https://httpbin.org"),
+        ],
+        // 32:    flows: []
+        [
+          T("text", "    "),
+          T("y-key", "flows", { tip: TIP.tgt_flows }),
+          T("punc", ": "),
+          T("y-punc", "[]", { tip: TIP.empty_list }),
+        ],
+        // 33:    faultRules: []
+        [
+          T("text", "    "),
+          T("y-key", "faultRules", { tip: TIP.faultRules }),
+          T("punc", ": "),
+          T("y-punc", "[]", { tip: TIP.empty_list }),
+        ],
+        // 34:    httpTargetConnection:
+        [
+          T("text", "    "),
+          T("y-key", "httpTargetConnection", { tip: TIP.httpTargetConnection }),
+          T("punc", ":"),
+        ],
+        // 35:      url: https://httpbin.org
+        [
+          T("text", "      "),
+          T("y-key", "url", { tip: TIP.url }),
+          T("punc", ": "),
+          T("y-string", "https://httpbin.org"),
+        ],
+
+        // 36: policies:
+        [
+          T("y-key-top", "policies", {
+            tip: TIP.policies,
+            anchor: "l-policies",
+          }),
+          T("punc", ":"),
+        ],
+        // 37:   - name: JS-SetResponse
+        [
+          T("text", "  "),
+          T("y-dash", "- ", { tip: TIP.dash }),
+          T("y-key", "name", { tip: TIP.policy_name }),
+          T("punc", ": "),
+          T("y-string", "JS-SetResponse"),
+        ],
+        // 38:    type: Javascript
+        [
+          T("text", "    "),
+          T("y-key", "type", { tip: TIP.policy_type }),
+          T("punc", ": "),
+          T("y-string", "Javascript"),
+        ],
+        // 39:    content:
+        [
+          T("text", "    "),
+          T("y-key", "content", { tip: TIP.content }),
+          T("punc", ":"),
+        ],
+        // 40:      javascript:
+        [
+          T("text", "      "),
+          T("y-key", "javascript", { tip: TIP.javascript }),
+          T("punc", ":"),
+        ],
+        // 41:        metadata:
+        [
+          T("text", "        "),
+          T("y-key", "metadata", { tip: TIP.metadata }),
+          T("punc", ":"),
+        ],
+        // 42:          continueOnError: "false"
+        [
+          T("text", "          "),
+          T("y-key", "continueOnError", { tip: TIP.continueOnError }),
+          T("punc", ": "),
+          T("y-string", '"false"', { tip: TIP.qstring }),
+        ],
+        // 43:          enabled: "true"
+        [
+          T("text", "          "),
+          T("y-key", "enabled", { tip: TIP.enabled }),
+          T("punc", ": "),
+          T("y-string", '"true"', { tip: TIP.qstring }),
+        ],
+        // 44:          timeLimit: "200"
+        [
+          T("text", "          "),
+          T("y-key", "timeLimit", { tip: TIP.timeLimit }),
+          T("punc", ": "),
+          T("y-string", '"200"', { tip: TIP.qstring }),
+        ],
+        // 45:          name: JS-SetResponse
+        [
+          T("text", "          "),
+          T("y-key", "name", { tip: TIP.policy_name }),
+          T("punc", ": "),
+          T("y-string", "JS-SetResponse"),
+        ],
+        // 46:        displayName: JS-SetResponse
+        [
+          T("text", "        "),
+          T("y-key", "displayName", { tip: TIP.displayName }),
+          T("punc", ": "),
+          T("y-string", "JS-SetResponse"),
+        ],
+        // 47:        properties: {}
+        [
+          T("text", "        "),
+          T("y-key", "properties", { tip: TIP.properties }),
+          T("punc", ": "),
+          T("y-punc", "{}", { tip: TIP.empty_map }),
+        ],
+        // 52:    content: |-
+        [
+          T("text", "    "),
+          T("y-key", "source", { tip: TIP.res_content }),
+          T("punc", ": "),
+          T("y-pipe", "|-", { tip: TIP.pipe }),
+        ],
+        // 53:      print("hello world!!");
+        [T("text", "      "), T("y-string", 'print("hello world!!");')],
+        // 54: (empty)
+        [T("text", "")],
+        // 55:      context.proxyResponse.content += "hello world!";
+        [
+          T("text", "      "),
+          T("y-string", 'context.proxyResponse.content += "hello world!";'),
+        ],
+
+        // 49: resources:
+        [
+          T("y-key-top", "resources", {
+            tip: TIP.resources,
+            anchor: "l-resources",
+          }),
+          T("punc", ": "),
+          T("y-punc", "[]", { tip: TIP.empty_list }),
+        ],
+      ];
+
+      // ============================================================
+      // Render
+      // ============================================================
+      const code = document.getElementById("yaml-code");
+      const gutter = document.getElementById("gutter");
+
+      LINES.forEach((tokens, i) => {
+        const lineNum = i + 1;
+        const lineEl = document.createElement("span");
+        lineEl.className = "line";
+        lineEl.id = "line-" + lineNum;
+
+        tokens.forEach((tok) => {
+          if (tok.t === "text" || tok.t === "punc") {
+            // Plain whitespace / structural punctuation
+            lineEl.appendChild(document.createTextNode(tok.v));
+          } else {
+            const span = document.createElement("span");
+            span.className = tok.t;
+            span.textContent = tok.v;
+            if (tok.tip) {
+              span.classList.add("tip-target");
+              span.dataset.tipKind = tok.tip.kind || "";
+              span.dataset.tipTitle = tok.tip.title || "";
+              span.dataset.tip = tok.tip.tip || "";
+            }
+            if (tok.anchor) {
+              span.id = tok.anchor;
+            }
+            lineEl.appendChild(span);
+          }
+        });
+
+        // Empty lines need a non-breaking space to retain height
+        if (
+          tokens.length === 0 ||
+          (tokens.length === 1 && tokens[0].v === "")
+        ) {
+          lineEl.innerHTML = "&nbsp;";
+        }
+
+        code.appendChild(lineEl);
+
+        const num = document.createElement("span");
+        num.textContent = lineNum;
+        gutter.appendChild(num);
+      });
+
+      // ============================================================
+      // Tooltip behavior
+      // ============================================================
+      (function () {
+        const tip = document.getElementById("tooltip");
+        const tipKind = document.getElementById("tooltip-kind");
+        const tipTitle = document.getElementById("tooltip-title");
+        const tipBody = document.getElementById("tooltip-body");
+        let hideTimer = null;
+
+        function show(target) {
+          const kind = target.dataset.tipKind || "";
+          const title = target.dataset.tipTitle || "";
+          const body = target.dataset.tip || "";
+          tipKind.textContent = kind;
+          tipTitle.textContent = title;
+          tipBody.innerHTML = body;
+          tip.style.visibility = "hidden";
+          tip.classList.add("visible");
+          tip.setAttribute("aria-hidden", "false");
+
+          requestAnimationFrame(() => {
+            const rect = target.getBoundingClientRect();
+            const tw = tip.offsetWidth;
+            const th = tip.offsetHeight;
+            const margin = 10;
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+
+            let left = rect.left + rect.width / 2 - tw / 2;
+            left = Math.max(12, Math.min(left, vw - tw - 12));
+
+            let top = rect.bottom + margin;
+            if (top + th > vh - 12) {
+              top = rect.top - th - margin;
+            }
+
+            tip.style.left = left + "px";
+            tip.style.top = top + "px";
+            tip.style.visibility = "visible";
+          });
+        }
+
+        function hide() {
+          tip.classList.remove("visible");
+          tip.setAttribute("aria-hidden", "true");
+        }
+
+        function bind(el) {
+          el.addEventListener("mouseenter", () => {
+            clearTimeout(hideTimer);
+            show(el);
+          });
+          el.addEventListener("mouseleave", () => {
+            hideTimer = setTimeout(hide, 50);
+          });
+        }
+
+        document.querySelectorAll("[data-tip]").forEach(bind);
+        window.addEventListener("scroll", hide, { passive: true });
+      })();
+    </script>
+  </body>
+</html>

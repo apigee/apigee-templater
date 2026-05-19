@@ -1,9 +1,6 @@
 name: ai-base
 displayName: AI Base Functions
-type: proxy
-categories:
-  - llm
-  - ai
+type: feature
 description: Targets the Gemini native API endpoint for proxying Gemini requests.
 documentation: |-
   **Prerequisites**
@@ -21,46 +18,51 @@ documentation: |-
   ```
 
   Important note - in order for streaming LLM access to store streaming LLM token analytics, you must also deploy the **LLM-Analytics** proxy in your environment.
+categories:
+  - llm
+  - ai
 parameters: []
-endpoints:
-  - name: default
-    basePath: /ai-base
-    routes:
-      - name: default
-        target: default
-    flows:
-      - name: PreFlow
-        mode: Request
-        position: top
-        steps:
-          - name: KVM-LoadConfig
-          - name: AM-SetVariables
-          - name: JS-CheckModel
-    faultRules: []
-targets:
-  - name: default
+defaultEndpoint:
+  name: default
+  basePath: /ai-base
+  routes:
+    - name: default
+      target: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      position: top
+      steps:
+        - name: KVM-LoadConfig
+        - name: AM-SetVariables
+        - name: JS-CheckModel
+  faultRules: []
+defaultTarget:
+  name: default
+  url: https://aiplatform.googleapis.com
+  flows:
+    - name: PostFlow
+      mode: Response
+      position: top
+      steps:
+        - name: JS-Analytics
+          condition: response.content != ""
+    - name: EventFlow
+      mode: Response
+      position: top
+      steps:
+        - name: JS-Analytics
+          condition: ai.responseTokenCount == null
+  faultRules: []
+  httpTargetConnection:
+    properties:
+      property:
+        metadata:
+          name: io.timeout.millis
+        value: "18000000"
     url: https://aiplatform.googleapis.com
-    flows:
-      - name: PostFlow
-        mode: Response
-        position: top
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-      - name: EventFlow
-        mode: Response
-        position: top
-        steps:
-          - name: JS-Analytics
-            condition: ai.responseTokenCount == null
-    faultRules: []
-    httpTargetConnection:
-      properties:
-        property:
-          metadata:
-            name: io.timeout.millis
-          value: "18000000"
-      url: https://aiplatform.googleapis.com
+endpoints: []
+targets: []
 policies:
   - name: AM-SetVariables
     type: AssignMessage
@@ -337,11 +339,7 @@ resources:
           // oapi format
           for (i = contentData["messages"].length - 1; i >= 0; i--) {
             var message = contentData["messages"][i];
-            if (
-              message &&
-              message["role"] &&
-              message["role"].toLowerCase() == "user"
-            ) {
+            if (message && message["role"] && message["role"].toLowerCase() == "user") {
               if (!promptInfo.userPrompt && message["content"]) {
                 promptInfo.userPrompt = message["content"];
               }
@@ -354,6 +352,42 @@ resources:
         }
 
         return promptInfo;
+      }
+
+      function setPrompt(contentData, userPrompt) {
+        if (contentData && contentData["contents"]) {
+          // gemini format
+          for (i = contentData["contents"].length - 1; i >= 0; i--) {
+            var content = contentData["contents"][i];
+            if (
+              content &&
+              content["role"] &&
+              content["role"].toLowerCase() == "user" &&
+              content["parts"]
+            ) {
+              for (p = content["parts"].length - 1; p >= 0; p--) {
+                var part = content["parts"][p];
+                if (content["parts"][p]["text"]) {
+                  content["parts"][p]["text"] = userPrompt;
+                  break;
+                }
+              }
+            }
+          }
+        } else if (contentData && contentData["messages"]) {
+          // oapi format
+          for (i = contentData["messages"].length - 1; i >= 0; i--) {
+            var message = contentData["messages"][i];
+            if (message && message["role"] && message["role"].toLowerCase() == "user") {
+              if (message["content"]) {
+                message["content"] = userPrompt;
+                break;
+              }
+            }
+          }
+        }
+
+        return contentData;
       }
 
       function getUsageData(contentString) {
@@ -407,37 +441,27 @@ resources:
               contentData["message"]["usage"] &&
               contentData["message"]["usage"]["input_tokens"]
             ) {
-              usageData.requestTokenCount =
-                contentData["message"]["usage"]["input_tokens"];
+              usageData.requestTokenCount = contentData["message"]["usage"]["input_tokens"];
             }
             if (contentData["usage"] && contentData["usage"]["input_tokens"]) {
               usageData.requestTokenCount = contentData["usage"]["input_tokens"];
             }
             // gemini API
-            if (
-              contentData["usageMetadata"] &&
-              contentData["usageMetadata"]["promptTokenCount"]
-            ) {
-              usageData.requestTokenCount =
-                contentData["usageMetadata"]["promptTokenCount"];
+            if (contentData["usageMetadata"] && contentData["usageMetadata"]["promptTokenCount"]) {
+              usageData.requestTokenCount = contentData["usageMetadata"]["promptTokenCount"];
             }
 
             // responseTokenCount
             // openmodels
             if (contentData["usage"] && contentData["usage"]["completion_tokens"])
-              usageData.responseTokenCount =
-                contentData["usage"]["completion_tokens"];
+              usageData.responseTokenCount = contentData["usage"]["completion_tokens"];
             // claude
             if (contentData["usage"] && contentData["usage"]["output_tokens"]) {
               usageData.responseTokenCount = contentData["usage"]["output_tokens"];
             }
             // gemini
-            if (
-              contentData["usageMetadata"] &&
-              contentData["usageMetadata"]["candidatesTokenCount"]
-            ) {
-              usageData.responseTokenCount =
-                contentData["usageMetadata"]["candidatesTokenCount"];
+            if (contentData["usageMetadata"] && contentData["usageMetadata"]["candidatesTokenCount"]) {
+              usageData.responseTokenCount = contentData["usageMetadata"]["candidatesTokenCount"];
             }
           } catch (e) {
             print("Exception in getUsageData: " + JSON.stringify(e));
@@ -449,16 +473,13 @@ resources:
 
       function testAllowedModels(requestInfo) {
         var result = true;
-        if (
-          requestInfo.allowedModelPatterns &&
-          requestInfo.allowedModelPatterns != "ALL"
-        ) {
+        if (requestInfo.allowedModelPatterns && requestInfo.allowedModelPatterns != "ALL") {
           result = false;
           var patterns = requestInfo.allowedModelPatterns.split(";");
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
-            if (requestInfo.type == "agentplatform") {
+            if (requestInfo.type == "vertex") {
               if (requestInfo.url.includes(pattern)) {
                 result = true;
                 break;
@@ -467,10 +488,7 @@ resources:
               //   result = true;
               //   break;
               // }
-            } else if (
-              requestInfo.type == "oai" &&
-              requestInfo.requestContent["model"]
-            ) {
+            } else if (requestInfo.type == "oai" && requestInfo.requestContent["model"]) {
               if (requestInfo.requestContent["model"].includes(pattern)) {
                 result = true;
                 break;
@@ -484,23 +502,17 @@ resources:
 
       function testDeniedModels(requestInfo) {
         var result = true;
-        if (
-          requestInfo.deniedModelPatterns &&
-          requestInfo.deniedModelPatterns != "NONE"
-        ) {
+        if (requestInfo.deniedModelPatterns && requestInfo.deniedModelPatterns != "NONE") {
           var patterns = requestInfo.deniedModelPatterns.split(";");
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
-            if (requestInfo.type == "agentplatform") {
+            if (requestInfo.type == "vertex") {
               if (requestInfo.url.includes(pattern)) {
                 result = false;
                 break;
               }
-            } else if (
-              requestInfo.type == "oai" &&
-              requestInfo.requestContent["model"]
-            ) {
+            } else if (requestInfo.type == "oai" && requestInfo.requestContent["model"]) {
               if (requestInfo.requestContent["model"].includes(pattern)) {
                 result = false;
                 break;
@@ -519,6 +531,7 @@ resources:
       if (typeof exports !== "undefined") {
         exports.getModelName = getModelName;
         exports.getPrompts = getPrompts;
+        exports.setPrompt = setPrompt;
         exports.getUsageData = getUsageData;
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;
