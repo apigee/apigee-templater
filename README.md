@@ -186,7 +186,7 @@ These Apigee variable names are commonly used in features, making extension and 
 
 * **ai.model** - The name of the AI model being used or requested, for example **gemini-flash-latest**.
 * **ai.requestType** - The type of AI request being made, either **streaming** or **non-streaming**.
-* **ai.apiType** - The API type of the AI request, currently eitehr **agentplatform** for Model Garden requests, or **oai** for the standard messaging format.
+* **ai.apiType** - The API type of the AI request, currently eitehr **googlecloud** for Model Garden requests, or **oai** for the standard messaging format.
 * **ai.requestPrompt** - The user's request prompt to the AI model.
 * **ai.requestTokenCount** - The request token count to the AI model.
 * **ai.responseTokenCount** - The response token count data from the AI model.

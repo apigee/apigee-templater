@@ -204,10 +204,11 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          var allowed_model_patterns = context.getVariable("propertyset.vertex.AllowedModelPatterns");
-          var denied_model_patterns = context.getVariable("propertyset.vertex.DeniedModelPatterns");
-          var override_model = context.getVariable("propertyset.vertex.OverrideModel");
-          var default_model = context.getVariable("propertyset.vertex.DefaultModel");
+          
+          var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
+          var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
+          var override_model = context.getVariable("propertyset.ai.OverrideModel");
+          var default_model = context.getVariable("propertyset.ai.DefaultModel");
           if (!allowed_model_patterns) allowed_model_patterns = context.getVariable("ai.allowedModelPatterns");
           if (!denied_model_patterns) denied_model_patterns = context.getVariable("ai.deniedModelPatterns");
           if (!override_model) override_model = context.getVariable("ai.overrideModel");
@@ -215,7 +216,7 @@ policies:
 
           var url = context.getVariable("proxy.url");
           var requestContent = request.content.asJSON;
-          var callType = "vertex";
+          var callType = "googlecloud";
           var callStreaming = "non-streaming";
           if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
           if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
@@ -390,11 +391,7 @@ resources:
           // oapi format
           for (i = contentData["messages"].length - 1; i >= 0; i--) {
             var message = contentData["messages"][i];
-            if (
-              message &&
-              message["role"] &&
-              message["role"].toLowerCase() == "user"
-            ) {
+            if (message && message["role"] && message["role"].toLowerCase() == "user") {
               if (!promptInfo.userPrompt && message["content"]) {
                 promptInfo.userPrompt = message["content"];
               }
@@ -407,6 +404,130 @@ resources:
         }
 
         return promptInfo;
+      }
+
+      function setPrompt(contentData, userPrompt) {
+        if (contentData && contentData["contents"]) {
+          // gemini format
+          for (i = contentData["contents"].length - 1; i >= 0; i--) {
+            var content = contentData["contents"][i];
+            if (
+              content &&
+              content["role"] &&
+              content["role"].toLowerCase() == "user" &&
+              content["parts"]
+            ) {
+              for (p = content["parts"].length - 1; p >= 0; p--) {
+                var part = content["parts"][p];
+                if (content["parts"][p]["text"]) {
+                  content["parts"][p]["text"] = userPrompt;
+                  break;
+                }
+              }
+            }
+          }
+        } else if (contentData && contentData["messages"]) {
+          // oapi format
+          for (i = contentData["messages"].length - 1; i >= 0; i--) {
+            var message = contentData["messages"][i];
+            if (message && message["role"] && message["role"].toLowerCase() == "user") {
+              if (message["content"]) {
+                message["content"] = userPrompt;
+                break;
+              }
+            }
+          }
+        }
+
+        return contentData;
+      }
+
+      function getResponse(contentData) {
+        var responseText = "";
+
+        if (contentData && contentData["candidates"] && contentData["candidates"].length > 0) {
+          // gemini format
+          for (i = contentData["candidates"].length - 1; i >= 0; i--) {
+            var candidate = contentData["candidates"][i];
+            if (
+              candidate &&
+              candidate["content"] &&
+              candidate["content"]["parts"] &&
+              candidate["content"]["parts"].length > 0
+            ) {
+              for (p = candidate["content"]["parts"].length - 1; p >= 0; p--) {
+                var part = candidate["content"]["parts"][p];
+                if (part && part["text"]) {
+                  responseText = part["text"];
+                  break;
+                }
+              }
+            }
+          }
+        } else if (contentData && contentData["choices"] && contentData["choices"].length > 0) {
+          // openmodel format
+          for (i = contentData["choices"].length - 1; i >= 0; i--) {
+            var choice = contentData["choices"][i];
+            if (choice && choice["message"] && choice["message"]["content"]) {
+              responseText = choice["message"]["content"];
+              break;
+            }
+          }
+        } else if (contentData && contentData["content"] && contentData["content"].length > 0) {
+          // claude format
+          for (i = contentData["content"].length - 1; i >= 0; i--) {
+            var content = contentData["content"][i];
+            if (content && content["type"] == "text") {
+              responseText = content["text"];
+              break;
+            }
+          }
+        }
+
+        return responseText;
+      }
+
+      function setResponse(contentData, content) {
+        if (contentData && contentData["candidates"] && contentData["candidates"].length > 0) {
+          // gemini format
+          for (i = contentData["candidates"].length - 1; i >= 0; i--) {
+            var candidate = contentData["candidates"][i];
+            if (
+              candidate &&
+              candidate["content"] &&
+              candidate["content"]["parts"] &&
+              candidate["content"]["parts"].length > 0
+            ) {
+              for (p = candidate["content"]["parts"].length - 1; p >= 0; p--) {
+                var part = candidate["content"]["parts"][p];
+                if (part && part["text"]) {
+                  part["text"] = content;
+                  break;
+                }
+              }
+            }
+          }
+        } else if (contentData && contentData["choices"] && contentData["choices"].length > 0) {
+          // openmodel format
+          for (i = contentData["choices"].length - 1; i >= 0; i--) {
+            var choice = contentData["choices"][i];
+            if (choice && choice["message"] && choice["message"]["content"]) {
+              choice["message"]["content"] = content;
+              break;
+            }
+          }
+        } else if (contentData && contentData["content"] && contentData["content"].length > 0) {
+          // claude format
+          for (i = contentData["content"].length - 1; i >= 0; i--) {
+            var claudeContent = contentData["content"][i];
+            if (claudeContent && claudeContent["type"] == "text") {
+              claudeContent["text"] = content;
+              break;
+            }
+          }
+        }
+
+        return contentData;
       }
 
       function getUsageData(contentString) {
@@ -460,37 +581,27 @@ resources:
               contentData["message"]["usage"] &&
               contentData["message"]["usage"]["input_tokens"]
             ) {
-              usageData.requestTokenCount =
-                contentData["message"]["usage"]["input_tokens"];
+              usageData.requestTokenCount = contentData["message"]["usage"]["input_tokens"];
             }
             if (contentData["usage"] && contentData["usage"]["input_tokens"]) {
               usageData.requestTokenCount = contentData["usage"]["input_tokens"];
             }
             // gemini API
-            if (
-              contentData["usageMetadata"] &&
-              contentData["usageMetadata"]["promptTokenCount"]
-            ) {
-              usageData.requestTokenCount =
-                contentData["usageMetadata"]["promptTokenCount"];
+            if (contentData["usageMetadata"] && contentData["usageMetadata"]["promptTokenCount"]) {
+              usageData.requestTokenCount = contentData["usageMetadata"]["promptTokenCount"];
             }
 
             // responseTokenCount
             // openmodels
             if (contentData["usage"] && contentData["usage"]["completion_tokens"])
-              usageData.responseTokenCount =
-                contentData["usage"]["completion_tokens"];
+              usageData.responseTokenCount = contentData["usage"]["completion_tokens"];
             // claude
             if (contentData["usage"] && contentData["usage"]["output_tokens"]) {
               usageData.responseTokenCount = contentData["usage"]["output_tokens"];
             }
             // gemini
-            if (
-              contentData["usageMetadata"] &&
-              contentData["usageMetadata"]["candidatesTokenCount"]
-            ) {
-              usageData.responseTokenCount =
-                contentData["usageMetadata"]["candidatesTokenCount"];
+            if (contentData["usageMetadata"] && contentData["usageMetadata"]["candidatesTokenCount"]) {
+              usageData.responseTokenCount = contentData["usageMetadata"]["candidatesTokenCount"];
             }
           } catch (e) {
             print("Exception in getUsageData: " + JSON.stringify(e));
@@ -502,16 +613,13 @@ resources:
 
       function testAllowedModels(requestInfo) {
         var result = true;
-        if (
-          requestInfo.allowedModelPatterns &&
-          requestInfo.allowedModelPatterns != "ALL"
-        ) {
+        if (requestInfo.allowedModelPatterns && requestInfo.allowedModelPatterns != "ALL") {
           result = false;
           var patterns = requestInfo.allowedModelPatterns.split(";");
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
-            if (requestInfo.type == "vertex") {
+            if (requestInfo.type == "googlecloud") {
               if (requestInfo.url.includes(pattern)) {
                 result = true;
                 break;
@@ -520,10 +628,7 @@ resources:
               //   result = true;
               //   break;
               // }
-            } else if (
-              requestInfo.type == "oai" &&
-              requestInfo.requestContent["model"]
-            ) {
+            } else if (requestInfo.type == "oai" && requestInfo.requestContent["model"]) {
               if (requestInfo.requestContent["model"].includes(pattern)) {
                 result = true;
                 break;
@@ -537,23 +642,17 @@ resources:
 
       function testDeniedModels(requestInfo) {
         var result = true;
-        if (
-          requestInfo.deniedModelPatterns &&
-          requestInfo.deniedModelPatterns != "NONE"
-        ) {
+        if (requestInfo.deniedModelPatterns && requestInfo.deniedModelPatterns != "NONE") {
           var patterns = requestInfo.deniedModelPatterns.split(";");
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
-            if (requestInfo.type == "vertex") {
+            if (requestInfo.type == "googlecloud") {
               if (requestInfo.url.includes(pattern)) {
                 result = false;
                 break;
               }
-            } else if (
-              requestInfo.type == "oai" &&
-              requestInfo.requestContent["model"]
-            ) {
+            } else if (requestInfo.type == "oai" && requestInfo.requestContent["model"]) {
               if (requestInfo.requestContent["model"].includes(pattern)) {
                 result = false;
                 break;
@@ -572,6 +671,9 @@ resources:
       if (typeof exports !== "undefined") {
         exports.getModelName = getModelName;
         exports.getPrompts = getPrompts;
+        exports.setPrompt = setPrompt;
+        exports.getResponse = getResponse;
+        exports.setResponse = setResponse;
         exports.getUsageData = getUsageData;
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;
@@ -619,4 +721,12 @@ resources:
         print("Sending to: " + 'https://' + host + "/ai-analytics");
         httpClient.send(myRequest);
       }
+  - name: ai.properties
+    type: properties
+    content: |
+      AllowedModelPatterns=
+      DeniedModelPatterns=
+      OverrideModel=
+      DefaultModel=
+      FallbackModel=
 tests: []

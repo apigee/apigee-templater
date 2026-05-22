@@ -42,7 +42,17 @@ defaultEndpoint:
 defaultTarget:
   name: default
   url: https://aiplatform.googleapis.com
-  flows: []
+  flows:
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: JS-Analytics
+          condition: response.content != ""
+    - name: EventFlow
+      mode: Response
+      steps:
+        - name: JS-Analytics
+          condition: ai.responseTokenCount == null
   faultRules: []
   httpTargetConnection:
     properties: {}
@@ -159,10 +169,11 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          var allowed_model_patterns = context.getVariable("propertyset.agentplatform.AllowedModelPatterns");
-          var denied_model_patterns = context.getVariable("propertyset.agentplatform.DeniedModelPatterns");
-          var override_model = context.getVariable("propertyset.agentplatform.OverrideModel");
-          var default_model = context.getVariable("propertyset.agentplatform.DefaultModel");
+          
+          var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
+          var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
+          var override_model = context.getVariable("propertyset.ai.OverrideModel");
+          var default_model = context.getVariable("propertyset.ai.DefaultModel");
           if (!allowed_model_patterns) allowed_model_patterns = context.getVariable("ai.allowedModelPatterns");
           if (!denied_model_patterns) denied_model_patterns = context.getVariable("ai.deniedModelPatterns");
           if (!override_model) override_model = context.getVariable("ai.overrideModel");
@@ -170,7 +181,7 @@ policies:
 
           var url = context.getVariable("proxy.url");
           var requestContent = request.content.asJSON;
-          var callType = "agentplatform";
+          var callType = "googlecloud";
           var callStreaming = "non-streaming";
           if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
           if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
@@ -253,9 +264,7 @@ policies:
           name: JS-SetMaskedRequest
         displayName: JS-SetMaskedRequest
         properties: {}
-        source: "\
-
-          \    var maskedResponseObj =
+        source: "     var maskedResponseObj =
           JSON.parse(context.getVariable(\"sensitiveDataProtectionResponse.cont\
           ent\"));
 
@@ -300,9 +309,7 @@ policies:
 
           \    var responseContent = response.content.asJSON;
 
-          \   \
-
-          \    if (maskedResponseObj[\"item\"]) {
+          \        if (maskedResponseObj[\"item\"]) {
 
           \      if (maskedResponseObj[\"item\"][\"value\"]) {
 
@@ -777,7 +784,7 @@ resources:
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
-            if (requestInfo.type == "vertex") {
+            if (requestInfo.type == "googlecloud") {
               if (requestInfo.url.includes(pattern)) {
                 result = true;
                 break;
@@ -805,7 +812,7 @@ resources:
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
-            if (requestInfo.type == "vertex") {
+            if (requestInfo.type == "googlecloud") {
               if (requestInfo.url.includes(pattern)) {
                 result = false;
                 break;
@@ -845,4 +852,12 @@ resources:
       if (maskedResponseObj["item"] && maskedResponseObj["item"]["value"]) {
         context.setVariable("llm.promptInput", maskedResponseObj["item"]["value"]);
       }
+  - name: ai.properties
+    type: properties
+    content: |
+      AllowedModelPatterns=
+      DeniedModelPatterns=
+      OverrideModel=
+      DefaultModel=
+      FallbackModel=
 tests: []

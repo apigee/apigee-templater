@@ -21,7 +21,37 @@ documentation: |-
 categories:
   - llm
   - ai
-parameters: []
+parameters:
+  - name: AllowedModelPatterns
+    displayName: AllowedModelPatterns
+    description: Configuration input for AllowedModelPatterns
+    default: ""
+    examples: []
+    maps: {}
+  - name: DeniedModelPatterns
+    displayName: DeniedModelPatterns
+    description: Configuration input for DeniedModelPatterns
+    default: ""
+    examples: []
+    maps: {}
+  - name: OverrideModel
+    displayName: OverrideModel
+    description: Configuration input for OverrideModel
+    default: ""
+    examples: []
+    maps: {}
+  - name: DefaultModel
+    displayName: DefaultModel
+    description: Configuration input for DefaultModel
+    default: ""
+    examples: []
+    maps: {}
+  - name: FallbackModel
+    displayName: FallbackModel
+    description: Configuration input for FallbackModel
+    default: ""
+    examples: []
+    maps: {}
 defaultEndpoint:
   name: default
   basePath: /ai-base
@@ -159,10 +189,11 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          var allowed_model_patterns = context.getVariable("propertyset.agentplatform.AllowedModelPatterns");
-          var denied_model_patterns = context.getVariable("propertyset.agentplatform.DeniedModelPatterns");
-          var override_model = context.getVariable("propertyset.agentplatform.OverrideModel");
-          var default_model = context.getVariable("propertyset.agentplatform.DefaultModel");
+
+          var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
+          var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
+          var override_model = context.getVariable("propertyset.ai.OverrideModel");
+          var default_model = context.getVariable("propertyset.ai.DefaultModel");
           if (!allowed_model_patterns) allowed_model_patterns = context.getVariable("ai.allowedModelPatterns");
           if (!denied_model_patterns) denied_model_patterns = context.getVariable("ai.deniedModelPatterns");
           if (!override_model) override_model = context.getVariable("ai.overrideModel");
@@ -170,7 +201,7 @@ policies:
 
           var url = context.getVariable("proxy.url");
           var requestContent = request.content.asJSON;
-          var callType = "agentplatform";
+          var callType = "googlecloud";
           var callStreaming = "non-streaming";
           if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
           if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
@@ -567,7 +598,7 @@ resources:
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
-            if (requestInfo.type == "vertex") {
+            if (requestInfo.type == "googlecloud") {
               if (requestInfo.url.includes(pattern)) {
                 result = true;
                 break;
@@ -595,7 +626,7 @@ resources:
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
             // var patternRegex = new RegExp(pattern);
-            if (requestInfo.type == "vertex") {
+            if (requestInfo.type == "googlecloud") {
               if (requestInfo.url.includes(pattern)) {
                 result = false;
                 break;
@@ -626,4 +657,12 @@ resources:
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;
       }
+  - name: ai.properties
+    type: properties
+    content: |
+      AllowedModelPatterns={AllowedModelPatterns}
+      DeniedModelPatterns={DeniedModelPatterns}
+      OverrideModel={OverrideModel}
+      DefaultModel={DefaultModel}
+      FallbackModel={FallbackModel}
 tests: []
