@@ -1,5 +1,5 @@
 import { ApigeeConverter } from "./converter.js";
-import { Template, Proxy, Feature } from "./interfaces.js";
+import { Template, Proxy, Feature, ApigeeConfig } from "./interfaces.js";
 import fs from "fs";
 import path from "path";
 import * as YAML from "yaml";
@@ -746,6 +746,98 @@ export class ApigeeTemplaterService {
         console.log(" > Apigee proxy DEPLOY response: " + response.status);
         resolve("");
       }
+    });
+  }
+
+  public async apigeeConfigGet(apigeeOrg: string, token: string): Promise<ApigeeConfig> {
+    return new Promise(async (resolve, reject) => {
+      let apigeeConfig: ApigeeConfig = {
+        org: undefined,
+        environments: [],
+        environmentGroups: [],
+      };
+
+      let response = await fetch(`https://apigee.googleapis.com/v1/organizations/${apigeeOrg}`, {
+        method: "GET",
+        headers: {
+          Authorization: token,
+        },
+      });
+
+      if (response.status === 200) {
+        apigeeConfig.org = await response.json();
+      } else {
+        let responseText = await response.text();
+        console.log("> Apigee get org config error: " + response.status + ", " + responseText);
+      }
+
+      response = await fetch(
+        `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/environments`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        apigeeConfig.environments = await response.json();
+      } else {
+        let responseText = await response.text();
+        console.log("> Apigee get env config error: " + response.status + ", " + responseText);
+      }
+
+      response = await fetch(
+        `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/envgroups`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        let groups: any = await response.json();
+        if (groups && groups.environmentGroups) {
+          apigeeConfig.environmentGroups = groups.environmentGroups;
+          if (apigeeConfig.environmentGroups && apigeeConfig.environmentGroups.length > 0) {
+            for (let group of apigeeConfig.environmentGroups) {
+              response = await fetch(
+                `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/envgroups/${group.name}/attachments`,
+                {
+                  method: "GET",
+                  headers: {
+                    Authorization: token,
+                  },
+                },
+              );
+
+              if (response.status === 200) {
+                let groupAttachments: any = await response.json();
+                if (groupAttachments && groupAttachments.environmentGroupAttachments)
+                  group.attachments = groupAttachments.environmentGroupAttachments;
+              } else {
+                let responseText = await response.text();
+                console.log(
+                  "> Apigee get envGroups attachment config error: " +
+                    response.status +
+                    ", " +
+                    responseText,
+                );
+              }
+            }
+          }
+        }
+      } else {
+        let responseText = await response.text();
+        console.log(
+          "> Apigee get envGroups config error: " + response.status + ", " + responseText,
+        );
+      }
+
+      resolve(apigeeConfig);
     });
   }
 }

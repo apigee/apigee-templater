@@ -143,3 +143,9 @@ export class Parameter {
   examples: string[] = [];
   default: string = "";
 }
+
+export class ApigeeConfig {
+  org?: any;
+  environments?: any;
+  environmentGroups?: any;
+}

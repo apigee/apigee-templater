@@ -65,6 +65,7 @@ export class cli {
         "--token": String,
         "--help": Boolean,
         "--version": Boolean,
+        "--config": String,
         "-i": "--input",
         "-n": "--name",
         "-b": "--basePath",
@@ -78,6 +79,7 @@ export class cli {
         "-t": "--token",
         "-h": "--help",
         "-v": "--version",
+        "-c": "--config",
       },
       {
         argv: rawArgs.slice(2),
@@ -113,6 +115,7 @@ export class cli {
       token: args["--token"] || "",
       help: args["--help"] || false,
       version: args["--version"] || false,
+      config: args["--config"] || "",
     };
   }
 
@@ -288,6 +291,21 @@ export class cli {
 
     if (options.listFeatures) {
       await this.printFeatures();
+      return;
+    }
+
+    if (options.config) {
+      if (!options.token) {
+        let token = await auth.getAccessToken();
+        if (token) options.token = token;
+      }
+      let apigeeConfig = await this.apigeeService.apigeeConfigGet(
+        options.config,
+        "Bearer " + options.token,
+      );
+
+      console.log(JSON.stringify(apigeeConfig, null, 2));
+
       return;
     }
 
@@ -700,6 +718,7 @@ class cliArgs {
   token = "";
   help = false;
   version = false;
+  config = "";
 }
 
 const helpCommands = [
@@ -743,6 +762,10 @@ const helpCommands = [
     name: "--parameters, -p",
     description:
       "If generating a proxy from a template, these parameters are used for substitutions (param1=value1,param2=value2).",
+  },
+  {
+    name: "--config, -c",
+    description: "Display configuration information for an Apigee X org.",
   },
   {
     name: "--token, -t",
