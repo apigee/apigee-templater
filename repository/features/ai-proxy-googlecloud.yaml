@@ -70,12 +70,11 @@ parameters:
   - name: ServiceAccountAuth
     description: If a Google Cloud Service Account should be used in the proxy deployment, or not.
     default: false
-    maps:
-      false: remove=$.targets[*].auth,$.targets[*].scopes,$.targets[*].httpTargetConnection.authentication
     examples:
       - true
       - false
-    actions:
+    maps:
+      false: remove=$.targets[*].auth,$.targets[*].scopes,$.targets[*].httpTargetConnection.authentication
 endpoints:
   - name: googlecloud
     basePath: /model

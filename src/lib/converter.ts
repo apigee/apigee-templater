@@ -1223,7 +1223,7 @@ export class ApigeeConverter {
   public templateUpdateParameters(template: Template, parameters: { [key: string]: string } = {}) {
     for (let proxyParameter of template.parameters) {
       for (let key of Object.keys(parameters)) {
-        if (proxyParameter.default.includes("{" + key + "}") && parameters[key]) {
+        if (proxyParameter.default.toString().includes("{" + key + "}") && parameters[key]) {
           proxyParameter.default = proxyParameter.default.replaceAll(
             "{" + key + "}",
             parameters[key],
@@ -1602,7 +1602,7 @@ export class ApigeeConverter {
   public featureUpdateParameters(feature: Feature, parameters: { [key: string]: string } = {}) {
     for (let featureParameter of feature.parameters) {
       for (let key of Object.keys(parameters)) {
-        if (featureParameter.default.includes("{" + key + "}") && parameters[key]) {
+        if (featureParameter.default.toString().includes("{" + key + "}") && parameters[key]) {
           featureParameter.default = featureParameter.default.replaceAll(
             "{" + key + "}",
             parameters[key],
@@ -1965,7 +1965,7 @@ export class ApigeeConverter {
   public proxyUpdateParameters(proxy: Proxy, parameters: { [key: string]: string } = {}) {
     for (let proxyParameter of proxy.parameters) {
       for (let key of Object.keys(parameters)) {
-        if (proxyParameter.default.includes("{" + key + "}") && parameters[key]) {
+        if (proxyParameter.default.toString().includes("{" + key + "}") && parameters[key]) {
           proxyParameter.default = proxyParameter.default.replaceAll(
             "{" + key + "}",
             parameters[key],

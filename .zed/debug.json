@@ -10,7 +10,16 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["-i", "./repository/features/ai-proxy-googlecloud.yaml", "-o", "test.local.yaml"],
+    "args": [
+      "-i",
+      "./repository/features/ai-proxy-googlecloud.yaml",
+      "-o",
+      "test.local.yaml",
+      "-p",
+      "ServiceAccountAuth=true",
+      "-f",
+      "proxy",
+    ],
   },
   {
     "adapter": "JavaScript",
