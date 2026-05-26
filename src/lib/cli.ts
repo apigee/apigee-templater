@@ -35,6 +35,7 @@ import { start } from "repl";
 import { relative } from "path/win32";
 
 process.on("uncaughtException", function (e) {
+  console.error(e);
   console.error(`${chalk.redBright("! Error: An unexpected error occurred. " + e.message)}`);
 });
 

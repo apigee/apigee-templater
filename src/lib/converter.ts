@@ -936,7 +936,7 @@ export class ApigeeConverter {
       resultFlow.steps.push(newStep);
     }
 
-    if (sourceDoc["_attributes"] && sourceDoc["_attributes"]["position"])
+    if (sourceDoc && sourceDoc["_attributes"] && sourceDoc["_attributes"]["position"])
       resultFlow.position = sourceDoc["_attributes"]["position"];
 
     return resultFlow;

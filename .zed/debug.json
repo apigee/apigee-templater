@@ -10,16 +10,7 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": [
-      "-i",
-      "./repository/features/ai-proxy-googlecloud.yaml",
-      "-o",
-      "test.local.yaml",
-      "-p",
-      "ServiceAccountAuth=true",
-      "-f",
-      "proxy",
-    ],
+    "args": ["-i", "apigee-hub-demo:Weather-MCP-Server-v1", "-o", "test.local.yaml"],
   },
   {
     "adapter": "JavaScript",
