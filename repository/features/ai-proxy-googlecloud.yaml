@@ -43,8 +43,8 @@ parameters:
     description: Configuration input for DeniedModelPatterns
     default: ""
     examples:
-      - flash
       - pro
+      - mythos
     maps: {}
   - name: OverrideModel
     displayName: OverrideModel
@@ -67,6 +67,15 @@ parameters:
     examples:
       - google/gemini-flash-latest
     maps: {}
+  - name: ServiceAccountAuth
+    description: If a Google Cloud Service Account should be used in the proxy deployment, or not.
+    default: false
+    maps:
+      false: remove=$.targets[*].auth,$.targets[*].scopes,$.targets[*].httpTargetConnection.authentication
+    examples:
+      - true
+      - false
+    actions:
 endpoints:
   - name: googlecloud
     basePath: /model
@@ -235,7 +244,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          
+
           var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
           var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
           var override_model = context.getVariable("propertyset.ai.OverrideModel");

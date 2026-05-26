@@ -10,7 +10,7 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["-b", "/test", "-u", "https://mocktarget.apigee.net", "-o", "test.local.zip"],
+    "args": ["-i", "./repository/features/ai-proxy-googlecloud.yaml", "-o", "test.local.yaml"],
   },
   {
     "adapter": "JavaScript",

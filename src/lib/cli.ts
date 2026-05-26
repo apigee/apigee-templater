@@ -343,7 +343,11 @@ export class cli {
         template = this.converter.templateCreate(options.name, basePath, options.targetUrl);
       }
       if (!options.output) options.output = options.name + ".yaml";
-    } else if (options.input.includes(":")) {
+    } else if (
+      options.input.includes(":") &&
+      !options.input.toLowerCase().startsWith("https://") &&
+      !options.input.toLowerCase().startsWith("http://")
+    ) {
       // this is an apigee proxy reference
       let pieces = options.input.split(":");
       if (pieces && pieces.length > 1 && pieces[0] && pieces[1]) {
@@ -393,8 +397,18 @@ export class cli {
       process.chdir(dirName);
     } else {
       // try to load it from remote repositories
-      template = await this.apigeeService.templateGet(options.input);
-      if (!template) feature = await this.apigeeService.featureGet(options.input);
+      if (
+        options.input.toLowerCase().startsWith("https://") ||
+        options.input.toLowerCase().startsWith("http://")
+      ) {
+        let file = await this.loadRemoteFile(options.input);
+        if (file && file["type"] === "template") template = file as Template;
+        else if (file && file["type"] === "proxy") proxy = file as Proxy;
+        else if (file && file["type"] === "feature") feature = file as Feature;
+      } else {
+        template = await this.apigeeService.templateGet(options.input);
+        if (!template) feature = await this.apigeeService.featureGet(options.input);
+      }
     }
 
     if (!template && !proxy && !feature) {
@@ -693,6 +707,31 @@ export class cli {
       } else {
         // try to load extracted proxy zip dir
         input = this.converter.apigeeFolderToProxy(name, inputPath);
+      }
+
+      if (input) {
+        resolve(input);
+      } else {
+        resolve(undefined);
+      }
+    });
+  }
+
+  async loadRemoteFile(inputUrl: string): Promise<any | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let input: any | undefined = undefined;
+      let inputString = "";
+
+      let response = await fetch(inputUrl);
+      if (response.status === 200) inputString = await response.text();
+
+      if (inputUrl.toLowerCase().endsWith(".yaml") || inputUrl.toLowerCase().endsWith(".yml")) {
+        if (inputString) input = YAML.parse(inputString);
+      } else if (
+        inputUrl.toLowerCase().endsWith(".json") ||
+        inputUrl.toLowerCase().endsWith(".js")
+      ) {
+        if (inputString) input = JSON.parse(inputString);
       }
 
       if (input) {

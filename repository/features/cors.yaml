@@ -18,12 +18,13 @@ parameters:
       - origin, x-requested-with, accept, content-type
 defaultEndpoint:
   name: default
-  basePath: /feature-http-cors-v1
+  basePath: /cors
   routes:
     - name: default
   flows:
     - name: PreFlow
       mode: Request
+      position: top
       steps:
         - name: CORS-AddCors
   faultRules: []

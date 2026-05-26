@@ -177,38 +177,40 @@ export class ApigeeTemplaterService {
     return new Promise(async (resolve, reject) => {
       let result: Template | undefined = undefined;
       let tempName = name.replaceAll(" ", "-");
-      let templateString = "";
       let foundJson = false,
         foundYaml = false;
 
-      if (!tempName.endsWith(".json") && !tempName.endsWith(".yaml")) {
-        if (fs.existsSync(this.templatesPath + tempName + ".json")) {
-          templateString = fs.readFileSync(this.templatesPath + tempName + ".json", "utf8");
-          foundJson = true;
-        } else if (fs.existsSync(this.templatesPath + tempName + ".yaml")) {
-          templateString = fs.readFileSync(this.templatesPath + tempName + ".yaml", "utf8");
-          foundYaml = true;
-        }
+      let templateString = "";
+      if (fs.existsSync(this.templatesPath + tempName + ".json")) {
+        templateString = fs.readFileSync(this.templatesPath + tempName + ".json", "utf8");
+        foundJson = true;
+      } else if (fs.existsSync(this.templatesPath + tempName + ".yaml")) {
+        templateString = fs.readFileSync(this.templatesPath + tempName + ".yaml", "utf8");
+        foundYaml = true;
       } else if (fs.existsSync(tempName)) {
         templateString = fs.readFileSync(tempName, "utf8");
-        if (tempName.endsWith(".json")) foundJson = true;
-        else if (tempName.endsWith(".yaml")) foundYaml = true;
-      }
+        // let dirName = path.dirname(tempName);
+        // process.chdir(dirName);
+        if (tempName.endsWith(".yaml")) foundYaml = true;
+        else foundJson = true;
+      } else {
+        // try to fetch from dist directory
+        let fileName = tempName.endsWith(".json")
+          ? import.meta.dirname + "/../templates/" + tempName
+          : import.meta.dirname + "/../templates/" + tempName + ".json";
 
-      if (!foundJson && !foundYaml) {
-        // try to fetch remotely
-        let fileName = tempName.endsWith(".json") ? tempName : tempName + ".json";
-        let response = await fetch(this.remoteGetBaseUrl + "templates/" + fileName);
-        if (response.status == 200) foundJson = true;
+        if (fs.existsSync(fileName)) {
+          templateString = fs.readFileSync(fileName, "utf8");
+          foundJson = true;
+        } else {
+          fileName = tempName.endsWith(".yaml")
+            ? import.meta.dirname + "/../templates/" + tempName
+            : import.meta.dirname + "/../templates/" + tempName + ".yaml";
 
-        if (response.status == 404) {
-          fileName = tempName.endsWith(".yaml") ? tempName : tempName + ".yaml";
-          response = await fetch(this.remoteGetBaseUrl + "templates/" + fileName);
-          if (response.status == 200) foundYaml = true;
-        }
-
-        if (response.status == 200) {
-          templateString = await response.text();
+          if (fs.existsSync(fileName)) {
+            templateString = fs.readFileSync(fileName, "utf8");
+            foundYaml = true;
+          }
         }
       }
 
@@ -284,16 +286,9 @@ export class ApigeeTemplaterService {
     return new Promise(async (resolve, reject) => {
       let result: Feature | undefined = undefined;
       let tempName = name.replaceAll(" ", "-");
-      let uid = "";
-      if (name.includes(":")) {
-        let parts = name.split(":");
-        if (parts.length === 2) {
-          uid = parts[0] ?? "";
-          tempName = parts[1] ?? tempName;
-        }
-      }
       let foundJson = false,
         foundYaml = false;
+
       let featureString = "";
       if (fs.existsSync(this.featuresPath + tempName + ".json")) {
         featureString = fs.readFileSync(this.featuresPath + tempName + ".json", "utf8");
@@ -343,8 +338,6 @@ export class ApigeeTemplaterService {
         else result = YAML.parse(featureString);
       }
 
-      // set dynamic uid, if found
-      if (result && uid) result.uid = uid;
       resolve(result);
     });
   }

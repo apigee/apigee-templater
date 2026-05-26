@@ -1559,8 +1559,18 @@ export class ApigeeConverter {
         else if (parameters[parameter.name]) paramValue = parameters[parameter.name] ?? "";
 
         // apply map, if configured
-        if (parameter.maps && parameter.maps[paramValue])
-          paramValue = parameter.maps[paramValue] ?? paramValue;
+        if (parameter.maps && parameter.maps[paramValue]) {
+          if (parameter.maps[paramValue]?.startsWith("remove=")) {
+            let removePath = parameter.maps[paramValue]?.replace("remove=", "");
+            let removePaths = removePath ? removePath.split(",") : [];
+            for (let path of removePaths) {
+              tempFeature = this.removeJsonNodes(tempFeature, path);
+              featureString = JSON.stringify(tempFeature);
+            }
+          } else {
+            paramValue = parameter.maps[paramValue] ?? paramValue;
+          }
+        }
 
         let replaceKey = "{" + parameter.name + "}";
         if (parameter.paths) {
@@ -2151,5 +2161,34 @@ export class ApigeeConverter {
     if (result.includes("Saml")) result = result.replace("Saml", "SAML");
     if (result.includes("Hmac")) result = result.replace("Hmac", "HMAC");
     return result;
+  }
+
+  public removeJsonNodes(obj: any, pathExpression: string): any {
+    // Retrieve the full paths for all matching nodes
+    const paths = jp.paths(obj, pathExpression);
+
+    // Iterate backwards to avoid index shifting issues when deleting array elements
+    for (let i = paths.length - 1; i >= 0; i--) {
+      const path = paths[i];
+      if (path) {
+        const parentPath = path.slice(0, -1);
+        const keyToRemove = path[path.length - 1];
+
+        // Navigate to the parent object/array
+        const parent = parentPath.length === 0 ? obj : jp.value(obj, jp.stringify(parentPath));
+
+        if (parent) {
+          if (Array.isArray(parent)) {
+            // Use splice for arrays to maintain correct array length and indices
+            parent.splice(Number(keyToRemove), 1);
+          } else {
+            // Use delete for standard object properties
+            if (keyToRemove) delete parent[keyToRemove];
+          }
+        }
+      }
+    }
+
+    return obj;
   }
 }
