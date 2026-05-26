@@ -1547,12 +1547,12 @@ export class ApigeeConverter {
     // first replace parameter values
     for (let i = 0; i < feature.parameters.length; i++) {
       let tempFeature = JSON.parse(featureString) as Feature;
-      let tempProxyParametres = JSON.parse(proxyParametersString) as Parameter[];
+      let tempProxyParameters = JSON.parse(proxyParametersString) as Parameter[];
 
       let parameter = tempFeature.parameters[i];
       if (parameter) {
         let paramValue = parameter.default;
-        let proxyParam = tempProxyParametres.find((x) => x.name === parameter.name);
+        let proxyParam = tempProxyParameters.find((x) => x.name === parameter.name);
         if (proxyParam && proxyParam.default) paramValue = proxyParam.default;
 
         if (parameters[parameter.name]) paramValue = parameters[parameter.name] ?? "";

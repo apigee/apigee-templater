@@ -169,7 +169,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          
+
           var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
           var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
           var override_model = context.getVariable("propertyset.ai.OverrideModel");
@@ -683,9 +683,9 @@ resources:
   - name: ai.properties
     type: properties
     content: |
-      AllowedModelPatterns=
-      DeniedModelPatterns=
-      OverrideModel=
-      DefaultModel=
-      FallbackModel=
+      AllowedModelPatterns={AllowedModelPatterns}
+      DeniedModelPatterns={DeniedModelPatterns}
+      OverrideModel={OverrideModel}
+      DefaultModel={DefaultModel}
+      FallbackModel={FallbackModel}
 tests: []

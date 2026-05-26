@@ -815,9 +815,9 @@ resources:
   - name: ai.properties
     type: properties
     content: |
-      AllowedModelPatterns=
-      DeniedModelPatterns=
-      OverrideModel=
-      DefaultModel=
-      FallbackModel=google/gemini-flash-latest
+      AllowedModelPatterns={AllowedModelPatterns}
+      DeniedModelPatterns={DeniedModelPatterns}
+      OverrideModel={OverrideModel}
+      DefaultModel={DefaultModel}
+      FallbackModel={FallbackModel}
 tests: []

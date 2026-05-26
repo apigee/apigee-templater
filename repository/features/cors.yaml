@@ -42,7 +42,7 @@ policies:
         displayName: CORS-AddCors
         allowOrigins: "*"
         allowMethods: GET, PUT, POST, DELETE
-        allowHeaders: origin, x-requested-with, accept, content-type
+        allowHeaders: "*"
         exposeHeaders: "*"
         maxAge: "3628800"
         allowCredentials: "false"
