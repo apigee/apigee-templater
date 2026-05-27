@@ -721,12 +721,4 @@ resources:
         print("Sending to: " + 'https://' + host + "/ai-analytics");
         httpClient.send(myRequest);
       }
-  - name: ai.properties
-    type: properties
-    content: |
-      AllowedModelPatterns=
-      DeniedModelPatterns=
-      OverrideModel=
-      DefaultModel=
-      FallbackModel=
 tests: []

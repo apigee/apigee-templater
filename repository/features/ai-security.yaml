@@ -704,12 +704,4 @@ resources:
     content: |
       ModelArmorTemplate={ModelArmorTemplate}
       ModelArmorLocation={ModelArmorLocation}
-  - name: ai.properties
-    type: properties
-    content: |
-      AllowedModelPatterns=
-      DeniedModelPatterns=
-      OverrideModel=
-      DefaultModel=
-      FallbackModel=
 tests: []

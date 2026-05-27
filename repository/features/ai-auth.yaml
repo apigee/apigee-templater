@@ -751,12 +751,4 @@ resources:
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;
       }
-  - name: ai.properties
-    type: properties
-    content: |
-      AllowedModelPatterns=
-      DeniedModelPatterns=
-      OverrideModel=
-      DefaultModel=
-      FallbackModel=
 tests: []

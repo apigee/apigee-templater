@@ -1371,7 +1371,7 @@ export class ApigeeConverter {
         if (policyIndex === -1) {
           originalFeature.policies.push(policy);
         } else {
-          console.log(`Policy "${policy.name}" already exists, overwriting...\n`);
+          // console.log(`Policy "${policy.name}" already exists, overwriting...\n`);
           originalFeature.policies[policyIndex] = policy;
         }
       }
@@ -1384,7 +1384,7 @@ export class ApigeeConverter {
         if (resourceIndex === -1) {
           originalFeature.resources.push(resource);
         } else {
-          console.log(`Resource "${resource.name}" already exists, overwriting...\n`);
+          // console.log(`Resource "${resource.name}" already exists, overwriting...\n`);
           originalFeature.resources[resourceIndex] = resource;
         }
       }
@@ -1411,9 +1411,9 @@ export class ApigeeConverter {
                 if (featureFlow.position && featureFlow.position == "top") topStepArray.push(step);
                 else proxyFlow.steps.push(step);
               } else {
-                console.log(
-                  `Overwriting step name ${step.name} found in proxy flow ${proxyFlow.name}.\n`,
-                );
+                // console.log(
+                //   `Overwriting step name ${step.name} found in proxy flow ${proxyFlow.name}.\n`,
+                // );
                 proxyFlow.steps[stepIndex] = step;
               }
             }
@@ -1471,9 +1471,9 @@ export class ApigeeConverter {
                 if (featureFlow.position && featureFlow.position == "top") topStepArray.push(step);
                 else targetFlow.steps.push(step);
               } else {
-                console.log(
-                  `Overwriting step name ${step.name} found in target flow ${targetFlow.name}.\n`,
-                );
+                // console.log(
+                //   `Overwriting step name ${step.name} found in target flow ${targetFlow.name}.\n`,
+                // );
                 targetFlow.steps[stepIndex] = step;
               }
             }
@@ -1733,7 +1733,7 @@ export class ApigeeConverter {
         if (endpointIndex === -1) {
           proxy.endpoints.push(tempEndpoint);
         } else {
-          console.log(`Endpoint "${tempEndpoint.name}" already exists, overwriting...\n`);
+          // console.log(`Endpoint "${tempEndpoint.name}" already exists, overwriting...\n`);
           proxy.endpoints[endpointIndex] = tempEndpoint;
         }
       }
@@ -1746,7 +1746,7 @@ export class ApigeeConverter {
         if (targetIndex === -1) {
           proxy.targets.push(tempTarget);
         } else {
-          console.log(`Target "${tempTarget.name}" already exists, overwriting...\n`);
+          // console.log(`Target "${tempTarget.name}" already exists, overwriting...\n`);
           proxy.targets[targetIndex] = tempTarget;
         }
       }
@@ -1759,7 +1759,7 @@ export class ApigeeConverter {
         if (policyIndex === -1) {
           proxy.policies.push(policy);
         } else {
-          console.log(`Policy "${policy.name}" already exists, overwriting...\n`);
+          // console.log(`Policy "${policy.name}" already exists, overwriting...\n`);
           proxy.policies[policyIndex] = policy;
         }
       }
@@ -1772,7 +1772,7 @@ export class ApigeeConverter {
         if (resourceIndex === -1) {
           proxy.resources.push(resource);
         } else {
-          console.log(`Resource "${resource.name}" already exists, overwriting...\n`);
+          // console.log(`Resource "${resource.name}" already exists, overwriting...\n`);
           proxy.resources[resourceIndex] = resource;
         }
       }

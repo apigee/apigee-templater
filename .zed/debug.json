@@ -10,7 +10,7 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["-i", "gemini.local.yaml", "-o", "geminiproxy.local.yaml"],
+    "args": ["-i", "gemini.local.yaml", "-o", "geminiproxy.local.yaml", "-f", "proxy"],
   },
   {
     "adapter": "JavaScript",
