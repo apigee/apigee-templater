@@ -8,8 +8,10 @@ documentation: |
   You will need a Model Armor template to use this policy for AI security prompt screening. You can create a default template in your Google Cloud with this command.
 
   ```sh
-  gcloud config set api_endpoint_overrides/modelarmor "https://modelarmor.$GOOGLE_CLOUD_LOCATION.rep.googleapis.com/"
-  gcloud model-armor templates create default-ma-template --project=$GOOGLE_CLOUD_PROJECT --location=$GOOGLE_CLOUD_LOCATION \
+  MA_LOCATION=eu # set to eu, us, or a supported region
+  gcloud config set api_endpoint_overrides/modelarmor "https://modelarmor.$MA_LOCATION.rep.googleapis.com/"
+
+  gcloud model-armor templates create default-ma-template --project=$GOOGLE_CLOUD_PROJECT --location=$MA_LOCATION \
       --rai-settings-filters='[{ "filterType": "HATE_SPEECH", "confidenceLevel": "MEDIUM_AND_ABOVE" },{ "filterType": "HARASSMENT", "confidenceLevel": "MEDIUM_AND_ABOVE" },{ "filterType": "SEXUALLY_EXPLICIT", "confidenceLevel": "MEDIUM_AND_ABOVE" }]' \
       --basic-config-filter-enforcement=enabled  \
       --pi-and-jailbreak-filter-settings-enforcement=enabled \
@@ -29,13 +31,17 @@ categories:
   - security
 parameters:
   - name: ModelArmorTemplate
-    displayName: ModelArmorTemplate
-    description: The Model Armor template name. The project and region are taken
-      from the Apigee organization.
+    description: The Model Armor template name. The project is taken from the Apigee organization, and the location from the ModelArmorLocation parameter.
     default: default-ma-template
     examples:
       - default-ma-template
       - ma-template1
+  - name: ModelArmorLocation
+    default: eu
+    examples:
+      - eu
+      - us
+      - europe-west1
     maps: {}
 defaultEndpoint:
   name: default
@@ -300,7 +306,7 @@ policies:
         ignoreUnresolvedVariables: "false"
         displayName: SUP-SanitizePrompt
         modelArmor:
-          templateName: projects/{organization.name}/locations/{system.region.name}/templates/{propertyset.security.ModelArmorTemplate}
+          templateName: projects/{organization.name}/locations/{propertyset.security.ModelArmorLocation}/templates/{propertyset.security.ModelArmorTemplate}
         userPromptSource: "{ai.requestPrompt}"
 resources:
   - name: ai-functions.js
@@ -697,12 +703,13 @@ resources:
     type: properties
     content: |
       ModelArmorTemplate={ModelArmorTemplate}
+      ModelArmorLocation={ModelArmorLocation}
   - name: ai.properties
     type: properties
     content: |
-      AllowedModelPatterns={AllowedModelPatterns}
-      DeniedModelPatterns={DeniedModelPatterns}
-      OverrideModel={OverrideModel}
-      DefaultModel={DefaultModel}
-      FallbackModel={FallbackModel}
+      AllowedModelPatterns=
+      DeniedModelPatterns=
+      OverrideModel=
+      DefaultModel=
+      FallbackModel=
 tests: []

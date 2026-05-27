@@ -8,3 +8,4 @@ temp
 data
 .env
 __pycache__
+.npmrc

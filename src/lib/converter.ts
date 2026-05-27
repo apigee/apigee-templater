@@ -1364,9 +1364,6 @@ export class ApigeeConverter {
       }
     }
 
-    // currently assuming that apply-features will not bring their own endpoints
-    // or targets, if this changes copy logic from proxyApplyFeature...
-
     // merge policies
     if (applyFeature.policies && applyFeature.policies.length > 0) {
       for (let policy of applyFeature.policies) {
@@ -1544,7 +1541,7 @@ export class ApigeeConverter {
     let featureString = JSON.stringify(feature);
     let proxyParametersString = JSON.stringify(proxyParameters);
 
-    // first replace parameter values
+    // replace parameter values
     for (let i = 0; i < feature.parameters.length; i++) {
       let tempFeature = JSON.parse(featureString) as Feature;
       let tempProxyParameters = JSON.parse(proxyParametersString) as Parameter[];

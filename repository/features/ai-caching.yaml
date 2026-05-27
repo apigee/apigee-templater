@@ -724,9 +724,9 @@ resources:
   - name: ai.properties
     type: properties
     content: |
-      AllowedModelPatterns={AllowedModelPatterns}
-      DeniedModelPatterns={DeniedModelPatterns}
-      OverrideModel={OverrideModel}
-      DefaultModel={DefaultModel}
-      FallbackModel={FallbackModel}
+      AllowedModelPatterns=
+      DeniedModelPatterns=
+      OverrideModel=
+      DefaultModel=
+      FallbackModel=
 tests: []

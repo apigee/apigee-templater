@@ -16,7 +16,7 @@ categories:
 parameters: []
 defaultEndpoint:
   name: default
-  basePath: /piimasking
+  basePath: /ai-pii-masking
   routes:
     - name: default
       target: default
@@ -27,17 +27,19 @@ defaultEndpoint:
         - name: KVM-LoadConfig
         - name: AM-SetVariables
         - name: JS-CheckModel
-        - name: AM-SetText
+        - name: JS-GetRequest
         - name: SC-SensitiveDataProtection
-          condition: sdp.text != null
+          condition: sdp.text != null and sdp.text != ""
         - name: JS-SetMaskedRequest
-          condition: sdp.text != null
+          condition: sdp.text != null and sdp.text != ""
     - name: PostFlow
       mode: Response
       steps:
         - name: JS-GetResponse
         - name: SC-SensitiveDataProtection
+          condition: sdp.text != null and sdp.text != ""
         - name: JS-SetResponse
+          condition: sdp.text != null and sdp.text != ""
   faultRules: []
 defaultTarget:
   name: default
@@ -60,20 +62,6 @@ defaultTarget:
 endpoints: []
 targets: []
 policies:
-  - name: AM-SetText
-    type: AssignMessage
-    content:
-      assignMessage:
-        metadata:
-          continueOnError: "false"
-          enabled: "false"
-          name: AM-SetText
-        displayName: AM-SetText
-        properties: {}
-        assignVariable:
-          name: sdp.text
-          ref: ai.requestPrompt
-        ignoreUnresolvedVariables: "true"
   - name: AM-SetVariables
     type: AssignMessage
     content:
@@ -169,7 +157,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-
+          
           var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
           var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
           var override_model = context.getVariable("propertyset.ai.OverrideModel");
@@ -232,6 +220,25 @@ policies:
             context.setVariable('request.content', JSON.stringify(requestContent));
           }
         includeUrl: jsc://ai-functions.js
+  - name: JS-GetRequest
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "false"
+          timeLimit: "200"
+          name: JS-GetRequest
+        displayName: JS-GetRequest
+        properties: {}
+        source: "
+
+          \    var prompt = context.getVariable(\"ai.requestPrompt\");
+
+          \    context.setVariable(\"sdp.text\", JSON.stringify(prompt));
+
+          \  "
+        includeUrl: jsc://ai-functions.js
   - name: JS-GetResponse
     type: Javascript
     content:
@@ -249,7 +256,7 @@ policies:
 
           \    var responseText = getResponse(responseContent);
 
-          \    context.setVariable(\"sdp.text\", responseText);
+          \    context.setVariable(\"sdp.text\", JSON.stringify(responseText));
 
           \  "
         includeUrl: jsc://ai-functions.js
@@ -408,7 +415,7 @@ policies:
 
                 \          \"item\": {
 
-                \            \"value\": \"{sdp.text}\"
+                \            \"value\": {sdp.text}
 
                 \          },
 
@@ -843,21 +850,4 @@ resources:
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;
       }
-  - name: set-masked-prompt.js
-    type: jsc
-    content: |-
-      var maskedResponseObj = JSON.parse(context.getVariable("sensitiveDataProtectionResponse.content"));
-      print("sdp response json: "+ JSON.stringify(maskedResponseObj));
-
-      if (maskedResponseObj["item"] && maskedResponseObj["item"]["value"]) {
-        context.setVariable("llm.promptInput", maskedResponseObj["item"]["value"]);
-      }
-  - name: ai.properties
-    type: properties
-    content: |
-      AllowedModelPatterns={AllowedModelPatterns}
-      DeniedModelPatterns={DeniedModelPatterns}
-      OverrideModel={OverrideModel}
-      DefaultModel={DefaultModel}
-      FallbackModel={FallbackModel}
 tests: []
