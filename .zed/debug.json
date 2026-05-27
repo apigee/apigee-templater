@@ -10,7 +10,7 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["-i", "apigee-hub-demo:Weather-MCP-Server-v1", "-o", "test.local.yaml"],
+    "args": ["-i", "gemini.local.yaml", "-o", "geminiproxy.local.yaml"],
   },
   {
     "adapter": "JavaScript",
