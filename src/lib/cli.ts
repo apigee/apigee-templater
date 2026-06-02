@@ -31,8 +31,6 @@ const auth = new GoogleAuth({
 });
 
 import { stdin } from "process";
-import { start } from "repl";
-import { relative } from "path/win32";
 
 process.on("uncaughtException", function (e) {
   console.error(e);

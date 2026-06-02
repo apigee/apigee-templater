@@ -82,6 +82,10 @@ export class ApigeeConverter {
     inputPath: string,
     importParameters: boolean = true,
   ): Proxy {
+    if (inputPath.includes("apiproxy")) {
+      inputPath = inputPath.replace("apiproxy", "");
+    }
+
     let proxies: string[] = fs.readdirSync(inputPath + "/apiproxy/proxies");
     let newProxy = new Proxy();
     newProxy.name = name;
