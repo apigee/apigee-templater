@@ -2,7 +2,7 @@
   "name": "apigee-templater",
   "version": "4.5.7",
   "description": "Provides tooling for feature development of Apigee proxies using YAML, JSON and ZIP formats, and REST, MCP & CLI interfaces.",
-  "main": "index.js",
+  "main": "./dist/index.js",
   "directories": {
     "doc": "docs",
     "example": "examples"
