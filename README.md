@@ -1,4 +1,4 @@
-<p align="center"><img width="244" height="244" alt="aft logo" src="https://iili.io/ByNbtwb.png" />
+<p align="center"><img width="244" height="244" alt="aft logo" src="https://amalbagee.web.app/apigee/aft-logo.png" />
 
 # Apigee Feature Templater (aft) v4
 

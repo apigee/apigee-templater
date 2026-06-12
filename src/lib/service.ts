@@ -736,7 +736,13 @@ export class ApigeeTemplaterService {
         if (!latestRevisionId) resolve("");
         else resolve(latestRevisionId);
       } else {
-        console.log(" > Apigee proxy DEPLOY response: " + response.status);
+        let responseBody: any = await response.json();
+        console.log(
+          " > Apigee proxy DEPLOY response: " +
+            response.status +
+            " - " +
+            JSON.stringify(responseBody),
+        );
         resolve("");
       }
     });
