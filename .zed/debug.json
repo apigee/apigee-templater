@@ -10,7 +10,14 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["-i", "gemini.local.yaml", "-o", "geminiproxy.local.yaml", "-f", "proxy"],
+    "args": [
+      "-i",
+      "/home/tyayers/projects/apigee/devrel/references/oidc-mock/apiproxy",
+      "-o",
+      "apigee-klab1:OIDC-Mock",
+      "-f",
+      "proxy",
+    ],
   },
   {
     "adapter": "JavaScript",
@@ -19,6 +26,6 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["-i", "./AI-VertexGeminiCached.local.yaml", "-o", "test.local.zip"],
+    "args": ["-i", "oidcmock.local.yaml", "-o", "oidcmock.local.zip"],
   },
 ]

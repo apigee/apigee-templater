@@ -535,7 +535,7 @@ export class ApigeeConverter {
 
         let conditionalFlows: Flow[] = [];
         for (let flow of endpoint.flows) {
-          if (!flow.condition && flow.mode) {
+          if (!flow.condition && flow.mode && (flow.name == "PreFlow" || flow.name == "PostFlow")) {
             if (!endpointXml["ProxyEndpoint"][flow.name]) {
               endpointXml["ProxyEndpoint"][flow.name] = {
                 _attributes: {
@@ -546,7 +546,7 @@ export class ApigeeConverter {
             }
 
             endpointXml["ProxyEndpoint"][flow.name][flow.mode] = this.flowJsonToXml(flow);
-          } else if (flow.condition) {
+          } else {
             conditionalFlows.push(flow);
           }
         }
