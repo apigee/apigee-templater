@@ -1,0 +1,45 @@
+name: OAUTH-Token
+displayName: OAUTH-Token
+type: proxy
+categories: []
+description: OAUTH-Token
+documentation: ""
+parameters: []
+endpoints:
+  - name: default
+    basePath: /oauth/token
+    routes:
+      - name: default
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: OAuthV2-CreateToken
+    faultRules: []
+targets: []
+policies:
+  - name: OAuthV2-CreateToken
+    type: OAuthV2
+    content:
+      oAuthV2:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: OAuthV2-CreateToken
+        displayName: OAuthV2-CreateToken
+        properties: {}
+        attributes: {}
+        externalAuthorization: "false"
+        comment:
+          - " This policy generates an OAuth 2.0 access token using the
+            client_credentials grant type "
+          - " This is in millseconds, so expire in an hour "
+        operation: GenerateAccessToken
+        expiresIn: "3600000"
+        supportedGrantTypes:
+          grantType: client_credentials
+        generateResponse:
+          metadata:
+            enabled: "true"
+resources: []
+tests: []

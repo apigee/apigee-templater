@@ -10,14 +10,7 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": [
-      "-i",
-      "/home/tyayers/projects/apigee/devrel/references/oidc-mock/apiproxy",
-      "-o",
-      "apigee-klab1:OIDC-Mock",
-      "-f",
-      "proxy",
-    ],
+    "args": ["-i", "apigee-klab1:OAuth-Token", "-o", "oauth.local.zip"],
   },
   {
     "adapter": "JavaScript",

@@ -1,5 +1,5 @@
-name: HelloWorld
-displayName: ""
+name: REST-HelloWorld
+displayName: Hello World Proxy
 type: proxy
 categories: []
 description: API proxy for HelloWorld-v1

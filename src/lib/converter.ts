@@ -2057,7 +2057,7 @@ export class ApigeeConverter {
       if (obj.hasOwnProperty(key)) {
         let newKey = this.toCamelCase(key);
         // metadata sounds cooler ;)
-        if (newKey === "attributes") newKey = "metadata";
+        if (key === "_attributes") newKey = "metadata";
         if (newKey === "value") newKey = "setValue";
         if (newKey === "text") newKey = "value";
         // Recursively transform the value and assign it to the new key.
