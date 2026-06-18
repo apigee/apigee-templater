@@ -63,21 +63,28 @@ parameters:
   - name: FallbackModel
     displayName: FallbackModel
     description: Configuration input for FallbackModel
-    default: google/gemini-flash-latest
+    default: gemini-flash-latest
     examples:
-      - google/gemini-flash-latest
+      - gemini-flash-latest
     maps: {}
   - name: ServiceAccountAuth
-    description: If a Google Cloud Service Account should be used in the proxy deployment, or not.
-    default: false
+    description: If a Google Cloud Service Account should be used in the proxy
+      deployment, or not.
+    default: true
     examples:
       - true
       - false
     maps:
-      false: remove=$.targets[*].auth,$.targets[*].scopes,$.targets[*].httpTargetConnection.authentication
+      "false": remove=$.targets[*].auth,$.targets[*].scopes,$.targets[*].httpTargetConnection.authentication
+  - name: FallbackBasePath
+    displayName: FallbackBasePath
+    description: If a failover should go to a different base path, configure here. Default is to try the same path with the failover model.
+    default: ""
+    examples: []
+    maps: {}
 endpoints:
   - name: googlecloud
-    basePath: /model
+    basePath: /models
     routes:
       - name: default
         target: googlecloud
@@ -110,10 +117,7 @@ targets:
     defaultFaultRule:
       name: default-fault
       steps:
-        - name: JS-SetFallbackModel
-        - name: SC-FallbackModel
-        - name: AM-SetFallbackResponse
-        - name: JS-Analytics
+        - name: JS-SetFallback
     httpTargetConnection:
       properties:
         property:
@@ -126,28 +130,6 @@ targets:
           scopes:
             scope: https://www.googleapis.com/auth/cloud-platform
 policies:
-  - name: AM-SetFallbackResponse
-    type: AssignMessage
-    content:
-      assignMessage:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: AM-SetFallbackResponse
-        displayName: AM-SetFallbackResponse
-        properties: {}
-        copy:
-          metadata:
-            source: fallbackResponse
-          headers: {}
-          payload: "true"
-          statusCode: "true"
-        ignoreUnresolvedVariables: "true"
-        assignTo:
-          metadata:
-            createNew: "false"
-            transport: http
-            type: response
   - name: AM-SetVariables
     type: AssignMessage
     content:
@@ -164,8 +146,10 @@ policies:
               metadata:
                 name: accept-encoding
         assignVariable:
-          name: originalHostName
-          ref: request.header.host
+          - name: originalHostName
+            ref: request.header.host
+          - name: originalUrl
+            ref: proxy.url
         ignoreUnresolvedVariables: "true"
         assignTo:
           metadata:
@@ -306,7 +290,7 @@ policies:
             context.setVariable('request.content', JSON.stringify(requestContent));
           }
         includeUrl: jsc://ai-functions.js
-  - name: JS-SetFallbackModel
+  - name: JS-SetFallback
     type: Javascript
     content:
       javascript:
@@ -314,10 +298,36 @@ policies:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
-          name: JS-SetFallbackModel
-        displayName: JS-SetFallbackModel
+          name: JS-SetFallback
+        displayName: JS-SetFallback
         properties: {}
-        resourceUrl: jsc://model-fallback.js
+        source: "
+
+          \    var path = context.getVariable(\"originalUrl\");
+
+          \    var basePath = context.getVariable(\"proxy.basepath\");
+
+          \    var currentModel = context.getVariable(\"ai.model\");
+
+          \    var fallbackModel =
+          context.getVariable(\"propertyset.ai.FallbackModel\");
+
+          \    var fallbackBasePath =
+          context.getVariable(\"propertyset.ai.FallbackBasePath\");
+
+          \    if (!fallbackBasePath) fallbackBasePath = basePath;
+
+
+          \    path = path.replace(basePath, fallbackBasePath);
+
+          \    path = path.replace(currentModel, fallbackModel);
+
+
+          \    context.setVariable(\"response.header.location\", path)
+
+          \    context.setVariable(\"response.status.code\", 307);
+
+          \  "
   - name: KVM-LoadConfig
     type: KeyValueMapOperations
     content:
@@ -375,48 +385,24 @@ policies:
             key:
               parameter: FallbackModel
         scope: environment
-  - name: SC-FallbackModel
-    type: ServiceCallout
-    content:
-      serviceCallout:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: SC-FallbackModel
-        displayName: SC-FallbackModel
-        properties: {}
-        request:
-          metadata:
-            clearPayload: "true"
-            variable: fallbackRequest
-          set:
-            verb: POST
-            payload: "{request.content}"
-            headers:
-              header:
-                - metadata:
-                    name: Authorization
-                  value: "{request.header.authorization}"
-                - metadata:
-                    name: Content-Type
-                  value: application/json
-        response: fallbackResponse
-        httpTargetConnection:
-          properties: {}
-          url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
-          authentication:
-            googleAccessToken:
-              scopes:
-                scope: https://www.googleapis.com/auth/cloud-platform
 resources:
   - name: ai-functions.js
     type: jsc
     content: |
       function getModelName(urlString, contentString) {
         var modelName = "unknown";
-        if (urlString && urlString.includes("/models/")) {
-          // claude url format
-          var urlPieces = urlString.split("/models/");
+        if (urlString && urlString.includes("/publishers/anthropic/models/")) {
+          // gcp claude url format
+          var urlPieces = urlString.split("/publishers/anthropic/models/");
+          if (urlPieces.length > 1) {
+            var urlPieces2 = urlPieces[1].split(":");
+            if (urlPieces2.length > 0) {
+              modelName = urlPieces2[0];
+            }
+          }
+        } else if (urlString && urlString.includes("/publishers/google/models/")) {
+          // gcp gemini url format
+          var urlPieces = urlString.split("/publishers/google/models/");
           if (urlPieces.length > 1) {
             var urlPieces2 = urlPieces[1].split(":");
             if (urlPieces2.length > 0) {
@@ -799,19 +785,6 @@ resources:
         print("Sending to: " + 'https://' + host + "/ai-analytics");
         httpClient.send(myRequest);
       }
-  - name: model-fallback.js
-    type: jsc
-    content: |-
-      var requestObject = request.content.asJSON;
-      var fallback_model = context.getVariable("propertyset.ai.FallbackModel");
-      if (!fallback_model) fallback_model = context.getVariable("ai.fallbackModel");
-
-      if (requestObject) {
-        requestObject["model"] = fallback_model;
-        // turn off streaming in fallback mode
-        requestObject["stream"] = false;
-        context.setVariable('request.content', JSON.stringify(requestObject));
-      }
   - name: ai.properties
     type: properties
     content: |
@@ -820,4 +793,5 @@ resources:
       OverrideModel={OverrideModel}
       DefaultModel={DefaultModel}
       FallbackModel={FallbackModel}
+      FallbackBasePath={FallbackBasePath}
 tests: []
