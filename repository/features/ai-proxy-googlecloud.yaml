@@ -78,7 +78,8 @@ parameters:
       "false": remove=$.targets[*].auth,$.targets[*].scopes,$.targets[*].httpTargetConnection.authentication
   - name: FallbackBasePath
     displayName: FallbackBasePath
-    description: If a failover should go to a different base path, configure here. Default is to try the same path with the failover model.
+    description: If a failover should go to a different base path, configure here.
+      Default is to try the same path with the failover model.
     default: ""
     examples: []
     maps: {}
@@ -146,10 +147,8 @@ policies:
               metadata:
                 name: accept-encoding
         assignVariable:
-          - name: originalHostName
-            ref: request.header.host
-          - name: originalUrl
-            ref: proxy.url
+          name: originalHostName
+          ref: request.header.host
         ignoreUnresolvedVariables: "true"
         assignTo:
           metadata:
@@ -227,7 +226,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-
+          
           var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
           var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
           var override_model = context.getVariable("propertyset.ai.OverrideModel");

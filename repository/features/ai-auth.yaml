@@ -223,7 +223,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-
+          
           var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
           var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
           var override_model = context.getVariable("propertyset.ai.OverrideModel");
@@ -409,9 +409,18 @@ resources:
     content: |
       function getModelName(urlString, contentString) {
         var modelName = "unknown";
-        if (urlString && urlString.includes("/models/")) {
-          // claude url format
-          var urlPieces = urlString.split("/models/");
+        if (urlString && urlString.includes("/publishers/anthropic/models/")) {
+          // gcp claude url format
+          var urlPieces = urlString.split("/publishers/anthropic/models/");
+          if (urlPieces.length > 1) {
+            var urlPieces2 = urlPieces[1].split(":");
+            if (urlPieces2.length > 0) {
+              modelName = urlPieces2[0];
+            }
+          }
+        } else if (urlString && urlString.includes("/publishers/google/models/")) {
+          // gcp gemini url format
+          var urlPieces = urlString.split("/publishers/google/models/");
           if (urlPieces.length > 1) {
             var urlPieces2 = urlPieces[1].split(":");
             if (urlPieces2.length > 0) {
