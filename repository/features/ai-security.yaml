@@ -114,8 +114,10 @@ policies:
               metadata:
                 name: accept-encoding
         assignVariable:
-          name: originalHostName
-          ref: request.header.host
+          - name: originalHostName
+            ref: request.header.host
+          - name: originalUrl
+            ref: proxy.url
         ignoreUnresolvedVariables: "true"
         assignTo:
           metadata:
