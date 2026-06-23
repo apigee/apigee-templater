@@ -1519,7 +1519,7 @@ export class ApigeeConverter {
       }
 
       let policyIndex = originalFeature.policies.findIndex((x) => policy.name === x.name);
-      if (policyIndex != -1) originalFeature.policies.splice(policyIndex);
+      if (policyIndex != -1) originalFeature.policies.splice(policyIndex, 1);
     }
 
     for (let resource of feature.resources) {

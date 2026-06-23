@@ -10,7 +10,7 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["-i", "apigee-klab1:OAuth-Token", "-o", "oauth.local.zip"],
+    "args": ["-i", "./repository/features/ai-auth.yaml", "-r", "./repository/filters/ai-base.yaml"],
   },
   {
     "adapter": "JavaScript",

@@ -40,8 +40,8 @@ endpoints:
       - name: PreFlow
         mode: Request
         steps:
-          - name: AM-SetVariables
           - name: KVM-LoadConfig
+          - name: AM-SetVariables
           - name: JS-CheckModel
     faultRules: []
 targets:
@@ -56,11 +56,15 @@ targets:
         steps:
           - name: JS-Analytics
             condition: response.content != ""
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
       - name: EventFlow
         mode: Response
         steps:
           - name: JS-Analytics
             condition: ai.responseTokenCount == null
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
     faultRules: []
     httpTargetConnection:
       properties:
@@ -98,6 +102,52 @@ policies:
             createNew: "false"
             transport: http
             type: request
+  - name: DC-TokenAnalytics
+    type: DataCapture
+    content:
+      dataCapture:
+        metadata:
+          name: DC-TokenAnalytics
+          continueOnError: "false"
+          enabled: "true"
+        displayName: DC-TokenAnalytics
+        ignoreUnresolvedVariables: "false"
+        capture:
+          - collect:
+              metadata:
+                ref: ai.model
+                default: unknown
+            dataCollector: dc_ai_model
+          - collect:
+              metadata:
+                ref: ai.promptTokenCount
+                default: "0"
+            dataCollector: dc_ai_prompt_token_count
+          - collect:
+              metadata:
+                ref: ai.responseTokenCount
+                default: "0"
+            dataCollector: dc_ai_response_token_count
+          - collect:
+              metadata:
+                ref: ai.totalTokenCount
+                default: "0"
+            dataCollector: dc_ai_total_token_count
+          - collect:
+              metadata:
+                ref: ai.responseType
+                default: unknown
+            dataCollector: dc_ai_response_type
+          - collect:
+              metadata:
+                ref: ai.timeToFirstToken
+                default: "0"
+            dataCollector: dc_ai_time_first_token
+          - collect:
+              metadata:
+                ref: ai.costCenter
+                default: unknown
+            dataCollector: dc_ai_cost_center
   - name: JS-Analytics
     type: Javascript
     content:
@@ -116,6 +166,7 @@ policies:
             contentString = context.getVariable("response.content");
             type = "non-streaming"
           }
+          context.setVariable("ai.responseType", type);
           print(contentString);
 
           var modelName = context.getVariable("ai.model");
@@ -129,7 +180,10 @@ policies:
           }
           var usageData = getUsageData(contentString);
           if (usageData.model) context.setVariable("ai.model", usageData.model);
-          if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
+          if (usageData.requestTokenCount) {
+            context.setVariable("ai.promptTokenCount", usageData.requestTokenCount);
+            context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
+          }
           if (modelName) usageData.model = modelName;
           if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
           if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
@@ -141,20 +195,21 @@ policies:
             else
               usageData.costCenter = "unknown";
 
+            context.setVariable("ai.costCenter", usageData.costCenter);
             context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
             usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
             context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
             usageData.type = type;
             print("Sending analytics data: " + JSON.stringify(usageData));
-            var host = context.getVariable("originalHostName");
-            var headers = {"Content-Type": "application/json"};
-            var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
-            if (apiKey) {
-              headers["x-api-key"] = apiKey;
-            }
-            var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
-            print("Sending to: " + 'https://' + host + "/ai-analytics");
-            httpClient.send(myRequest);
+            // var host = context.getVariable("originalHostName");
+            // var headers = {"Content-Type": "application/json"};
+            // var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
+            // if (apiKey) {
+            //   headers["x-api-key"] = apiKey;
+            // }
+            // var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
+            // print("Sending to: " + 'https://' + host + "/ai-analytics");
+            // httpClient.send(myRequest);
           }
         includeUrl: jsc://ai-functions.js
   - name: JS-CheckModel
@@ -290,6 +345,57 @@ policies:
               parameter: FallbackModel
         scope: environment
 resources:
+  - name: analytics.js
+    type: jsc
+    content: |
+      var contentString = context.getVariable("response.event.current.content");
+      var type = "streaming";
+      if (!contentString) {
+        contentString = context.getVariable("response.content");
+        type = "non-streaming"
+      }
+      print(contentString);
+
+      var modelName = context.getVariable("ai.model");
+      var requestTokenCount = context.getVariable("ai.requestTokenCount");
+      var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
+      if (!timeToFirstToken) {
+        var request_start_time = context.getVariable('client.received.start.timestamp');
+        var timeNow = Date.now();
+        timeToFirstToken = timeNow - request_start_time;
+        context.setVariable("ai.timeToFirstToken", timeToFirstToken);
+      }
+      var usageData = getUsageData(contentString);
+      if (usageData.model) context.setVariable("ai.model", usageData.model);
+      if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
+      if (modelName) usageData.model = modelName;
+      if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
+      if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
+
+      if (usageData.responseTokenCount > 0) {
+        context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
+        usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
+        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
+        usageData.type = type;
+        print("Sending analytics data: " + JSON.stringify(usageData));
+        var host = context.getVariable("originalHostName");
+        var headers = {"Content-Type": "application/json"};
+        var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
+        if (apiKey) {
+          headers["x-api-key"] = apiKey;
+        }
+        var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
+        print("Sending to: " + 'https://' + host + "/ai-analytics");
+        httpClient.send(myRequest);
+      }
+  - name: ai.properties
+    type: properties
+    content: |
+      AllowedModelPatterns={AllowedModelPatterns}
+      DeniedModelPatterns={DeniedModelPatterns}
+      OverrideModel={OverrideModel}
+      DefaultModel={DefaultModel}
+      FallbackModel={FallbackModel}
   - name: ai-functions.js
     type: jsc
     content: |
@@ -646,55 +752,4 @@ resources:
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;
       }
-  - name: analytics.js
-    type: jsc
-    content: |
-      var contentString = context.getVariable("response.event.current.content");
-      var type = "streaming";
-      if (!contentString) {
-        contentString = context.getVariable("response.content");
-        type = "non-streaming"
-      }
-      print(contentString);
-
-      var modelName = context.getVariable("ai.model");
-      var requestTokenCount = context.getVariable("ai.requestTokenCount");
-      var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
-      if (!timeToFirstToken) {
-        var request_start_time = context.getVariable('client.received.start.timestamp');
-        var timeNow = Date.now();
-        timeToFirstToken = timeNow - request_start_time;
-        context.setVariable("ai.timeToFirstToken", timeToFirstToken);
-      }
-      var usageData = getUsageData(contentString);
-      if (usageData.model) context.setVariable("ai.model", usageData.model);
-      if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
-      if (modelName) usageData.model = modelName;
-      if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
-      if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
-
-      if (usageData.responseTokenCount > 0) {
-        context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
-        usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
-        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
-        usageData.type = type;
-        print("Sending analytics data: " + JSON.stringify(usageData));
-        var host = context.getVariable("originalHostName");
-        var headers = {"Content-Type": "application/json"};
-        var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
-        if (apiKey) {
-          headers["x-api-key"] = apiKey;
-        }
-        var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
-        print("Sending to: " + 'https://' + host + "/ai-analytics");
-        httpClient.send(myRequest);
-      }
-  - name: ai.properties
-    type: properties
-    content: |
-      AllowedModelPatterns={AllowedModelPatterns}
-      DeniedModelPatterns={DeniedModelPatterns}
-      OverrideModel={OverrideModel}
-      DefaultModel={DefaultModel}
-      FallbackModel={FallbackModel}
 tests: []

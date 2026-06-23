@@ -50,11 +50,15 @@ defaultTarget:
       steps:
         - name: JS-Analytics
           condition: response.content != ""
+        - name: DC-TokenAnalytics
+          condition: ai.promptTokenCount != null
     - name: EventFlow
       mode: Response
       steps:
         - name: JS-Analytics
           condition: ai.responseTokenCount == null
+        - name: DC-TokenAnalytics
+          condition: ai.promptTokenCount != null
   faultRules: []
   httpTargetConnection:
     properties: {}
@@ -62,164 +66,6 @@ defaultTarget:
 endpoints: []
 targets: []
 policies:
-  - name: AM-SetVariables
-    type: AssignMessage
-    content:
-      assignMessage:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: AM-SetVariables
-        displayName: AM-SetVariables
-        properties: {}
-        remove:
-          headers:
-            header:
-              metadata:
-                name: accept-encoding
-        assignVariable:
-          name: originalHostName
-          ref: request.header.host
-        ignoreUnresolvedVariables: "true"
-        assignTo:
-          metadata:
-            createNew: "false"
-            transport: http
-            type: request
-  - name: JS-Analytics
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-Analytics
-        displayName: JS-Analytics
-        properties: {}
-        source: |
-          var contentString = context.getVariable("response.event.current.content");
-          var type = "streaming";
-          if (!contentString) {
-            contentString = context.getVariable("response.content");
-            type = "non-streaming"
-          }
-          print(contentString);
-
-          var modelName = context.getVariable("ai.model");
-          var requestTokenCount = context.getVariable("ai.requestTokenCount");
-          var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
-          if (!timeToFirstToken) {
-            var request_start_time = context.getVariable('client.received.start.timestamp');
-            var timeNow = Date.now();
-            timeToFirstToken = timeNow - request_start_time;
-            context.setVariable("ai.timeToFirstToken", timeToFirstToken);
-          }
-          var usageData = getUsageData(contentString);
-          if (usageData.model) context.setVariable("ai.model", usageData.model);
-          if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
-          if (modelName) usageData.model = modelName;
-          if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
-          if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
-
-          if (usageData.responseTokenCount > 0) {
-            var costCenter = context.getVariable("ai.costCenter");
-            if (costCenter)
-              usageData.costCenter = costCenter;
-            else
-              usageData.costCenter = "unknown";
-
-            context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
-            usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
-            context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
-            usageData.type = type;
-            print("Sending analytics data: " + JSON.stringify(usageData));
-            var host = context.getVariable("originalHostName");
-            var headers = {"Content-Type": "application/json"};
-            var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
-            if (apiKey) {
-              headers["x-api-key"] = apiKey;
-            }
-            var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
-            print("Sending to: " + 'https://' + host + "/ai-analytics");
-            httpClient.send(myRequest);
-          }
-        includeUrl: jsc://ai-functions.js
-  - name: JS-CheckModel
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-CheckModel
-        displayName: JS-CheckModel
-        properties: {}
-        source: |
-          
-          var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
-          var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
-          var override_model = context.getVariable("propertyset.ai.OverrideModel");
-          var default_model = context.getVariable("propertyset.ai.DefaultModel");
-          if (!allowed_model_patterns) allowed_model_patterns = context.getVariable("ai.allowedModelPatterns");
-          if (!denied_model_patterns) denied_model_patterns = context.getVariable("ai.deniedModelPatterns");
-          if (!override_model) override_model = context.getVariable("ai.overrideModel");
-          if (!default_model) default_model = context.getVariable("ai.defaultModel");
-
-          var url = context.getVariable("proxy.url");
-          var requestContent = request.content.asJSON;
-          var callType = "googlecloud";
-          var callStreaming = "non-streaming";
-          if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
-          if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
-
-          var requestConfig = {
-            url: url,
-            type: callType,
-            requestContent: requestContent,
-            allowedModelPatterns: allowed_model_patterns,
-            deniedModelPatterns: denied_model_patterns
-          }
-
-          var allowResult = testAllowedModels(requestConfig);
-          var denyResult = testDeniedModels(requestConfig);
-          var promptInfo = getPrompts(requestContent);
-          var modelName = getModelName(url, request.content);
-
-          context.setVariable("ai.model", modelName);
-          context.setVariable("ai.requestType", callStreaming);
-          context.setVariable("ai.apiType", callType);
-
-          if (promptInfo.userPrompt)
-            context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
-          else
-            print("Could not find user prompt!");
-
-          if (!allowResult) {
-            print("Model not allowed!");
-            context.setVariable("response.status.code", 403);
-            throw "Model not allowed!";
-          }
-
-          if (!denyResult) {
-            print("Model denied!");
-            context.setVariable("response.status.code", 403);
-            throw "Model denied!";
-          }
-
-          print("Default_model: " + default_model);
-          print("Request model: " + requestContent["model"]);
-
-          if (override_model && override_model != "NONE" && callType == "oai") {
-            requestContent["model"] = override_model;
-            context.setVariable('request.content', JSON.stringify(requestContent));
-          } else if (default_model && default_model != "NONE" && !requestContent["model"] && callType == "oai") {
-            print("Default model set: " + default_model);
-            requestContent["model"] = default_model;
-            context.setVariable('request.content', JSON.stringify(requestContent));
-          }
-        includeUrl: jsc://ai-functions.js
   - name: JS-GetRequest
     type: Javascript
     content:
@@ -332,63 +178,6 @@ policies:
 
           \  "
         includeUrl: jsc://ai-functions.js
-  - name: KVM-LoadConfig
-    type: KeyValueMapOperations
-    content:
-      keyValueMapOperations:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: KVM-LoadConfig
-          mapIdentifier: AI-Config
-        displayName: KVM-LoadConfig
-        properties: {}
-        exclusiveCache: "false"
-        expiryTimeInSecs: "10"
-        initialEntries:
-          entry:
-            - key:
-                parameter: AllowedModelPatterns
-              setValue: ALL
-            - key:
-                parameter: DeniedModelPatterns
-              setValue: NONE
-            - key:
-                parameter: OverrideModel
-              setValue: NONE
-            - key:
-                parameter: DefaultModel
-              setValue: google/gemini-flash-latest
-            - key:
-                parameter: FallbackModel
-              setValue: google/gemini-flash-latest
-        get:
-          - metadata:
-              assignTo: ai.allowedModelPatterns
-              index: "1"
-            key:
-              parameter: AllowedModelPatterns
-          - metadata:
-              assignTo: ai.deniedModelPatterns
-              index: "1"
-            key:
-              parameter: DeniedModelPatterns
-          - metadata:
-              assignTo: ai.overrideModel
-              index: "1"
-            key:
-              parameter: OverrideModel
-          - metadata:
-              assignTo: ai.defaultModel
-              index: "1"
-            key:
-              parameter: DefaultModel
-          - metadata:
-              assignTo: ai.fallbackModel
-              index: "1"
-            key:
-              parameter: FallbackModel
-        scope: environment
   - name: SC-SensitiveDataProtection
     type: ServiceCallout
     content:
@@ -502,6 +291,272 @@ policies:
             googleAccessToken:
               scopes:
                 scope: https://www.googleapis.com/auth/cloud-platform
+  - name: AM-SetVariables
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetVariables
+        displayName: AM-SetVariables
+        properties: {}
+        remove:
+          headers:
+            header:
+              metadata:
+                name: accept-encoding
+        assignVariable:
+          name: originalHostName
+          ref: request.header.host
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: DC-TokenAnalytics
+    type: DataCapture
+    content:
+      dataCapture:
+        metadata:
+          name: DC-TokenAnalytics
+          continueOnError: "false"
+          enabled: "true"
+        displayName: DC-TokenAnalytics
+        ignoreUnresolvedVariables: "false"
+        capture:
+          - collect:
+              metadata:
+                ref: ai.model
+                default: unknown
+            dataCollector: dc_ai_model
+          - collect:
+              metadata:
+                ref: ai.promptTokenCount
+                default: "0"
+            dataCollector: dc_ai_prompt_token_count
+          - collect:
+              metadata:
+                ref: ai.responseTokenCount
+                default: "0"
+            dataCollector: dc_ai_response_token_count
+          - collect:
+              metadata:
+                ref: ai.totalTokenCount
+                default: "0"
+            dataCollector: dc_ai_total_token_count
+          - collect:
+              metadata:
+                ref: ai.responseType
+                default: unknown
+            dataCollector: dc_ai_response_type
+          - collect:
+              metadata:
+                ref: ai.timeToFirstToken
+                default: "0"
+            dataCollector: dc_ai_time_first_token
+          - collect:
+              metadata:
+                ref: ai.costCenter
+                default: unknown
+            dataCollector: dc_ai_cost_center
+  - name: JS-Analytics
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-Analytics
+        displayName: JS-Analytics
+        properties: {}
+        source: |
+          var contentString = context.getVariable("response.event.current.content");
+          var type = "streaming";
+          if (!contentString) {
+            contentString = context.getVariable("response.content");
+            type = "non-streaming"
+          }
+          context.setVariable("ai.responseType", type);
+          print(contentString);
+
+          var modelName = context.getVariable("ai.model");
+          var requestTokenCount = context.getVariable("ai.requestTokenCount");
+          var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
+          if (!timeToFirstToken) {
+            var request_start_time = context.getVariable('client.received.start.timestamp');
+            var timeNow = Date.now();
+            timeToFirstToken = timeNow - request_start_time;
+            context.setVariable("ai.timeToFirstToken", timeToFirstToken);
+          }
+          var usageData = getUsageData(contentString);
+          if (usageData.model) context.setVariable("ai.model", usageData.model);
+          if (usageData.requestTokenCount) {
+            context.setVariable("ai.promptTokenCount", usageData.requestTokenCount);
+            context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
+          }
+          if (modelName) usageData.model = modelName;
+          if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
+          if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
+
+          if (usageData.responseTokenCount > 0) {
+            var costCenter = context.getVariable("ai.costCenter");
+            if (costCenter)
+              usageData.costCenter = costCenter;
+            else
+              usageData.costCenter = "unknown";
+
+            context.setVariable("ai.costCenter", usageData.costCenter);
+            context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
+            usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
+            context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
+            usageData.type = type;
+            print("Sending analytics data: " + JSON.stringify(usageData));
+            // var host = context.getVariable("originalHostName");
+            // var headers = {"Content-Type": "application/json"};
+            // var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
+            // if (apiKey) {
+            //   headers["x-api-key"] = apiKey;
+            // }
+            // var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
+            // print("Sending to: " + 'https://' + host + "/ai-analytics");
+            // httpClient.send(myRequest);
+          }
+        includeUrl: jsc://ai-functions.js
+  - name: JS-CheckModel
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-CheckModel
+        displayName: JS-CheckModel
+        properties: {}
+        source: |
+          
+          var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
+          var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
+          var override_model = context.getVariable("propertyset.ai.OverrideModel");
+          var default_model = context.getVariable("propertyset.ai.DefaultModel");
+          if (!allowed_model_patterns) allowed_model_patterns = context.getVariable("ai.allowedModelPatterns");
+          if (!denied_model_patterns) denied_model_patterns = context.getVariable("ai.deniedModelPatterns");
+          if (!override_model) override_model = context.getVariable("ai.overrideModel");
+          if (!default_model) default_model = context.getVariable("ai.defaultModel");
+
+          var url = context.getVariable("proxy.url");
+          var requestContent = request.content.asJSON;
+          var callType = "googlecloud";
+          var callStreaming = "non-streaming";
+          if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
+          if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
+
+          var requestConfig = {
+            url: url,
+            type: callType,
+            requestContent: requestContent,
+            allowedModelPatterns: allowed_model_patterns,
+            deniedModelPatterns: denied_model_patterns
+          }
+
+          var allowResult = testAllowedModels(requestConfig);
+          var denyResult = testDeniedModels(requestConfig);
+          var promptInfo = getPrompts(requestContent);
+          var modelName = getModelName(url, request.content);
+
+          context.setVariable("ai.model", modelName);
+          context.setVariable("ai.requestType", callStreaming);
+          context.setVariable("ai.apiType", callType);
+
+          if (promptInfo.userPrompt)
+            context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
+          else
+            print("Could not find user prompt!");
+
+          if (!allowResult) {
+            print("Model not allowed!");
+            context.setVariable("response.status.code", 403);
+            throw "Model not allowed!";
+          }
+
+          if (!denyResult) {
+            print("Model denied!");
+            context.setVariable("response.status.code", 403);
+            throw "Model denied!";
+          }
+
+          print("Default_model: " + default_model);
+          print("Request model: " + requestContent["model"]);
+
+          if (override_model && override_model != "NONE" && callType == "oai") {
+            requestContent["model"] = override_model;
+            context.setVariable('request.content', JSON.stringify(requestContent));
+          } else if (default_model && default_model != "NONE" && !requestContent["model"] && callType == "oai") {
+            print("Default model set: " + default_model);
+            requestContent["model"] = default_model;
+            context.setVariable('request.content', JSON.stringify(requestContent));
+          }
+        includeUrl: jsc://ai-functions.js
+  - name: KVM-LoadConfig
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: KVM-LoadConfig
+          mapIdentifier: AI-Config
+        displayName: KVM-LoadConfig
+        properties: {}
+        exclusiveCache: "false"
+        expiryTimeInSecs: "10"
+        initialEntries:
+          entry:
+            - key:
+                parameter: AllowedModelPatterns
+              setValue: ALL
+            - key:
+                parameter: DeniedModelPatterns
+              setValue: NONE
+            - key:
+                parameter: OverrideModel
+              setValue: NONE
+            - key:
+                parameter: DefaultModel
+              setValue: google/gemini-flash-latest
+            - key:
+                parameter: FallbackModel
+              setValue: google/gemini-flash-latest
+        get:
+          - metadata:
+              assignTo: ai.allowedModelPatterns
+              index: "1"
+            key:
+              parameter: AllowedModelPatterns
+          - metadata:
+              assignTo: ai.deniedModelPatterns
+              index: "1"
+            key:
+              parameter: DeniedModelPatterns
+          - metadata:
+              assignTo: ai.overrideModel
+              index: "1"
+            key:
+              parameter: OverrideModel
+          - metadata:
+              assignTo: ai.defaultModel
+              index: "1"
+            key:
+              parameter: DefaultModel
+          - metadata:
+              assignTo: ai.fallbackModel
+              index: "1"
+            key:
+              parameter: FallbackModel
+        scope: environment
 resources:
   - name: ai-functions.js
     type: jsc
