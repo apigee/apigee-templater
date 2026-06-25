@@ -1629,10 +1629,12 @@ export class ApigeeConverter {
     if (feature.parameters && feature.parameters.length > 0) {
       result.push(`Parameters:`);
       for (let parameter of feature.parameters) {
-        result.push(`- ${parameter.name} - ${parameter.description}`);
-        if (parameter.default) result.push(`- Default: ${parameter.default}`);
-        if (parameter.examples && parameter.examples.length > 0)
-          result.push(`- Examples: ${parameter.examples.toString()}`);
+        result.push(
+          `- ${parameter.name} - ${parameter.description} - ${"Default: " + (parameter.default ? parameter.default : "none")}`,
+        );
+        // if (parameter.default) result.push(`- Default: ${parameter.default}`);
+        // if (parameter.examples && parameter.examples.length > 0)
+        //   result.push(`- Examples: ${parameter.examples.toString()}`);
       }
     } else {
       result.push(`Parameters: none`);
