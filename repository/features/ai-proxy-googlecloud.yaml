@@ -59,21 +59,21 @@ parameters:
     description: Configuration input for OverrideModel
     default: ""
     examples:
-      - gemini-flash-latest
+      - my-forced-model
     maps: {}
   - name: DefaultModel
     displayName: DefaultModel
     description: Configuration input for DefaultModel
     default: ""
     examples:
-      - gemini-flash-latest
+      - my-default-model
     maps: {}
   - name: FailoverModel
     displayName: FailoverModel
     description: Configuration input for FailoverModel
     default: gemini-flash-latest
     examples:
-      - gemini-flash-latest
+      - my-backup-model
     maps: {}
   - name: FailoverBasePath
     displayName: FailoverBasePath
@@ -394,7 +394,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          
+
           var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
           var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
           var override_model = context.getVariable("propertyset.ai.OverrideModel");
