@@ -497,16 +497,10 @@ export class cli {
 
       // HALF TIME - generally print generated output overview
       if (proxy) {
-        console.log(`${chalk.bold(chalk.magentaBright(`> Proxy ${proxy.name} overview: `))}`);
-        console.log(this.converter.proxyToString(proxy));
         if (!options.format) options.format = "proxy";
       } else if (template) {
-        console.log(`${chalk.bold(chalk.magentaBright(`> Template ${template.name} overview: `))}`);
-        console.log(this.converter.templateToString(template));
         if (!options.format) options.format = "template";
       } else if (feature) {
-        console.log(`${chalk.bold(chalk.magentaBright(`> Feature ${feature.name} overview: `))}`);
-        console.log(this.converter.featureToString(feature));
         if (!options.format) options.format = "feature";
       } else {
         console.log(
@@ -552,6 +546,8 @@ export class cli {
             fs.rmSync(outputPath);
           }
 
+          console.log(`${chalk.bold(chalk.magentaBright(`> Proxy ${proxy.name} overview: `))}`);
+          console.log(this.converter.proxyToString(proxy));
           console.log(`${chalk.bold(chalk.magentaBright("> Proxy written to " + options.output))}`);
         } else {
           console.log(`${chalk.bold(chalk.redBright("> Error, could not write proxy zip."))}`);
@@ -623,6 +619,8 @@ export class cli {
             fs.rmSync(outputPath);
           }
 
+          console.log(`${chalk.bold(chalk.magentaBright(`> Proxy ${proxy.name} overview: `))}`);
+          console.log(this.converter.proxyToString(proxy));
           console.log(`${chalk.bold(chalk.magentaBright("> Proxy written to " + options.output))}`);
         } else {
           console.log(`${chalk.bold(chalk.redBright("> Error, could not create proxy."))}`);
@@ -648,6 +646,10 @@ export class cli {
             );
           }
 
+          console.log(
+            `${chalk.bold(chalk.magentaBright(`> Template ${template.name} overview: `))}`,
+          );
+          console.log(this.converter.templateToString(template));
           console.log(
             `${chalk.bold(chalk.magentaBright("> Template written to " + options.output))}`,
           );
@@ -677,6 +679,8 @@ export class cli {
             );
           }
 
+          console.log(`${chalk.bold(chalk.magentaBright(`> Feature ${feature.name} overview: `))}`);
+          console.log(this.converter.featureToString(feature));
           console.log(
             `${chalk.bold(chalk.magentaBright("> Feature written to " + options.output))}`,
           );
