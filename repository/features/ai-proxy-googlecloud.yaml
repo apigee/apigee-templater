@@ -24,10 +24,20 @@ parameters:
     paths:
       - $.endpoints[:1].basePath
     description: The base path to offer the AI proxy on.
-    default: /model
+    default: /models
     examples:
       - /gemini
       - /llm
+  - name: TargetUrl
+    paths:
+      - $.targets[:1].url
+      - $.targets[:1].httpTargetConnection.url
+    description: The model's target URL to direct proxy traffic.
+    default: https://aiplatform.googleapis.com
+    examples:
+      - https://aiplatform.googleapis.com
+      - https://aiplatform.eu.rep.googleapis.com
+      - https://aiplatform.us.rep.googleapis.com
   - name: AllowedModelPatterns
     displayName: AllowedModelPatterns
     description: Configuration input for AllowedModelPatterns
@@ -58,12 +68,19 @@ parameters:
     examples:
       - gemini-flash-latest
     maps: {}
-  - name: FallbackModel
-    displayName: FallbackModel
-    description: Configuration input for FallbackModel
+  - name: FailoverModel
+    displayName: FailoverModel
+    description: Configuration input for FailoverModel
     default: gemini-flash-latest
     examples:
       - gemini-flash-latest
+    maps: {}
+  - name: FailoverBasePath
+    displayName: FailoverBasePath
+    description: If a failover should go to a different base path, configure here.
+      Default is to try the same path with the failover model.
+    default: ""
+    examples: []
     maps: {}
   - name: ServiceAccountAuth
     description: If a Google Cloud Service Account should be used in the proxy
@@ -74,13 +91,6 @@ parameters:
       - false
     maps:
       "false": remove=$.targets[*].auth,$.targets[*].scopes,$.targets[*].httpTargetConnection.authentication
-  - name: FallbackBasePath
-    displayName: FallbackBasePath
-    description: If a failover should go to a different base path, configure here.
-      Default is to try the same path with the failover model.
-    default: ""
-    examples: []
-    maps: {}
 endpoints:
   - name: googlecloud
     basePath: /model
@@ -120,7 +130,7 @@ targets:
     defaultFaultRule:
       name: default-fault
       steps:
-        - name: JS-SetFallback
+        - name: JS-SetFailover
     httpTargetConnection:
       properties:
         property:
@@ -344,7 +354,7 @@ policies:
             context.setVariable('request.content', JSON.stringify(requestContent));
           }
         includeUrl: jsc://ai-functions.js
-  - name: JS-SetFallback
+  - name: JS-SetFailover
     type: Javascript
     content:
       javascript:
@@ -352,8 +362,8 @@ policies:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "10000"
-          name: JS-SetFallback
-        displayName: JS-SetFallback
+          name: JS-SetFailover
+        displayName: JS-SetFailover
         properties: {}
         source: "
 
@@ -365,22 +375,22 @@ policies:
 
           \    var currentModel = context.getVariable(\"ai.model\");
 
-          \    var fallbackModel =
-          context.getVariable(\"propertyset.ai.FallbackModel\");
+          \    var failoverModel =
+          context.getVariable(\"propertyset.ai.FailoverModel\");
 
-          \    var fallbackBasePath =
-          context.getVariable(\"propertyset.ai.FallbackBasePath\");
+          \    var failoverBasePath =
+          context.getVariable(\"propertyset.ai.FailoverBasePath\");
 
-          \    if (!fallbackBasePath) fallbackBasePath = basePath;
+          \    if (!failoverBasePath) failoverBasePath = basePath;
 
 
           \    if (path.includes(currentModel)) {
 
-          \      // api is URL-based, forward to fallback
+          \      // api is URL-based, forward to Failover
 
-          \      path = path.replace(basePath, fallbackBasePath);
+          \      path = path.replace(basePath, failoverBasePath);
 
-          \      path = path.replace(currentModel, fallbackModel);
+          \      path = path.replace(currentModel, failoverModel);
 
 
           \      context.setVariable(\"response.status.code\", 307);
@@ -398,9 +408,9 @@ policies:
 
           \      print(\"apiKey: \" + apiKey + \" token: \" + bearerToken);
 
-          \      path = path.replace(basePath, fallbackBasePath);
+          \      path = path.replace(basePath, failoverBasePath);
 
-          \      payload = payload.replace(currentModel, fallbackModel);
+          \      payload = payload.replace(currentModel, failoverModel);
 
           \      var headers = {};
 
@@ -475,7 +485,7 @@ policies:
                 parameter: DefaultModel
               setValue: google/gemini-flash-latest
             - key:
-                parameter: FallbackModel
+                parameter: FailoverModel
               setValue: google/gemini-flash-latest
         get:
           - metadata:
@@ -499,10 +509,10 @@ policies:
             key:
               parameter: DefaultModel
           - metadata:
-              assignTo: ai.fallbackModel
+              assignTo: ai.failoverModel
               index: "1"
             key:
-              parameter: FallbackModel
+              parameter: FailoverModel
         scope: environment
 resources:
   - name: ai-functions.js
@@ -911,6 +921,6 @@ resources:
       DeniedModelPatterns={DeniedModelPatterns}
       OverrideModel={OverrideModel}
       DefaultModel={DefaultModel}
-      FallbackModel={FallbackModel}
-      FallbackBasePath={FallbackBasePath}
+      FailoverModel={FailoverModel}
+      FailoverBasePath={FailoverBasePath}
 tests: []
