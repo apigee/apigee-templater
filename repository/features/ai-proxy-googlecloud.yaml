@@ -93,7 +93,7 @@ parameters:
       "false": remove=$.targets[*].auth,$.targets[*].scopes,$.targets[*].httpTargetConnection.authentication
 endpoints:
   - name: googlecloud
-    basePath: /model
+    basePath: /models
     routes:
       - name: default
         target: googlecloud

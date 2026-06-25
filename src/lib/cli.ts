@@ -572,6 +572,7 @@ export class cli {
 
         process.chdir(startDir);
         if (proxy) {
+          if (options.name) proxy.name = options.name;
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(proxy, null, 2));
           } else if (options.output.toLowerCase().endsWith(".yaml")) {
@@ -634,6 +635,7 @@ export class cli {
 
         if (template) {
           // this.converter.templateUpdateParameters(template, inputParameters);
+          if (options.name) template.name = options.name;
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(template, null, 2));
           } else if (options.output.toLowerCase().endsWith(".yaml")) {
@@ -666,6 +668,7 @@ export class cli {
         }
         process.chdir(startDir);
         if (feature) {
+          if (options.name) feature.name = options.name;
           this.converter.featureUpdateParameters(feature, inputParameters);
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(feature, null, 2));
