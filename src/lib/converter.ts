@@ -1289,7 +1289,7 @@ export class ApigeeConverter {
     newProxy.description = newFeature.description;
     if (newFeature.documentation) newProxy.documentation = newFeature.documentation;
     // keep original parameters, non-replaced
-    newProxy.parameters = feature.parameters;
+    newProxy.parameters = newFeature.parameters;
     if (newFeature.displayName) newProxy.displayName = newFeature.displayName;
     if (newFeature.categories) newProxy.categories = newFeature.categories;
     if (newFeature.uid) newProxy.uid = newFeature.uid;
@@ -1588,9 +1588,12 @@ export class ApigeeConverter {
               }
             }
             jp.value(tempFeature, newPath, newParamValue);
+            parameter.default = newParamValue;
             featureString = JSON.stringify(tempFeature);
           }
         } else {
+          parameter.default = paramValue;
+          featureString = JSON.stringify(tempFeature);
           featureString = featureString.replaceAll(replaceKey, paramValue);
         }
         proxyParametersString = proxyParametersString.replaceAll(replaceKey, paramValue);

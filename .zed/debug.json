@@ -10,7 +10,16 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": ["-i", "./repository/features/ai-auth.yaml", "-r", "./repository/filters/ai-base.yaml"],
+    "args": [
+      "-i",
+      "ai-proxy-googlecloud",
+      "-o",
+      "./test.local.yaml",
+      "-f",
+      "proxy",
+      "-p",
+      "ModelBasePath=/gemini,AllowedModelPatterns=gemini,FallbackModel=gemini-flash-latest",
+    ],
   },
   {
     "adapter": "JavaScript",

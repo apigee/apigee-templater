@@ -16,8 +16,6 @@ documentation: |-
   apigeecli datacollectors create -d "Model response type" -n dc_ai_response_type -p STRING --org "$PROJECT_ID" --default-token
   apigeecli datacollectors create -d "Time to first token" -n dc_ai_time_first_token -p INTEGER --org "$PROJECT_ID" --default-token
   ```
-
-  Important note - in order for streaming LLM access to store streaming LLM token analytics, you must also deploy the **LLM-Analytics** proxy in your environment.
 categories:
   - llm
   - ai
