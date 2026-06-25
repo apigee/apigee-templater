@@ -317,7 +317,7 @@ policies:
                 parameter: DefaultModel
               setValue: google/gemini-flash-latest
             - key:
-                parameter: FallbackModel
+                parameter: FailoverModel
               setValue: google/gemini-flash-latest
         get:
           - metadata:
@@ -341,10 +341,10 @@ policies:
             key:
               parameter: DefaultModel
           - metadata:
-              assignTo: ai.fallbackModel
+              assignTo: ai.failoverModel
               index: "1"
             key:
-              parameter: FallbackModel
+              parameter: FailoverModel
         scope: environment
 resources:
   - name: analytics.js

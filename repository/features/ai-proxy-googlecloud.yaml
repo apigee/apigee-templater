@@ -143,6 +143,109 @@ targets:
           scopes:
             scope: https://www.googleapis.com/auth/cloud-platform
 policies:
+  - name: JS-SetFailover
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "10000"
+          name: JS-SetFailover
+        displayName: JS-SetFailover
+        properties: {}
+        source: "
+
+          \    var path = context.getVariable(\"originalUrl\");
+
+          \    var basePath = context.getVariable(\"proxy.basepath\");
+
+          \    var payload = request.content;
+
+          \    var currentModel = context.getVariable(\"ai.model\");
+
+          \    var failoverModel =
+          context.getVariable(\"propertyset.ai.FailoverModel\");
+
+          \    var failoverBasePath =
+          context.getVariable(\"propertyset.ai.FailoverBasePath\");
+
+          \    if (!failoverBasePath) failoverBasePath = basePath;
+
+
+          \    if (path.includes(currentModel)) {
+
+          \      // api is URL-based, forward to Failover
+
+          \      path = path.replace(basePath, failoverBasePath);
+
+          \      path = path.replace(currentModel, failoverModel);
+
+
+          \      context.setVariable(\"response.status.code\", 307);
+
+          \      context.setVariable(\"response.header.location\", path)
+
+          \    } else if (payload.includes(currentModel)) {
+
+          \      // api is payload-based
+
+          \      var apiKey = context.getVariable(\"request.header.x-api-key\");
+
+          \      var bearerToken =
+          context.getVariable(\"request.header.authorization\");
+
+          \      print(\"apiKey: \" + apiKey + \" token: \" + bearerToken);
+
+          \      path = path.replace(basePath, failoverBasePath);
+
+          \      payload = payload.replace(currentModel, failoverModel);
+
+          \      var headers = {};
+
+          \      if (apiKey) headers[\"x-api-key\"] = apiKey;
+
+          \      if (bearerToken) headers[\"authorization\"] = bearerToken;
+
+          \      print(\"sending request data\");
+
+          \      var myRequest = new Request(path, \"POST\", headers,
+          String(payload));
+
+          \      print(\"waiting for response\");
+
+          \      function onComplete(response, error) {
+
+          \        // print(response.content);
+
+          \        // print(response.status);
+
+          \        // Check if the HTTP request was successful
+
+          \        print(\"got response\");
+
+          \        if (response) {
+
+          \          context.setVariable(\"response.content\",
+          response.content);
+
+          \          context.setVariable(\"response.status\", response.status);
+
+          \        } else if (error) {
+
+          \          context.setVariable(\"response.content\", error.content);
+
+          \          context.setVariable(\"response.status\", error.status);
+
+          \        }
+
+          \      }
+
+          \      httpClient.send(myRequest, onComplete);
+
+          \    }
+
+          \  "
   - name: AM-SetVariables
     type: AssignMessage
     content:
@@ -291,7 +394,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-
+          
           var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
           var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
           var override_model = context.getVariable("propertyset.ai.OverrideModel");
@@ -354,109 +457,6 @@ policies:
             context.setVariable('request.content', JSON.stringify(requestContent));
           }
         includeUrl: jsc://ai-functions.js
-  - name: JS-SetFailover
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "10000"
-          name: JS-SetFailover
-        displayName: JS-SetFailover
-        properties: {}
-        source: "
-
-          \    var path = context.getVariable(\"originalUrl\");
-
-          \    var basePath = context.getVariable(\"proxy.basepath\");
-
-          \    var payload = request.content;
-
-          \    var currentModel = context.getVariable(\"ai.model\");
-
-          \    var failoverModel =
-          context.getVariable(\"propertyset.ai.FailoverModel\");
-
-          \    var failoverBasePath =
-          context.getVariable(\"propertyset.ai.FailoverBasePath\");
-
-          \    if (!failoverBasePath) failoverBasePath = basePath;
-
-
-          \    if (path.includes(currentModel)) {
-
-          \      // api is URL-based, forward to Failover
-
-          \      path = path.replace(basePath, failoverBasePath);
-
-          \      path = path.replace(currentModel, failoverModel);
-
-
-          \      context.setVariable(\"response.status.code\", 307);
-
-          \      context.setVariable(\"response.header.location\", path)
-
-          \    } else if (payload.includes(currentModel)) {
-
-          \      // api is payload-based
-
-          \      var apiKey = context.getVariable(\"request.header.x-api-key\");
-
-          \      var bearerToken =
-          context.getVariable(\"request.header.authorization\");
-
-          \      print(\"apiKey: \" + apiKey + \" token: \" + bearerToken);
-
-          \      path = path.replace(basePath, failoverBasePath);
-
-          \      payload = payload.replace(currentModel, failoverModel);
-
-          \      var headers = {};
-
-          \      if (apiKey) headers[\"x-api-key\"] = apiKey;
-
-          \      if (bearerToken) headers[\"authorization\"] = bearerToken;
-
-          \      print(\"sending request data\");
-
-          \      var myRequest = new Request(path, \"POST\", headers,
-          String(payload));
-
-          \      print(\"waiting for response\");
-
-          \      function onComplete(response, error) {
-
-          \        // print(response.content);
-
-          \        // print(response.status);
-
-          \        // Check if the HTTP request was successful
-
-          \        print(\"got response\");
-
-          \        if (response) {
-
-          \          context.setVariable(\"response.content\",
-          response.content);
-
-          \          context.setVariable(\"response.status\", response.status);
-
-          \        } else if (error) {
-
-          \          context.setVariable(\"response.content\", error.content);
-
-          \          context.setVariable(\"response.status\", error.status);
-
-          \        }
-
-          \      }
-
-          \      httpClient.send(myRequest, onComplete);
-
-          \    }
-
-          \  "
   - name: KVM-LoadConfig
     type: KeyValueMapOperations
     content:
@@ -515,6 +515,58 @@ policies:
               parameter: FailoverModel
         scope: environment
 resources:
+  - name: analytics.js
+    type: jsc
+    content: |
+      var contentString = context.getVariable("response.event.current.content");
+      var type = "streaming";
+      if (!contentString) {
+        contentString = context.getVariable("response.content");
+        type = "non-streaming"
+      }
+      print(contentString);
+
+      var modelName = context.getVariable("ai.model");
+      var requestTokenCount = context.getVariable("ai.requestTokenCount");
+      var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
+      if (!timeToFirstToken) {
+        var request_start_time = context.getVariable('client.received.start.timestamp');
+        var timeNow = Date.now();
+        timeToFirstToken = timeNow - request_start_time;
+        context.setVariable("ai.timeToFirstToken", timeToFirstToken);
+      }
+      var usageData = getUsageData(contentString);
+      if (usageData.model) context.setVariable("ai.model", usageData.model);
+      if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
+      if (modelName) usageData.model = modelName;
+      if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
+      if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
+
+      if (usageData.responseTokenCount > 0) {
+        context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
+        usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
+        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
+        usageData.type = type;
+        print("Sending analytics data: " + JSON.stringify(usageData));
+        var host = context.getVariable("originalHostName");
+        var headers = {"Content-Type": "application/json"};
+        var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
+        if (apiKey) {
+          headers["x-api-key"] = apiKey;
+        }
+        var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
+        print("Sending to: " + 'https://' + host + "/ai-analytics");
+        httpClient.send(myRequest);
+      }
+  - name: ai.properties
+    type: properties
+    content: |
+      AllowedModelPatterns={AllowedModelPatterns}
+      DeniedModelPatterns={DeniedModelPatterns}
+      OverrideModel={OverrideModel}
+      DefaultModel={DefaultModel}
+      FailoverModel={FailoverModel}
+      FailoverBasePath={FailoverBasePath}
   - name: ai-functions.js
     type: jsc
     content: |
@@ -871,56 +923,4 @@ resources:
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;
       }
-  - name: analytics.js
-    type: jsc
-    content: |
-      var contentString = context.getVariable("response.event.current.content");
-      var type = "streaming";
-      if (!contentString) {
-        contentString = context.getVariable("response.content");
-        type = "non-streaming"
-      }
-      print(contentString);
-
-      var modelName = context.getVariable("ai.model");
-      var requestTokenCount = context.getVariable("ai.requestTokenCount");
-      var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
-      if (!timeToFirstToken) {
-        var request_start_time = context.getVariable('client.received.start.timestamp');
-        var timeNow = Date.now();
-        timeToFirstToken = timeNow - request_start_time;
-        context.setVariable("ai.timeToFirstToken", timeToFirstToken);
-      }
-      var usageData = getUsageData(contentString);
-      if (usageData.model) context.setVariable("ai.model", usageData.model);
-      if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
-      if (modelName) usageData.model = modelName;
-      if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
-      if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
-
-      if (usageData.responseTokenCount > 0) {
-        context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
-        usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
-        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
-        usageData.type = type;
-        print("Sending analytics data: " + JSON.stringify(usageData));
-        var host = context.getVariable("originalHostName");
-        var headers = {"Content-Type": "application/json"};
-        var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
-        if (apiKey) {
-          headers["x-api-key"] = apiKey;
-        }
-        var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
-        print("Sending to: " + 'https://' + host + "/ai-analytics");
-        httpClient.send(myRequest);
-      }
-  - name: ai.properties
-    type: properties
-    content: |
-      AllowedModelPatterns={AllowedModelPatterns}
-      DeniedModelPatterns={DeniedModelPatterns}
-      OverrideModel={OverrideModel}
-      DefaultModel={DefaultModel}
-      FailoverModel={FailoverModel}
-      FailoverBasePath={FailoverBasePath}
 tests: []

@@ -46,9 +46,9 @@ parameters:
     default: ""
     examples: []
     maps: {}
-  - name: FallbackModel
-    displayName: FallbackModel
-    description: Configuration input for FallbackModel
+  - name: FailoverModel
+    displayName: FailoverModel
+    description: Configuration input for FailoverModel
     default: ""
     examples: []
     maps: {}
@@ -246,7 +246,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          
+
           var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
           var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
           var override_model = context.getVariable("propertyset.ai.OverrideModel");
@@ -337,7 +337,7 @@ policies:
                 parameter: DefaultModel
               setValue: google/gemini-flash-latest
             - key:
-                parameter: FallbackModel
+                parameter: FailoverModel
               setValue: google/gemini-flash-latest
         get:
           - metadata:
@@ -361,10 +361,10 @@ policies:
             key:
               parameter: DefaultModel
           - metadata:
-              assignTo: ai.fallbackModel
+              assignTo: ai.failoverModel
               index: "1"
             key:
-              parameter: FallbackModel
+              parameter: FailoverModel
         scope: environment
 resources:
   - name: ai-functions.js
