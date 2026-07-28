@@ -867,7 +867,7 @@ export class McpService {
           let proxiesObject: any | undefined;
           if (token) {
             proxiesObject = await this.apigeeService.apigeeProxiesList(
-              apigeeOrg,
+              apigeeOrg,"",
               token,
             );
           }
@@ -916,7 +916,7 @@ export class McpService {
           if (token) {
             let zipPath = await this.apigeeService.apigeeProxyGet(
               proxyName,
-              apigeeOrg,
+              apigeeOrg, "",
               token,
             );
             if (zipPath) {
@@ -974,7 +974,7 @@ export class McpService {
           if (token) {
             let zipPath = await this.apigeeService.apigeeProxyGet(
               proxyName,
-              apigeeOrg,
+              apigeeOrg, "",
               token,
             );
             if (zipPath) {
@@ -1029,7 +1029,7 @@ export class McpService {
           if (token) {
             let apigeeProxyPath = await this.apigeeService.apigeeProxyGet(
               proxyName,
-              apigeeOrg,
+              apigeeOrg, "",
               token,
             );
 
@@ -1089,7 +1089,7 @@ export class McpService {
           if (token) {
             let apigeeProxyPath = await this.apigeeService.apigeeProxyGet(
               proxyName,
-              apigeeOrg,
+              apigeeOrg, "",
               token,
             );
 
@@ -1150,7 +1150,7 @@ export class McpService {
           if (token) {
             let apigeeProxyPath = await this.apigeeService.apigeeProxyGet(
               proxyName,
-              apigeeOrg,
+              apigeeOrg, "",
               token,
             );
 
@@ -1216,7 +1216,7 @@ export class McpService {
             apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
               apigeeProxyName ? apigeeProxyName : proxyName,
               zipPath,
-              apigeeOrg,
+              apigeeOrg, "",
               token,
             );
           }
@@ -1280,7 +1280,7 @@ export class McpService {
               apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
                 apigeeProxyName ? apigeeProxyName : proxyName,
                 zipPath,
-                apigeeOrg,
+                apigeeOrg, "",
                 token,
               );
 
@@ -1291,7 +1291,7 @@ export class McpService {
                     apigeeProxyRevision,
                     serviceAccountEmail,
                     apigeeEnvironment,
-                    apigeeOrg,
+                    apigeeOrg, "",
                     token,
                   );
             }
@@ -1349,7 +1349,7 @@ export class McpService {
             apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
               apigeeProxyName ? apigeeProxyName : templateName,
               zipPath,
-              apigeeOrg,
+              apigeeOrg, "",
               token,
             );
           }
@@ -1416,7 +1416,7 @@ export class McpService {
               apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
                 apigeeProxyName ? apigeeProxyName : templateName,
                 zipPath,
-                apigeeOrg,
+                apigeeOrg, "",
                 token,
               );
 
@@ -1427,7 +1427,7 @@ export class McpService {
                     apigeeProxyRevision,
                     serviceAccountEmail,
                     apigeeEnvironment,
-                    apigeeOrg,
+                    apigeeOrg, "",
                     token,
                   );
             }

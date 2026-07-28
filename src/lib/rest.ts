@@ -136,7 +136,7 @@ export class RestService {
         } else {
           let proxyPath = await this.apigeeService.apigeeProxyGet(
             proxyName,
-            apigeeOrg,
+            apigeeOrg, "",
             token,
           );
           if (proxyPath) {
@@ -200,7 +200,7 @@ export class RestService {
           apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
             templateName,
             zipPath,
-            apigeeOrg,
+            apigeeOrg, "",
             token,
           );
         }
@@ -244,7 +244,7 @@ export class RestService {
         apigeeProxyRevision = await this.apigeeService.apigeeProxyExport(
           templateName,
           zipPath,
-          apigeeOrg,
+          apigeeOrg, "",
           token,
         );
       }
@@ -257,7 +257,7 @@ export class RestService {
             apigeeProxyRevision,
             serviceAccountEmail,
             apigeeEnv,
-            apigeeOrg,
+            apigeeOrg, "",
             token,
           );
         if (deployedRevision)
@@ -645,7 +645,7 @@ export class RestService {
         } else {
           let proxyPath = await this.apigeeService.apigeeProxyGet(
             proxyName,
-            apigeeOrg,
+            apigeeOrg, "",
             token,
           );
           if (proxyPath) {

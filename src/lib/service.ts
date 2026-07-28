@@ -549,10 +549,10 @@ export class ApigeeTemplaterService {
     else return [];
   }
 
-  public async apigeeProxiesList(apigeeOrg: string, token: string): Promise<any | undefined> {
+  public async apigeeProxiesList(apigeeOrg: string, drz: string, token: string): Promise<any | undefined> {
     return new Promise(async (resolve, reject) => {
       let response = await fetch(
-        `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/apis?includeRevisions=true&includeMetaData=true`,
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis?includeRevisions=true&includeMetaData=true`,
         {
           headers: {
             Authorization: token,
@@ -576,11 +576,12 @@ export class ApigeeTemplaterService {
   public async apigeeProxyGet(
     proxyName: string,
     apigeeOrg: string,
-    token: string,
+    drz: string,
+    token: string
   ): Promise<string | undefined> {
     return new Promise(async (resolve, reject) => {
       let response = await fetch(
-        `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}`,
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}`,
         {
           headers: {
             Authorization: token,
@@ -593,7 +594,7 @@ export class ApigeeTemplaterService {
         let latestRevisionId = responseBody.latestRevisionId;
         if (!latestRevisionId) resolve(undefined);
 
-        let url = `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}/revisions/${latestRevisionId}?format=bundle`;
+        let url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}/revisions/${latestRevisionId}?format=bundle`;
         response = await fetch(url, {
           headers: {
             Authorization: token,
@@ -617,11 +618,12 @@ export class ApigeeTemplaterService {
   public async apigeeSharedFlowGet(
     sharedFlowName: string,
     apigeeOrg: string,
+    drz: string,
     token: string,
   ): Promise<string | undefined> {
     return new Promise(async (resolve, reject) => {
       let response = await fetch(
-        `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}`,
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}`,
         {
           headers: {
             Authorization: token,
@@ -634,7 +636,7 @@ export class ApigeeTemplaterService {
         let latestRevisionId = responseBody.latestRevisionId;
         if (!latestRevisionId) resolve(undefined);
 
-        let url = `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}/revisions/${latestRevisionId}?format=bundle`;
+        let url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}/revisions/${latestRevisionId}?format=bundle`;
         response = await fetch(url, {
           headers: {
             Authorization: token,
@@ -658,12 +660,13 @@ export class ApigeeTemplaterService {
   public async apigeeProxyImportTemplate(
     proxyName: string,
     apigeeOrg: string,
+    drz: string,
     token: string,
     converter: ApigeeConverter,
   ): Promise<Template | undefined> {
     return new Promise(async (resolve, reject) => {
       let template: Template | undefined = undefined;
-      let apigeeProxyPath = await this.apigeeProxyGet(proxyName, apigeeOrg, token);
+      let apigeeProxyPath = await this.apigeeProxyGet(proxyName, apigeeOrg, drz, token);
 
       if (apigeeProxyPath) {
         let proxy = await converter.apigeeZipToProxy(proxyName, apigeeProxyPath);
@@ -681,6 +684,7 @@ export class ApigeeTemplaterService {
     proxyName: string,
     apigeeProxyPath: string,
     apigeeOrg: string,
+    drz: string,
     token: string,
   ): Promise<string> {
     return new Promise(async (resolve, reject) => {
@@ -689,7 +693,7 @@ export class ApigeeTemplaterService {
       form.set("file", new Blob([data]), `${proxyName + ".zip"}`);
 
       let response = await fetch(
-        `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/apis?name=${proxyName}&action=import`,
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis?name=${proxyName}&action=import`,
         {
           method: "POST",
           headers: {
@@ -718,10 +722,11 @@ export class ApigeeTemplaterService {
     serviceAccountEmail: string,
     apigeeEnvironment: string,
     apigeeOrg: string,
+    drz: string,
     token: string,
   ): Promise<string> {
     return new Promise(async (resolve, reject) => {
-      let url = `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/environments/${apigeeEnvironment}/apis/${proxyName}/revisions/${proxyRevision}/deployments?override=true`;
+      let url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/environments/${apigeeEnvironment}/apis/${proxyName}/revisions/${proxyRevision}/deployments?override=true`;
       if (serviceAccountEmail) url += `&serviceAccount=${serviceAccountEmail}`;
       let response = await fetch(url, {
         method: "POST",
@@ -748,7 +753,7 @@ export class ApigeeTemplaterService {
     });
   }
 
-  public async apigeeConfigGet(apigeeOrg: string, token: string): Promise<ApigeeConfig> {
+  public async apigeeConfigGet(apigeeOrg: string, drz: string, token: string): Promise<ApigeeConfig> {
     return new Promise(async (resolve, reject) => {
       let apigeeConfig: ApigeeConfig = {
         org: undefined,
@@ -756,7 +761,7 @@ export class ApigeeTemplaterService {
         environmentGroups: [],
       };
 
-      let response = await fetch(`https://apigee.googleapis.com/v1/organizations/${apigeeOrg}`, {
+      let response = await fetch(`https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}`, {
         method: "GET",
         headers: {
           Authorization: token,
@@ -771,7 +776,7 @@ export class ApigeeTemplaterService {
       }
 
       response = await fetch(
-        `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/environments`,
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/environments`,
         {
           method: "GET",
           headers: {
@@ -788,7 +793,7 @@ export class ApigeeTemplaterService {
       }
 
       response = await fetch(
-        `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/envgroups`,
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/envgroups`,
         {
           method: "GET",
           headers: {
@@ -804,7 +809,7 @@ export class ApigeeTemplaterService {
           if (apigeeConfig.environmentGroups && apigeeConfig.environmentGroups.length > 0) {
             for (let group of apigeeConfig.environmentGroups) {
               response = await fetch(
-                `https://apigee.googleapis.com/v1/organizations/${apigeeOrg}/envgroups/${group.name}/attachments`,
+                `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/envgroups/${group.name}/attachments`,
                 {
                   method: "GET",
                   headers: {

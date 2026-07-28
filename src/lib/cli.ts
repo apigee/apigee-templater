@@ -65,6 +65,7 @@ export class cli {
         "--help": Boolean,
         "--version": Boolean,
         "--config": String,
+        "--drz": String,
         "-i": "--input",
         "-n": "--name",
         "-b": "--basePath",
@@ -79,6 +80,7 @@ export class cli {
         "-h": "--help",
         "-v": "--version",
         "-c": "--config",
+        "-d": "--drz"
       },
       {
         argv: rawArgs.slice(2),
@@ -115,6 +117,7 @@ export class cli {
       help: args["--help"] || false,
       version: args["--version"] || false,
       config: args["--config"] || "",
+      drz: args["--drz"] || "",
     };
   }
 
@@ -299,7 +302,7 @@ export class cli {
         if (token) options.token = token;
       }
       let apigeeConfig = await this.apigeeService.apigeeConfigGet(
-        options.config,
+        options.config, options.drz,
         "Bearer " + options.token,
       );
 
@@ -357,7 +360,7 @@ export class cli {
         if (!options.name) options.name = pieces[1];
         let apigeePath = await this.apigeeService.apigeeProxyGet(
           pieces[1],
-          pieces[0],
+          pieces[0], options.drz,
           "Bearer " + options.token,
         );
         if (apigeePath) {
@@ -368,7 +371,7 @@ export class cli {
           // try shared flows
           let sharedFlowPath = await this.apigeeService.apigeeSharedFlowGet(
             pieces[1],
-            pieces[0],
+            pieces[0], options.drz,
             "Bearer " + options.token,
           );
 
@@ -417,7 +420,7 @@ export class cli {
       }
       if (options.input.endsWith(":")) options.input = options.input.replace(":", "");
       let proxyList = await this.apigeeService.apigeeProxiesList(
-        options.input,
+        options.input, options.drz,
         `Bearer ${options.token}`,
       );
       if (!options.output && proxyList && proxyList["proxies"] && proxyList["proxies"].length > 0) {
@@ -597,7 +600,7 @@ export class cli {
               lastRevision = await this.apigeeService.apigeeProxyExport(
                 options.name,
                 outputPath,
-                pieces[0],
+                pieces[0], options.drz,
                 "Bearer " + options.token,
               );
             }
@@ -611,7 +614,7 @@ export class cli {
                 lastRevision,
                 serviceAccount,
                 environment,
-                pieces[0],
+                pieces[0], options.drz,
                 "Bearer " + options.token,
               );
             }
@@ -764,6 +767,7 @@ class cliArgs {
   help = false;
   version = false;
   config = "";
+  drz = "";
 }
 
 const helpCommands = [
@@ -824,6 +828,10 @@ const helpCommands = [
   {
     name: "--version, -v",
     description: "Display version and help.",
+  },
+  {
+    name: "--drz, -d",
+    description: "Use a DRZ Apigee endpoint (us, eu, in) for API calls.",
   },
 ];
 
