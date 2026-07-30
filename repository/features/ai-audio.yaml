@@ -1,0 +1,510 @@
+name: audio-v1
+displayName: REST-Audio-v1
+type: feature
+description: REST-Audio-v1
+documentation: ""
+categories: []
+parameters: []
+defaultEndpoint:
+  name: default
+  basePath: /v1/audio
+  routes:
+    - name: route-google-eu
+      target: gcloud-eu
+      condition: target.route = "gcloud-eu"
+    - name: route-google
+      target: gcloud
+      condition: target.route = "gcloud"
+    - name: route-openai
+      target: openai
+      condition: target.route = "openai"
+    - name: route-anthropic
+      target: anthropic
+      condition: target.route = "anthropic"
+    - name: default
+      target: gcloud
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: KVM-LoadConfig
+        - name: AM-SetVariables
+        - name: JS-CheckModel
+  faultRules: []
+endpoints:
+  - name: transcriptions
+    basePath: /v1/audio/transcriptions
+    routes:
+      - name: route-google-eu
+        target: gcloud-eu
+        condition: target.route = "gcloud-eu"
+      - name: route-google
+        target: gcloud
+        condition: target.route = "gcloud"
+      - name: route-openai
+        target: openai
+        condition: target.route = "openai"
+      - name: default
+        target: gcloud
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: KVM-LoadConfig
+          - name: AM-SetVariables
+          - name: JS-CheckModel
+  - name: speech
+    basePath: /v1/audio/speech
+    routes:
+      - name: route-google-eu
+        target: gcloud-eu
+        condition: target.route = "gcloud-eu"
+      - name: route-google
+        target: gcloud
+        condition: target.route = "gcloud"
+      - name: route-openai
+        target: openai
+        condition: target.route = "openai"
+      - name: default
+        target: gcloud
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: KVM-LoadConfig
+          - name: AM-SetVariables
+          - name: JS-CheckModel
+targets:
+  - name: anthropic
+    url: https://api.anthropic.com
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: ai.responseTokenCount == null
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+    faultRules: []
+    httpTargetConnection:
+      properties: {}
+      url: https://api.anthropic.com
+  - name: gcloud-eu
+    url: https://aiplatform.eu.rep.googleapis.com/v1/projects/ai-portals-solution/locations/eu/endpoints/openapi/audio
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: ai.responseTokenCount == null
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+    faultRules: []
+    httpTargetConnection:
+      properties: {}
+      url: https://aiplatform.eu.rep.googleapis.com/v1/projects/ai-portals-solution/locations/eu/endpoints/openapi/audio
+  - name: gcloud
+    url: https://aiplatform.googleapis.com/v1/projects/ai-portals-solution/locations/global/endpoints/openapi/audio
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: ai.responseTokenCount == null
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+    faultRules: []
+    httpTargetConnection:
+      properties: {}
+      url: https://aiplatform.googleapis.com/v1/projects/ai-portals-solution/locations/global/endpoints/openapi/audio
+  - name: openai
+    url: https://api.openai.com
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: ai.responseTokenCount == null
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+    faultRules: []
+    httpTargetConnection:
+      properties: {}
+      url: https://api.openai.com
+policies:
+  - name: AM-SetVariables
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetVariables
+        displayName: AM-SetVariables
+        properties: {}
+        remove:
+          headers:
+            header:
+              metadata:
+                name: accept-encoding
+        assignVariable:
+          - name: originalHostName
+            ref: request.header.host
+          - name: originalUrl
+            ref: proxy.url
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: DC-TokenAnalytics
+    type: DataCapture
+    content:
+      dataCapture:
+        metadata:
+          name: DC-TokenAnalytics
+          continueOnError: "false"
+          enabled: "true"
+        displayName: DC-TokenAnalytics
+        ignoreUnresolvedVariables: "false"
+        capture:
+          - collect:
+              metadata:
+                ref: ai.model
+                default: unknown
+            dataCollector: dc_ai_model
+          - collect:
+              metadata:
+                ref: ai.promptTokenCount
+                default: "0"
+            dataCollector: dc_ai_prompt_token_count
+          - collect:
+              metadata:
+                ref: ai.responseTokenCount
+                default: "0"
+            dataCollector: dc_ai_response_token_count
+          - collect:
+              metadata:
+                ref: ai.totalTokenCount
+                default: "0"
+            dataCollector: dc_ai_total_token_count
+          - collect:
+              metadata:
+                ref: ai.responseType
+                default: unknown
+            dataCollector: dc_ai_response_type
+          - collect:
+              metadata:
+                ref: ai.timeToFirstToken
+                default: "0"
+            dataCollector: dc_ai_time_first_token
+          - collect:
+              metadata:
+                ref: ai.costCenter
+                default: unknown
+            dataCollector: dc_ai_cost_center
+  - name: JS-Analytics
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-Analytics
+        displayName: JS-Analytics
+        properties: {}
+        source: |
+          var responseContent = response.content;
+          var usageData = getUsageData(responseContent);
+
+          if (usageData) {
+            context.setVariable("ai.model", usageData.model);
+            context.setVariable("ai.promptTokenCount", usageData.requestTokenCount);
+            context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
+            context.setVariable("ai.totalTokenCount", usageData.totalTokenCount);
+          }
+        includeUrl: jsc://ai-functions.js
+  - name: JS-CheckModel
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-CheckModel
+        displayName: JS-CheckModel
+        properties: {}
+        source: |
+
+          var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
+          var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
+          var override_model = context.getVariable("propertyset.ai.OverrideModel");
+          var default_model = context.getVariable("propertyset.ai.DefaultModel");
+          if (!allowed_model_patterns) allowed_model_patterns = context.getVariable("ai.allowedModelPatterns");
+          if (!denied_model_patterns) denied_model_patterns = context.getVariable("ai.deniedModelPatterns");
+          if (!override_model) override_model = context.getVariable("ai.overrideModel");
+          if (!default_model) default_model = context.getVariable("ai.defaultModel");
+
+          var url = context.getVariable("proxy.url");
+          var requestContent = null;
+          try {
+            requestContent = request.content.asJSON;
+          } catch(e) {}
+
+          var callType = "googlecloud";
+          var callStreaming = "non-streaming";
+          if (url.toLowerCase().includes("/audio/")) callType = "oai";
+
+          var requestConfig = {
+            url: url,
+            type: callType,
+            requestContent: requestContent,
+            allowedModelPatterns: allowed_model_patterns,
+            deniedModelPatterns: denied_model_patterns
+          }
+
+          var allowResult = testAllowedModels(requestConfig);
+          var denyResult = testDeniedModels(requestConfig);
+          var promptInfo = getPrompts(requestContent);
+          var modelName = getModelName(url, request.content);
+
+          if (override_model && override_model != "NONE" && callType == "oai") {
+            modelName = override_model;
+          } else if (default_model && default_model != "NONE" && !modelName && callType == "oai") {
+            modelName = default_model;
+          }
+
+          var routeInfo = getTargetRoute(modelName);
+
+          context.setVariable("ai.model", routeInfo.cleanModelName || modelName);
+          context.setVariable("ai.provider", routeInfo.provider);
+          context.setVariable("ai.region", routeInfo.region || "global");
+          context.setVariable("target.route", routeInfo.targetRoute);
+          context.setVariable("ai.requestType", callStreaming);
+          context.setVariable("ai.apiType", callType);
+
+          if (requestContent) {
+            if (override_model && override_model != "NONE" && callType == "oai") {
+              requestContent["model"] = override_model;
+            } else if (routeInfo.cleanModelName) {
+              requestContent["model"] = routeInfo.cleanModelName;
+            }
+            request.content = JSON.stringify(requestContent);
+          }
+
+          if (promptInfo.userPrompt)
+            context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
+
+          if (!allowResult) {
+            print("Model not allowed!");
+            context.setVariable("response.status.code", 403);
+            throw "Model not allowed!";
+          }
+
+          if (!denyResult) {
+            print("Model denied!");
+            context.setVariable("response.status.code", 403);
+            throw "Model denied!";
+          }
+
+          print("Default_model: " + default_model);
+          print("Request model: " + modelName);
+          print("Target route: " + routeInfo.targetRoute);
+        includeUrl: jsc://ai-functions.js
+  - name: KVM-LoadConfig
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: KVM-LoadConfig
+          mapIdentifier: AI-Config
+        displayName: KVM-LoadConfig
+        properties: {}
+        exclusiveCache: "false"
+        expiryTimeInSecs: "10"
+        initialEntries:
+          entry:
+            - key:
+                parameter: AllowedModelPatterns
+              setValue: ALL
+            - key:
+                parameter: DeniedModelPatterns
+              setValue: NONE
+            - key:
+                parameter: OverrideModel
+              setValue: NONE
+            - key:
+                parameter: DefaultModel
+              setValue: google/whisper-1
+            - key:
+                parameter: FailoverModel
+              setValue: google/whisper-1
+        get:
+          - metadata:
+              assignTo: ai.allowedModelPatterns
+              index: "1"
+            key:
+              parameter: AllowedModelPatterns
+          - metadata:
+              assignTo: ai.deniedModelPatterns
+              index: "1"
+            key:
+              parameter: DeniedModelPatterns
+          - metadata:
+              assignTo: ai.overrideModel
+              index: "1"
+            key:
+              parameter: OverrideModel
+          - metadata:
+              assignTo: ai.defaultModel
+              index: "1"
+            key:
+              parameter: DefaultModel
+          - metadata:
+              assignTo: ai.failoverModel
+              index: "1"
+            key:
+              parameter: FailoverModel
+        scope: environment
+resources:
+  - name: ai-functions.js
+    type: jsc
+    content: |
+      function getModelName(urlString, contentString) {
+        var modelName = "unknown";
+        if (urlString && urlString.includes("/publishers/anthropic/models/")) {
+          var urlPieces = urlString.split("/publishers/anthropic/models/");
+          if (urlPieces.length > 1) {
+            var urlPieces2 = urlPieces[1].split(":");
+            if (urlPieces2.length > 0) modelName = urlPieces2[0];
+          }
+        } else if (urlString && urlString.includes("/publishers/google/models/")) {
+          var urlPieces = urlString.split("/publishers/google/models/");
+          if (urlPieces.length > 1) {
+            var urlPieces2 = urlPieces[1].split(":");
+            if (urlPieces2.length > 0) modelName = urlPieces2[0];
+          }
+        } else if (contentString) {
+          try {
+            var contentData = contentString;
+            if (typeof contentString === "string") {
+              contentData = JSON.parse(contentString);
+            } else if (contentString.asJSON) {
+              contentData = contentString.asJSON;
+            }
+            if (contentData && contentData["model"]) modelName = contentData["model"];
+          } catch (e) {}
+        }
+        return modelName;
+      }
+
+      function getTargetRoute(modelName) {
+        var result = {
+          provider: "unknown",
+          region: "global",
+          cleanModelName: modelName,
+          targetRoute: "gcloud"
+        };
+
+        if (!modelName || modelName === "unknown") return result;
+
+        var lowerModel = modelName.toLowerCase();
+        var rawProvider = "";
+        var cleanModel = modelName;
+
+        if (modelName.indexOf("/") !== -1) {
+          var parts = modelName.split("/");
+          rawProvider = parts[0].toLowerCase();
+          cleanModel = parts.slice(1).join("/");
+        }
+
+        if (rawProvider === "google-eu" || rawProvider === "gcloud-eu" || rawProvider === "gemini-eu") {
+          result.provider = "google";
+          result.region = "eu";
+          result.targetRoute = "gcloud-eu";
+          result.cleanModelName = "google/" + cleanModel;
+        } else if (rawProvider === "google" || rawProvider === "gcloud" || rawProvider === "gemini") {
+          result.provider = "google";
+          result.region = "global";
+          result.targetRoute = "gcloud";
+          result.cleanModelName = modelName;
+        } else if (rawProvider === "openai") {
+          result.provider = "openai";
+          result.region = "global";
+          result.targetRoute = "openai";
+          result.cleanModelName = modelName;
+        } else if (rawProvider === "anthropic") {
+          result.provider = "anthropic";
+          result.region = "global";
+          result.targetRoute = "anthropic";
+          result.cleanModelName = modelName;
+        } else {
+          if (lowerModel.indexOf("whisper-") === 0 || lowerModel.indexOf("tts-") === 0) {
+            result.provider = "openai";
+            result.region = "global";
+            result.targetRoute = "openai";
+            result.cleanModelName = "openai/" + modelName;
+          } else {
+            result.provider = "google";
+            result.region = "global";
+            result.targetRoute = "gcloud";
+            result.cleanModelName = lowerModel.indexOf("google/") === 0 ? modelName : "google/" + modelName;
+          }
+        }
+
+        return result;
+      }
+
+      function getPrompts(contentData) {
+        var promptInfo = { userPrompt: "", allUserPrompts: "" };
+        return promptInfo;
+      }
+
+      function getUsageData(contentString) {
+        var usageData = { model: "", requestTokenCount: 0, responseTokenCount: 0, totalTokenCount: 0 };
+        return usageData;
+      }
+
+      function testAllowedModels(requestInfo) { return true; }
+      function testDeniedModels(requestInfo) { return true; }
+
+      if (typeof exports !== "undefined") {
+        exports.getModelName = getModelName;
+        exports.getTargetRoute = getTargetRoute;
+        exports.getPrompts = getPrompts;
+        exports.getUsageData = getUsageData;
+      }
+tests: []

@@ -9,3 +9,4 @@ data
 .env
 __pycache__
 .npmrc
+emulator/dist

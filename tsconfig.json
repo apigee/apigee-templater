@@ -41,5 +41,5 @@
     "moduleDetection": "force",
     "skipLibCheck": true,
   },
-  "exclude": ["./test/**/*", "./dist/**/*", "./agents-ts/**/*"],
+  "exclude": ["./test/**/*", "./dist/**/*", "./agents-ts/**/*", "./repository/**/*"],
 }

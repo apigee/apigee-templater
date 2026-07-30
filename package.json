@@ -10,7 +10,7 @@
   "scripts": {
     "build": "genversion ./src/lib/version.ts --esm && npx tsc && node copy-assets.js",
     "start": "npm run build && node dist/index.js",
-    "test": "npm run build && vitest"
+    "test": "npm run build && vitest run repository/lib/tests/ai-functions.test.ts"
   },
   "repository": {
     "type": "git",

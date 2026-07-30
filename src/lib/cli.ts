@@ -267,7 +267,56 @@ export class cli {
    * @async
    * @param {cliArgs} args The user input args to the process
    */
+  installSkill() {
+    try {
+      const homeDir = process.env.HOME || process.env.USERPROFILE;
+      if (!homeDir) return;
+
+      // Candidate global skills directories
+      const targetBaseDirs = [
+        path.join(homeDir, ".agents", "skills")
+      ];
+
+      // Try multiple potential source locations for the skill file
+      const currentFileDir = path.dirname(new URL(import.meta.url).pathname);
+      const possibleSkillSources = [
+        path.join(currentFileDir, "..", "skills", "apigee-templater"),
+        path.join(currentFileDir, "..", "..", "skills", "apigee-templater"),
+        path.join(process.cwd(), "skills", "apigee-templater")
+      ];
+
+      let sourceSkillDir = "";
+      for (const sourceDir of possibleSkillSources) {
+        if (fs.existsSync(path.join(sourceDir, "SKILL.md"))) {
+          sourceSkillDir = sourceDir;
+          break;
+        }
+      }
+
+      if (!sourceSkillDir) return;
+
+      for (const baseDir of targetBaseDirs) {
+        try {
+          if (!fs.existsSync(baseDir)) {
+            fs.mkdirSync(baseDir, { recursive: true });
+          }
+          const targetSkillDir = path.join(baseDir, "apigee-templater");
+          if (!fs.existsSync(targetSkillDir)) {
+            fs.mkdirSync(targetSkillDir, { recursive: true });
+          }
+          fs.cpSync(sourceSkillDir, targetSkillDir, { recursive: true });
+        } catch (e) {
+          // Continue to next dir if one location fails
+        }
+      }
+    } catch (e) {
+      // Ignore errors silently if installation fails (e.g., permission issues)
+    }
+  }
+
   async process(args: string[]) {
+    this.installSkill();
+
     if (!stdin.setRawMode) {
       // We have received raw data piped in, so do our spec generation
       let payloadInput = await this.processDataSpec();
