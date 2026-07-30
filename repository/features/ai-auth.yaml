@@ -24,7 +24,13 @@ defaultEndpoint:
         - name: AM-SetVariables
         - name: JS-CheckModel
         - name: VA-VerifyKey
+          condition: request.header.x-apigee-key != null
         - name: AM-RemoveKey
+          condition: request.header.x-apigee-key != null
+        - name: SC-ValidateGoogleToken
+          condition: request.header.Authorization != null AND request.header.Authorization Matches "Bearer ya29.*"
+        - name: JS-ParseGoogleToken
+          condition: request.header.Authorization != null AND request.header.Authorization Matches "Bearer ya29.*"
         - name: LTQ-QuotaEnforce
           condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
         - name: AE-LoadAttributes
@@ -102,7 +108,7 @@ policies:
           headers:
             header:
               metadata:
-                name: x-api-key
+                name: x-apigee-key
         assignVariable:
           name: originalHostName
           ref: request.header.host
@@ -112,6 +118,59 @@ policies:
             createNew: "false"
             transport: http
             type: request
+  - name: SC-ValidateGoogleToken
+    type: ServiceCallout
+    content:
+      serviceCallout:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: SC-ValidateGoogleToken
+        displayName: SC-ValidateGoogleToken
+        properties: {}
+        request:
+          variable: tokenInfoRequest
+          ignoreUnresolvedVariables: "false"
+        response: tokenInfoResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://oauth2.googleapis.com/tokeninfo?access_token={substring(request.header.Authorization,7)}
+  - name: JS-ParseGoogleToken
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ParseGoogleToken
+        displayName: JS-ParseGoogleToken
+        properties: {}
+        source: |
+          var responseCode = context.getVariable("tokenInfoResponse.status.code");
+          var responseContent = context.getVariable("tokenInfoResponse.content");
+
+          if (responseCode == "200" && responseContent) {
+            try {
+              var tokenInfo = JSON.parse(responseContent);
+              if (tokenInfo.email) context.setVariable("google.token.email", tokenInfo.email);
+              if (tokenInfo.email_verified) context.setVariable("google.token.email_verified", tokenInfo.email_verified);
+              if (tokenInfo.scope) context.setVariable("google.token.scope", tokenInfo.scope);
+              if (tokenInfo.exp) context.setVariable("google.token.expires_in", tokenInfo.expires_in || tokenInfo.exp);
+              if (tokenInfo.aud) context.setVariable("google.token.aud", tokenInfo.aud);
+              if (tokenInfo.sub) context.setVariable("google.token.sub", tokenInfo.sub);
+              if (tokenInfo.azp) context.setVariable("google.token.azp", tokenInfo.azp);
+              context.setVariable("google.token.valid", "true");
+            } catch (e) {
+              context.setVariable("google.token.valid", "false");
+              context.setVariable("response.status.code", 401);
+              throw "Invalid Google OAuth Token Response";
+            }
+          } else {
+            context.setVariable("google.token.valid", "false");
+            context.setVariable("response.status.code", 401);
+            throw "Invalid Google OAuth Token";
+          }
   - name: JS-CheckBudget
     type: Javascript
     content:
@@ -191,7 +250,7 @@ policies:
         properties: {}
         apiKey:
           metadata:
-            ref: request.header.x-api-key
+            ref: request.header.x-apigee-key
   - name: AM-SetVariables
     type: AssignMessage
     content:
