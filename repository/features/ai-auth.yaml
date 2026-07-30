@@ -24,16 +24,27 @@ defaultEndpoint:
         - name: AM-SetVariables
         - name: JS-CheckModel
         - name: VA-VerifyKey
-          condition: request.header.x-apigee-key != null
+          condition: request.header.x-api-key != null AND NOT (request.header.x-api-key JavaRegex "sk-ant.*")
         - name: AM-RemoveKey
-          condition: request.header.x-apigee-key != null
+          condition: request.header.x-api-key != null AND NOT (request.header.x-api-key JavaRegex "sk-ant.*")
+        - name: AM-SetGoogleToken
+          condition: verifyapikey.VA-VerifyKey.client_id != null
+        - name: EV-ExtractBearerToken
+          condition: verifyapikey.VA-VerifyKey.client_id == null AND request.header.Authorization != null AND request.header.Authorization Matches "Bearer ya29.*"
         - name: SC-ValidateGoogleToken
-          condition: request.header.Authorization != null AND request.header.Authorization Matches "Bearer ya29.*"
+          condition: verifyapikey.VA-VerifyKey.client_id == null AND request.header.Authorization != null AND request.header.Authorization Matches "Bearer ya29.*"
         - name: JS-ParseGoogleToken
-          condition: request.header.Authorization != null AND request.header.Authorization Matches "Bearer ya29.*"
+          condition: verifyapikey.VA-VerifyKey.client_id == null AND request.header.Authorization != null AND request.header.Authorization Matches "Bearer ya29.*"
+        - name: SC-GetGoogleGroups
+          condition: verifyapikey.VA-VerifyKey.client_id == null AND google.token.valid == "true" AND google.token.email != null
+        - name: JS-ParseGoogleGroups
+          condition: verifyapikey.VA-VerifyKey.client_id == null AND google.token.valid == "true" AND google.token.email != null
         - name: LTQ-QuotaEnforce
           condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
         - name: AE-LoadAttributes
+          condition: client_id != null
+        - name: AE-LoadAttributesByEmail
+          condition: client_id == null AND google.token.email != null
         - name: JS-CheckBudget
     - name: PostFlow
       mode: Response
@@ -45,9 +56,6 @@ defaultEndpoint:
 defaultTarget:
   name: default
   url: https://aiplatform.googleapis.com
-  auth: GoogleAccessToken
-  scopes:
-    - https://www.googleapis.com/auth/cloud-platform
   flows:
     - name: PostFlow
       mode: Response
@@ -70,10 +78,6 @@ defaultTarget:
   httpTargetConnection:
     properties: {}
     url: https://aiplatform.googleapis.com
-    authentication:
-      googleAccessToken:
-        scopes:
-          scope: https://www.googleapis.com/auth/cloud-platform
 endpoints: []
 targets: []
 policies:
@@ -82,7 +86,7 @@ policies:
     content:
       accessEntity:
         metadata:
-          continueOnError: "false"
+          continueOnError: "true"
           enabled: "true"
           name: AE-LoadAttributes
         displayName: AE-LoadAttributes
@@ -91,6 +95,23 @@ policies:
           metadata:
             type: consumerkey
             ref: client_id
+        entityType:
+          metadata:
+            setValue: developer
+  - name: AE-LoadAttributesByEmail
+    type: AccessEntity
+    content:
+      accessEntity:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: AE-LoadAttributesByEmail
+        displayName: AE-LoadAttributesByEmail
+        properties: {}
+        entityIdentifier:
+          metadata:
+            type: email
+            ref: google.token.email
         entityType:
           metadata:
             setValue: developer
@@ -108,7 +129,7 @@ policies:
           headers:
             header:
               metadata:
-                name: x-apigee-key
+                name: x-api-key
         assignVariable:
           name: originalHostName
           ref: request.header.host
@@ -118,6 +139,45 @@ policies:
             createNew: "false"
             transport: http
             type: request
+  - name: AM-SetGoogleToken
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetGoogleToken
+        displayName: AM-SetGoogleToken
+        properties: {}
+        set:
+          authentication:
+            headerName: Authorization
+            googleAccessToken:
+              scopes:
+                scope: https://www.googleapis.com/auth/cloud-platform
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: EV-ExtractBearerToken
+    type: ExtractVariables
+    content:
+      extractVariables:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: EV-ExtractBearerToken
+        displayName: EV-ExtractBearerToken
+        header:
+          metadata:
+            name: Authorization
+          pattern:
+            metadata:
+              ignoreCase: "true"
+            value: "Bearer {google.raw_access_token}"
+        ignoreUnresolvedVariables: "true"
   - name: SC-ValidateGoogleToken
     type: ServiceCallout
     content:
@@ -134,7 +194,7 @@ policies:
         response: tokenInfoResponse
         httpTargetConnection:
           properties: {}
-          url: https://oauth2.googleapis.com/tokeninfo?access_token={substring(request.header.Authorization,7)}
+          url: https://oauth2.googleapis.com/tokeninfo?access_token={google.raw_access_token}
   - name: JS-ParseGoogleToken
     type: Javascript
     content:
@@ -170,6 +230,57 @@ policies:
             context.setVariable("google.token.valid", "false");
             context.setVariable("response.status.code", 401);
             throw "Invalid Google OAuth Token";
+          }
+  - name: SC-GetGoogleGroups
+    type: ServiceCallout
+    content:
+      serviceCallout:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: SC-GetGoogleGroups
+        displayName: SC-GetGoogleGroups
+        properties: {}
+        request:
+          variable: groupsRequest
+          ignoreUnresolvedVariables: "true"
+        response: groupsResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://cloudidentity.googleapis.com/v1/groups/-/memberships:searchDirectGroups?query=member_key_id=='{google.token.email}'
+          authentication:
+            googleAccessToken:
+              scopes:
+                scope: https://www.googleapis.com/auth/cloud-identity.groups.readonly
+  - name: JS-ParseGoogleGroups
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ParseGoogleGroups
+        displayName: JS-ParseGoogleGroups
+        properties: {}
+        source: |
+          var responseContent = context.getVariable("groupsResponse.content");
+          if (responseContent) {
+            try {
+              var groupsData = JSON.parse(responseContent);
+              var groupNames = [];
+              if (groupsData.memberships) {
+                for (var i = 0; i < groupsData.memberships.length; i++) {
+                  var m = groupsData.memberships[i];
+                  if (m.groupKey && m.groupKey.id) {
+                    groupNames.push(m.groupKey.id);
+                  }
+                }
+              }
+              context.setVariable("google.token.groups", groupNames.join(","));
+            } catch (e) {
+              print("Failed to parse Google groups response: " + e);
+            }
           }
   - name: JS-CheckBudget
     type: Javascript
@@ -250,7 +361,7 @@ policies:
         properties: {}
         apiKey:
           metadata:
-            ref: request.header.x-apigee-key
+            ref: request.header.x-api-key
   - name: AM-SetVariables
     type: AssignMessage
     content:
