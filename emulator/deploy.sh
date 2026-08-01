@@ -26,10 +26,22 @@ EOF
 cat << 'EOF' > "$ENV_DIR/deployments.json"
 {
   "proxies": [
-    "completions-v1",
-    "embeddings-v1",
-    "images-v1",
-    "audio-v1"
+    {
+      "name": "auth-v1",
+      "serviceAccount": "ai-service@ai-portals-solution.iam.gserviceaccount.com"
+    },
+    {
+      "name": "completions-v1"
+    },
+    {
+      "name": "embeddings-v1"
+    },
+    {
+      "name": "images-v1"
+    },
+    {
+      "name": "audio-v1"
+    }
   ]
 }
 EOF
@@ -47,13 +59,14 @@ cat << 'EOF' > "$ENV_DIR/datacollectors.json"
 EOF
 
 # 2. Build proxy zip bundles into emulator/dist
+aft -i ./repository/features/ai-auth.yaml -o "$DIST_DIR/auth-v1.zip"
 aft -i ./repository/features/ai-completions.yaml -o "$DIST_DIR/completions-v1.zip"
 aft -i ./repository/features/ai-embeddings.yaml -o "$DIST_DIR/embeddings-v1.zip"
 aft -i ./repository/features/ai-images.yaml -o "$DIST_DIR/images-v1.zip"
 aft -i ./repository/features/ai-audio.yaml -o "$DIST_DIR/audio-v1.zip"
 
 # 3. Unpack each proxy zip into its target folder in emulator/dist/bundle/
-for PROXY_NAME in completions-v1 embeddings-v1 images-v1 audio-v1; do
+for PROXY_NAME in auth-v1 completions-v1 embeddings-v1 images-v1 audio-v1; do
   TARGET_DIR="$PROXIES_DIR/$PROXY_NAME"
   mkdir -p "$TARGET_DIR"
   unzip -q -o "$DIST_DIR/$PROXY_NAME.zip" -d "$TARGET_DIR"

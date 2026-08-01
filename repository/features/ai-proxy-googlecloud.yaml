@@ -82,15 +82,6 @@ parameters:
     default: ""
     examples: []
     maps: {}
-  - name: ServiceAccountAuth
-    description: If a Google Cloud Service Account should be used in the proxy
-      deployment, or not.
-    default: true
-    examples:
-      - true
-      - false
-    maps:
-      "false": remove=$.targets[*].auth,$.targets[*].scopes,$.targets[*].httpTargetConnection.authentication
 endpoints:
   - name: googlecloud
     basePath: /models
@@ -108,9 +99,6 @@ endpoints:
 targets:
   - name: googlecloud
     url: https://aiplatform.googleapis.com
-    auth: GoogleAccessToken
-    scopes:
-      - https://www.googleapis.com/auth/cloud-platform
     flows:
       - name: PostFlow
         mode: Response
@@ -138,10 +126,6 @@ targets:
             name: io.timeout.millis
           value: "18000000"
       url: https://aiplatform.googleapis.com
-      authentication:
-        googleAccessToken:
-          scopes:
-            scope: https://www.googleapis.com/auth/cloud-platform
 policies:
   - name: JS-SetFailover
     type: Javascript

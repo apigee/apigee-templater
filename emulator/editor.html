@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apigee Templater Editor</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- JS Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ajv/8.12.0/ajv7.min.js"></script>
+
+  <!-- CodeMirror 5 (Lightweight, synchronous, rock-solid) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/yaml/yaml.min.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #334155;
+      --bg-active: #475569;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --accent-glow: rgba(56, 189, 248, 0.2);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --font-code: 'Fira Code', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-badge {
+      background: linear-gradient(135deg, #0284c7, #a855f7);
+      color: white;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .title {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .file-tag {
+      font-size: 0.8rem;
+      background: var(--bg-card);
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: var(--accent);
+      font-family: var(--font-code);
+      max-width: 250px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--bg-active);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      color: white;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .status-valid {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .status-invalid {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--error);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .main-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .pane {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: 100%;
+    }
+
+    .pane-visual {
+      width: 55%;
+      min-width: 250px;
+      background: var(--bg-primary);
+    }
+
+    .resizer {
+      width: 6px;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      cursor: col-resize;
+      transition: background 0.2s;
+      z-index: 10;
+      user-select: none;
+    }
+
+    .resizer:hover, .resizer.dragging {
+      background: var(--accent);
+    }
+
+    .pane-editor {
+      flex: 1;
+      min-width: 250px;
+      background: var(--bg-secondary);
+      position: relative;
+    }
+
+    .pane-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-primary);
+      padding: 3px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .tab {
+      padding: 4px 12px;
+      font-size: 0.78rem;
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    .tab.active {
+      background: var(--accent);
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    .pane-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    /* CodeMirror container styling */
+    .CodeMirror {
+      height: 100% !important;
+      font-family: var(--font-code);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* Visual Components */
+    .flow-section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .section-title {
+      padding: 12px 16px;
+      background: var(--bg-card);
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .flow-pipeline {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .pipeline-lane {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .lane-header {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .step-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      min-height: 40px;
+      align-items: center;
+    }
+
+    .step-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      cursor: pointer;
+      min-width: 180px;
+    }
+
+    .step-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .step-name {
+      font-weight: 600;
+      font-family: var(--font-code);
+    }
+
+    .step-type {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .step-condition {
+      font-size: 0.72rem;
+      font-family: var(--font-code);
+      background: var(--bg-primary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--warning);
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .policy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .policy-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+    }
+
+    .policy-card:hover { border-color: var(--accent); }
+
+    .policy-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .policy-type-badge {
+      background: var(--bg-active);
+      color: var(--accent);
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* Diagnostics Drawer */
+    #validation-panel {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      max-height: 200px;
+      background: var(--bg-secondary);
+      border-top: 2px solid var(--border);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(100%);
+      transition: transform 0.2s ease-in-out;
+    }
+
+    #validation-panel.open { transform: translateY(0); }
+
+    .validation-header {
+      padding: 8px 16px;
+      background: var(--bg-card);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .validation-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 16px;
+    }
+
+    .issue-item {
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      font-family: var(--font-code);
+      border-radius: 4px;
+      margin-bottom: 4px;
+      cursor: pointer;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .issue-item:hover { background: var(--bg-card); }
+    .issue-error { color: var(--error); }
+    .issue-warning { color: var(--warning); }
+
+    /* Drop Zone Overlay */
+    #drop-zone {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.95);
+      border: 2px dashed var(--accent);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    #drop-zone.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(4px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 750px;
+      max-width: 90vw;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 14px 20px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      padding: 20px;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal-footer {
+      padding: 12px 20px;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-control {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-family: var(--font-code);
+      font-size: 0.85rem;
+      width: 100%;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="logo-badge">APIGEE</div>
+      <div class="title">Templater Proxy & Feature Editor</div>
+      <span class="file-tag" id="current-filename">sample-proxy.yaml</span>
+    </div>
+    <div class="controls">
+      <button class="btn" onclick="document.getElementById('file-input').click()">
+        📁 Open File
+      </button>
+      <input type="file" id="file-input" accept=".yaml,.yml" onchange="handleFileSelect(event)" />
+      
+      <button class="btn" onclick="copyYamlToClipboard()">
+        📋 Copy YAML
+      </button>
+      <button class="btn btn-primary" onclick="downloadYaml()">
+        💾 Save File
+      </button>
+
+      <div id="status-btn" class="status-badge status-valid" onclick="toggleValidationPanel()">
+        <span id="status-icon">✓</span> <span id="status-text">Valid</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- Visual Representation Pane -->
+    <div class="pane pane-visual">
+      <div class="pane-header">
+        <span>Visual Flow & Config View</span>
+        <div class="tabs">
+          <div class="tab active" onclick="switchVisualTab('flows')">Flows Pipeline</div>
+          <div class="tab" onclick="switchVisualTab('policies')">Policies Registry</div>
+          <div class="tab" onclick="switchVisualTab('resources')">Resources</div>
+        </div>
+      </div>
+
+      <div class="pane-content" id="visual-tab-flows">
+        <div id="flows-builder"></div>
+      </div>
+
+      <div class="pane-content" id="visual-tab-policies" style="display: none;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 16px; align-items: center;">
+          <h3 style="font-size: 0.9rem; color: var(--text-muted);">Defined Policies</h3>
+          <button class="btn" onclick="openAddPolicyModal()">+ Add Policy</button>
+        </div>
+        <div class="policy-grid" id="policies-container"></div>
+      </div>
+
+      <div class="pane-content" id="visual-tab-resources" style="display: none;">
+        <div id="resources-container"></div>
+      </div>
+    </div>
+
+    <!-- Horizontal Resizer Divider -->
+    <div class="resizer" id="resizer" title="Drag to resize panels"></div>
+
+    <!-- CodeMirror YAML Editor Pane -->
+    <div class="pane pane-editor">
+      <div class="pane-header">
+        <span>YAML Source Definition</span>
+        <span style="font-size: 0.75rem; color: var(--text-muted);">Live Sync</span>
+      </div>
+      <div style="flex: 1; height: calc(100% - 40px);">
+        <textarea id="codemirror-yaml-textarea"></textarea>
+      </div>
+    </div>
+
+    <!-- Drop Zone Overlay -->
+    <div id="drop-zone">
+      <div style="font-size: 2rem; margin-bottom: 10px;">📄</div>
+      <div style="font-size: 1.2rem; font-weight: 600;">Drop Proxy or Feature YAML file here</div>
+    </div>
+
+    <!-- Validation Issues Bottom Panel -->
+    <div id="validation-panel">
+      <div class="validation-header">
+        <span id="validation-panel-title">Schema Diagnostics</span>
+        <button class="btn" style="padding: 2px 8px; font-size: 0.75rem;" onclick="toggleValidationPanel()">Close</button>
+      </div>
+      <div class="validation-list" id="validation-issues-list"></div>
+    </div>
+  </div>
+
+  <!-- Policy Edit Modal -->
+  <div class="modal-overlay" id="policy-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="policy-modal-title">Edit Policy</h3>
+        <button class="btn" onclick="closePolicyModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Policy Name</label>
+          <input type="text" id="modal-policy-name" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label>Policy Type</label>
+          <select id="modal-policy-type" class="form-control" onchange="handlePolicyTypeChange()">
+            <option value="AssignMessage">AssignMessage</option>
+            <option value="VerifyAPIKey">VerifyAPIKey</option>
+            <option value="KeyValueMapOperations">KeyValueMapOperations</option>
+            <option value="ServiceCallout">ServiceCallout</option>
+            <option value="Javascript">Javascript</option>
+            <option value="ExtractVariables">ExtractVariables</option>
+            <option value="LookupCache">LookupCache</option>
+            <option value="PopulateCache">PopulateCache</option>
+            <option value="LLMTokenQuota">LLMTokenQuota</option>
+            <option value="AccessEntity">AccessEntity</option>
+            <option value="DataCapture">DataCapture</option>
+          </select>
+        </div>
+
+        <div id="modal-js-code-section" style="display: none;" class="form-group">
+          <label>Embedded JS Source Code (Apigee ES5)</label>
+          <textarea id="modal-js-source" class="form-control" style="height: 150px; font-family: var(--font-code);"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Policy Config (YAML)</label>
+          <textarea id="modal-policy-yaml" class="form-control" style="height: 150px; font-family: var(--font-code);"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div></div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn" onclick="closePolicyModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="savePolicyFromModal()">Save Policy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step Edit Modal -->
+  <div class="modal-overlay" id="step-modal">
+    <div class="modal" style="width: 500px;">
+      <div class="modal-header">
+        <h3>Edit Step in Flow</h3>
+        <button class="btn" onclick="closeStepModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Target Policy Name</label>
+          <select id="modal-step-name" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label>Execution Condition (Apigee Expression)</label>
+          <textarea id="modal-step-condition" class="form-control" style="height: 80px;" placeholder="e.g. request.header.x-api-key != null"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" style="border-color: var(--accent); color: var(--accent);" onclick="editPolicyFromStepModal()">⚙️ Edit Policy Config</button>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn" onclick="closeStepModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveStepFromModal()">Save Step</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const EMBEDDED_SCHEMA = {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$id": "https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee-templater.schema.json",
+      "title": "Apigee Templater YAML Schema",
+      "description": "JSON Schema validating Apigee Templater YAML specifications (Templates, Features, and Proxies)",
+      "oneOf": [
+        { "$ref": "#/definitions/Feature" },
+        { "$ref": "#/definitions/Proxy" },
+        { "$ref": "#/definitions/Template" }
+      ],
+      "definitions": {
+        "Step": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "condition": { "type": "string" }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        },
+        "Flow": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "mode": { "type": "string", "enum": ["Request", "Response", ""] },
+            "position": { "type": "string" },
+            "condition": { "type": "string" },
+            "steps": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Step" }
+            }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        },
+        "FaultRule": {
+          "allOf": [
+            { "$ref": "#/definitions/Flow" },
+            {
+              "type": "object",
+              "properties": {
+                "alwaysEnforce": { "type": "boolean" }
+              }
+            }
+          ]
+        },
+        "Route": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "condition": { "type": "string" },
+            "target": { "type": "string" }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        },
+        "Endpoint": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "basePath": { "type": "string" },
+            "routes": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Route" }
+            }
+          },
+          "required": ["name", "basePath"],
+          "additionalProperties": false
+        },
+        "ProxyEndpoint": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "basePath": { "type": "string" },
+            "routes": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Route" }
+            },
+            "flows": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Flow" }
+            },
+            "postClientFlow": { "$ref": "#/definitions/Flow" },
+            "faultRules": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Flow" }
+            },
+            "defaultFaultRule": { "$ref": "#/definitions/FaultRule" }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        },
+        "Target": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "url": { "type": "string" },
+            "auth": { "type": "string" },
+            "scopes": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "aud": { "type": "string" }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        },
+        "ProxyTarget": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "url": { "type": "string" },
+            "auth": { "type": "string" },
+            "scopes": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "aud": { "type": "string" },
+            "flows": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Flow" }
+            },
+            "faultRules": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Flow" }
+            },
+            "defaultFaultRule": { "$ref": "#/definitions/FaultRule" },
+            "httpTargetConnection": { "type": ["object", "null"] },
+            "localTargetConnection": { "type": ["object", "null"] }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        },
+        "Policy": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "type": { "type": "string" },
+            "content": { "type": "object" }
+          },
+          "required": ["name", "type"],
+          "additionalProperties": false
+        },
+        "Resource": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "type": { "type": "string" },
+            "content": { "type": "string" }
+          },
+          "required": ["name", "type", "content"],
+          "additionalProperties": false
+        },
+        "Parameter": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "paths": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "displayName": { "type": "string" },
+            "description": { "type": "string" },
+            "maps": { "type": "object" },
+            "examples": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "default": { "type": "string" }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        },
+        "Test": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "description": { "type": "string" },
+            "url": { "type": "string" },
+            "path": { "type": "string" },
+            "method": { "type": "string" },
+            "headers": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "request": { "type": "string" },
+            "queryParams": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "variables": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "assertions": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        },
+        "Template": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "type": { "type": "string", "const": "template" },
+            "priority": { "type": "number" },
+            "description": { "type": "string" },
+            "features": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "parameters": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Parameter" }
+            },
+            "endpoints": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Endpoint" }
+            },
+            "targets": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Target" }
+            },
+            "tests": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Test" }
+            }
+          },
+          "required": ["name", "type"],
+          "additionalProperties": false
+        },
+        "Feature": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "displayName": { "type": "string" },
+            "uid": { "type": "string" },
+            "type": { "type": "string", "const": "feature" },
+            "description": { "type": "string" },
+            "documentation": { "type": "string" },
+            "priority": { "type": "number" },
+            "categories": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "parameters": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Parameter" }
+            },
+            "defaultEndpoint": { "$ref": "#/definitions/ProxyEndpoint" },
+            "defaultTarget": { "$ref": "#/definitions/ProxyTarget" },
+            "endpoints": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/ProxyEndpoint" }
+            },
+            "targets": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/ProxyTarget" }
+            },
+            "policies": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Policy" }
+            },
+            "resources": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Resource" }
+            },
+            "tests": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Test" }
+            }
+          },
+          "required": ["name", "type"],
+          "additionalProperties": false
+        },
+        "Proxy": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "displayName": { "type": "string" },
+            "uid": { "type": "string" },
+            "type": { "type": "string", "const": "proxy" },
+            "priority": { "type": "number" },
+            "categories": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "description": { "type": "string" },
+            "documentation": { "type": "string" },
+            "parameters": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Parameter" }
+            },
+            "endpoints": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/ProxyEndpoint" }
+            },
+            "targets": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/ProxyTarget" }
+            },
+            "policies": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Policy" }
+            },
+            "resources": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Resource" }
+            },
+            "tests": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Test" }
+            }
+          },
+          "required": ["name", "type"],
+          "additionalProperties": false
+        }
+      }
+    };
+
+    const DEFAULT_YAML = `# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee-templater.schema.json
+name: sample-proxy
+displayName: Sample Proxy
+type: proxy
+description: Simple proxy to mocktarget.apigee.net
+endpoints:
+  - name: default
+    basePath: /sample
+    routes:
+      - name: default
+        target: default
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: AM-SetResponseHeader
+targets:
+  - name: default
+    url: https://mocktarget.apigee.net
+policies:
+  - name: AM-SetResponseHeader
+    type: AssignMessage
+    content:
+      assignMessage:
+        displayName: AM-SetResponseHeader
+        setHeader:
+          - name: X-Hello
+            value: Hello world!
+`;
+
+    // Global State
+    let codeMirrorEditor = null;
+    let ajvValidator = null;
+    let currentYamlObj = {};
+    let currentFileName = "sample-proxy.yaml";
+    let isProgrammaticEdit = false;
+    let validationDebounceTimer = null;
+    let currentHeaderComments = "";
+    let currentEditingPolicyIndex = -1;
+    let currentEditingStepCtx = null;
+
+    // Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+      initAjv();
+      initCodeMirror();
+      initDragAndDrop();
+      initResizer();
+
+      // Load initial default YAML cleanly
+      setYamlContent(DEFAULT_YAML);
+    });
+
+    // Panel Resizing Logic
+    function initResizer() {
+      const resizer = document.getElementById('resizer');
+      const leftPane = document.querySelector('.pane-visual');
+      const container = document.querySelector('.main-container');
+
+      let isDragging = false;
+
+      resizer.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        resizer.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const containerRect = container.getBoundingClientRect();
+        const pointerX = e.clientX - containerRect.left;
+        const totalWidth = containerRect.width;
+
+        // Calculate percentage, clamped between 20% and 80%
+        let leftWidthPercent = (pointerX / totalWidth) * 100;
+        if (leftWidthPercent < 20) leftWidthPercent = 20;
+        if (leftWidthPercent > 80) leftWidthPercent = 80;
+
+        leftPane.style.width = `${leftWidthPercent}%`;
+        leftPane.style.flex = 'none';
+
+        if (codeMirrorEditor) {
+          codeMirrorEditor.refresh();
+        }
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          resizer.classList.remove('dragging');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          if (codeMirrorEditor) {
+            codeMirrorEditor.refresh();
+          }
+        }
+      });
+    }
+
+    function initAjv() {
+      try {
+        const ajvClass = window.ajv7 || window.Ajv;
+        if (ajvClass) {
+          const ajv = new ajvClass({ allErrors: true, verbose: true, strict: false });
+          ajvValidator = ajv.compile(EMBEDDED_SCHEMA);
+        }
+      } catch (e) {
+        console.error("AJV Init Error:", e);
+      }
+    }
+
+    function initCodeMirror() {
+      const textarea = document.getElementById('codemirror-yaml-textarea');
+      codeMirrorEditor = CodeMirror.fromTextArea(textarea, {
+        mode: 'yaml',
+        theme: 'dracula',
+        lineNumbers: true,
+        lineWrapping: true
+      });
+
+      // Synchronous live input change listener with 300ms debounce to allow typing
+      codeMirrorEditor.on('change', () => {
+        if (!isProgrammaticEdit) {
+          clearTimeout(validationDebounceTimer);
+          validationDebounceTimer = setTimeout(() => {
+            processYamlChange(codeMirrorEditor.getValue());
+          }, 300);
+        }
+      });
+    }
+
+    // Direct, Unconditional Set of YAML Text Content
+    function setYamlContent(text) {
+      isProgrammaticEdit = true;
+      codeMirrorEditor.setValue(text);
+      isProgrammaticEdit = false;
+
+      // Extract raw comment header lines (e.g. # yaml-language-server...)
+      const lines = text.split('\n');
+      const headerLines = [];
+      for (let l of lines) {
+        if (l.trim().startsWith('#')) {
+          headerLines.push(l);
+        } else if (l.trim() === '') {
+          continue;
+        } else {
+          break;
+        }
+      }
+      currentHeaderComments = headerLines.join('\n');
+
+      processYamlChange(text);
+    }
+
+    // Schema compilation cache
+    const validatorCache = new Map();
+
+    // Async schema resolver that parses $schema URL and validates against targeted sub-definition
+    async function getValidatorForYaml(schemaUrl, yamlObj) {
+      const ajvClass = window.ajv7 || window.Ajv;
+      if (!ajvClass) return ajvValidator;
+
+      const typeMap = { feature: "Feature", proxy: "Proxy", template: "Template" };
+      const objType = (yamlObj && yamlObj.type) ? String(yamlObj.type).toLowerCase() : "";
+      const targetDefName = typeMap[objType];
+      const cacheKey = (schemaUrl || "embedded") + ":" + (targetDefName || "root");
+
+      if (validatorCache.has(cacheKey)) {
+        return validatorCache.get(cacheKey);
+      }
+
+      let fetchedSchema = null;
+      if (schemaUrl) {
+        try {
+          let fetchPath = schemaUrl;
+          if (schemaUrl.includes('apigee-templater.schema.json')) {
+            fetchPath = '../schema/apigee-templater.schema.json';
+          }
+          const res = await fetch(fetchPath);
+          if (res.ok) {
+            fetchedSchema = await res.json();
+          }
+        } catch (e) {
+          console.warn("Could not fetch external $schema, using embedded schema", e);
+        }
+      }
+
+      const schemaToCompile = fetchedSchema || EMBEDDED_SCHEMA;
+      try {
+        const ajv = new ajvClass({ allErrors: true, verbose: true, strict: false });
+        let compiled = null;
+
+        if (targetDefName && schemaToCompile.definitions && schemaToCompile.definitions[targetDefName]) {
+          const subSchema = {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            ...schemaToCompile.definitions[targetDefName],
+            definitions: schemaToCompile.definitions
+          };
+          compiled = ajv.compile(subSchema);
+        } else {
+          compiled = ajv.compile(schemaToCompile);
+        }
+
+        validatorCache.set(cacheKey, compiled);
+        return compiled;
+      } catch (err) {
+        console.error("Schema compile error:", err);
+        return ajvValidator;
+      }
+    }
+
+    // Parse, Validate, and Render Visual Views
+    async function processYamlChange(text) {
+      const issues = [];
+
+      // Extract $schema directive tag from header comment
+      const headerMatch = text.match(/#\s*yaml-language-server:\s*\$schema=(\S+)/i) || text.match(/#\s*\$schema:\s*(\S+)/i);
+      const schemaUrl = headerMatch ? headerMatch[1] : null;
+
+      if (!schemaUrl) {
+        issues.push({
+          type: 'warning',
+          message: 'Missing $schema header tag (e.g. # yaml-language-server: $schema=...).'
+        });
+      }
+
+      // Try YAML Parse
+      try {
+        currentYamlObj = jsyaml.load(text) || {};
+      } catch (err) {
+        issues.push({
+          type: 'error',
+          message: `YAML Syntax Error: ${err.message}`
+        });
+        updateDiagnosticsUI(false, issues);
+        return;
+      }
+
+      // Dynamic Schema Validation via $schema directive
+      const validator = await getValidatorForYaml(schemaUrl, currentYamlObj);
+      if (validator) {
+        const valid = validator(currentYamlObj);
+        if (!valid && validator.errors) {
+          validator.errors.forEach(err => {
+            const path = err.instancePath || '/';
+            let detail = err.message;
+            if (err.keyword === 'additionalProperties' && err.params && err.params.additionalProperty) {
+              detail = `unexpected property "${err.params.additionalProperty}"`;
+            } else if (err.keyword === 'required' && err.params && err.params.missingProperty) {
+              detail = `missing required property "${err.params.missingProperty}"`;
+            }
+            issues.push({
+              type: 'error',
+              message: `Schema Error at ${path}: ${detail}`
+            });
+          });
+        }
+      }
+
+      // Reference Integrity Check
+      const definedPolicies = new Set((currentYamlObj.policies || []).map(p => p.name));
+      const checkSteps = (steps, flowName) => {
+        (steps || []).forEach(step => {
+          if (!definedPolicies.has(step.name)) {
+            issues.push({
+              type: 'warning',
+              message: `Step "${step.name}" in flow "${flowName}" references an undefined policy.`
+            });
+          }
+        });
+      };
+
+      const checkFlows = (flows, parentName) => {
+        (flows || []).forEach(f => checkSteps(f.steps, `${parentName} -> ${f.name}`));
+      };
+
+      if (currentYamlObj.defaultEndpoint) checkFlows(currentYamlObj.defaultEndpoint.flows, 'defaultEndpoint');
+      (currentYamlObj.endpoints || []).forEach(ep => checkFlows(ep.flows, `Endpoint ${ep.name}`));
+      if (currentYamlObj.defaultTarget) checkFlows(currentYamlObj.defaultTarget.flows, 'defaultTarget');
+      (currentYamlObj.targets || []).forEach(tg => checkFlows(tg.flows, `Target ${tg.name}`));
+
+      const errorCount = issues.filter(i => i.type === 'error').length;
+      updateDiagnosticsUI(errorCount === 0, issues);
+
+      // Render Visual Diagram Pipeline
+      renderVisualFlows(currentYamlObj);
+      renderPoliciesGrid(currentYamlObj);
+      renderResourcesGrid(currentYamlObj);
+    }
+
+    // Diagnostics Drawer & Status Badge UI
+    function updateDiagnosticsUI(isValid, issues) {
+      const badge = document.getElementById('status-btn');
+      const text = document.getElementById('status-text');
+      const list = document.getElementById('validation-issues-list');
+
+      const errors = issues.filter(i => i.type === 'error');
+
+      if (isValid && errors.length === 0) {
+        badge.className = 'status-badge status-valid';
+        text.innerText = issues.length > 0 ? `${issues.length} Warnings` : 'Valid';
+      } else {
+        badge.className = 'status-badge status-invalid';
+        text.innerText = `${errors.length} Errors`;
+      }
+
+      list.innerHTML = '';
+      issues.forEach(iss => {
+        const div = document.createElement('div');
+        const isErr = iss.type === 'error';
+        div.className = `issue-item ${isErr ? 'issue-error' : 'issue-warning'}`;
+        div.innerHTML = `<span>${isErr ? '❌' : '⚠️'}</span> <span>${iss.message}</span>`;
+        div.onclick = () => jumpToIssueInText(iss.message);
+        list.appendChild(div);
+      });
+    }
+
+    function jumpToIssueInText(msg) {
+      const keyword = msg.split(' ')[1] || 'name';
+      const text = codeMirrorEditor.getValue();
+      const lines = text.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes(keyword)) {
+          codeMirrorEditor.setCursor(i, 0);
+          codeMirrorEditor.focus();
+          break;
+        }
+      }
+    }
+
+    function toggleValidationPanel() {
+      document.getElementById('validation-panel').classList.toggle('open');
+    }
+
+    // Render Visual Pipeline
+    function renderVisualFlows(obj) {
+      const container = document.getElementById('flows-builder');
+      container.innerHTML = '';
+
+      const createFlowSection = (title, flows, ctxType) => {
+        if (!flows || flows.length === 0) return;
+
+        const sec = document.createElement('div');
+        sec.className = 'flow-section';
+        sec.innerHTML = `<div class="section-title">${title}</div>`;
+
+        const pipeline = document.createElement('div');
+        pipeline.className = 'flow-pipeline';
+
+        flows.forEach((flow, fIdx) => {
+          const lane = document.createElement('div');
+          lane.className = 'pipeline-lane';
+          lane.innerHTML = `
+            <div class="lane-header">
+              <span>Flow: <strong>${flow.name}</strong> (${flow.mode || 'Request/Response'})</span>
+              <button class="btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="addStepToFlow('${ctxType}', ${fIdx})">+ Add Step</button>
+            </div>
+            <div class="step-list"></div>
+          `;
+
+          const stepList = lane.querySelector('.step-list');
+          (flow.steps || []).forEach((step, sIdx) => {
+            const policyDef = (obj.policies || []).find(p => p.name === step.name);
+            const pType = policyDef ? policyDef.type : 'Unknown';
+
+            const card = document.createElement('div');
+            card.className = 'step-card';
+            card.innerHTML = `
+              <div class="step-name">${step.name}</div>
+              <div class="step-type">${pType}</div>
+              ${step.condition ? `<div class="step-condition" title="${step.condition}">Cond: ${step.condition}</div>` : ''}
+            `;
+            card.onclick = () => openEditStepModal(ctxType, fIdx, sIdx);
+            stepList.appendChild(card);
+          });
+
+          pipeline.appendChild(lane);
+        });
+
+        sec.appendChild(pipeline);
+        container.appendChild(sec);
+      };
+
+      if (obj.defaultEndpoint) createFlowSection(`Default Endpoint (${obj.defaultEndpoint.basePath || ''})`, obj.defaultEndpoint.flows, 'defaultEndpoint');
+      (obj.endpoints || []).forEach((ep, i) => createFlowSection(`Endpoint: ${ep.name} (${ep.basePath})`, ep.flows, `endpoint-${i}`));
+      if (obj.defaultTarget) createFlowSection(`Default Target (${obj.defaultTarget.url || ''})`, obj.defaultTarget.flows, 'defaultTarget');
+      (obj.targets || []).forEach((tg, i) => createFlowSection(`Target: ${tg.name}`, tg.flows, `target-${i}`));
+    }
+
+    // Render Policies
+    function renderPoliciesGrid(obj) {
+      const container = document.getElementById('policies-container');
+      container.innerHTML = '';
+
+      (obj.policies || []).forEach((pol, idx) => {
+        const card = document.createElement('div');
+        card.className = 'policy-card';
+        card.innerHTML = `
+          <div class="policy-header">
+            <span class="step-name">${pol.name}</span>
+            <span class="policy-type-badge">${pol.type}</span>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-code);">
+            ${pol.content ? Object.keys(pol.content).join(', ') : 'No content'}
+          </div>
+        `;
+        card.onclick = () => openEditPolicyModal(idx);
+        container.appendChild(card);
+      });
+    }
+
+    // Render Resources
+    function renderResourcesGrid(obj) {
+      const container = document.getElementById('resources-container');
+      container.innerHTML = '';
+
+      if (!obj.resources || obj.resources.length === 0) {
+        container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem;">No external JS resources defined.</div>`;
+        return;
+      }
+
+      obj.resources.forEach(res => {
+        const card = document.createElement('div');
+        card.className = 'flow-section';
+        card.style.padding = '12px';
+        card.innerHTML = `
+          <div style="font-weight: 600; font-family: var(--font-code); color: var(--accent); margin-bottom: 8px;">
+            Resource: ${res.name} (${res.type})
+          </div>
+          <pre style="background: var(--bg-primary); padding: 10px; border-radius: 6px; font-family: var(--font-code); font-size: 0.8rem; overflow-x: auto;">${res.content}</pre>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function switchVisualTab(tabName) {
+      document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('visual-tab-flows').style.display = tabName === 'flows' ? 'block' : 'none';
+      document.getElementById('visual-tab-policies').style.display = tabName === 'policies' ? 'block' : 'none';
+      document.getElementById('visual-tab-resources').style.display = tabName === 'resources' ? 'block' : 'none';
+    }
+
+    // Modal Policy Editor
+    function openEditPolicyModal(index) {
+      currentEditingPolicyIndex = index;
+      const pol = currentYamlObj.policies[index];
+
+      document.getElementById('policy-modal-title').innerText = `Edit Policy: ${pol.name}`;
+      document.getElementById('modal-policy-name').value = pol.name;
+      document.getElementById('modal-policy-type').value = pol.type;
+
+      if (pol.type === 'Javascript' && pol.content && pol.content.javascript && pol.content.javascript.source) {
+        document.getElementById('modal-js-code-section').style.display = 'flex';
+        document.getElementById('modal-js-source').value = pol.content.javascript.source;
+      } else {
+        document.getElementById('modal-js-code-section').style.display = 'none';
+      }
+
+      document.getElementById('modal-policy-yaml').value = jsyaml.dump(pol.content || {});
+      document.getElementById('policy-modal').classList.add('open');
+    }
+
+    function openAddPolicyModal() {
+      currentEditingPolicyIndex = -1;
+      document.getElementById('policy-modal-title').innerText = 'Add New Policy';
+      document.getElementById('modal-policy-name').value = 'AM-NewPolicy';
+      document.getElementById('modal-policy-type').value = 'AssignMessage';
+      document.getElementById('modal-js-code-section').style.display = 'none';
+      document.getElementById('modal-policy-yaml').value = 'assignMessage:\n  assignVariable:\n    name: var_name\n    value: var_val';
+
+      document.getElementById('policy-modal').classList.add('open');
+    }
+
+    function handlePolicyTypeChange() {
+      const type = document.getElementById('modal-policy-type').value;
+      document.getElementById('modal-js-code-section').style.display = type === 'Javascript' ? 'flex' : 'none';
+    }
+
+    function savePolicyFromModal() {
+      const name = document.getElementById('modal-policy-name').value.trim();
+      const type = document.getElementById('modal-policy-type').value;
+      let content = {};
+
+      try {
+        content = jsyaml.load(document.getElementById('modal-policy-yaml').value) || {};
+      } catch (e) {
+        alert('Invalid YAML in Policy Config');
+        return;
+      }
+
+      if (type === 'Javascript') {
+        if (!content.javascript) content.javascript = {};
+        content.javascript.source = document.getElementById('modal-js-source').value;
+      }
+
+      if (!currentYamlObj.policies) currentYamlObj.policies = [];
+
+      const newPolicy = { name, type, content };
+      if (currentEditingPolicyIndex >= 0) {
+        currentYamlObj.policies[currentEditingPolicyIndex] = newPolicy;
+      } else {
+        currentYamlObj.policies.push(newPolicy);
+      }
+
+      updateYamlFromObj();
+      closePolicyModal();
+    }
+
+    function closePolicyModal() {
+      document.getElementById('policy-modal').classList.remove('open');
+    }
+
+    // Modal Step Editor
+    function openEditStepModal(ctxType, flowIndex, stepIndex) {
+      currentEditingStepCtx = { ctxType, flowIndex, stepIndex };
+      const flows = getFlowsByCtxType(ctxType);
+      const step = flows[flowIndex].steps[stepIndex];
+
+      populatePolicyDropdown('modal-step-name', step.name);
+      document.getElementById('modal-step-condition').value = step.condition || '';
+
+      document.getElementById('step-modal').classList.add('open');
+    }
+
+    function addStepToFlow(ctxType, flowIndex) {
+      currentEditingStepCtx = { ctxType, flowIndex, stepIndex: -1 };
+      populatePolicyDropdown('modal-step-name');
+      document.getElementById('modal-step-condition').value = '';
+
+      document.getElementById('step-modal').classList.add('open');
+    }
+
+    function populatePolicyDropdown(elementId, selectedVal) {
+      const select = document.getElementById(elementId);
+      select.innerHTML = '';
+      (currentYamlObj.policies || []).forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.innerText = `${p.name} (${p.type})`;
+        if (p.name === selectedVal) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    function getFlowsByCtxType(ctxType) {
+      if (ctxType === 'defaultEndpoint') return currentYamlObj.defaultEndpoint.flows;
+      if (ctxType === 'defaultTarget') return currentYamlObj.defaultTarget.flows;
+      if (ctxType.startsWith('endpoint-')) {
+        const idx = parseInt(ctxType.split('-')[1]);
+        return currentYamlObj.endpoints[idx].flows;
+      }
+      if (ctxType.startsWith('target-')) {
+        const idx = parseInt(ctxType.split('-')[1]);
+        return currentYamlObj.targets[idx].flows;
+      }
+      return [];
+    }
+
+    function saveStepFromModal() {
+      const { ctxType, flowIndex, stepIndex } = currentEditingStepCtx;
+      const flows = getFlowsByCtxType(ctxType);
+      const name = document.getElementById('modal-step-name').value;
+      const condition = document.getElementById('modal-step-condition').value.trim();
+
+      const newStep = { name };
+      if (condition) newStep.condition = condition;
+
+      if (!flows[flowIndex].steps) flows[flowIndex].steps = [];
+
+      if (stepIndex >= 0) {
+        flows[flowIndex].steps[stepIndex] = newStep;
+      } else {
+        flows[flowIndex].steps.push(newStep);
+      }
+
+      updateYamlFromObj();
+      closeStepModal();
+    }
+
+    function closeStepModal() {
+      document.getElementById('step-modal').classList.remove('open');
+    }
+
+    function editPolicyFromStepModal() {
+      const selectedPolicyName = document.getElementById('modal-step-name').value;
+      if (!selectedPolicyName) return;
+
+      const policyIndex = (currentYamlObj.policies || []).findIndex(p => p.name === selectedPolicyName);
+      if (policyIndex >= 0) {
+        closeStepModal();
+        openEditPolicyModal(policyIndex);
+      } else {
+        alert(`Policy "${selectedPolicyName}" not found in policies list.`);
+      }
+    }
+
+    // Sync Object changes back to CodeMirror
+    function updateYamlFromObj() {
+      let newYamlText = jsyaml.dump(currentYamlObj, { lineWidth: -1, noRefs: true });
+      if (currentHeaderComments) {
+        newYamlText = currentHeaderComments + "\n" + newYamlText;
+      }
+      setYamlContent(newYamlText);
+    }
+
+    // Drag & Drop & File Select
+    function initDragAndDrop() {
+      const dropZone = document.getElementById('drop-zone');
+
+      window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('active');
+      });
+
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('active');
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('active');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          loadFile(e.dataTransfer.files[0]);
+        }
+      });
+    }
+
+    function handleFileSelect(e) {
+      if (e.target.files && e.target.files.length > 0) {
+        loadFile(e.target.files[0]);
+      }
+    }
+
+    function loadFile(file) {
+      currentFileName = file.name;
+      document.getElementById('current-filename').innerText = currentFileName;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setYamlContent(e.target.result);
+      };
+      reader.readAsText(file);
+    }
+
+    function copyYamlToClipboard() {
+      navigator.clipboard.writeText(codeMirrorEditor.getValue());
+      alert('YAML content copied to clipboard!');
+    }
+
+    function downloadYaml() {
+      const blob = new Blob([codeMirrorEditor.getValue()], { type: 'text/yaml' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = currentFileName;
+      a.click();
+    }
+  </script>
+</body>
+</html>
