@@ -1,1 +1,1 @@
-docker create --name apigee -p 8080:8080 -p 8998:8998 gcr.io/apigee-release/hybrid/apigee-emulator:2.0.1
+docker create --name apigee -p 8080:8080 -p 8998:8998 gcr.io/apigee-release/hybrid/apigee-emulator:2.0.1 -v $HOME/ai-portals-solution.json:/emulator/application_default_credentials.json:ro -e GOOGLE_APPLICATION_CREDENTIALS=/emulator/application_default_credentials.json

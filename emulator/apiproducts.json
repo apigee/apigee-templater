@@ -1,0 +1,28 @@
+[
+  {
+    "name": "auth-v1-product",
+    "displayName": "Auth v1 API Product",
+    "description": "API Product for auth-v1 proxy",
+    "approvalType": "auto",
+    "environments": [
+      "test"
+    ],
+    "proxies": [
+      "auth-v1"
+    ],
+    "apiResources": [
+      "/",
+      "/*",
+      "/**"
+    ],
+    "quota": "1000",
+    "quotaInterval": "1",
+    "quotaTimeUnit": "minute",
+    "attributes": [
+      {
+        "name": "access",
+        "value": "public"
+      }
+    ]
+  }
+]

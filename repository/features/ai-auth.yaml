@@ -32,17 +32,11 @@ defaultEndpoint:
           condition: verifyapikey.VA-VerifyKey.client_id != null
         - name: EV-ExtractBearerToken
           condition: verifyapikey.VA-VerifyKey.client_id == null AND request.header.Authorization != null AND request.header.Authorization Matches "Bearer ya29.*"
-        - name: KVM-GetUserByToken
-          condition: verifyapikey.VA-VerifyKey.client_id == null AND google.raw_access_token != null
-        - name: JS-UnpackUserData
-          condition: user.cached_data != null
         - name: SC-ValidateGoogleToken
           condition: verifyapikey.VA-VerifyKey.client_id == null AND user.cached_data == null AND google.raw_access_token != null
         - name: JS-ParseGoogleToken
           condition: verifyapikey.VA-VerifyKey.client_id == null AND user.cached_data == null AND google.raw_access_token != null
         - name: JS-PrepareUserData
-          condition: verifyapikey.VA-VerifyKey.client_id == null AND user.cached_data == null AND google.token.valid == "true"
-        - name: KVM-SaveUserByToken
           condition: verifyapikey.VA-VerifyKey.client_id == null AND user.cached_data == null AND google.token.valid == "true"
         - name: KVM-GetGroupsByEmail
           condition: google.token.email != null
@@ -297,46 +291,6 @@ policies:
               print("Failed to parse Google groups response: " + e);
             }
           }
-  - name: KVM-GetUserByToken
-    type: KeyValueMapOperations
-    content:
-      keyValueMapOperations:
-        metadata:
-          continueOnError: "true"
-          enabled: "true"
-          name: KVM-GetUserByToken
-          mapIdentifier: AI-Users
-        displayName: KVM-GetUserByToken
-        properties: {}
-        get:
-          - metadata:
-              assignTo: user.cached_data
-              index: "1"
-            key:
-              parameter:
-                metadata:
-                  ref: google.raw_access_token
-        scope: environment
-  - name: KVM-SaveUserByToken
-    type: KeyValueMapOperations
-    content:
-      keyValueMapOperations:
-        metadata:
-          continueOnError: "true"
-          enabled: "true"
-          name: KVM-SaveUserByToken
-          mapIdentifier: AI-Users
-        displayName: KVM-SaveUserByToken
-        properties: {}
-        put:
-          setValue:
-            metadata:
-              ref: user.data_json
-          key:
-            parameter:
-              metadata:
-                ref: google.raw_access_token
-        scope: environment
   - name: KVM-GetGroupsByEmail
     type: KeyValueMapOperations
     content:
@@ -377,32 +331,6 @@ policies:
               metadata:
                 ref: user.groups_kvm_key
         scope: environment
-  - name: JS-UnpackUserData
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "true"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-UnpackUserData
-        displayName: JS-UnpackUserData
-        properties: {}
-        source: |
-          var cachedStr = context.getVariable("user.cached_data");
-          if (cachedStr) {
-            try {
-              var userData = JSON.parse(cachedStr);
-              if (userData.email) {
-                context.setVariable("google.token.email", userData.email);
-                context.setVariable("user.groups_kvm_key", userData.email + ".groups");
-              }
-              if (userData.groups) context.setVariable("google.token.groups", userData.groups);
-              context.setVariable("google.token.valid", "true");
-            } catch (e) {
-              print("Failed to parse cached user data JSON: " + e);
-            }
-          }
   - name: JS-PrepareUserData
     type: Javascript
     content:

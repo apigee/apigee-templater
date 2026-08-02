@@ -280,51 +280,125 @@
     }
 
     .lane-header {
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       font-weight: 600;
       color: var(--accent);
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      background: var(--bg-card);
+      padding: 6px 12px;
+      border-radius: 6px;
+    }
+
+    .flow-direction-badge {
+      font-size: 0.72rem;
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--accent);
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+      border: 1px solid var(--accent-glow);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .step-list {
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
       gap: 10px;
-      min-height: 40px;
+      min-height: 52px;
+      align-items: stretch;
+      padding: 12px;
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 6px;
+      border: 1px dashed var(--border);
+    }
+
+    .flow-arrow {
+      color: var(--accent);
+      font-size: 1.2rem;
+      font-weight: bold;
+      user-select: none;
+      display: flex;
       align-items: center;
+      justify-content: center;
+      padding: 2px 0;
     }
 
     .step-card {
-      background: var(--bg-card);
+      background: var(--bg-secondary);
       border: 1px solid var(--border);
       border-left: 4px solid var(--accent);
       border-radius: 6px;
-      padding: 8px 12px;
-      font-size: 0.82rem;
+      padding: 10px 14px;
+      font-size: 0.85rem;
       display: flex;
       flex-direction: column;
       gap: 4px;
-      cursor: pointer;
-      min-width: 180px;
+      cursor: grab;
+      position: relative;
+      transition: all 0.2s;
+      width: 100%;
     }
 
     .step-card:hover {
       border-color: var(--accent);
-      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .step-card:active {
+      cursor: grabbing;
+    }
+
+    .step-card.dragging-card {
+      opacity: 0.3;
+      border-style: dashed;
+      background: var(--bg-card);
+    }
+
+    .step-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .step-controls {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .step-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .step-btn-delete:hover {
+      background: var(--error);
+      color: white;
     }
 
     .step-name {
       font-weight: 600;
       font-family: var(--font-code);
+      cursor: pointer;
     }
 
     .step-type {
       font-size: 0.7rem;
       color: var(--text-muted);
       text-transform: uppercase;
+      cursor: pointer;
     }
 
     .step-condition {
@@ -338,6 +412,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      cursor: pointer;
     }
 
     .policy-grid {
@@ -541,7 +616,7 @@
       <button class="btn" onclick="document.getElementById('file-input').click()">
         📁 Open File
       </button>
-      <input type="file" id="file-input" accept=".yaml,.yml" onchange="handleFileSelect(event)" />
+      <input type="file" id="file-input" accept=".yaml,.yml" style="display: none;" onchange="handleFileSelect(event)" />
       
       <button class="btn" onclick="copyYamlToClipboard()">
         📋 Copy YAML
@@ -1348,6 +1423,67 @@ policies:
       document.getElementById('validation-panel').classList.toggle('open');
     }
 
+    // Step Reordering & Drag/Drop Handlers
+    let draggedStepInfo = null;
+
+    function handleStepDragStart(e, ctxType, flowIndex, stepIndex) {
+      draggedStepInfo = { ctxType, flowIndex, stepIndex };
+      e.dataTransfer.effectAllowed = 'move';
+      e.target.classList.add('dragging-card');
+    }
+
+    function handleStepDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleStepDrop(e, ctxType, flowIndex, targetStepIndex) {
+      e.preventDefault();
+      if (!draggedStepInfo) return;
+
+      if (draggedStepInfo.ctxType === ctxType && draggedStepInfo.flowIndex === flowIndex) {
+        const flows = getFlowsByCtxType(ctxType);
+        if (flows && flows[flowIndex] && flows[flowIndex].steps) {
+          const steps = flows[flowIndex].steps;
+          const [movedStep] = steps.splice(draggedStepInfo.stepIndex, 1);
+          steps.splice(targetStepIndex, 0, movedStep);
+          updateYamlFromObj();
+        }
+      }
+      draggedStepInfo = null;
+    }
+
+    function handleStepDragEnd(e) {
+      if (e.target && e.target.classList) {
+        e.target.classList.remove('dragging-card');
+      }
+      draggedStepInfo = null;
+    }
+
+    function moveStepInFlow(ctxType, flowIndex, stepIndex, direction) {
+      const flows = getFlowsByCtxType(ctxType);
+      if (!flows || !flows[flowIndex] || !flows[flowIndex].steps) return;
+
+      const steps = flows[flowIndex].steps;
+      const targetIndex = stepIndex + direction;
+
+      if (targetIndex < 0 || targetIndex >= steps.length) return;
+
+      const temp = steps[stepIndex];
+      steps[stepIndex] = steps[targetIndex];
+      steps[targetIndex] = temp;
+
+      updateYamlFromObj();
+    }
+
+    function removeStepFromFlow(ctxType, flowIndex, stepIndex) {
+      const flows = getFlowsByCtxType(ctxType);
+      if (!flows || !flows[flowIndex] || !flows[flowIndex].steps) return;
+
+      flows[flowIndex].steps.splice(stepIndex, 1);
+      updateYamlFromObj();
+    }
+
     // Render Visual Pipeline
     function renderVisualFlows(obj) {
       const container = document.getElementById('flows-builder');
@@ -1369,26 +1505,55 @@ policies:
           lane.innerHTML = `
             <div class="lane-header">
               <span>Flow: <strong>${flow.name}</strong> (${flow.mode || 'Request/Response'})</span>
-              <button class="btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="addStepToFlow('${ctxType}', ${fIdx})">+ Add Step</button>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <span class="flow-direction-badge">⬇ Sequence: Top to Bottom</span>
+                <button class="btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="addStepToFlow('${ctxType}', ${fIdx})">+ Add Step</button>
+              </div>
             </div>
             <div class="step-list"></div>
           `;
 
           const stepList = lane.querySelector('.step-list');
-          (flow.steps || []).forEach((step, sIdx) => {
-            const policyDef = (obj.policies || []).find(p => p.name === step.name);
-            const pType = policyDef ? policyDef.type : 'Unknown';
+          const steps = flow.steps || [];
 
-            const card = document.createElement('div');
-            card.className = 'step-card';
-            card.innerHTML = `
-              <div class="step-name">${step.name}</div>
-              <div class="step-type">${pType}</div>
-              ${step.condition ? `<div class="step-condition" title="${step.condition}">Cond: ${step.condition}</div>` : ''}
-            `;
-            card.onclick = () => openEditStepModal(ctxType, fIdx, sIdx);
-            stepList.appendChild(card);
-          });
+          if (steps.length === 0) {
+            stepList.innerHTML = `<div style="color: var(--text-muted); font-size: 0.78rem; font-style: italic; text-align: center; padding: 8px;">No policy steps in this flow. Click "+ Add Step" to attach policies.</div>`;
+          } else {
+            steps.forEach((step, sIdx) => {
+              if (sIdx > 0) {
+                const arrow = document.createElement('div');
+                arrow.className = 'flow-arrow';
+                arrow.innerHTML = '⬇';
+                arrow.title = 'Execution flows top to bottom';
+                stepList.appendChild(arrow);
+              }
+
+              const policyDef = (obj.policies || []).find(p => p.name === step.name);
+              const pType = policyDef ? policyDef.type : 'Unknown';
+
+              const card = document.createElement('div');
+              card.className = 'step-card';
+              card.draggable = true;
+
+              card.ondragstart = (e) => handleStepDragStart(e, ctxType, fIdx, sIdx);
+              card.ondragover = (e) => handleStepDragOver(e);
+              card.ondrop = (e) => handleStepDrop(e, ctxType, fIdx, sIdx);
+              card.ondragend = (e) => handleStepDragEnd(e);
+
+              card.innerHTML = `
+                <div class="step-card-header">
+                  <span class="step-name" onclick="openEditStepModal('${ctxType}', ${fIdx}, ${sIdx})">≡ ${step.name}</span>
+                  <div class="step-controls">
+                    <button class="step-btn step-btn-delete" title="Remove Step" onclick="event.stopPropagation(); removeStepFromFlow('${ctxType}', ${fIdx}, ${sIdx})">✕</button>
+                  </div>
+                </div>
+                <div class="step-type" onclick="openEditStepModal('${ctxType}', ${fIdx}, ${sIdx})">${pType}</div>
+                ${step.condition ? `<div class="step-condition" title="${step.condition}" onclick="openEditStepModal('${ctxType}', ${fIdx}, ${sIdx})">Cond: ${step.condition}</div>` : ''}
+              `;
+
+              stepList.appendChild(card);
+            });
+          }
 
           pipeline.appendChild(lane);
         });
@@ -1626,18 +1791,23 @@ policies:
       const dropZone = document.getElementById('drop-zone');
 
       window.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('active');
+        // Only trigger drop zone overlay when dragging actual desktop files
+        if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+          e.preventDefault();
+          dropZone.classList.add('active');
+        }
       });
 
-      dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('active');
+      dropZone.addEventListener('dragleave', (e) => {
+        if (e.target === dropZone || !dropZone.contains(e.relatedTarget)) {
+          dropZone.classList.remove('active');
+        }
       });
 
       dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('active');
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          e.preventDefault();
+          dropZone.classList.remove('active');
           loadFile(e.dataTransfer.files[0]);
         }
       });
@@ -1665,11 +1835,37 @@ policies:
       alert('YAML content copied to clipboard!');
     }
 
-    function downloadYaml() {
-      const blob = new Blob([codeMirrorEditor.getValue()], { type: 'text/yaml' });
+    async function downloadYaml() {
+      const yamlText = codeMirrorEditor.getValue();
+
+      // Native File System Access API (opens native OS 'Save As...' dialog)
+      if ('showSaveFilePicker' in window) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: currentFileName || 'sample-proxy.yaml',
+            types: [{
+              description: 'YAML Files',
+              accept: { 'text/yaml': ['.yaml', '.yml'] }
+            }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(yamlText);
+          await writable.close();
+
+          currentFileName = handle.name;
+          document.getElementById('current-filename').innerText = currentFileName;
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') return; // User canceled
+          console.warn("SaveFilePicker failed, falling back to download link", err);
+        }
+      }
+
+      // Browser Fallback
+      const blob = new Blob([yamlText], { type: 'text/yaml' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = currentFileName;
+      a.download = currentFileName || 'sample-proxy.yaml';
       a.click();
     }
   </script>

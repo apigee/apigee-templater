@@ -10,3 +10,4 @@ data
 __pycache__
 .npmrc
 emulator/dist
+trace.json

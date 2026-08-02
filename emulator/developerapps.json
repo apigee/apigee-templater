@@ -1,0 +1,26 @@
+[
+  {
+    "name": "auth-v1-app",
+    "displayName": "Auth v1 App",
+    "developerEmail": "developer@example.com",
+    "callbackUrl": "",
+    "expiryType": "never",
+    "apiProducts": [
+      "auth-v1-product"
+    ],
+    "credentials": [
+      {
+        "consumerKey": "test-api-key-12345",
+        "consumerSecret": "test-secret-12345",
+        "apiProducts": [
+          {
+            "apiproduct": "auth-v1-product",
+            "status": "approved"
+          }
+        ],
+        "status": "approved"
+      }
+    ],
+    "attributes": []
+  }
+]

@@ -58,6 +58,94 @@ cat << 'EOF' > "$ENV_DIR/datacollectors.json"
 ]
 EOF
 
+cat << 'EOF' > "$ENV_DIR/apiproducts.json"
+[
+  {
+    "name": "auth-v1-product",
+    "displayName": "Auth v1 API Product",
+    "description": "API Product for auth-v1 proxy",
+    "approvalType": "auto",
+    "environments": [
+      "test"
+    ],
+    "proxies": [
+      "auth-v1"
+    ],
+    "apiResources": [
+      "/",
+      "/*",
+      "/**"
+    ],
+    "quota": "1000",
+    "quotaInterval": "1",
+    "quotaTimeUnit": "minute",
+    "attributes": [
+      {
+        "name": "access",
+        "value": "public"
+      }
+    ]
+  }
+]
+EOF
+cp "$ENV_DIR/apiproducts.json" "$ENV_DIR/products.json"
+
+cat << 'EOF' > "$ENV_DIR/developers.json"
+[
+  {
+    "email": "developer@example.com",
+    "firstName": "Test",
+    "lastName": "Developer",
+    "userName": "testdeveloper",
+    "attributes": [
+      {
+        "name": "costCenter",
+        "value": "CC-1234"
+      }
+    ]
+  }
+]
+EOF
+
+cat << 'EOF' > "$ENV_DIR/developerapps.json"
+[
+  {
+    "name": "auth-v1-app",
+    "displayName": "Auth v1 App",
+    "developerEmail": "developer@example.com",
+    "callbackUrl": "",
+    "expiryType": "never",
+    "apiProducts": [
+      "auth-v1-product"
+    ],
+    "credentials": [
+      {
+        "consumerKey": "test-api-key-12345",
+        "consumerSecret": "test-secret-12345",
+        "apiProducts": [
+          {
+            "apiproduct": "auth-v1-product",
+            "status": "approved"
+          }
+        ],
+        "status": "approved"
+      }
+    ],
+    "attributes": []
+  }
+]
+EOF
+cp "$ENV_DIR/developerapps.json" "$ENV_DIR/apps.json"
+
+# Copy configurations to bundle root src/main/apigee as well
+APIGEE_ROOT_DIR="$BUNDLE_DIR/src/main/apigee"
+cp "$ENV_DIR/apiproducts.json" "$APIGEE_ROOT_DIR/apiproducts.json"
+cp "$ENV_DIR/products.json" "$APIGEE_ROOT_DIR/products.json"
+cp "$ENV_DIR/developers.json" "$APIGEE_ROOT_DIR/developers.json"
+cp "$ENV_DIR/developerapps.json" "$APIGEE_ROOT_DIR/developerapps.json"
+cp "$ENV_DIR/apps.json" "$APIGEE_ROOT_DIR/apps.json"
+
+
 # 2. Build proxy zip bundles into emulator/dist
 aft -i ./repository/features/ai-auth.yaml -o "$DIST_DIR/auth-v1.zip"
 aft -i ./repository/features/ai-completions.yaml -o "$DIST_DIR/completions-v1.zip"
