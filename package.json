@@ -8,8 +8,9 @@
     "example": "examples"
   },
   "scripts": {
-    "build": "genversion ./src/lib/version.ts --esm && npx tsc && node copy-assets.js",
+    "build": "npm run sync-ai-functions && genversion ./src/lib/version.ts --esm && npx tsc && node copy-assets.js",
     "start": "npm run build && node dist/index.js",
+    "sync-ai-functions": "node repository/lib/sync-ai-functions.js",
     "test": "npm run build && vitest run repository/lib/tests/ai-functions.test.ts"
   },
   "repository": {

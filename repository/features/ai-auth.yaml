@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee-templater.schema.json
 name: ai-auth
 displayName: AI Auth Feature
 type: feature
@@ -49,15 +48,11 @@ defaultEndpoint:
         - name: AM-RemoveKey
           condition: request.header.x-api-key != null AND NOT (request.header.x-api-key
             JavaRegex "sk-ant.*")
+        - name: JS-ValidateRequest
+        - name: LTQ-QuotaEnforce
+          condition: ai.modelTokenLimit != null
         - name: AM-SetGoogleToken
           condition: request.header.Authorization == null
-        - name: LTQ-QuotaEnforce
-          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
-        - name: AE-LoadAttributes
-          condition: (1 == 0) AND client_id != null
-        - name: AE-LoadAttributesByEmail
-          condition: (1 == 0) AND client_id == null AND google.token.email != null
-        - name: JS-ValidateRequest
     - name: PostFlow
       mode: Response
       steps:
@@ -69,6 +64,9 @@ defaultEndpoint:
     name: default-fault
     steps:
       - name: AM-ModelNotAllowed
+        condition: fault.name == "ScriptExecutionFailed"
+      - name: AM-QuotaExhaustion
+        condition: fault.name == "LLMTokenQuotaViolation"
 defaultTarget:
   name: default
   url: https://aiplatform.googleapis.com
@@ -80,6 +78,8 @@ defaultTarget:
           condition: response.content != ""
         - name: DC-TokenAnalytics
           condition: ai.promptTokenCount != null
+        - name: LTQ-QuotaCount
+          condition: ai.modelTokenLimit != null AND ai.totalTokenCount != null
     - name: EventFlow
       mode: Response
       steps:
@@ -88,8 +88,7 @@ defaultTarget:
         - name: DC-TokenAnalytics
           condition: ai.promptTokenCount != null
         - name: LTQ-QuotaCount
-          condition: verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.limit != null
-            AND ai.totalTokenCount != null
+          condition: ai.modelTokenLimit != null AND ai.totalTokenCount != null
   faultRules: []
   httpTargetConnection:
     properties: {}
@@ -144,6 +143,25 @@ policies:
         set:
           statusCode: "403"
           payload: Model not allowed.
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: AM-QuotaExhaustion
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-QuotaExhaustion
+        displayName: AM-QuotaExhaustion
+        properties: {}
+        set:
+          statusCode: "429"
+          payload: Quota exhausted.
         ignoreUnresolvedVariables: "true"
         assignTo:
           metadata:
@@ -560,13 +578,6 @@ policies:
         properties: {}
         source: "
 
-          // var costCenter =
-          context.getVariable(\"AccessEntity.ChildNodes.AE-LoadAttributes.Devel\
-          oper.Attributes.Attribute.1.Value\");
-
-          // if (costCenter) context.setVariable(\"ai.costCenter\", costCenter);
-
-
           var productContent =
           context.getVariable(\"verifyapikey.VA-VerifyKey.apiproduct.developer.\
           llmQuota.filteredConfigs\");
@@ -574,13 +585,23 @@ policies:
           var model = context.getVariable(\"ai.model\");
 
 
-          if (!productContent.includes(model)) {
+          if (!productContent || !productContent.includes(model)) {
 
           \  throw \"MODEL_NOT_ALLOWED\";
 
           }
 
+
+          var modelTokenLimit = getModelTokenLimit(model, productContent);
+
+          if (modelTokenLimit != -1) {
+
+          \  context.setVariable(\"ai.modelTokenLimit\", modelTokenLimit);
+
+          }
+
           \  "
+        includeUrl: jsc://ai-functions.js
   - name: KVM-GetGroupsByEmail
     type: KeyValueMapOperations
     content:
@@ -818,7 +839,12 @@ resources:
             } else if (contentString.asJSON) {
               contentData = contentString.asJSON;
             }
-            if (contentData && contentData["model"]) modelName = contentData["model"];
+            if (contentData && contentData["model"]) {
+              modelName = contentData["model"];
+              var modelNamePieces = modelName.split("/");
+              if (modelNamePieces.length > 0)
+                modelName = modelNamePieces[modelNamePieces.length - 1];
+            }
           } catch (e) {}
         }
 
@@ -1331,6 +1357,114 @@ resources:
         return openAiResponse;
       }
 
+      // OpenAI image generation request to Imagen native predict request conversion
+      function convertOpenAiToImagen(openAiPayload) {
+        if (!openAiPayload) return { instances: [] };
+
+        var promptText = openAiPayload.prompt || "";
+        var sampleCount = openAiPayload.n || 1;
+
+        var parameters = {};
+        if (openAiPayload.response_format === "b64_json") {
+          parameters.outputOptions = { mimeType: "image/jpeg" };
+        }
+        if (openAiPayload.aspect_ratio) {
+          parameters.aspectRatio = openAiPayload.aspect_ratio;
+        }
+        if (sampleCount) {
+          parameters.sampleCount = sampleCount;
+        }
+
+        return {
+          instances: [{ prompt: promptText }],
+          parameters: parameters
+        };
+      }
+
+      // Imagen native predict response to OpenAI image generation response conversion
+      function convertImagenToOpenAi(imagenResponse, modelName) {
+        if (!imagenResponse) return { created: Math.floor(Date.now() / 1000), data: [] };
+
+        var openAiResponse = {
+          created: Math.floor(Date.now() / 1000),
+          data: []
+        };
+
+        if (imagenResponse.predictions && Array.isArray(imagenResponse.predictions)) {
+          for (var i = 0; i < imagenResponse.predictions.length; i++) {
+            var pred = imagenResponse.predictions[i];
+            if (pred.bytesBase64Encoded) {
+              openAiResponse.data.push({
+                b64_json: pred.bytesBase64Encoded
+              });
+            } else if (pred.gcsUri) {
+              openAiResponse.data.push({
+                url: pred.gcsUri
+              });
+            }
+          }
+        }
+
+        return openAiResponse;
+      }
+
+      function getModelTokenLimit(modelName, quotaData) {
+        var limit = -1;
+        if (!modelName || !quotaData) {
+          return limit;
+        }
+
+        var data = quotaData;
+        if (typeof quotaData === "string") {
+          try {
+            data = JSON.parse(quotaData);
+          } catch (e) {
+            return limit;
+          }
+        } else if (quotaData && quotaData.asJSON) {
+          data = quotaData.asJSON;
+        }
+
+        if (!data || !Array.isArray(data)) {
+          return limit;
+        }
+
+        var cleanModel = modelName;
+        if (modelName.indexOf("/") !== -1) {
+          var parts = modelName.split("/");
+          cleanModel = parts[parts.length - 1];
+        }
+
+        for (var i = 0; i < data.length; i++) {
+          var entry = data[i];
+          if (entry && entry.llmOperations && Array.isArray(entry.llmOperations)) {
+            for (var j = 0; j < entry.llmOperations.length; j++) {
+              var op = entry.llmOperations[j];
+              if (op && op.model) {
+                var opModel = op.model;
+                var cleanOpModel = opModel;
+                if (opModel.indexOf("/") !== -1) {
+                  var opParts = opModel.split("/");
+                  cleanOpModel = opParts[opParts.length - 1];
+                }
+                if (opModel === modelName || cleanOpModel === cleanModel) {
+                  if (
+                    entry.llmTokenQuota &&
+                    entry.llmTokenQuota.limit !== undefined &&
+                    entry.llmTokenQuota.limit !== null &&
+                    entry.llmTokenQuota.limit !== ""
+                  ) {
+                    return entry.llmTokenQuota.limit;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        return limit;
+      }
+
       if (typeof exports !== "undefined") {
         exports.getModelName = getModelName;
         exports.getTargetRoute = getTargetRoute;
@@ -1343,5 +1477,8 @@ resources:
         exports.testDeniedModels = testDeniedModels;
         exports.convertOpenAiToGemini = convertOpenAiToGemini;
         exports.convertGeminiToOpenAi = convertGeminiToOpenAi;
+        exports.convertOpenAiToImagen = convertOpenAiToImagen;
+        exports.convertImagenToOpenAi = convertImagenToOpenAi;
+        exports.getModelTokenLimit = getModelTokenLimit;
       }
 tests: []

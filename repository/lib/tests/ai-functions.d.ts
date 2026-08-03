@@ -15,4 +15,5 @@ declare module "../ai-functions.js" {
   export function testDeniedModels(requestInfo: any): boolean;
   export function convertOpenAiToGemini(openAiPayload: any): any;
   export function convertGeminiToOpenAi(geminiResponse: any, modelName?: string): any;
+  export function getModelTokenLimit(modelName: string | null, quotaData: any): any;
 }

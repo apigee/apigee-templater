@@ -7,12 +7,13 @@ import {
   convertOpenAiToGemini,
   convertGeminiToOpenAi,
   convertOpenAiToImagen,
-  convertImagenToOpenAi
+  convertImagenToOpenAi,
+  getModelTokenLimit
 } from "../ai-functions.js";
 
 describe("ai-functions.js unit tests", () => {
   it("should detect model name correctly", () => {
-    expect(getModelName(null, JSON.stringify({ model: "openai/gpt-4o" }))).toBe("openai/gpt-4o");
+    expect(getModelName(null, JSON.stringify({ model: "openai/gpt-4o" }))).toBe("gpt-4o");
     expect(getModelName("/publishers/google/models/gemini-1.5-pro:predict", null)).toBe("gemini-1.5-pro");
   });
 
@@ -142,5 +143,46 @@ describe("ai-functions.js unit tests", () => {
       { b64_json: "base64data1" },
       { b64_json: "base64data2" }
     ]);
+  });
+
+  it("should return model token limit if present or -1 if not", () => {
+    const quotaData = [
+      {
+        apiSource: "ai-auth",
+        llmOperations: [
+          {
+            resource: "/",
+            model: "gemini-flash-latest",
+            methods: []
+          }
+        ],
+        llmTokenQuota: {},
+        attributes: []
+      },
+      {
+        apiSource: "ai-auth",
+        llmOperations: [
+          {
+            resource: "/",
+            model: "gemini-3.5-flash",
+            methods: []
+          }
+        ],
+        llmTokenQuota: {
+          limit: "10000",
+          interval: "1",
+          timeUnit: "hour"
+        },
+        attributes: []
+      }
+    ];
+
+    expect(getModelTokenLimit("gemini-3.5-flash", quotaData)).toBe("10000");
+    expect(getModelTokenLimit("google/gemini-3.5-flash", quotaData)).toBe("10000");
+    expect(getModelTokenLimit("gemini-flash-latest", quotaData)).toBe(-1);
+    expect(getModelTokenLimit("non-existent-model", quotaData)).toBe(-1);
+    expect(getModelTokenLimit("gemini-3.5-flash", JSON.stringify(quotaData))).toBe("10000");
+    expect(getModelTokenLimit(null, quotaData)).toBe(-1);
+    expect(getModelTokenLimit("gemini-3.5-flash", null)).toBe(-1);
   });
 });

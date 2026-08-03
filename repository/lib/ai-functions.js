@@ -26,7 +26,12 @@ function getModelName(urlString, contentString) {
       } else if (contentString.asJSON) {
         contentData = contentString.asJSON;
       }
-      if (contentData && contentData["model"]) modelName = contentData["model"];
+      if (contentData && contentData["model"]) {
+        modelName = contentData["model"];
+        var modelNamePieces = modelName.split("/");
+        if (modelNamePieces.length > 0)
+          modelName = modelNamePieces[modelNamePieces.length - 1];
+      }
     } catch (e) {}
   }
 
@@ -408,7 +413,7 @@ function testDeniedModels(requestInfo) {
 // Open AI to Gemini native format conversion
 function convertOpenAiToGemini(openAiPayload) {
   if (!openAiPayload) return {};
-  
+
   var geminiPayload = {
     contents: []
   };
@@ -497,7 +502,7 @@ function convertGeminiToOpenAi(geminiResponse, modelName) {
     for (var i = 0; i < geminiResponse.candidates.length; i++) {
       var candidate = geminiResponse.candidates[i];
       var text = "";
-      
+
       if (candidate.content && candidate.content.parts && Array.isArray(candidate.content.parts)) {
         for (var p = 0; p < candidate.content.parts.length; p++) {
           if (candidate.content.parts[p].text) {
@@ -590,6 +595,63 @@ function convertImagenToOpenAi(imagenResponse, modelName) {
   return openAiResponse;
 }
 
+function getModelTokenLimit(modelName, quotaData) {
+  var limit = -1;
+  if (!modelName || !quotaData) {
+    return limit;
+  }
+
+  var data = quotaData;
+  if (typeof quotaData === "string") {
+    try {
+      data = JSON.parse(quotaData);
+    } catch (e) {
+      return limit;
+    }
+  } else if (quotaData && quotaData.asJSON) {
+    data = quotaData.asJSON;
+  }
+
+  if (!data || !Array.isArray(data)) {
+    return limit;
+  }
+
+  var cleanModel = modelName;
+  if (modelName.indexOf("/") !== -1) {
+    var parts = modelName.split("/");
+    cleanModel = parts[parts.length - 1];
+  }
+
+  for (var i = 0; i < data.length; i++) {
+    var entry = data[i];
+    if (entry && entry.llmOperations && Array.isArray(entry.llmOperations)) {
+      for (var j = 0; j < entry.llmOperations.length; j++) {
+        var op = entry.llmOperations[j];
+        if (op && op.model) {
+          var opModel = op.model;
+          var cleanOpModel = opModel;
+          if (opModel.indexOf("/") !== -1) {
+            var opParts = opModel.split("/");
+            cleanOpModel = opParts[opParts.length - 1];
+          }
+          if (opModel === modelName || cleanOpModel === cleanModel) {
+            if (
+              entry.llmTokenQuota &&
+              entry.llmTokenQuota.limit !== undefined &&
+              entry.llmTokenQuota.limit !== null &&
+              entry.llmTokenQuota.limit !== ""
+            ) {
+              return entry.llmTokenQuota.limit;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return limit;
+}
+
 if (typeof exports !== "undefined") {
   exports.getModelName = getModelName;
   exports.getTargetRoute = getTargetRoute;
@@ -604,4 +666,6 @@ if (typeof exports !== "undefined") {
   exports.convertGeminiToOpenAi = convertGeminiToOpenAi;
   exports.convertOpenAiToImagen = convertOpenAiToImagen;
   exports.convertImagenToOpenAi = convertImagenToOpenAi;
+  exports.getModelTokenLimit = getModelTokenLimit;
 }
+

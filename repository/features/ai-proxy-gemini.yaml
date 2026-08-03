@@ -423,16 +423,92 @@ resources:
           }
         } else if (contentString) {
           try {
-            var contentData = JSON.parse(contentString);
-            if (contentData && contentData["model"]) modelName = contentData["model"];
-            if (modelName.includes("/")) {
+            var contentData = contentString;
+            if (typeof contentString === "string") {
+              contentData = JSON.parse(contentString);
+            } else if (contentString.asJSON) {
+              contentData = contentString.asJSON;
+            }
+            if (contentData && contentData["model"]) {
+              modelName = contentData["model"];
               var modelNamePieces = modelName.split("/");
-              modelName = modelNamePieces[modelNamePieces.length - 1];
+              if (modelNamePieces.length > 0)
+                modelName = modelNamePieces[modelNamePieces.length - 1];
             }
           } catch (e) {}
         }
 
         return modelName;
+      }
+
+      function getTargetRoute(modelName) {
+        var result = {
+          provider: "unknown",
+          region: "global",
+          cleanModelName: modelName,
+          targetRoute: "gcloud"
+        };
+
+        if (!modelName || modelName === "unknown") {
+          return result;
+        }
+
+        var lowerModel = modelName.toLowerCase();
+        var rawProvider = "";
+        var cleanModel = modelName;
+
+        if (modelName.indexOf("/") !== -1) {
+          var parts = modelName.split("/");
+          rawProvider = parts[0].toLowerCase();
+          cleanModel = parts.slice(1).join("/");
+        }
+
+        if (rawProvider === "google-eu" || rawProvider === "gcloud-eu" || rawProvider === "gemini-eu") {
+          result.provider = "google";
+          result.region = "eu";
+          result.targetRoute = "gcloud-eu";
+          result.cleanModelName = "google/" + cleanModel;
+        } else if (rawProvider === "google" || rawProvider === "gcloud" || rawProvider === "gemini") {
+          result.provider = "google";
+          result.region = "global";
+          result.targetRoute = "gcloud";
+          result.cleanModelName = modelName;
+        } else if (rawProvider === "openai") {
+          result.provider = "openai";
+          result.region = "global";
+          result.targetRoute = "openai";
+          result.cleanModelName = modelName;
+        } else if (rawProvider === "anthropic") {
+          result.provider = "anthropic";
+          result.region = "global";
+          result.targetRoute = "anthropic";
+          result.cleanModelName = modelName;
+        } else {
+          // Default checks based on model prefix
+          if (lowerModel.indexOf("gpt-") === 0 || lowerModel.indexOf("text-embedding-") === 0 || lowerModel.indexOf("dall-e") === 0 || lowerModel.indexOf("o1-") === 0 || lowerModel.indexOf("o3-") === 0) {
+            result.provider = "openai";
+            result.region = "global";
+            result.targetRoute = "openai";
+            result.cleanModelName = "openai/" + modelName;
+          } else if (lowerModel.indexOf("claude-") === 0) {
+            result.provider = "anthropic";
+            result.region = "global";
+            result.targetRoute = "anthropic";
+            result.cleanModelName = "anthropic/" + modelName;
+          } else if (lowerModel.indexOf("gemini-") === 0 || lowerModel.indexOf("bison") !== -1 || lowerModel.indexOf("imagen") !== -1) {
+            result.provider = "google";
+            result.region = "global";
+            result.targetRoute = "gcloud";
+            result.cleanModelName = lowerModel.indexOf("google/") === 0 ? modelName : "google/" + modelName;
+          } else {
+            result.provider = "google";
+            result.region = "global";
+            result.targetRoute = "gcloud";
+            result.cleanModelName = lowerModel.indexOf("google/") === 0 ? modelName : "google/" + modelName;
+          }
+        }
+
+        return result;
       }
 
       function getPrompts(contentData) {
@@ -443,7 +519,7 @@ resources:
 
         if (contentData && contentData["contents"]) {
           // gemini format
-          for (i = contentData["contents"].length - 1; i >= 0; i--) {
+          for (var i = contentData["contents"].length - 1; i >= 0; i--) {
             var content = contentData["contents"][i];
             if (
               content &&
@@ -451,7 +527,7 @@ resources:
               content["role"].toLowerCase() == "user" &&
               content["parts"]
             ) {
-              for (p = content["parts"].length - 1; p >= 0; p--) {
+              for (var p = content["parts"].length - 1; p >= 0; p--) {
                 var part = content["parts"][p];
                 if (!promptInfo.userPrompt && content["parts"][p]["text"]) {
                   promptInfo.userPrompt = content["parts"][p]["text"];
@@ -465,7 +541,7 @@ resources:
           }
         } else if (contentData && contentData["messages"]) {
           // oapi format
-          for (i = contentData["messages"].length - 1; i >= 0; i--) {
+          for (var i = contentData["messages"].length - 1; i >= 0; i--) {
             var message = contentData["messages"][i];
             if (message && message["role"] && message["role"].toLowerCase() == "user") {
               if (!promptInfo.userPrompt && message["content"]) {
@@ -485,7 +561,7 @@ resources:
       function setPrompt(contentData, userPrompt) {
         if (contentData && contentData["contents"]) {
           // gemini format
-          for (i = contentData["contents"].length - 1; i >= 0; i--) {
+          for (var i = contentData["contents"].length - 1; i >= 0; i--) {
             var content = contentData["contents"][i];
             if (
               content &&
@@ -493,7 +569,7 @@ resources:
               content["role"].toLowerCase() == "user" &&
               content["parts"]
             ) {
-              for (p = content["parts"].length - 1; p >= 0; p--) {
+              for (var p = content["parts"].length - 1; p >= 0; p--) {
                 var part = content["parts"][p];
                 if (content["parts"][p]["text"]) {
                   content["parts"][p]["text"] = userPrompt;
@@ -504,7 +580,7 @@ resources:
           }
         } else if (contentData && contentData["messages"]) {
           // oapi format
-          for (i = contentData["messages"].length - 1; i >= 0; i--) {
+          for (var i = contentData["messages"].length - 1; i >= 0; i--) {
             var message = contentData["messages"][i];
             if (message && message["role"] && message["role"].toLowerCase() == "user") {
               if (message["content"]) {
@@ -523,7 +599,7 @@ resources:
 
         if (contentData && contentData["candidates"] && contentData["candidates"].length > 0) {
           // gemini format
-          for (i = contentData["candidates"].length - 1; i >= 0; i--) {
+          for (var i = contentData["candidates"].length - 1; i >= 0; i--) {
             var candidate = contentData["candidates"][i];
             if (
               candidate &&
@@ -531,7 +607,7 @@ resources:
               candidate["content"]["parts"] &&
               candidate["content"]["parts"].length > 0
             ) {
-              for (p = candidate["content"]["parts"].length - 1; p >= 0; p--) {
+              for (var p = candidate["content"]["parts"].length - 1; p >= 0; p--) {
                 var part = candidate["content"]["parts"][p];
                 if (part && part["text"]) {
                   responseText = part["text"];
@@ -542,7 +618,7 @@ resources:
           }
         } else if (contentData && contentData["choices"] && contentData["choices"].length > 0) {
           // openmodel format
-          for (i = contentData["choices"].length - 1; i >= 0; i--) {
+          for (var i = contentData["choices"].length - 1; i >= 0; i--) {
             var choice = contentData["choices"][i];
             if (choice && choice["message"] && choice["message"]["content"]) {
               responseText = choice["message"]["content"];
@@ -551,7 +627,7 @@ resources:
           }
         } else if (contentData && contentData["content"] && contentData["content"].length > 0) {
           // claude format
-          for (i = contentData["content"].length - 1; i >= 0; i--) {
+          for (var i = contentData["content"].length - 1; i >= 0; i--) {
             var content = contentData["content"][i];
             if (content && content["type"] == "text") {
               responseText = content["text"];
@@ -566,7 +642,7 @@ resources:
       function setResponse(contentData, content) {
         if (contentData && contentData["candidates"] && contentData["candidates"].length > 0) {
           // gemini format
-          for (i = contentData["candidates"].length - 1; i >= 0; i--) {
+          for (var i = contentData["candidates"].length - 1; i >= 0; i--) {
             var candidate = contentData["candidates"][i];
             if (
               candidate &&
@@ -574,7 +650,7 @@ resources:
               candidate["content"]["parts"] &&
               candidate["content"]["parts"].length > 0
             ) {
-              for (p = candidate["content"]["parts"].length - 1; p >= 0; p--) {
+              for (var p = candidate["content"]["parts"].length - 1; p >= 0; p--) {
                 var part = candidate["content"]["parts"][p];
                 if (part && part["text"]) {
                   part["text"] = content;
@@ -585,7 +661,7 @@ resources:
           }
         } else if (contentData && contentData["choices"] && contentData["choices"].length > 0) {
           // openmodel format
-          for (i = contentData["choices"].length - 1; i >= 0; i--) {
+          for (var i = contentData["choices"].length - 1; i >= 0; i--) {
             var choice = contentData["choices"][i];
             if (choice && choice["message"] && choice["message"]["content"]) {
               choice["message"]["content"] = content;
@@ -594,7 +670,7 @@ resources:
           }
         } else if (contentData && contentData["content"] && contentData["content"].length > 0) {
           // claude format
-          for (i = contentData["content"].length - 1; i >= 0; i--) {
+          for (var i = contentData["content"].length - 1; i >= 0; i--) {
             var claudeContent = contentData["content"][i];
             if (claudeContent && claudeContent["type"] == "text") {
               claudeContent["text"] = content;
@@ -694,16 +770,11 @@ resources:
           var patterns = requestInfo.allowedModelPatterns.split(";");
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
-            // var patternRegex = new RegExp(pattern);
             if (requestInfo.type == "googlecloud") {
               if (requestInfo.url.includes(pattern)) {
                 result = true;
                 break;
               }
-              // if (patternRegex.test(requestInfo.url)) {
-              //   result = true;
-              //   break;
-              // }
             } else if (requestInfo.type == "oai" && requestInfo.requestContent["model"]) {
               if (requestInfo.requestContent["model"].includes(pattern)) {
                 result = true;
@@ -722,7 +793,6 @@ resources:
           var patterns = requestInfo.deniedModelPatterns.split(";");
           for (var i = 0; i < patterns.length; i++) {
             var pattern = patterns[i];
-            // var patternRegex = new RegExp(pattern);
             if (requestInfo.type == "googlecloud") {
               if (requestInfo.url.includes(pattern)) {
                 result = false;
@@ -743,9 +813,251 @@ resources:
         return result;
       }
 
-      // this is to only export the function if in node
+      // Open AI to Gemini native format conversion
+      function convertOpenAiToGemini(openAiPayload) {
+        if (!openAiPayload) return {};
+
+        var geminiPayload = {
+          contents: []
+        };
+
+        if (openAiPayload.messages && Array.isArray(openAiPayload.messages)) {
+          var systemInstructionParts = [];
+
+          for (var i = 0; i < openAiPayload.messages.length; i++) {
+            var msg = openAiPayload.messages[i];
+            var role = msg.role;
+            var content = msg.content;
+
+            if (role === "system") {
+              if (typeof content === "string") {
+                systemInstructionParts.push({ text: content });
+              } else if (Array.isArray(content)) {
+                for (var j = 0; j < content.length; j++) {
+                  if (content[j].type === "text" && content[j].text) {
+                    systemInstructionParts.push({ text: content[j].text });
+                  }
+                }
+              }
+            } else {
+              var geminiRole = (role === "assistant") ? "model" : "user";
+              var parts = [];
+
+              if (typeof content === "string") {
+                parts.push({ text: content });
+              } else if (Array.isArray(content)) {
+                for (var k = 0; k < content.length; k++) {
+                  if (content[k].type === "text" && content[k].text) {
+                    parts.push({ text: content[k].text });
+                  }
+                }
+              }
+
+              if (parts.length > 0) {
+                geminiPayload.contents.push({
+                  role: geminiRole,
+                  parts: parts
+                });
+              }
+            }
+          }
+
+          if (systemInstructionParts.length > 0) {
+            geminiPayload.systemInstruction = {
+              parts: systemInstructionParts
+            };
+          }
+        }
+
+        var generationConfig = {};
+        if (openAiPayload.temperature !== undefined) generationConfig.temperature = openAiPayload.temperature;
+        if (openAiPayload.top_p !== undefined) generationConfig.topP = openAiPayload.top_p;
+        if (openAiPayload.max_tokens !== undefined) generationConfig.maxOutputTokens = openAiPayload.max_tokens;
+        if (openAiPayload.stop !== undefined) {
+          generationConfig.stopSequences = Array.isArray(openAiPayload.stop) ? openAiPayload.stop : [openAiPayload.stop];
+        }
+
+        if (Object.keys(generationConfig).length > 0) {
+          geminiPayload.generationConfig = generationConfig;
+        }
+
+        return geminiPayload;
+      }
+
+      // Gemini native response to OpenAI format conversion
+      function convertGeminiToOpenAi(geminiResponse, modelName) {
+        if (!geminiResponse) return {};
+
+        var openAiResponse = {
+          id: "chatcmpl-" + Math.random().toString(36).substring(2, 11),
+          object: "chat.completion",
+          created: Math.floor(Date.now() / 1000),
+          model: modelName || "gemini",
+          choices: [],
+          usage: {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0
+          }
+        };
+
+        if (geminiResponse.candidates && Array.isArray(geminiResponse.candidates)) {
+          for (var i = 0; i < geminiResponse.candidates.length; i++) {
+            var candidate = geminiResponse.candidates[i];
+            var text = "";
+
+            if (candidate.content && candidate.content.parts && Array.isArray(candidate.content.parts)) {
+              for (var p = 0; p < candidate.content.parts.length; p++) {
+                if (candidate.content.parts[p].text) {
+                  text += candidate.content.parts[p].text;
+                }
+              }
+            }
+
+            var finishReason = "stop";
+            if (candidate.finishReason) {
+              if (candidate.finishReason === "MAX_TOKENS") finishReason = "length";
+              else if (candidate.finishReason === "SAFETY") finishReason = "content_filter";
+              else finishReason = candidate.finishReason.toLowerCase();
+            }
+
+            openAiResponse.choices.push({
+              index: candidate.index || i,
+              message: {
+                role: "assistant",
+                content: text
+              },
+              finish_reason: finishReason
+            });
+          }
+        }
+
+        if (geminiResponse.usageMetadata) {
+          var promptTokens = geminiResponse.usageMetadata.promptTokenCount || 0;
+          var completionTokens = geminiResponse.usageMetadata.candidatesTokenCount || 0;
+          var totalTokens = geminiResponse.usageMetadata.totalTokenCount || (promptTokens + completionTokens);
+
+          openAiResponse.usage = {
+            prompt_tokens: promptTokens,
+            completion_tokens: completionTokens,
+            total_tokens: totalTokens
+          };
+        }
+
+        return openAiResponse;
+      }
+
+      // OpenAI image generation request to Imagen native predict request conversion
+      function convertOpenAiToImagen(openAiPayload) {
+        if (!openAiPayload) return { instances: [] };
+
+        var promptText = openAiPayload.prompt || "";
+        var sampleCount = openAiPayload.n || 1;
+
+        var parameters = {};
+        if (openAiPayload.response_format === "b64_json") {
+          parameters.outputOptions = { mimeType: "image/jpeg" };
+        }
+        if (openAiPayload.aspect_ratio) {
+          parameters.aspectRatio = openAiPayload.aspect_ratio;
+        }
+        if (sampleCount) {
+          parameters.sampleCount = sampleCount;
+        }
+
+        return {
+          instances: [{ prompt: promptText }],
+          parameters: parameters
+        };
+      }
+
+      // Imagen native predict response to OpenAI image generation response conversion
+      function convertImagenToOpenAi(imagenResponse, modelName) {
+        if (!imagenResponse) return { created: Math.floor(Date.now() / 1000), data: [] };
+
+        var openAiResponse = {
+          created: Math.floor(Date.now() / 1000),
+          data: []
+        };
+
+        if (imagenResponse.predictions && Array.isArray(imagenResponse.predictions)) {
+          for (var i = 0; i < imagenResponse.predictions.length; i++) {
+            var pred = imagenResponse.predictions[i];
+            if (pred.bytesBase64Encoded) {
+              openAiResponse.data.push({
+                b64_json: pred.bytesBase64Encoded
+              });
+            } else if (pred.gcsUri) {
+              openAiResponse.data.push({
+                url: pred.gcsUri
+              });
+            }
+          }
+        }
+
+        return openAiResponse;
+      }
+
+      function getModelTokenLimit(modelName, quotaData) {
+        var limit = -1;
+        if (!modelName || !quotaData) {
+          return limit;
+        }
+
+        var data = quotaData;
+        if (typeof quotaData === "string") {
+          try {
+            data = JSON.parse(quotaData);
+          } catch (e) {
+            return limit;
+          }
+        } else if (quotaData && quotaData.asJSON) {
+          data = quotaData.asJSON;
+        }
+
+        if (!data || !Array.isArray(data)) {
+          return limit;
+        }
+
+        var cleanModel = modelName;
+        if (modelName.indexOf("/") !== -1) {
+          var parts = modelName.split("/");
+          cleanModel = parts[parts.length - 1];
+        }
+
+        for (var i = 0; i < data.length; i++) {
+          var entry = data[i];
+          if (entry && entry.llmOperations && Array.isArray(entry.llmOperations)) {
+            for (var j = 0; j < entry.llmOperations.length; j++) {
+              var op = entry.llmOperations[j];
+              if (op && op.model) {
+                var opModel = op.model;
+                var cleanOpModel = opModel;
+                if (opModel.indexOf("/") !== -1) {
+                  var opParts = opModel.split("/");
+                  cleanOpModel = opParts[opParts.length - 1];
+                }
+                if (opModel === modelName || cleanOpModel === cleanModel) {
+                  if (
+                    entry.llmTokenQuota &&
+                    entry.llmTokenQuota.limit !== undefined &&
+                    entry.llmTokenQuota.limit !== null &&
+                    entry.llmTokenQuota.limit !== ""
+                  ) {
+                    return entry.llmTokenQuota.limit;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        return limit;
+      }
+
       if (typeof exports !== "undefined") {
         exports.getModelName = getModelName;
+        exports.getTargetRoute = getTargetRoute;
         exports.getPrompts = getPrompts;
         exports.setPrompt = setPrompt;
         exports.getResponse = getResponse;
@@ -753,5 +1065,12 @@ resources:
         exports.getUsageData = getUsageData;
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;
+        exports.convertOpenAiToGemini = convertOpenAiToGemini;
+        exports.convertGeminiToOpenAi = convertGeminiToOpenAi;
+        exports.convertOpenAiToImagen = convertOpenAiToImagen;
+        exports.convertImagenToOpenAi = convertImagenToOpenAi;
+        exports.getModelTokenLimit = getModelTokenLimit;
       }
+
+
 tests: []
