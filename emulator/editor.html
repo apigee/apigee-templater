@@ -539,17 +539,19 @@
     .modal {
       background: var(--bg-secondary);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      width: 750px;
-      max-width: 90vw;
-      max-height: 85vh;
+      border-radius: 12px;
+      width: 94vw;
+      height: 92vh;
+      max-width: 1600px;
+      max-height: 95vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
     }
 
     .modal-header {
-      padding: 14px 20px;
+      padding: 16px 24px;
       background: var(--bg-card);
       border-bottom: 1px solid var(--border);
       display: flex;
@@ -557,17 +559,23 @@
       align-items: center;
     }
 
+    .modal-header h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
     .modal-body {
-      padding: 20px;
+      padding: 24px;
       flex: 1;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 18px;
     }
 
     .modal-footer {
-      padding: 12px 20px;
+      padding: 14px 24px;
       background: var(--bg-card);
       border-top: 1px solid var(--border);
       display: flex;
@@ -575,10 +583,39 @@
       align-items: center;
     }
 
+    .form-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 768px) {
+      .form-row-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .form-group {
       display: flex;
       flex-direction: column;
       gap: 6px;
+    }
+
+    .form-group.flex-fill {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 180px;
+    }
+
+    .form-group.flex-fill textarea {
+      flex: 1;
+      height: 100% !important;
+      min-height: 180px;
+      resize: vertical;
+      font-family: var(--font-code);
+      font-size: 0.9rem;
+      line-height: 1.5;
     }
 
     .form-group label {
@@ -698,35 +735,37 @@
         <button class="btn" onclick="closePolicyModal()">✕</button>
       </div>
       <div class="modal-body">
-        <div class="form-group">
-          <label>Policy Name</label>
-          <input type="text" id="modal-policy-name" class="form-control" />
-        </div>
-        <div class="form-group">
-          <label>Policy Type</label>
-          <select id="modal-policy-type" class="form-control" onchange="handlePolicyTypeChange()">
-            <option value="AssignMessage">AssignMessage</option>
-            <option value="VerifyAPIKey">VerifyAPIKey</option>
-            <option value="KeyValueMapOperations">KeyValueMapOperations</option>
-            <option value="ServiceCallout">ServiceCallout</option>
-            <option value="Javascript">Javascript</option>
-            <option value="ExtractVariables">ExtractVariables</option>
-            <option value="LookupCache">LookupCache</option>
-            <option value="PopulateCache">PopulateCache</option>
-            <option value="LLMTokenQuota">LLMTokenQuota</option>
-            <option value="AccessEntity">AccessEntity</option>
-            <option value="DataCapture">DataCapture</option>
-          </select>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Policy Name</label>
+            <input type="text" id="modal-policy-name" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label>Policy Type</label>
+            <select id="modal-policy-type" class="form-control" onchange="handlePolicyTypeChange()">
+              <option value="AssignMessage">AssignMessage</option>
+              <option value="VerifyAPIKey">VerifyAPIKey</option>
+              <option value="KeyValueMapOperations">KeyValueMapOperations</option>
+              <option value="ServiceCallout">ServiceCallout</option>
+              <option value="Javascript">Javascript</option>
+              <option value="ExtractVariables">ExtractVariables</option>
+              <option value="LookupCache">LookupCache</option>
+              <option value="PopulateCache">PopulateCache</option>
+              <option value="LLMTokenQuota">LLMTokenQuota</option>
+              <option value="AccessEntity">AccessEntity</option>
+              <option value="DataCapture">DataCapture</option>
+            </select>
+          </div>
         </div>
 
-        <div id="modal-js-code-section" style="display: none;" class="form-group">
+        <div id="modal-js-code-section" style="display: none;" class="form-group flex-fill">
           <label>Embedded JS Source Code (Apigee ES5)</label>
-          <textarea id="modal-js-source" class="form-control" style="height: 150px; font-family: var(--font-code);"></textarea>
+          <textarea id="modal-js-source" class="form-control"></textarea>
         </div>
 
-        <div class="form-group">
+        <div class="form-group flex-fill">
           <label>Policy Config (YAML)</label>
-          <textarea id="modal-policy-yaml" class="form-control" style="height: 150px; font-family: var(--font-code);"></textarea>
+          <textarea id="modal-policy-yaml" class="form-control"></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -741,7 +780,7 @@
 
   <!-- Step Edit Modal -->
   <div class="modal-overlay" id="step-modal">
-    <div class="modal" style="width: 500px;">
+    <div class="modal">
       <div class="modal-header">
         <h3>Edit Step in Flow</h3>
         <button class="btn" onclick="closeStepModal()">✕</button>
@@ -751,9 +790,9 @@
           <label>Target Policy Name</label>
           <select id="modal-step-name" class="form-control"></select>
         </div>
-        <div class="form-group">
+        <div class="form-group flex-fill">
           <label>Execution Condition (Apigee Expression)</label>
-          <textarea id="modal-step-condition" class="form-control" style="height: 80px;" placeholder="e.g. request.header.x-api-key != null"></textarea>
+          <textarea id="modal-step-condition" class="form-control" placeholder="e.g. request.header.x-api-key != null"></textarea>
         </div>
       </div>
       <div class="modal-footer">
