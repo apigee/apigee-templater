@@ -55,7 +55,7 @@ targets:
       properties: {}
       url: https://api.anthropic.com
   - name: gcloud-eu
-    url: https://europe-west1-aiplatform.googleapis.com/v1/projects/ai-portals-solution/locations/europe-west1/publishers/google/models/imagen-3.0-generate-002:predict
+    url: https://europe-west1-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west1/publishers/google/models/imagen-3.0-generate-002:predict
     flows:
       - name: PostFlow
         mode: Response
@@ -76,9 +76,9 @@ targets:
     faultRules: []
     httpTargetConnection:
       properties: {}
-      url: https://europe-west1-aiplatform.googleapis.com/v1/projects/ai-portals-solution/locations/europe-west1/publishers/google/models/imagen-3.0-generate-002:predict
+      url: https://europe-west1-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/europe-west1/publishers/google/models/imagen-3.0-generate-002:predict
   - name: gcloud
-    url: https://us-central1-aiplatform.googleapis.com/v1/projects/ai-portals-solution/locations/us-central1/publishers/google/models/imagen-3.0-generate-002:predict
+    url: https://us-central1-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/us-central1/publishers/google/models/imagen-3.0-generate-002:predict
     flows:
       - name: PostFlow
         mode: Response
@@ -99,7 +99,7 @@ targets:
     faultRules: []
     httpTargetConnection:
       properties: {}
-      url: https://us-central1-aiplatform.googleapis.com/v1/projects/ai-portals-solution/locations/us-central1/publishers/google/models/imagen-3.0-generate-002:predict
+      url: https://us-central1-aiplatform.googleapis.com/v1/projects/{organization.name}/locations/us-central1/publishers/google/models/imagen-3.0-generate-002:predict
   - name: openai
     url: https://api.openai.com
     flows:

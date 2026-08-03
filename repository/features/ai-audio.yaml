@@ -97,7 +97,7 @@ targets:
       properties: {}
       url: https://api.anthropic.com
   - name: gcloud-eu
-    url: https://aiplatform.eu.rep.googleapis.com/v1/projects/ai-portals-solution/locations/eu/endpoints/openapi/audio
+    url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/audio
     flows:
       - name: PostFlow
         mode: Response
@@ -116,9 +116,9 @@ targets:
     faultRules: []
     httpTargetConnection:
       properties: {}
-      url: https://aiplatform.eu.rep.googleapis.com/v1/projects/ai-portals-solution/locations/eu/endpoints/openapi/audio
+      url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/audio
   - name: gcloud
-    url: https://aiplatform.googleapis.com/v1/projects/ai-portals-solution/locations/global/endpoints/openapi/audio
+    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/audio
     flows:
       - name: PostFlow
         mode: Response
@@ -137,7 +137,7 @@ targets:
     faultRules: []
     httpTargetConnection:
       properties: {}
-      url: https://aiplatform.googleapis.com/v1/projects/ai-portals-solution/locations/global/endpoints/openapi/audio
+      url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/audio
   - name: openai
     url: https://api.openai.com
     flows:
