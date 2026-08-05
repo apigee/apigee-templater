@@ -8,7 +8,8 @@ import {
   convertGeminiToOpenAi,
   convertOpenAiToImagen,
   convertImagenToOpenAi,
-  getModelTokenLimit
+  getModelTokenLimit,
+  getModelList
 } from "../ai-functions.js";
 
 describe("ai-functions.js unit tests", () => {
@@ -184,5 +185,60 @@ describe("ai-functions.js unit tests", () => {
     expect(getModelTokenLimit("gemini-3.5-flash", JSON.stringify(quotaData))).toBe("10000");
     expect(getModelTokenLimit(null, quotaData)).toBe(-1);
     expect(getModelTokenLimit("gemini-3.5-flash", null)).toBe(-1);
+  });
+
+  it("should return OpenAI models list from quota data", () => {
+    const quotaData = [
+      {
+        apiSource: "ai-auth",
+        llmOperations: [
+          {
+            resource: "/",
+            model: "gemini-3.5-flash",
+            methods: []
+          }
+        ],
+        llmTokenQuota: {
+          limit: "1000",
+          interval: "1",
+          timeUnit: "minute"
+        },
+        attributes: []
+      },
+      {
+        apiSource: "ai-auth",
+        llmOperations: [
+          {
+            resource: "/",
+            model: "gemini-flash-latest",
+            methods: []
+          }
+        ],
+        llmTokenQuota: {},
+        attributes: []
+      }
+    ];
+
+    const expected = {
+      object: "list",
+      data: [
+        {
+          id: "gemini-3.5-flash",
+          object: "model",
+          created: 1686935002,
+          owned_by: "system"
+        },
+        {
+          id: "gemini-flash-latest",
+          object: "model",
+          created: 1686935002,
+          owned_by: "system"
+        }
+      ]
+    };
+
+    expect(getModelList(quotaData)).toEqual(expected);
+    expect(getModelList(JSON.stringify(quotaData))).toEqual(expected);
+    expect(getModelList(null)).toEqual({ object: "list", data: [] });
   });
 });

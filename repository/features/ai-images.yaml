@@ -60,12 +60,12 @@ targets:
       - name: PostFlow
         mode: Response
         steps:
-          - name: JS-ConvertResponse
-            condition: response.content != ""
           - name: JS-Analytics
             condition: response.content != ""
           - name: DC-TokenAnalytics
             condition: ai.promptTokenCount != null
+          - name: JS-ConvertResponse
+            condition: response.content != ""
       - name: EventFlow
         mode: Response
         steps:
@@ -83,12 +83,12 @@ targets:
       - name: PostFlow
         mode: Response
         steps:
-          - name: JS-ConvertResponse
-            condition: response.content != ""
           - name: JS-Analytics
             condition: response.content != ""
           - name: DC-TokenAnalytics
             condition: ai.promptTokenCount != null
+          - name: JS-ConvertResponse
+            condition: response.content != ""
       - name: EventFlow
         mode: Response
         steps:
@@ -122,6 +122,30 @@ targets:
       properties: {}
       url: https://api.openai.com
 policies:
+  - name: JS-ConvertResponse
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ConvertResponse
+        displayName: JS-ConvertResponse
+        properties: {}
+        source: |
+          var route = context.getVariable("target.route");
+          if (route === "gcloud" || route === "gcloud-eu") {
+            try {
+              var imagenResponse = JSON.parse(response.content);
+              var modelName = context.getVariable("ai.model");
+              var openAiResponse = convertImagenToOpenAi(imagenResponse, modelName);
+              response.content = JSON.stringify(openAiResponse);
+            } catch (e) {
+              print("Error converting Imagen response: " + e);
+            }
+          }
+        includeUrl: jsc://ai-functions.js
   - name: AM-SetVariables
     type: AssignMessage
     content:
@@ -206,38 +230,56 @@ policies:
         displayName: JS-Analytics
         properties: {}
         source: |
-          var responseContent = response.content;
-          var usageData = getUsageData(responseContent);
-
-          if (usageData) {
-            context.setVariable("ai.model", usageData.model);
-            context.setVariable("ai.promptTokenCount", usageData.requestTokenCount);
-            context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
-            context.setVariable("ai.totalTokenCount", usageData.totalTokenCount);
+          var contentString = context.getVariable("response.event.current.content");
+          var type = "streaming";
+          if (!contentString) {
+            contentString = context.getVariable("response.content");
+            type = "non-streaming"
           }
-        includeUrl: jsc://ai-functions.js
-  - name: JS-ConvertResponse
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-ConvertResponse
-        displayName: JS-ConvertResponse
-        properties: {}
-        source: |
-          var route = context.getVariable("target.route");
-          if (route === "gcloud" || route === "gcloud-eu") {
-            try {
-              var imagenResponse = JSON.parse(response.content);
-              var modelName = context.getVariable("ai.model");
-              var openAiResponse = convertImagenToOpenAi(imagenResponse, modelName);
-              response.content = JSON.stringify(openAiResponse);
-            } catch (e) {
-              print("Error converting Imagen response: " + e);
-            }
+          context.setVariable("ai.responseType", type);
+          print(contentString);
+
+          var modelName = context.getVariable("ai.model");
+          var requestTokenCount = context.getVariable("ai.requestTokenCount");
+          var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
+          if (!timeToFirstToken) {
+            var request_start_time = context.getVariable('client.received.start.timestamp');
+            var timeNow = Date.now();
+            timeToFirstToken = timeNow - request_start_time;
+            context.setVariable("ai.timeToFirstToken", timeToFirstToken);
+          }
+          var usageData = getUsageData(contentString);
+          if (usageData.model) context.setVariable("ai.model", usageData.model);
+          if (usageData.requestTokenCount) {
+            context.setVariable("ai.promptTokenCount", usageData.requestTokenCount);
+            context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
+          }
+          if (modelName) usageData.model = modelName;
+          if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
+          if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
+
+          if (usageData.responseTokenCount > 0) {
+            var costCenter = context.getVariable("ai.costCenter");
+            if (costCenter)
+              usageData.costCenter = costCenter;
+            else
+              usageData.costCenter = "unknown";
+
+            context.setVariable("ai.costCenter", usageData.costCenter);
+            context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
+            usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
+            context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
+            usageData.type = type;
+            print("Sending analytics data: " + JSON.stringify(usageData));
+            // var host = context.getVariable("originalHostName");
+            // var headers = {"Content-Type": "application/json"};
+            // var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
+            // if (apiKey) {
+            //   headers["x-api-key"] = apiKey;
+            // }
+            // var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
+            // print("Sending to: " + 'https://' + host + "/ai-analytics");
+            // httpClient.send(myRequest);
           }
         includeUrl: jsc://ai-functions.js
   - name: JS-CheckModel
@@ -252,7 +294,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-
+          
           var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
           var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
           var override_model = context.getVariable("propertyset.ai.OverrideModel");
@@ -266,7 +308,8 @@ policies:
           var requestContent = request.content.asJSON;
           var callType = "googlecloud";
           var callStreaming = "non-streaming";
-          if (url.toLowerCase().includes("/images/generations")) callType = "oai";
+          if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
+          if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
 
           var requestConfig = {
             url: url,
@@ -281,38 +324,14 @@ policies:
           var promptInfo = getPrompts(requestContent);
           var modelName = getModelName(url, request.content);
 
-          if (override_model && override_model != "NONE" && callType == "oai") {
-            modelName = override_model;
-          } else if (default_model && default_model != "NONE" && !modelName && callType == "oai") {
-            modelName = default_model;
-          }
-
-          var routeInfo = getTargetRoute(modelName);
-
-          context.setVariable("ai.model", routeInfo.cleanModelName || modelName);
-          context.setVariable("ai.provider", routeInfo.provider);
-          context.setVariable("ai.region", routeInfo.region || "global");
-          context.setVariable("target.route", routeInfo.targetRoute);
+          context.setVariable("ai.model", modelName);
           context.setVariable("ai.requestType", callStreaming);
           context.setVariable("ai.apiType", callType);
 
-          if (requestContent) {
-            if (override_model && override_model != "NONE" && callType == "oai") {
-              requestContent["model"] = override_model;
-            } else if (routeInfo.cleanModelName) {
-              requestContent["model"] = routeInfo.cleanModelName;
-            }
-
-            if (routeInfo.targetRoute === "gcloud" || routeInfo.targetRoute === "gcloud-eu") {
-              var imagenPayload = convertOpenAiToImagen(requestContent);
-              request.content = JSON.stringify(imagenPayload);
-            } else {
-              request.content = JSON.stringify(requestContent);
-            }
-          }
-
           if (promptInfo.userPrompt)
             context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
+          else
+            print("Could not find user prompt!");
 
           if (!allowResult) {
             print("Model not allowed!");
@@ -327,8 +346,16 @@ policies:
           }
 
           print("Default_model: " + default_model);
-          print("Request model: " + modelName);
-          print("Target route: " + routeInfo.targetRoute);
+          print("Request model: " + requestContent["model"]);
+
+          if (override_model && override_model != "NONE" && callType == "oai") {
+            requestContent["model"] = override_model;
+            context.setVariable('request.content', JSON.stringify(requestContent));
+          } else if (default_model && default_model != "NONE" && !requestContent["model"] && callType == "oai") {
+            print("Default model set: " + default_model);
+            requestContent["model"] = default_model;
+            context.setVariable('request.content', JSON.stringify(requestContent));
+          }
         includeUrl: jsc://ai-functions.js
   - name: KVM-LoadConfig
     type: KeyValueMapOperations
@@ -356,10 +383,10 @@ policies:
               setValue: NONE
             - key:
                 parameter: DefaultModel
-              setValue: google/imagen-3.0-generate-002
+              setValue: google/gemini-flash-latest
             - key:
                 parameter: FailoverModel
-              setValue: google/imagen-3.0-generate-002
+              setValue: google/gemini-flash-latest
         get:
           - metadata:
               assignTo: ai.allowedModelPatterns
@@ -1045,6 +1072,58 @@ resources:
         return limit;
       }
 
+      function getModelList(quotaData) {
+        var result = {
+          object: "list",
+          data: []
+        };
+
+        if (!quotaData) {
+          return result;
+        }
+
+        var data = quotaData;
+        if (typeof quotaData === "string") {
+          try {
+            data = JSON.parse(quotaData);
+          } catch (e) {
+            return result;
+          }
+        } else if (quotaData && quotaData.asJSON) {
+          data = quotaData.asJSON;
+        }
+
+        if (!data || !Array.isArray(data)) {
+          return result;
+        }
+
+        var seenModels = {};
+        var createdTimestamp = 1686935002;
+
+        for (var i = 0; i < data.length; i++) {
+          var entry = data[i];
+          if (entry && entry.llmOperations && Array.isArray(entry.llmOperations)) {
+            for (var j = 0; j < entry.llmOperations.length; j++) {
+              var op = entry.llmOperations[j];
+              if (op && op.model) {
+                var modelId = op.model;
+                if (!seenModels[modelId]) {
+                  seenModels[modelId] = true;
+                  result.data.push({
+                    id: modelId,
+                    object: "model",
+                    created: createdTimestamp,
+                    owned_by: "system"
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        return result;
+      }
+
       if (typeof exports !== "undefined") {
         exports.getModelName = getModelName;
         exports.getTargetRoute = getTargetRoute;
@@ -1060,7 +1139,6 @@ resources:
         exports.convertOpenAiToImagen = convertOpenAiToImagen;
         exports.convertImagenToOpenAi = convertImagenToOpenAi;
         exports.getModelTokenLimit = getModelTokenLimit;
+        exports.getModelList = getModelList;
       }
-
-
 tests: []

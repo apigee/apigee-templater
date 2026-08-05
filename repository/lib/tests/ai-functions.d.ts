@@ -16,4 +16,5 @@ declare module "../ai-functions.js" {
   export function convertOpenAiToGemini(openAiPayload: any): any;
   export function convertGeminiToOpenAi(geminiResponse: any, modelName?: string): any;
   export function getModelTokenLimit(modelName: string | null, quotaData: any): any;
+  export function getModelList(quotaData: any): { object: string; data: Array<{ id: string; object: string; created: number; owned_by: string }> };
 }
