@@ -24,11 +24,9 @@ defaultEndpoint:
         - name: AM-SetVariables
         - name: JS-CheckModel
         - name: VA-VerifyKey
-          condition: request.header.x-api-key != null AND NOT (request.header.x-api-key
-            JavaRegex "sk-ant.*")
+          condition: request.header.x-ai-key != null
         - name: AM-RemoveKey
-          condition: request.header.x-api-key != null AND NOT (request.header.x-api-key
-            JavaRegex "sk-ant.*")
+          condition: request.header.x-ai-key != null
         - name: JS-ValidateRequest
           condition: proxy.pathsuffix != "/models" AND proxy.pathsuffix != "/v1/models"
         - name: LTQ-QuotaEnforce
@@ -147,7 +145,7 @@ policies:
           headers:
             header:
               metadata:
-                name: x-api-key
+                name: x-ai-key
         assignVariable:
           name: originalHostName
           ref: request.header.host
@@ -275,7 +273,7 @@ policies:
         properties: {}
         apiKey:
           metadata:
-            ref: request.header.x-api-key
+            ref: request.header.x-ai-key
   - name: AM-SetVariables
     type: AssignMessage
     content:
@@ -449,6 +447,12 @@ policies:
         properties: {}
         source: |
           
+          var aiKey = context.getVariable("request.header.x-ai-key");
+          var apiKey = context.getVariable("request.header.x-api-key");
+          if (!aiKey && apiKey) {
+            context.setVariable("request.header.x-ai-key", apiKey);
+          }
+
           var url = context.getVariable("proxy.url");
           var prices = context.getVariable("ai.prices");
           if (!prices) context.setVariable ("ai.prices", JSON.stringify({

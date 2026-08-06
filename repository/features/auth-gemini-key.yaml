@@ -1,0 +1,245 @@
+name: auth-gemini-key
+displayName: Gemini Key Auth
+type: feature
+description: Validates Gemini API keys (x-goog-api-key / key param / AIza*), resolves groups and credentials from AI-Users and AI-Config KVMs, caches user/key details, and sets the resolved key in x-ai-key header.
+documentation: ""
+priority: 5
+categories:
+  - llm
+  - ai
+parameters: []
+defaultEndpoint:
+  name: default
+  basePath: /gemini-key
+  routes:
+    - name: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: KVM-LoadConfig
+        - name: JS-ExtractGeminiKey
+        - name: LC-LookupTokenCache
+          condition: gemini.raw_api_key != null
+        - name: JS-ParseCachedUser
+          condition: gemini.key.cached_user != null
+        - name: KVM-GetGroupsByKey
+          condition: gemini.raw_api_key != null AND gemini.key_cached != "true"
+        - name: JS-ProcessUser
+          condition: gemini.raw_api_key != null AND gemini.key_cached != "true"
+        - name: PC-PopulateTokenCache
+          condition: gemini.raw_api_key != null AND gemini.key.cached_user != null AND gemini.key_cached != "true"
+    - name: PostFlow
+      mode: Response
+      steps: []
+  faultRules: []
+endpoints: []
+targets: []
+policies:
+  - name: JS-ExtractGeminiKey
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ExtractGeminiKey
+        displayName: JS-ExtractGeminiKey
+        properties: {}
+        source: |
+          var googHeader = context.getVariable("request.header.x-goog-api-key");
+          var xApiKey = context.getVariable("request.header.x-api-key");
+          var keyParam = context.getVariable("request.queryparam.key");
+          var authHeader = context.getVariable("request.header.Authorization");
+          var rawKey = null;
+
+          if (googHeader && googHeader.trim() !== "") {
+            rawKey = googHeader.trim();
+          } else if (keyParam && keyParam.trim() !== "") {
+            rawKey = keyParam.trim();
+          } else if (xApiKey && xApiKey.trim().indexOf("AIza") === 0) {
+            rawKey = xApiKey.trim();
+          } else if (authHeader) {
+            authHeader = authHeader.trim();
+            if (authHeader.indexOf("Bearer AIza") === 0) {
+              rawKey = authHeader.substring(7).trim();
+            } else if (authHeader.indexOf("AIza") === 0) {
+              rawKey = authHeader;
+            }
+          }
+
+          if (rawKey) {
+            context.setVariable("gemini.raw_api_key", rawKey);
+            context.setVariable("gemini.groups_kvm_key", "groups." + rawKey);
+          }
+  - name: LC-LookupTokenCache
+    type: LookupCache
+    content:
+      lookupCache:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: LC-LookupTokenCache
+        displayName: LC-LookupTokenCache
+        properties: {}
+        cacheKey:
+          keyFragment:
+            - value: gemini_key
+            - metadata:
+                ref: gemini.raw_api_key
+        assignTo: gemini.key.cached_user
+  - name: JS-ParseCachedUser
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ParseCachedUser
+        displayName: JS-ParseCachedUser
+        properties: {}
+        source: |
+          var cachedUserStr = context.getVariable("gemini.key.cached_user");
+          if (cachedUserStr) {
+            try {
+              var cached = JSON.parse(cachedUserStr);
+              if (cached.raw_api_key) context.setVariable("gemini.raw_api_key", cached.raw_api_key);
+              if (cached.groups) context.setVariable("gemini.key.groups", cached.groups);
+              if (cached.api_key) context.setVariable("request.header.x-ai-key", cached.api_key);
+              context.setVariable("gemini.key_cached", "true");
+              print("Gemini user info successfully restored from cache");
+            } catch (e) {
+              print("Failed to parse cached Gemini data: " + e);
+            }
+          }
+  - name: KVM-GetGroupsByKey
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: KVM-GetGroupsByKey
+          mapIdentifier: AI-Users
+        displayName: KVM-GetGroupsByKey
+        properties: {}
+        get:
+          metadata:
+            assignTo: gemini.key.groups
+            index: "1"
+          key:
+            parameter:
+              metadata:
+                ref: gemini.groups_kvm_key
+        scope: environment
+  - name: JS-ProcessUser
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ProcessUser
+        displayName: JS-ProcessUser
+        properties: {}
+        source: |
+          var groupData = context.getVariable("gemini.key.groups");
+          var resolvedKey = null;
+
+          if (groupData) {
+            var groupArray = groupData.split(",");
+            var groupCredentials = context.getVariable("ai.groups");
+            if (groupCredentials) {
+              try {
+                var groupCredentialsObject = JSON.parse(groupCredentials);
+                for (var i = 0; i < groupArray.length; i++) {
+                  var grp = groupArray[i].trim();
+                  if (groupCredentialsObject[grp]) {
+                    resolvedKey = groupCredentialsObject[grp];
+                    print("Found group credential for Gemini key, setting as x-ai-key...");
+                    break;
+                  }
+                }
+              } catch(e) {
+                print("Error parsing group credential data: " + e);
+              }
+            }
+          }
+
+          if (!resolvedKey) {
+            var rawKey = context.getVariable("gemini.raw_api_key");
+            if (rawKey) resolvedKey = rawKey;
+          }
+
+          if (resolvedKey) {
+            context.setVariable("request.header.x-ai-key", resolvedKey);
+          }
+
+          var rawApiKey = context.getVariable("gemini.raw_api_key") || "";
+          var groups = context.getVariable("gemini.key.groups") || "";
+          var apiKey = context.getVariable("request.header.x-ai-key") || "";
+
+          var cacheObject = {
+            raw_api_key: rawApiKey,
+            groups: groups,
+            api_key: apiKey
+          };
+          context.setVariable("gemini.key.cached_user", JSON.stringify(cacheObject));
+  - name: PC-PopulateTokenCache
+    type: PopulateCache
+    content:
+      populateCache:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: PC-PopulateTokenCache
+        displayName: PC-PopulateTokenCache
+        properties: {}
+        cacheKey:
+          keyFragment:
+            - value: gemini_key
+            - metadata:
+                ref: gemini.raw_api_key
+        source: gemini.key.cached_user
+        expirySettings:
+          timeoutInSec: "3600"
+  - name: KVM-LoadConfig
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: KVM-LoadConfig
+          mapIdentifier: AI-Config
+        displayName: KVM-LoadConfig
+        properties: {}
+        exclusiveCache: "false"
+        expiryTimeInSecs: "10"
+        get:
+          - metadata:
+              assignTo: ai.failoverModel
+              index: "1"
+            key:
+              parameter: FailoverModel
+          - metadata:
+              assignTo: ai.prices
+              index: "1"
+            key:
+              parameter: PriceList
+          - metadata:
+              assignTo: ai.groupsLookup
+              index: "1"
+            key:
+              parameter: GroupsLookup
+          - metadata:
+              assignTo: ai.groups
+              index: "1"
+            key:
+              parameter: Groups
+        scope: environment
+resources: []
+tests: []

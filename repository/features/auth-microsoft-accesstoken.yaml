@@ -109,7 +109,7 @@ policies:
               if (cached.email) context.setVariable("entra.token.email", cached.email);
               if (cached.groups) context.setVariable("entra.token.groups", cached.groups);
               if (cached.user_key) context.setVariable("entra.user_key", cached.user_key);
-              if (cached.api_key) context.setVariable("request.header.x-api-key", cached.api_key);
+              if (cached.api_key) context.setVariable("request.header.x-ai-key", cached.api_key);
               context.setVariable("entra.token.valid", "true");
               context.setVariable("entra.token_cached", "true");
               print("User info successfully restored from cache for " + cached.email);
@@ -329,13 +329,13 @@ policies:
           }
 
           if (resolvedKey) {
-            context.setVariable("request.header.x-api-key", resolvedKey);
+            context.setVariable("request.header.x-ai-key", resolvedKey);
           }
 
           var email = context.getVariable("entra.token.email") || "";
           var groups = context.getVariable("entra.token.groups") || "";
           var userKeyVal = context.getVariable("entra.user_key") || "";
-          var apiKey = context.getVariable("request.header.x-api-key") || "";
+          var apiKey = context.getVariable("request.header.x-ai-key") || "";
 
           var cacheObject = {
             email: email,

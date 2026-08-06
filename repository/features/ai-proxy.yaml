@@ -403,6 +403,12 @@ policies:
         properties: {}
         source: |
           
+          var aiKey = context.getVariable("request.header.x-ai-key");
+          var apiKey = context.getVariable("request.header.x-api-key");
+          if (!aiKey && apiKey) {
+            context.setVariable("request.header.x-ai-key", apiKey);
+          }
+
           var url = context.getVariable("proxy.url");
           var prices = context.getVariable("ai.prices");
           if (!prices) context.setVariable ("ai.prices", JSON.stringify({
