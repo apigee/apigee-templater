@@ -1,7 +1,7 @@
 name: auth-google-accesstoken
 displayName: Google Access Token
 type: feature
-description: The Google Access Token feature validates a Google Access Token from the Authorization header, and if it is valid checks the groups and if valid does a token exchange for further access.
+description: The Google Access Token feature validates a Google Access Token from the Authorization header, checks user/group key configurations, caches token & user details, and exchanges for API access.
 documentation: ""
 priority: 5
 categories:
@@ -21,22 +21,31 @@ defaultEndpoint:
         - name: EV-ExtractBearerToken
           condition: request.header.Authorization != null AND request.header.Authorization
             Matches "Bearer ya29.*"
+        - name: LC-LookupTokenCache
+          condition: google.raw_access_token != null
+        - name: JS-ParseCachedUser
+          condition: google.token.cached_user != null
         - name: SC-ValidateGoogleToken
-          condition: google.raw_access_token != null
+          condition: google.raw_access_token != null AND google.token_cached != "true"
         - name: JS-ParseGoogleToken
-          condition: google.raw_access_token != null
+          condition: google.raw_access_token != null AND google.token_cached != "true"
+        - name: KVM-GetUserKeyByEmail
+          condition: google.token.email != null AND google.token_cached != "true"
         - name: KVM-GetGroupsByEmail
-          condition: user.groups_kvm_key != null
+          condition: user.groups_kvm_key != null AND google.token_cached != "true"
         - name: SC-GetGoogleGroups
           condition: google.token.email != null AND google.token.groups == null AND
-            ai.groupsLookup != "FALSE"
+            ai.groupsLookup != "FALSE" AND google.token_cached != "true"
         - name: JS-ParseGoogleGroups
           condition: google.token.email != null AND google.token.groups == null AND
-            groupsResponse.content != null
+            groupsResponse.content != null AND google.token_cached != "true"
         - name: KVM-SaveGroupsByEmail
-          condition: google.token.email != null AND google.groups_fetched == "true"
-        - name: JS-ProcessGroups
-          condition: google.token.groups != null
+          condition: google.token.email != null AND google.groups_fetched == "true" AND
+            google.token_cached != "true"
+        - name: JS-ProcessUser
+          condition: google.token.valid == "true" AND google.token_cached != "true"
+        - name: PC-PopulateTokenCache
+          condition: google.raw_access_token != null AND google.token.cached_user != null AND google.token_cached != "true"
     - name: PostFlow
       mode: Response
       steps: []
@@ -61,6 +70,49 @@ policies:
               ignoreCase: "true"
             value: Bearer {google.raw_access_token}
         ignoreUnresolvedVariables: "true"
+  - name: LC-LookupTokenCache
+    type: LookupCache
+    content:
+      lookupCache:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: LC-LookupTokenCache
+        displayName: LC-LookupTokenCache
+        properties: {}
+        cacheKey:
+          keyFragment:
+            - value: google_token
+            - metadata:
+                ref: google.raw_access_token
+        assignTo: google.token.cached_user
+  - name: JS-ParseCachedUser
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ParseCachedUser
+        displayName: JS-ParseCachedUser
+        properties: {}
+        source: |
+          var cachedUserStr = context.getVariable("google.token.cached_user");
+          if (cachedUserStr) {
+            try {
+              var cached = JSON.parse(cachedUserStr);
+              if (cached.email) context.setVariable("google.token.email", cached.email);
+              if (cached.groups) context.setVariable("google.token.groups", cached.groups);
+              if (cached.user_key) context.setVariable("google.user_key", cached.user_key);
+              if (cached.api_key) context.setVariable("request.header.x-api-key", cached.api_key);
+              context.setVariable("google.token.valid", "true");
+              context.setVariable("google.token_cached", "true");
+              print("User info successfully restored from cache for " + cached.email);
+            } catch (e) {
+              print("Failed to parse cached user data: " + e);
+            }
+          }
   - name: JS-ParseGoogleGroups
     type: Javascript
     content:
@@ -130,7 +182,27 @@ policies:
             context.setVariable("response.status.code", 401);
             throw "Invalid Google OAuth Token";
           }
-  - name: JS-ProcessGroups
+  - name: KVM-GetUserKeyByEmail
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: KVM-GetUserKeyByEmail
+          mapIdentifier: AI-Users
+        displayName: KVM-GetUserKeyByEmail
+        properties: {}
+        get:
+          metadata:
+            assignTo: google.user_key
+            index: "1"
+          key:
+            parameter:
+              metadata:
+                ref: google.token.email
+        scope: environment
+  - name: JS-ProcessUser
     type: Javascript
     content:
       javascript:
@@ -138,52 +210,74 @@ policies:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
-          name: JS-ProcessGroups
-        displayName: JS-ProcessGroups
+          name: JS-ProcessUser
+        displayName: JS-ProcessUser
         properties: {}
-        source: "
+        source: |
+          var userKey = context.getVariable("google.user_key");
+          var resolvedKey = null;
 
-          \    var groupData = context.getVariable(\"google.token.groups\");
+          if (userKey && userKey.trim() !== "") {
+            resolvedKey = userKey.trim();
+            print("Found direct user key for email, using as x-api-key...");
+          } else {
+            var groupData = context.getVariable("google.token.groups");
+            if (groupData) {
+              var groupArray = groupData.split(",");
+              var groupCredentials = context.getVariable("ai.groups");
+              if (groupCredentials) {
+                try {
+                  var groupCredentialsObject = JSON.parse(groupCredentials);
+                  for (var i = 0; i < groupArray.length; i++) {
+                    var grp = groupArray[i].trim();
+                    if (groupCredentialsObject[grp]) {
+                      resolvedKey = groupCredentialsObject[grp];
+                      print("Found group credential, setting as header...");
+                      break;
+                    }
+                  }
+                } catch(e) {
+                  print("Error parsing group credential data: " + e);
+                }
+              }
+            }
+          }
 
-          \    if (groupData) {
+          if (resolvedKey) {
+            context.setVariable("request.header.x-api-key", resolvedKey);
+          }
 
-          \      var groupArray = groupData.split(\",\");
+          var email = context.getVariable("google.token.email") || "";
+          var groups = context.getVariable("google.token.groups") || "";
+          var userKeyVal = context.getVariable("google.user_key") || "";
+          var apiKey = context.getVariable("request.header.x-api-key") || "";
 
-          \      var groupCredentials =
-          context.getVariable(\"ai.groups\");
-
-          \      if (groupCredentials) {
-
-          \        try {
-
-          \          var groupCredentialsObject = JSON.parse(groupCredentials);
-
-          \          groupArray.forEach(function (element, index, array) {
-
-          \            if (groupCredentialsObject[element]) {
-
-          \              print(\"Found group credential, setting as
-          header...\");
-
-          \              context.setVariable(\"request.header.x-api-key\",
-          groupCredentialsObject[element]);
-
-          \            }
-
-          \          });
-
-          \        } catch(e) {
-
-          \          print(\"Error parsing group credential data.\");
-
-          \        }
-
-          \      }
-
-          \    }
-
-
-          \  "
+          var cacheObject = {
+            email: email,
+            groups: groups,
+            user_key: userKeyVal,
+            api_key: apiKey
+          };
+          context.setVariable("google.token.cached_user", JSON.stringify(cacheObject));
+          print("Prepared cached_user payload for token cache: " + JSON.stringify(cacheObject));
+  - name: PC-PopulateTokenCache
+    type: PopulateCache
+    content:
+      populateCache:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: PC-PopulateTokenCache
+        displayName: PC-PopulateTokenCache
+        properties: {}
+        cacheKey:
+          keyFragment:
+            - value: google_token
+            - metadata:
+                ref: google.raw_access_token
+        source: google.token.cached_user
+        expirySettings:
+          timeoutInSec: "3600"
   - name: KVM-GetGroupsByEmail
     type: KeyValueMapOperations
     content:

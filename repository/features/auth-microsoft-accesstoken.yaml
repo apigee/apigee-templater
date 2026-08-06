@@ -1,0 +1,402 @@
+name: auth-microsoft-accesstoken
+displayName: Microsoft Entra Access Token
+type: feature
+description: The Microsoft Entra Access Token feature validates a Microsoft Entra ID (Azure AD) Access Token from the Authorization header using VerifyJWT (JWKS), checks user/group key configurations in KVM, caches token & user details, and exchanges for API access.
+documentation: ""
+priority: 5
+categories:
+  - llm
+  - ai
+parameters:
+  - name: EntraJwksUri
+    displayName: Entra JwksUri
+    description: Configuration input for Microsoft Entra ID JWKS URI.
+    default: https://login.microsoftonline.com/common/discovery/v2.0/keys
+defaultEndpoint:
+  name: default
+  basePath: /microsoft-accesstoken
+  routes:
+    - name: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: KVM-LoadConfig
+        - name: EV-ExtractBearerToken
+          condition: request.header.Authorization != null AND request.header.Authorization
+            Matches "Bearer eyJ*"
+        - name: LC-LookupTokenCache
+          condition: entra.raw_access_token != null
+        - name: JS-ParseCachedUser
+          condition: entra.token.cached_user != null
+        - name: VJ-VerifyEntraToken
+          condition: entra.raw_access_token != null AND entra.token_cached != "true"
+        - name: JS-ParseEntraToken
+          condition: entra.raw_access_token != null AND entra.token_cached != "true"
+        - name: KVM-GetUserKeyByEmail
+          condition: entra.token.email != null AND entra.token_cached != "true"
+        - name: KVM-GetGroupsByEmail
+          condition: user.groups_kvm_key != null AND entra.token_cached != "true"
+        - name: SC-GetEntraGroups
+          condition: entra.token.email != null AND entra.token.groups == null AND
+            ai.groupsLookup != "FALSE" AND entra.token_cached != "true"
+        - name: JS-ParseEntraGroups
+          condition: entra.token.email != null AND entra.token.groups == null AND
+            groupsResponse.content != null AND entra.token_cached != "true"
+        - name: KVM-SaveGroupsByEmail
+          condition: entra.token.email != null AND entra.groups_fetched == "true" AND
+            entra.token_cached != "true"
+        - name: JS-ProcessUser
+          condition: entra.token.valid == "true" AND entra.token_cached != "true"
+        - name: PC-PopulateTokenCache
+          condition: entra.raw_access_token != null AND entra.token.cached_user != null AND entra.token_cached != "true"
+    - name: PostFlow
+      mode: Response
+      steps: []
+  faultRules: []
+endpoints: []
+targets: []
+policies:
+  - name: EV-ExtractBearerToken
+    type: ExtractVariables
+    content:
+      extractVariables:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: EV-ExtractBearerToken
+        displayName: EV-ExtractBearerToken
+        header:
+          metadata:
+            name: Authorization
+          pattern:
+            metadata:
+              ignoreCase: "true"
+            value: Bearer {entra.raw_access_token}
+        ignoreUnresolvedVariables: "true"
+  - name: LC-LookupTokenCache
+    type: LookupCache
+    content:
+      lookupCache:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: LC-LookupTokenCache
+        displayName: LC-LookupTokenCache
+        properties: {}
+        cacheKey:
+          keyFragment:
+            - value: microsoft_token
+            - metadata:
+                ref: entra.raw_access_token
+        assignTo: entra.token.cached_user
+  - name: JS-ParseCachedUser
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ParseCachedUser
+        displayName: JS-ParseCachedUser
+        properties: {}
+        source: |
+          var cachedUserStr = context.getVariable("entra.token.cached_user");
+          if (cachedUserStr) {
+            try {
+              var cached = JSON.parse(cachedUserStr);
+              if (cached.email) context.setVariable("entra.token.email", cached.email);
+              if (cached.groups) context.setVariable("entra.token.groups", cached.groups);
+              if (cached.user_key) context.setVariable("entra.user_key", cached.user_key);
+              if (cached.api_key) context.setVariable("request.header.x-api-key", cached.api_key);
+              context.setVariable("entra.token.valid", "true");
+              context.setVariable("entra.token_cached", "true");
+              print("User info successfully restored from cache for " + cached.email);
+            } catch (e) {
+              print("Failed to parse cached user data: " + e);
+            }
+          }
+  - name: VJ-VerifyEntraToken
+    type: VerifyJWT
+    content:
+      verifyJwt:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: VJ-VerifyEntraToken
+        displayName: VJ-VerifyEntraToken
+        algorithm: RS256
+        source: entra.raw_access_token
+        publicKey:
+          jwks:
+            metadata:
+              uri: "{EntraJwksUri}"
+  - name: JS-ParseEntraToken
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ParseEntraToken
+        displayName: JS-ParseEntraToken
+        properties: {}
+        source: |
+          var email = context.getVariable("jwt.VJ-VerifyEntraToken.claim.preferred_username") ||
+                      context.getVariable("jwt.VJ-VerifyEntraToken.claim.upn") ||
+                      context.getVariable("jwt.VJ-VerifyEntraToken.claim.email") ||
+                      context.getVariable("jwt.VJ-VerifyEntraToken.claim.sub");
+
+          if (email) {
+            context.setVariable("entra.token.email", email);
+            context.setVariable("user.groups_kvm_key", "group." + email);
+            context.setVariable("entra.token.valid", "true");
+          } else {
+            context.setVariable("entra.token.valid", "false");
+            context.setVariable("response.status.code", 401);
+            throw "Invalid Microsoft Entra Token: No email or UPN claim found";
+          }
+
+          var groupsClaim = context.getVariable("jwt.VJ-VerifyEntraToken.claim.groups") ||
+                            context.getVariable("jwt.VJ-VerifyEntraToken.claim.roles");
+
+          if (groupsClaim) {
+            var groupsStr = "";
+            if (Array.isArray(groupsClaim)) {
+              groupsStr = groupsClaim.join(",");
+            } else if (typeof groupsClaim === "string") {
+              groupsStr = groupsClaim;
+            }
+            if (groupsStr) {
+              context.setVariable("entra.token.groups", groupsStr);
+            }
+          }
+  - name: KVM-GetUserKeyByEmail
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: KVM-GetUserKeyByEmail
+          mapIdentifier: AI-Users
+        displayName: KVM-GetUserKeyByEmail
+        properties: {}
+        get:
+          metadata:
+            assignTo: entra.user_key
+            index: "1"
+          key:
+            parameter:
+              metadata:
+                ref: entra.token.email
+        scope: environment
+  - name: KVM-GetGroupsByEmail
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: KVM-GetGroupsByEmail
+          mapIdentifier: AI-Users
+        displayName: KVM-GetGroupsByEmail
+        properties: {}
+        get:
+          metadata:
+            assignTo: entra.token.groups
+            index: "1"
+          key:
+            parameter:
+              metadata:
+                ref: user.groups_kvm_key
+        scope: environment
+  - name: KVM-SaveGroupsByEmail
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: KVM-SaveGroupsByEmail
+          mapIdentifier: AI-Users
+        displayName: KVM-SaveGroupsByEmail
+        properties: {}
+        put:
+          setValue:
+            metadata:
+              ref: entra.token.groups
+          key:
+            parameter:
+              metadata:
+                ref: user.groups_kvm_key
+        scope: environment
+  - name: SC-GetEntraGroups
+    type: ServiceCallout
+    content:
+      serviceCallout:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: SC-GetEntraGroups
+        displayName: SC-GetEntraGroups
+        properties: {}
+        request:
+          variable: groupsRequest
+          ignoreUnresolvedVariables: "true"
+        response: groupsResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://graph.microsoft.com/v1.0/me/transitiveMemberOf?$select=id,displayName
+  - name: JS-ParseEntraGroups
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ParseEntraGroups
+        displayName: JS-ParseEntraGroups
+        properties: {}
+        source: |
+          var responseContent = context.getVariable("groupsResponse.content");
+          if (responseContent) {
+            try {
+              var groupsData = JSON.parse(responseContent);
+              var groupNames = [];
+              if (groupsData.value && Array.isArray(groupsData.value)) {
+                for (var i = 0; i < groupsData.value.length; i++) {
+                  var g = groupsData.value[i];
+                  if (g.id) {
+                    groupNames.push(g.id);
+                  }
+                  if (g.displayName) {
+                    groupNames.push(g.displayName);
+                  }
+                }
+              }
+              var groupsStr = groupNames.join(",");
+              if (groupsStr) {
+                context.setVariable("entra.token.groups", groupsStr);
+                context.setVariable("entra.groups_fetched", "true");
+              }
+            } catch (e) {
+              print("Failed to parse Microsoft Graph groups response: " + e);
+            }
+          }
+  - name: JS-ProcessUser
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ProcessUser
+        displayName: JS-ProcessUser
+        properties: {}
+        source: |
+          var userKey = context.getVariable("entra.user_key");
+          var resolvedKey = null;
+
+          if (userKey && userKey.trim() !== "") {
+            resolvedKey = userKey.trim();
+            print("Found direct user key for email, using as x-api-key...");
+          } else {
+            var groupData = context.getVariable("entra.token.groups");
+            if (groupData) {
+              var groupArray = groupData.split(",");
+              var groupCredentials = context.getVariable("ai.groups");
+              if (groupCredentials) {
+                try {
+                  var groupCredentialsObject = JSON.parse(groupCredentials);
+                  for (var i = 0; i < groupArray.length; i++) {
+                    var grp = groupArray[i].trim();
+                    if (groupCredentialsObject[grp]) {
+                      resolvedKey = groupCredentialsObject[grp];
+                      print("Found group credential, setting as header...");
+                      break;
+                    }
+                  }
+                } catch(e) {
+                  print("Error parsing group credential data: " + e);
+                }
+              }
+            }
+          }
+
+          if (resolvedKey) {
+            context.setVariable("request.header.x-api-key", resolvedKey);
+          }
+
+          var email = context.getVariable("entra.token.email") || "";
+          var groups = context.getVariable("entra.token.groups") || "";
+          var userKeyVal = context.getVariable("entra.user_key") || "";
+          var apiKey = context.getVariable("request.header.x-api-key") || "";
+
+          var cacheObject = {
+            email: email,
+            groups: groups,
+            user_key: userKeyVal,
+            api_key: apiKey
+          };
+          context.setVariable("entra.token.cached_user", JSON.stringify(cacheObject));
+          print("Prepared cached_user payload for token cache: " + JSON.stringify(cacheObject));
+  - name: PC-PopulateTokenCache
+    type: PopulateCache
+    content:
+      populateCache:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: PC-PopulateTokenCache
+        displayName: PC-PopulateTokenCache
+        properties: {}
+        cacheKey:
+          keyFragment:
+            - value: microsoft_token
+            - metadata:
+                ref: entra.raw_access_token
+        source: entra.token.cached_user
+        expirySettings:
+          timeoutInSec: "3600"
+  - name: KVM-LoadConfig
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: KVM-LoadConfig
+          mapIdentifier: AI-Config
+        displayName: KVM-LoadConfig
+        properties: {}
+        exclusiveCache: "false"
+        expiryTimeInSecs: "10"
+        get:
+          - metadata:
+              assignTo: ai.failoverModel
+              index: "1"
+            key:
+              parameter: FailoverModel
+          - metadata:
+              assignTo: ai.prices
+              index: "1"
+            key:
+              parameter: Prices
+          - metadata:
+              assignTo: ai.groupsLookup
+              index: "1"
+            key:
+              parameter: GroupsLookup
+          - metadata:
+              assignTo: ai.groups
+              index: "1"
+            key:
+              parameter: Groups
+        scope: environment
+resources: []
+tests: []
