@@ -1,29 +1,24 @@
-name: completions-v1
-displayName: REST-ChatCompletions-v1
+name: ai-models
+displayName: AI Models
 type: feature
-description: REST-ChatCompletions-v1
+description: The proxy feature offers the /models endpoint, for users to query
+  which models are available to them.
 documentation: ""
-categories: []
+priority: 1
+categories:
+  - llm
+  - ai
 parameters: []
 defaultEndpoint:
   name: default
-  basePath: /v1/chat/completions
+  basePath: /v1/models
   routes:
-    - name: route-google-eu
-      target: gcloud-eu
-      condition: target.route = "gcloud-eu"
-    - name: route-google
-      target: gcloud
-      condition: target.route = "gcloud"
-    - name: route-openai
-      target: openai
-      condition: target.route = "openai"
-    - name: route-anthropic
-      target: anthropic
-      condition: target.route = "anthropic"
-    - name: default
-      target: gcloud
+    - name: route-models
   flows:
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: JS-GetModelList
     - name: PreFlow
       mode: Request
       steps:
@@ -32,92 +27,26 @@ defaultEndpoint:
         - name: JS-CheckModel
   faultRules: []
 endpoints: []
-targets:
-  - name: anthropic
-    url: https://api.anthropic.com
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.promptTokenCount != null
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: ai.responseTokenCount == null
-          - name: DC-TokenAnalytics
-            condition: ai.promptTokenCount != null
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://api.anthropic.com
-  - name: gcloud-eu
-    url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/chat/completions
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.promptTokenCount != null
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: ai.responseTokenCount == null
-          - name: DC-TokenAnalytics
-            condition: ai.promptTokenCount != null
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/chat/completions
-  - name: gcloud
-    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.promptTokenCount != null
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: ai.responseTokenCount == null
-          - name: DC-TokenAnalytics
-            condition: ai.promptTokenCount != null
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
-  - name: openai
-    url: https://api.openai.com
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.promptTokenCount != null
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: ai.responseTokenCount == null
-          - name: DC-TokenAnalytics
-            condition: ai.promptTokenCount != null
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://api.openai.com
+targets: []
 policies:
+  - name: JS-GetModelList
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-GetModelList
+        displayName: JS-GetModelList
+        properties: {}
+        includeUrl: jsc://ai-functions.js
+        source: |
+          
+          var configs = context.getVariable("verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.filteredConfigs");
+          var modelList = getModelList(configs);
+          response.content = JSON.stringify(modelList);
+          context.setVariable("response.header.Content-Type", "application/json");
   - name: AM-SetVariables
     type: AssignMessage
     content:

@@ -363,6 +363,21 @@ policies:
                 ref: ai.costCenter
                 default: unknown
             dataCollector: dc_ai_cost_center
+          - collect:
+              metadata:
+                ref: ai.requestCost
+                default: "0"
+            dataCollector: dc_ai_request_cost
+          - collect:
+              metadata:
+                ref: ai.responseCost
+                default: "0"
+            dataCollector: dc_ai_response_cost
+          - collect:
+              metadata:
+                ref: ai.totalCost
+                default: "0"
+            dataCollector: dc_ai_total_cost
   - name: JS-Analytics
     type: Javascript
     content:
@@ -375,7 +390,9 @@ policies:
         displayName: JS-Analytics
         properties: {}
         source: |
+          
           var contentString = context.getVariable("response.event.current.content");
+          var prices = JSON.parse(context.getVariable("ai.prices"));
           var type = "streaming";
           if (!contentString) {
             contentString = context.getVariable("response.content");
@@ -415,16 +432,23 @@ policies:
             usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
             context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
             usageData.type = type;
-            print("Sending analytics data: " + JSON.stringify(usageData));
-            // var host = context.getVariable("originalHostName");
-            // var headers = {"Content-Type": "application/json"};
-            // var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
-            // if (apiKey) {
-            //   headers["x-api-key"] = apiKey;
-            // }
-            // var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
-            // print("Sending to: " + 'https://' + host + "/ai-analytics");
-            // httpClient.send(myRequest);
+
+            // cost
+            var requestTokenPrice = prices["default"].requestPerMillionTokens;
+            if (prices[modelName]) requestTokenPrice = prices[modelName].requestPerMillionTokens;
+            var responseTokenPrice = prices["default"].responsePerMillionTokens;
+            if (prices[modelName]) responseTokenPrice = prices[modelName].responsePerMillionTokens;
+            var requestCost = parseFloat(usageData.requestTokenCount) * (parseFloat(requestTokenPrice) / 1000000);
+            var responseCost = parseFloat(usageData.responseTokenCount) * (parseFloat(responseTokenPrice) / 1000000);
+
+            context.setVariable("ai.requestCost", requestCost);
+            context.setVariable("ai.responseCost", responseCost);
+            context.setVariable("ai.totalCost", requestCost + responseCost);
+
+            usageData.requestCost = requestCost;
+            usageData.responseCost = responseCost;
+
+            print("Analytics data: " + JSON.stringify(usageData));
           }
         includeUrl: jsc://ai-functions.js
   - name: JS-CheckModel
@@ -440,16 +464,12 @@ policies:
         properties: {}
         source: |
           
-          var allowed_model_patterns = context.getVariable("propertyset.ai.AllowedModelPatterns");
-          var denied_model_patterns = context.getVariable("propertyset.ai.DeniedModelPatterns");
-          var override_model = context.getVariable("propertyset.ai.OverrideModel");
-          var default_model = context.getVariable("propertyset.ai.DefaultModel");
-          if (!allowed_model_patterns) allowed_model_patterns = context.getVariable("ai.allowedModelPatterns");
-          if (!denied_model_patterns) denied_model_patterns = context.getVariable("ai.deniedModelPatterns");
-          if (!override_model) override_model = context.getVariable("ai.overrideModel");
-          if (!default_model) default_model = context.getVariable("ai.defaultModel");
-
           var url = context.getVariable("proxy.url");
+          var prices = context.getVariable("ai.prices");
+          if (!prices) context.setVariable ("ai.prices", JSON.stringify({
+            "default": {"requestPerMillionTokens": 1, "responsePerMillionTokens": 3}
+          }));
+
           var requestContent = request.content.asJSON;
           var callType = "googlecloud";
           var callStreaming = "non-streaming";
@@ -460,12 +480,10 @@ policies:
             url: url,
             type: callType,
             requestContent: requestContent,
-            allowedModelPatterns: allowed_model_patterns,
-            deniedModelPatterns: denied_model_patterns
+            allowedModelPatterns: "",
+            deniedModelPatterns: ""
           }
 
-          var allowResult = testAllowedModels(requestConfig);
-          var denyResult = testDeniedModels(requestConfig);
           var promptInfo = getPrompts(requestContent);
           var modelName = getModelName(url, request.content);
 
@@ -477,30 +495,6 @@ policies:
             context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
           else
             print("Could not find user prompt!");
-
-          if (!allowResult) {
-            print("Model not allowed!");
-            context.setVariable("response.status.code", 403);
-            throw "Model not allowed!";
-          }
-
-          if (!denyResult) {
-            print("Model denied!");
-            context.setVariable("response.status.code", 403);
-            throw "Model denied!";
-          }
-
-          print("Default_model: " + default_model);
-          print("Request model: " + requestContent["model"]);
-
-          if (override_model && override_model != "NONE" && callType == "oai") {
-            requestContent["model"] = override_model;
-            context.setVariable('request.content', JSON.stringify(requestContent));
-          } else if (default_model && default_model != "NONE" && !requestContent["model"] && callType == "oai") {
-            print("Default model set: " + default_model);
-            requestContent["model"] = default_model;
-            context.setVariable('request.content', JSON.stringify(requestContent));
-          }
         includeUrl: jsc://ai-functions.js
   - name: KVM-LoadConfig
     type: KeyValueMapOperations
@@ -515,49 +509,27 @@ policies:
         properties: {}
         exclusiveCache: "false"
         expiryTimeInSecs: "10"
-        initialEntries:
-          entry:
-            - key:
-                parameter: AllowedModelPatterns
-              setValue: ALL
-            - key:
-                parameter: DeniedModelPatterns
-              setValue: NONE
-            - key:
-                parameter: OverrideModel
-              setValue: NONE
-            - key:
-                parameter: DefaultModel
-              setValue: google/gemini-flash-latest
-            - key:
-                parameter: FailoverModel
-              setValue: google/gemini-flash-latest
         get:
-          - metadata:
-              assignTo: ai.allowedModelPatterns
-              index: "1"
-            key:
-              parameter: AllowedModelPatterns
-          - metadata:
-              assignTo: ai.deniedModelPatterns
-              index: "1"
-            key:
-              parameter: DeniedModelPatterns
-          - metadata:
-              assignTo: ai.overrideModel
-              index: "1"
-            key:
-              parameter: OverrideModel
-          - metadata:
-              assignTo: ai.defaultModel
-              index: "1"
-            key:
-              parameter: DefaultModel
           - metadata:
               assignTo: ai.failoverModel
               index: "1"
             key:
               parameter: FailoverModel
+          - metadata:
+              assignTo: ai.prices
+              index: "1"
+            key:
+              parameter: PriceList
+          - metadata:
+              assignTo: ai.groupsLookup
+              index: "1"
+            key:
+              parameter: GroupsLookup
+          - metadata:
+              assignTo: ai.groups
+              index: "1"
+            key:
+              parameter: Groups
         scope: environment
 resources:
   - name: ai-functions.js

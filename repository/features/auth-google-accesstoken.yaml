@@ -1,0 +1,302 @@
+name: auth-google-accesstoken
+displayName: Google Access Token
+type: feature
+description: The Google Access Token feature validates a Google Access Token from the Authorization header, and if it is valid checks the groups and if valid does a token exchange for further access.
+documentation: ""
+priority: 5
+categories:
+  - llm
+  - ai
+parameters: []
+defaultEndpoint:
+  name: default
+  basePath: /google-accesstoken
+  routes:
+    - name: default
+      target: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: KVM-LoadConfig
+        - name: EV-ExtractBearerToken
+          condition: request.header.Authorization != null AND request.header.Authorization
+            Matches "Bearer ya29.*"
+        - name: SC-ValidateGoogleToken
+          condition: google.raw_access_token != null
+        - name: JS-ParseGoogleToken
+          condition: google.raw_access_token != null
+        - name: KVM-GetGroupsByEmail
+          condition: user.groups_kvm_key != null
+        - name: SC-GetGoogleGroups
+          condition: google.token.email != null AND google.token.groups == null AND
+            ai.groupsLookup != "FALSE"
+        - name: JS-ParseGoogleGroups
+          condition: google.token.email != null AND google.token.groups == null AND
+            groupsResponse.content != null
+        - name: KVM-SaveGroupsByEmail
+          condition: google.token.email != null AND google.groups_fetched == "true"
+        - name: JS-ProcessGroups
+          condition: google.token.groups != null
+    - name: PostFlow
+      mode: Response
+      steps: []
+  faultRules: []
+endpoints: []
+targets: []
+policies:
+  - name: EV-ExtractBearerToken
+    type: ExtractVariables
+    content:
+      extractVariables:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: EV-ExtractBearerToken
+        displayName: EV-ExtractBearerToken
+        header:
+          metadata:
+            name: Authorization
+          pattern:
+            metadata:
+              ignoreCase: "true"
+            value: Bearer {google.raw_access_token}
+        ignoreUnresolvedVariables: "true"
+  - name: JS-ParseGoogleGroups
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ParseGoogleGroups
+        displayName: JS-ParseGoogleGroups
+        properties: {}
+        source: |
+          var responseContent = context.getVariable("groupsResponse.content");
+          if (responseContent) {
+            try {
+              var groupsData = JSON.parse(responseContent);
+              var groupNames = [];
+              if (groupsData.memberships) {
+                for (var i = 0; i < groupsData.memberships.length; i++) {
+                  var m = groupsData.memberships[i];
+                  if (m.groupKey && m.groupKey.id) {
+                    groupNames.push(m.groupKey.id);
+                  }
+                }
+              }
+              var groupsStr = groupNames.join(",");
+              context.setVariable("google.token.groups", groupsStr);
+              context.setVariable("google.groups_fetched", "true");
+            } catch (e) {
+              print("Failed to parse Google groups response: " + e);
+            }
+          }
+  - name: JS-ParseGoogleToken
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ParseGoogleToken
+        displayName: JS-ParseGoogleToken
+        properties: {}
+        source: |
+          var responseCode = context.getVariable("tokenInfoResponse.status.code");
+          var responseContent = context.getVariable("tokenInfoResponse.content");
+
+          if (responseCode == "200" && responseContent) {
+            try {
+              var tokenInfo = JSON.parse(responseContent);
+              if (tokenInfo.email) context.setVariable("google.token.email", tokenInfo.email);
+              if (tokenInfo.email_verified) context.setVariable("google.token.email_verified", tokenInfo.email_verified);
+              if (tokenInfo.scope) context.setVariable("google.token.scope", tokenInfo.scope);
+              if (tokenInfo.exp) context.setVariable("google.token.expires_in", tokenInfo.expires_in || tokenInfo.exp);
+              if (tokenInfo.aud) context.setVariable("google.token.aud", tokenInfo.aud);
+              if (tokenInfo.sub) context.setVariable("google.token.sub", tokenInfo.sub);
+              if (tokenInfo.azp) context.setVariable("google.token.azp", tokenInfo.azp);
+              context.setVariable("google.token.valid", "true");
+              context.setVariable("user.groups_kvm_key", "groups." + tokenInfo.email);
+            } catch (e) {
+              context.setVariable("google.token.valid", "false");
+              context.setVariable("response.status.code", 401);
+              throw "Invalid Google OAuth Token Response";
+            }
+          } else {
+            context.setVariable("google.token.valid", "false");
+            context.setVariable("response.status.code", 401);
+            throw "Invalid Google OAuth Token";
+          }
+  - name: JS-ProcessGroups
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ProcessGroups
+        displayName: JS-ProcessGroups
+        properties: {}
+        source: "
+
+          \    var groupData = context.getVariable(\"google.token.groups\");
+
+          \    if (groupData) {
+
+          \      var groupArray = groupData.split(\",\");
+
+          \      var groupCredentials =
+          context.getVariable(\"ai.groups\");
+
+          \      if (groupCredentials) {
+
+          \        try {
+
+          \          var groupCredentialsObject = JSON.parse(groupCredentials);
+
+          \          groupArray.forEach(function (element, index, array) {
+
+          \            if (groupCredentialsObject[element]) {
+
+          \              print(\"Found group credential, setting as
+          header...\");
+
+          \              context.setVariable(\"request.header.x-api-key\",
+          groupCredentialsObject[element]);
+
+          \            }
+
+          \          });
+
+          \        } catch(e) {
+
+          \          print(\"Error parsing group credential data.\");
+
+          \        }
+
+          \      }
+
+          \    }
+
+
+          \  "
+  - name: KVM-GetGroupsByEmail
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: KVM-GetGroupsByEmail
+          mapIdentifier: AI-Users
+        displayName: KVM-GetGroupsByEmail
+        properties: {}
+        get:
+          metadata:
+            assignTo: google.token.groups
+            index: "1"
+          key:
+            parameter:
+              metadata:
+                ref: user.groups_kvm_key
+        scope: environment
+  - name: KVM-SaveGroupsByEmail
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: KVM-SaveGroupsByEmail
+          mapIdentifier: AI-Users
+        displayName: KVM-SaveGroupsByEmail
+        properties: {}
+        put:
+          setValue:
+            metadata:
+              ref: google.token.groups
+          key:
+            parameter:
+              metadata:
+                ref: user.groups_kvm_key
+        scope: environment
+  - name: SC-GetGoogleGroups
+    type: ServiceCallout
+    content:
+      serviceCallout:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: SC-GetGoogleGroups
+        displayName: SC-GetGoogleGroups
+        properties: {}
+        request:
+          variable: groupsRequest
+          ignoreUnresolvedVariables: "true"
+        response: groupsResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://cloudidentity.googleapis.com/v1/groups/-/memberships:searchDirectGroups?query=member_key_id=='{google.token.email}'
+          authentication:
+            googleAccessToken:
+              scopes:
+                scope: https://www.googleapis.com/auth/cloud-identity.groups.readonly
+  - name: SC-ValidateGoogleToken
+    type: ServiceCallout
+    content:
+      serviceCallout:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: SC-ValidateGoogleToken
+        displayName: SC-ValidateGoogleToken
+        properties: {}
+        request:
+          variable: tokenInfoRequest
+          ignoreUnresolvedVariables: "false"
+        response: tokenInfoResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://oauth2.googleapis.com/tokeninfo?access_token={google.raw_access_token}
+  - name: KVM-LoadConfig
+    type: KeyValueMapOperations
+    content:
+      keyValueMapOperations:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: KVM-LoadConfig
+          mapIdentifier: AI-Config
+        displayName: KVM-LoadConfig
+        properties: {}
+        exclusiveCache: "false"
+        expiryTimeInSecs: "10"
+        get:
+          - metadata:
+              assignTo: ai.failoverModel
+              index: "1"
+            key:
+              parameter: FailoverModel
+          - metadata:
+              assignTo: ai.prices
+              index: "1"
+            key:
+              parameter: Prices
+          - metadata:
+              assignTo: ai.groupsLookup
+              index: "1"
+            key:
+              parameter: GroupsLookup
+          - metadata:
+              assignTo: ai.groups
+              index: "1"
+            key:
+              parameter: Groups
+        scope: environment
+resources: []
+tests: []
