@@ -390,7 +390,7 @@ policies:
         displayName: JS-Analytics
         properties: {}
         source: |
-
+          
           var contentString = context.getVariable("response.event.current.content");
           var prices = JSON.parse(context.getVariable("ai.prices"));
           var type = "streaming";
@@ -463,7 +463,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-
+          
           var url = context.getVariable("proxy.url");
           var prices = context.getVariable("ai.prices");
           if (!prices) context.setVariable ("ai.prices", JSON.stringify({
@@ -1258,4 +1258,7 @@ resources:
         exports.getModelTokenLimit = getModelTokenLimit;
         exports.getModelList = getModelList;
       }
+
+
+
 tests: []

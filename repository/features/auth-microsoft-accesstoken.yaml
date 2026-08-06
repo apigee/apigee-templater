@@ -151,7 +151,7 @@ policies:
 
           if (email) {
             context.setVariable("entra.token.email", email);
-            context.setVariable("user.groups_kvm_key", "group." + email);
+            context.setVariable("user.groups_kvm_key", "groups." + email);
             context.setVariable("entra.token.valid", "true");
           } else {
             context.setVariable("entra.token.valid", "false");
