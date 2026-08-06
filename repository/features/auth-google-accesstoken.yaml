@@ -13,7 +13,6 @@ defaultEndpoint:
   basePath: /google-accesstoken
   routes:
     - name: default
-      target: default
   flows:
     - name: PreFlow
       mode: Request
@@ -120,7 +119,7 @@ policies:
               if (tokenInfo.sub) context.setVariable("google.token.sub", tokenInfo.sub);
               if (tokenInfo.azp) context.setVariable("google.token.azp", tokenInfo.azp);
               context.setVariable("google.token.valid", "true");
-              context.setVariable("user.groups_kvm_key", "groups." + tokenInfo.email);
+              context.setVariable("user.groups_kvm_key", "group." + tokenInfo.email);
             } catch (e) {
               context.setVariable("google.token.valid", "false");
               context.setVariable("response.status.code", 401);
