@@ -18,6 +18,8 @@ defaultEndpoint:
       mode: Request
       steps:
         - name: KVM-LoadConfig
+        - name: AM-RemoveGroupHeader
+          condition: request.header.x-ai-group != null
         - name: EV-ExtractBearerToken
           condition: request.header.Authorization != null AND request.header.Authorization
             Matches "Bearer ya29.*"
@@ -53,6 +55,27 @@ defaultEndpoint:
 endpoints: []
 targets: []
 policies:
+  - name: AM-RemoveGroupHeader
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-RemoveGroupHeader
+        displayName: AM-RemoveGroupHeader
+        properties: {}
+        remove:
+          headers:
+            header:
+              metadata:
+                name: x-ai-group
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
   - name: EV-ExtractBearerToken
     type: ExtractVariables
     content:
@@ -106,6 +129,7 @@ policies:
               if (cached.groups) context.setVariable("google.token.groups", cached.groups);
               if (cached.user_key) context.setVariable("google.user_key", cached.user_key);
               if (cached.api_key) context.setVariable("request.header.x-ai-key", cached.api_key);
+              if (cached.group) context.setVariable("request.header.x-ai-group", cached.group);
               context.setVariable("google.token.valid", "true");
               context.setVariable("google.token_cached", "true");
               print("User info successfully restored from cache for " + cached.email);
@@ -216,10 +240,11 @@ policies:
         source: |
           var userKey = context.getVariable("google.user_key");
           var resolvedKey = null;
+          var matchedGroup = null;
 
           if (userKey && userKey.trim() !== "") {
             resolvedKey = userKey.trim();
-            print("Found direct user key for email, using as x-api-key...");
+            print("Found direct user key for email, using as x-ai-key...");
           } else {
             var groupData = context.getVariable("google.token.groups");
             if (groupData) {
@@ -232,6 +257,7 @@ policies:
                     var grp = groupArray[i].trim();
                     if (groupCredentialsObject[grp]) {
                       resolvedKey = groupCredentialsObject[grp];
+                      matchedGroup = grp;
                       print("Found group credential, setting as header...");
                       break;
                     }
@@ -240,23 +266,36 @@ policies:
                   print("Error parsing group credential data: " + e);
                 }
               }
+              if (!matchedGroup && groupArray.length > 0 && groupArray[0].trim() !== "") {
+                matchedGroup = groupArray[0].trim();
+              }
             }
+          }
+
+          if (!matchedGroup) {
+            var emailVal = context.getVariable("google.token.email");
+            if (emailVal) matchedGroup = emailVal;
           }
 
           if (resolvedKey) {
             context.setVariable("request.header.x-ai-key", resolvedKey);
+          }
+          if (matchedGroup) {
+            context.setVariable("request.header.x-ai-group", matchedGroup);
           }
 
           var email = context.getVariable("google.token.email") || "";
           var groups = context.getVariable("google.token.groups") || "";
           var userKeyVal = context.getVariable("google.user_key") || "";
           var apiKey = context.getVariable("request.header.x-ai-key") || "";
+          var groupHeader = context.getVariable("request.header.x-ai-group") || "";
 
           var cacheObject = {
             email: email,
             groups: groups,
             user_key: userKeyVal,
-            api_key: apiKey
+            api_key: apiKey,
+            group: groupHeader
           };
           context.setVariable("google.token.cached_user", JSON.stringify(cacheObject));
           print("Prepared cached_user payload for token cache: " + JSON.stringify(cacheObject));

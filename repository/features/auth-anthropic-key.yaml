@@ -1,7 +1,7 @@
 name: auth-anthropic-key
 displayName: Anthropic Key Auth
 type: feature
-description: Validates Anthropic API keys (sk-ant-*), resolves groups and credentials from AI-Users and AI-Config KVMs, caches user/key details, and sets the resolved key in x-ai-key header.
+description: Validates Anthropic API keys (sk-ant-*), resolves groups and credentials from AI-Users and AI-Config KVMs, caches user/key details, and sets resolved key in x-ai-key and group in x-ai-group.
 documentation: ""
 priority: 5
 categories:
@@ -18,6 +18,8 @@ defaultEndpoint:
       mode: Request
       steps:
         - name: KVM-LoadConfig
+        - name: AM-RemoveGroupHeader
+          condition: request.header.x-ai-group != null
         - name: JS-ExtractAnthropicKey
         - name: LC-LookupTokenCache
           condition: anthropic.raw_api_key != null
@@ -36,6 +38,27 @@ defaultEndpoint:
 endpoints: []
 targets: []
 policies:
+  - name: AM-RemoveGroupHeader
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-RemoveGroupHeader
+        displayName: AM-RemoveGroupHeader
+        properties: {}
+        remove:
+          headers:
+            header:
+              metadata:
+                name: x-ai-group
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
   - name: JS-ExtractAnthropicKey
     type: Javascript
     content:
@@ -102,6 +125,7 @@ policies:
               if (cached.raw_api_key) context.setVariable("anthropic.raw_api_key", cached.raw_api_key);
               if (cached.groups) context.setVariable("anthropic.key.groups", cached.groups);
               if (cached.api_key) context.setVariable("request.header.x-ai-key", cached.api_key);
+              if (cached.group) context.setVariable("request.header.x-ai-group", cached.group);
               context.setVariable("anthropic.key_cached", "true");
               print("Anthropic user info successfully restored from cache");
             } catch (e) {
@@ -142,6 +166,7 @@ policies:
         source: |
           var groupData = context.getVariable("anthropic.key.groups");
           var resolvedKey = null;
+          var matchedGroup = null;
 
           if (groupData) {
             var groupArray = groupData.split(",");
@@ -153,6 +178,7 @@ policies:
                   var grp = groupArray[i].trim();
                   if (groupCredentialsObject[grp]) {
                     resolvedKey = groupCredentialsObject[grp];
+                    matchedGroup = grp;
                     print("Found group credential for Anthropic key, setting as x-ai-key...");
                     break;
                   }
@@ -160,6 +186,9 @@ policies:
               } catch(e) {
                 print("Error parsing group credential data: " + e);
               }
+            }
+            if (!matchedGroup && groupArray.length > 0 && groupArray[0].trim() !== "") {
+              matchedGroup = groupArray[0].trim();
             }
           }
 
@@ -171,15 +200,20 @@ policies:
           if (resolvedKey) {
             context.setVariable("request.header.x-ai-key", resolvedKey);
           }
+          if (matchedGroup) {
+            context.setVariable("request.header.x-ai-group", matchedGroup);
+          }
 
           var rawApiKey = context.getVariable("anthropic.raw_api_key") || "";
           var groups = context.getVariable("anthropic.key.groups") || "";
           var apiKey = context.getVariable("request.header.x-ai-key") || "";
+          var groupHeader = context.getVariable("request.header.x-ai-group") || "";
 
           var cacheObject = {
             raw_api_key: rawApiKey,
             groups: groups,
-            api_key: apiKey
+            api_key: apiKey,
+            group: groupHeader
           };
           context.setVariable("anthropic.key.cached_user", JSON.stringify(cacheObject));
   - name: PC-PopulateTokenCache

@@ -23,10 +23,16 @@ defaultEndpoint:
         - name: KVM-LoadConfig
         - name: AM-SetVariables
         - name: JS-CheckModel
+        - name: JS-ProcessGroupForApp
+          condition: request.header.x-ai-key == null AND request.header.x-ai-group != null
+        - name: SC-GetDeveloperApps
+          condition: request.header.x-ai-key == null AND request.header.x-ai-group != null
+            AND ai.developerEmail != null
+        - name: JS-ParseDeveloperAppKey
+          condition: request.header.x-ai-key == null AND developerAppsResponse.content !=
+            null
         - name: VA-VerifyKey
-          condition: request.header.x-ai-key != null
         - name: AM-RemoveKey
-          condition: request.header.x-ai-key != null
         - name: JS-ValidateRequest
           condition: proxy.pathsuffix != "/models" AND proxy.pathsuffix != "/v1/models"
         - name: LTQ-QuotaEnforce
@@ -43,6 +49,8 @@ defaultEndpoint:
   defaultFaultRule:
     name: default-fault
     steps:
+      - name: AM-Unauthorized
+        condition: fault.name == "InvalidApiKey" OR fault.name == "FailedToResolveAPIKey"
       - name: AM-ModelNotAllowed
         condition: fault.name == "ScriptExecutionFailed"
       - name: AM-QuotaExhaustion
@@ -76,6 +84,97 @@ defaultTarget:
 endpoints: []
 targets: []
 policies:
+  - name: JS-ProcessGroupForApp
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ProcessGroupForApp
+        displayName: JS-ProcessGroupForApp
+        properties: {}
+        source: |
+          var groupHeader = context.getVariable("request.header.x-ai-group");
+          if (groupHeader) {
+            var groupParts = groupHeader.split(":");
+            var developerEmail = groupParts[0].trim();
+            var appTargetName = (groupParts.length > 1) ? groupParts[1].trim() : null;
+
+            context.setVariable("ai.developerEmail", developerEmail);
+            if (appTargetName) {
+              context.setVariable("ai.appTargetName", appTargetName);
+            }
+          }
+  - name: SC-GetDeveloperApps
+    type: ServiceCallout
+    content:
+      serviceCallout:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: SC-GetDeveloperApps
+        displayName: SC-GetDeveloperApps
+        properties: {}
+        request:
+          variable: developerAppsRequest
+          ignoreUnresolvedVariables: "true"
+        response: developerAppsResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://apigee.googleapis.com/v1/organizations/{organization.name}/developers/{ai.developerEmail}/apps?expand=true
+          authentication:
+            googleAccessToken:
+              scopes:
+                scope: https://www.googleapis.com/auth/cloud-platform
+  - name: JS-ParseDeveloperAppKey
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ParseDeveloperAppKey
+        displayName: JS-ParseDeveloperAppKey
+        properties: {}
+        source: |
+          var responseContent = context.getVariable("developerAppsResponse.content");
+          if (responseContent) {
+            try {
+              var appsData = JSON.parse(responseContent);
+              var appList = appsData.app || appsData.developerApp || appsData;
+              if (Array.isArray(appList) && appList.length > 0) {
+                var targetAppName = context.getVariable("ai.appTargetName");
+                var selectedApp = null;
+
+                if (targetAppName) {
+                  for (var i = 0; i < appList.length; i++) {
+                    if (appList[i].name === targetAppName) {
+                      selectedApp = appList[i];
+                      break;
+                    }
+                  }
+                }
+
+                if (!selectedApp) {
+                  selectedApp = appList[0];
+                }
+
+                if (selectedApp && selectedApp.credentials && selectedApp.credentials.length > 0) {
+                  var firstCred = selectedApp.credentials[0];
+                  var clientId = firstCred.consumerKey || firstCred.clientId || firstCred.key;
+                  if (clientId) {
+                    context.setVariable("request.header.x-ai-key", clientId);
+                    print("Successfully resolved x-ai-key from developer app " + selectedApp.name + ": " + clientId);
+                  }
+                }
+              }
+            } catch (e) {
+              print("Failed to parse developer apps response: " + e);
+            }
+          }
   - name: AE-LoadAttributes
     type: AccessEntity
     content:
@@ -93,6 +192,25 @@ policies:
         entityType:
           metadata:
             setValue: developer
+  - name: AM-Unauthorized
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-Unauthorized
+        displayName: AM-Unauthorized
+        properties: {}
+        set:
+          statusCode: "401"
+          payload: Unauthorized.
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
   - name: AM-ModelNotAllowed
     type: AssignMessage
     content:

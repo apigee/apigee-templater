@@ -1,7 +1,7 @@
 name: auth-gemini-key
 displayName: Gemini Key Auth
 type: feature
-description: Validates Gemini API keys (x-goog-api-key / key param / AIza*), resolves groups and credentials from AI-Users and AI-Config KVMs, caches user/key details, and sets the resolved key in x-ai-key header.
+description: Validates Gemini API keys (x-goog-api-key / key param / AIza*), resolves groups and credentials from AI-Users and AI-Config KVMs, caches user/key details, and sets resolved key in x-ai-key and group in x-ai-group.
 documentation: ""
 priority: 5
 categories:
@@ -18,6 +18,8 @@ defaultEndpoint:
       mode: Request
       steps:
         - name: KVM-LoadConfig
+        - name: AM-RemoveGroupHeader
+          condition: request.header.x-ai-group != null
         - name: JS-ExtractGeminiKey
         - name: LC-LookupTokenCache
           condition: gemini.raw_api_key != null
@@ -36,6 +38,27 @@ defaultEndpoint:
 endpoints: []
 targets: []
 policies:
+  - name: AM-RemoveGroupHeader
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-RemoveGroupHeader
+        displayName: AM-RemoveGroupHeader
+        properties: {}
+        remove:
+          headers:
+            header:
+              metadata:
+                name: x-ai-group
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
   - name: JS-ExtractGeminiKey
     type: Javascript
     content:
@@ -108,6 +131,7 @@ policies:
               if (cached.raw_api_key) context.setVariable("gemini.raw_api_key", cached.raw_api_key);
               if (cached.groups) context.setVariable("gemini.key.groups", cached.groups);
               if (cached.api_key) context.setVariable("request.header.x-ai-key", cached.api_key);
+              if (cached.group) context.setVariable("request.header.x-ai-group", cached.group);
               context.setVariable("gemini.key_cached", "true");
               print("Gemini user info successfully restored from cache");
             } catch (e) {
@@ -148,6 +172,7 @@ policies:
         source: |
           var groupData = context.getVariable("gemini.key.groups");
           var resolvedKey = null;
+          var matchedGroup = null;
 
           if (groupData) {
             var groupArray = groupData.split(",");
@@ -159,6 +184,7 @@ policies:
                   var grp = groupArray[i].trim();
                   if (groupCredentialsObject[grp]) {
                     resolvedKey = groupCredentialsObject[grp];
+                    matchedGroup = grp;
                     print("Found group credential for Gemini key, setting as x-ai-key...");
                     break;
                   }
@@ -166,6 +192,9 @@ policies:
               } catch(e) {
                 print("Error parsing group credential data: " + e);
               }
+            }
+            if (!matchedGroup && groupArray.length > 0 && groupArray[0].trim() !== "") {
+              matchedGroup = groupArray[0].trim();
             }
           }
 
@@ -177,15 +206,20 @@ policies:
           if (resolvedKey) {
             context.setVariable("request.header.x-ai-key", resolvedKey);
           }
+          if (matchedGroup) {
+            context.setVariable("request.header.x-ai-group", matchedGroup);
+          }
 
           var rawApiKey = context.getVariable("gemini.raw_api_key") || "";
           var groups = context.getVariable("gemini.key.groups") || "";
           var apiKey = context.getVariable("request.header.x-ai-key") || "";
+          var groupHeader = context.getVariable("request.header.x-ai-group") || "";
 
           var cacheObject = {
             raw_api_key: rawApiKey,
             groups: groups,
-            api_key: apiKey
+            api_key: apiKey,
+            group: groupHeader
           };
           context.setVariable("gemini.key.cached_user", JSON.stringify(cacheObject));
   - name: PC-PopulateTokenCache
