@@ -1,21 +1,8 @@
-name: ai-proxy
-displayName: AI Proxy
+name: ai-googlecloud
+displayName: AI Gemini Google Cloud Model Proxy
 type: feature
-description: Proxies AI models, can be used as a basis for any provider endpoints.
-documentation: |-
-  **Prerequisites**
-  - AI DataCollectors must be created in Apigee Analytics
-
-  ```sh
-  PROJECT_ID=YOUR_APIGEE_PROJECT
-  apigeecli datacollectors create -d "Model name" -n dc_ai_model -p STRING --org "$PROJECT_ID" --default-token
-  apigeecli datacollectors create -d "Model cost center" -n dc_ai_cost_center -p STRING --org "$PROJECT_ID" --default-token
-  apigeecli datacollectors create -d "Total token count" -n dc_ai_total_token_count -p INTEGER --org "$PROJECT_ID" --default-token
-  apigeecli datacollectors create -d "Prompt token count" -n dc_ai_prompt_token_count -p INTEGER --org "$PROJECT_ID" --default-token
-  apigeecli datacollectors create -d "Total token count" -n dc_ai_response_token_count -p INTEGER --org "$PROJECT_ID" --default-token
-  apigeecli datacollectors create -d "Model response type" -n dc_ai_response_type -p STRING --org "$PROJECT_ID" --default-token
-  apigeecli datacollectors create -d "Time to first token" -n dc_ai_time_first_token -p INTEGER --org "$PROJECT_ID" --default-token
-  ```
+description: Proxies the endpoints for Google Cloud Model Garden models.
+documentation: ""
 categories:
   - llm
   - ai
@@ -83,11 +70,11 @@ parameters:
     examples: []
     maps: {}
 endpoints:
-  - name: models
-    basePath: /models
+  - name: gcloud
+    basePath: /gcloud
     routes:
       - name: default
-        target: modelprovider
+        target: gcloud
     flows:
       - name: PreFlow
         mode: Request
@@ -97,7 +84,7 @@ endpoints:
           - name: JS-CheckModel
     faultRules: []
 targets:
-  - name: modelprovider
+  - name: gcloud
     url: https://aiplatform.googleapis.com
     flows:
       - name: PostFlow
@@ -329,7 +316,7 @@ policies:
         displayName: JS-Analytics
         properties: {}
         source: |
-          
+
           var contentString = context.getVariable("response.event.current.content");
           var prices = JSON.parse(context.getVariable("ai.prices"));
           var type = "streaming";
@@ -402,7 +389,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          
+
           var aiKey = context.getVariable("request.header.x-ai-key");
           var apiKey = context.getVariable("request.header.x-api-key");
           if (!aiKey && apiKey) {

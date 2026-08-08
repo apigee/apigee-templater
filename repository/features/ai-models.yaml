@@ -21,11 +21,214 @@ defaultEndpoint:
         - name: JS-GetModelList
     - name: PreFlow
       mode: Request
-      steps: []
+      steps:
+        - name: JS-CheckKey
+        - name: JS-ProcessGroupForApp
+          condition: request.header.x-ai-key == null AND request.header.x-ai-group != null
+        - name: SC-GetDeveloperApps
+          condition: request.header.x-ai-key == null AND request.header.x-ai-group != null
+            AND ai.developerEmail != null
+        - name: JS-ParseDeveloperAppKey
+          condition: request.header.x-ai-key == null AND developerAppsResponse.content !=
+            null
+        - name: VA-VerifyKey
+        - name: AM-RemoveKey
+        - name: SC-GetApiProduct
+          condition: apigee.apiproduct.name != null
   faultRules: []
+  defaultFaultRule:
+    name: default-fault
+    steps:
+      - name: AM-Unauthorized
+        condition: fault.name == "InvalidApiKey" OR fault.name == "FailedToResolveAPIKey"
 endpoints: []
 targets: []
 policies:
+  - name: JS-CheckKey
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-CheckKey
+        displayName: JS-CheckKey
+        properties: {}
+        source: |
+          var aiKey = context.getVariable("request.header.x-ai-key");
+          var apiKey = context.getVariable("request.header.x-api-key");
+          if (!aiKey && apiKey) {
+            context.setVariable("request.header.x-ai-key", apiKey);
+          }
+  - name: JS-ProcessGroupForApp
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ProcessGroupForApp
+        displayName: JS-ProcessGroupForApp
+        properties: {}
+        source: |
+          var groupHeader = context.getVariable("request.header.x-ai-group");
+          if (groupHeader) {
+            var groupParts = groupHeader.split(":");
+            var developerEmail = groupParts[0].trim();
+            var appTargetName = (groupParts.length > 1) ? groupParts[1].trim() : null;
+
+            context.setVariable("ai.developerEmail", developerEmail);
+            if (appTargetName) {
+              context.setVariable("ai.appTargetName", appTargetName);
+            }
+          }
+  - name: SC-GetDeveloperApps
+    type: ServiceCallout
+    content:
+      serviceCallout:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: SC-GetDeveloperApps
+        displayName: SC-GetDeveloperApps
+        properties: {}
+        request:
+          variable: developerAppsRequest
+          ignoreUnresolvedVariables: "true"
+        response: developerAppsResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://apigee.googleapis.com/v1/organizations/{organization.name}/developers/{ai.developerEmail}/apps?expand=true
+          authentication:
+            googleAccessToken:
+              scopes:
+                scope: https://www.googleapis.com/auth/cloud-platform
+  - name: JS-ParseDeveloperAppKey
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ParseDeveloperAppKey
+        displayName: JS-ParseDeveloperAppKey
+        properties: {}
+        source: |
+          var responseContent = context.getVariable("developerAppsResponse.content");
+          if (responseContent) {
+            try {
+              var appsData = JSON.parse(responseContent);
+              var appList = appsData.app || appsData.developerApp || appsData;
+              if (Array.isArray(appList) && appList.length > 0) {
+                var targetAppName = context.getVariable("ai.appTargetName");
+                var selectedApp = null;
+
+                if (targetAppName) {
+                  for (var i = 0; i < appList.length; i++) {
+                    if (appList[i].name === targetAppName) {
+                      selectedApp = appList[i];
+                      break;
+                    }
+                  }
+                }
+
+                if (!selectedApp) {
+                  selectedApp = appList[0];
+                }
+
+                if (selectedApp && selectedApp.credentials && selectedApp.credentials.length > 0) {
+                  var firstCred = selectedApp.credentials[0];
+                  var clientId = firstCred.consumerKey || firstCred.clientId || firstCred.key;
+                  if (clientId) {
+                    context.setVariable("request.header.x-ai-key", clientId);
+                    print("Successfully resolved x-ai-key from developer app " + selectedApp.name + ": " + clientId);
+                  }
+                }
+              }
+            } catch (e) {
+              print("Failed to parse developer apps response: " + e);
+            }
+          }
+  - name: AM-Unauthorized
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-Unauthorized
+        displayName: AM-Unauthorized
+        properties: {}
+        set:
+          statusCode: "401"
+          payload: Unauthorized.
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: AM-RemoveKey
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-RemoveKey
+        displayName: AM-RemoveKey
+        properties: {}
+        remove:
+          headers:
+            header:
+              metadata:
+                name: x-ai-key
+        assignVariable:
+          name: originalHostName
+          ref: request.header.host
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
+  - name: VA-VerifyKey
+    type: VerifyAPIKey
+    content:
+      verifyApiKey:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: VA-VerifyKey
+        displayName: VA-VerifyKey
+        properties: {}
+        apiKey:
+          metadata:
+            ref: request.header.x-ai-key
+  - name: SC-GetApiProduct
+    type: ServiceCallout
+    content:
+      serviceCallout:
+        metadata:
+          continueOnError: "true"
+          enabled: "true"
+          name: SC-GetApiProduct
+        displayName: SC-GetApiProduct
+        properties: {}
+        request:
+          variable: apiProductRequest
+          ignoreUnresolvedVariables: "true"
+        response: apiProductResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://apigee.googleapis.com/v1/organizations/{organization.name}/apiproducts/{apigee.apiproduct.name}
+          authentication:
+            googleAccessToken:
+              scopes:
+                scope: https://www.googleapis.com/auth/cloud-platform
   - name: JS-GetModelList
     type: Javascript
     content:
@@ -37,11 +240,47 @@ policies:
           name: JS-GetModelList
         displayName: JS-GetModelList
         properties: {}
-        includeUrl: jsc://ai-functions.js
         source: |
-          
-          var configs = context.getVariable("verifyapikey.VA-VerifyKey.apiproduct.developer.llmQuota.filteredConfigs");
-          var modelList = getModelList(configs);
+          var productContent = context.getVariable("apiProductResponse.content");
+          var modelList = {
+            object: "list",
+            data: []
+          };
+
+          if (productContent) {
+            try {
+              var productData = JSON.parse(productContent);
+              var createdTimestamp = 1686935002;
+              var seenModels = {};
+
+              if (productData && productData.llmOperationGroup && Array.isArray(productData.llmOperationGroup.operationConfigs)) {
+                var configs = productData.llmOperationGroup.operationConfigs;
+                for (var i = 0; i < configs.length; i++) {
+                  var config = configs[i];
+                  if (config && Array.isArray(config.llmOperations)) {
+                    for (var j = 0; j < config.llmOperations.length; j++) {
+                      var op = config.llmOperations[j];
+                      if (op && op.model) {
+                        var modelId = op.model;
+                        if (!seenModels[modelId]) {
+                          seenModels[modelId] = true;
+                          modelList.data.push({
+                            id: modelId,
+                            object: "model",
+                            created: createdTimestamp,
+                            owned_by: "system"
+                          });
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              print("Failed to parse API product response: " + e);
+            }
+          }
+
           response.content = JSON.stringify(modelList);
           context.setVariable("response.header.Content-Type", "application/json");
 resources: []

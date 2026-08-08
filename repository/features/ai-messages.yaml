@@ -1,104 +1,44 @@
-name: ai-proxy-googlecloud
-displayName: AI Gemini Google Cloud Model Proxy
+name: messages-v1
+displayName: REST-Messages-v1
 type: feature
-description: Proxies the endpoints for Google Cloud Model Garden models.
-documentation: |-
-  **Prerequisites**
-  - AI DataCollectors must be created in Apigee Analytics
-
-  ```sh
-  PROJECT_ID=YOUR_APIGEE_PROJECT
-  apigeecli datacollectors create -d "Model name" -n dc_ai_model -p STRING --org "$PROJECT_ID" --default-token
-  apigeecli datacollectors create -d "Model cost center" -n dc_ai_cost_center -p STRING --org "$PROJECT_ID" --default-token
-  apigeecli datacollectors create -d "Total token count" -n dc_ai_total_token_count -p INTEGER --org "$PROJECT_ID" --default-token
-  apigeecli datacollectors create -d "Prompt token count" -n dc_ai_prompt_token_count -p INTEGER --org "$PROJECT_ID" --default-token
-  apigeecli datacollectors create -d "Total token count" -n dc_ai_response_token_count -p INTEGER --org "$PROJECT_ID" --default-token
-  apigeecli datacollectors create -d "Model response type" -n dc_ai_response_type -p STRING --org "$PROJECT_ID" --default-token
-  apigeecli datacollectors create -d "Time to first token" -n dc_ai_time_first_token -p INTEGER --org "$PROJECT_ID" --default-token
-  ```
+description: REST-Messages-v1
+documentation: ""
+priority: 1
 categories:
   - llm
   - ai
-parameters:
-  - name: ModelBasePath
-    paths:
-      - $.endpoints[:1].basePath
-    description: The base path to offer the AI proxy on.
-    default: /models
-    examples:
-      - /gemini
-      - /llm
-  - name: TargetUrl
-    paths:
-      - $.targets[:1].url
-      - $.targets[:1].httpTargetConnection.url
-    description: The model's target URL to direct proxy traffic.
-    default: https://aiplatform.googleapis.com
-    examples:
-      - https://aiplatform.googleapis.com
-      - https://aiplatform.eu.rep.googleapis.com
-      - https://aiplatform.us.rep.googleapis.com
-  - name: AllowedModelPatterns
-    displayName: AllowedModelPatterns
-    description: Configuration input for AllowedModelPatterns
-    default: ""
-    examples:
-      - flash
-      - sonnet
-    maps: {}
-  - name: DeniedModelPatterns
-    displayName: DeniedModelPatterns
-    description: Configuration input for DeniedModelPatterns
-    default: ""
-    examples:
-      - pro
-      - opus
-    maps: {}
-  - name: OverrideModel
-    displayName: OverrideModel
-    description: Configuration input for OverrideModel
-    default: ""
-    examples:
-      - my-forced-model
-    maps: {}
-  - name: DefaultModel
-    displayName: DefaultModel
-    description: Configuration input for DefaultModel
-    default: ""
-    examples:
-      - my-default-model
-    maps: {}
-  - name: FailoverModel
-    displayName: FailoverModel
-    description: Configuration input for FailoverModel
-    default: gemini-flash-latest
-    examples:
-      - my-backup-model
-    maps: {}
-  - name: FailoverBasePath
-    displayName: FailoverBasePath
-    description: If a failover should go to a different base path, configure here.
-      Default is to try the same path with the failover model.
-    default: ""
-    examples: []
-    maps: {}
-endpoints:
-  - name: googlecloud
-    basePath: /models
-    routes:
-      - name: default
-        target: googlecloud
-    flows:
-      - name: PreFlow
-        mode: Request
-        steps:
-          - name: KVM-LoadConfig
-          - name: AM-SetVariables
-          - name: JS-CheckModel
-    faultRules: []
+parameters: []
+defaultEndpoint:
+  name: default
+  basePath: /v1/messages
+  routes:
+    - name: route-google-eu
+      target: gcloud-eu
+      condition: target.route = "gcloud-eu"
+    - name: route-google
+      target: gcloud
+      condition: target.route = "gcloud"
+    - name: route-openai
+      target: openai
+      condition: target.route = "openai"
+    - name: route-anthropic
+      target: anthropic
+      condition: target.route = "anthropic"
+    - name: default
+      target: anthropic
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: KVM-LoadConfig
+        - name: AM-SetVariables
+        - name: OAS-Validation
+        - name: JS-CheckModel
+  faultRules: []
+endpoints: []
 targets:
-  - name: googlecloud
-    url: https://aiplatform.googleapis.com
+  - name: anthropic
+    url: https://api.anthropic.com
     flows:
       - name: PostFlow
         mode: Response
@@ -115,121 +55,73 @@ targets:
           - name: DC-TokenAnalytics
             condition: ai.promptTokenCount != null
     faultRules: []
-    defaultFaultRule:
-      name: default-fault
-      steps:
-        - name: JS-SetFailover
     httpTargetConnection:
-      properties:
-        property:
-          metadata:
-            name: io.timeout.millis
-          value: "18000000"
-      url: https://aiplatform.googleapis.com
+      properties: {}
+      url: https://api.anthropic.com
+  - name: gcloud-eu
+    url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/messages
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: ai.responseTokenCount == null
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+    faultRules: []
+    httpTargetConnection:
+      properties: {}
+      url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/messages
+  - name: gcloud
+    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/messages
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: ai.responseTokenCount == null
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+    faultRules: []
+    httpTargetConnection:
+      properties: {}
+      url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/messages
+  - name: openai
+    url: https://api.openai.com
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: ai.responseTokenCount == null
+          - name: DC-TokenAnalytics
+            condition: ai.promptTokenCount != null
+    faultRules: []
+    httpTargetConnection:
+      properties: {}
+      url: https://api.openai.com
 policies:
-  - name: JS-SetFailover
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "10000"
-          name: JS-SetFailover
-        displayName: JS-SetFailover
-        properties: {}
-        source: "
-
-          \    var path = context.getVariable(\"originalUrl\");
-
-          \    var basePath = context.getVariable(\"proxy.basepath\");
-
-          \    var payload = request.content;
-
-          \    var currentModel = context.getVariable(\"ai.model\");
-
-          \    var failoverModel =
-          context.getVariable(\"propertyset.ai.FailoverModel\");
-
-          \    var failoverBasePath =
-          context.getVariable(\"propertyset.ai.FailoverBasePath\");
-
-          \    if (!failoverBasePath) failoverBasePath = basePath;
-
-
-          \    if (path.includes(currentModel)) {
-
-          \      // api is URL-based, forward to Failover
-
-          \      path = path.replace(basePath, failoverBasePath);
-
-          \      path = path.replace(currentModel, failoverModel);
-
-
-          \      context.setVariable(\"response.status.code\", 307);
-
-          \      context.setVariable(\"response.header.location\", path)
-
-          \    } else if (payload.includes(currentModel)) {
-
-          \      // api is payload-based
-
-          \      var apiKey = context.getVariable(\"request.header.x-api-key\");
-
-          \      var bearerToken =
-          context.getVariable(\"request.header.authorization\");
-
-          \      print(\"apiKey: \" + apiKey + \" token: \" + bearerToken);
-
-          \      path = path.replace(basePath, failoverBasePath);
-
-          \      payload = payload.replace(currentModel, failoverModel);
-
-          \      var headers = {};
-
-          \      if (apiKey) headers[\"x-api-key\"] = apiKey;
-
-          \      if (bearerToken) headers[\"authorization\"] = bearerToken;
-
-          \      print(\"sending request data\");
-
-          \      var myRequest = new Request(path, \"POST\", headers,
-          String(payload));
-
-          \      print(\"waiting for response\");
-
-          \      function onComplete(response, error) {
-
-          \        // print(response.content);
-
-          \        // print(response.status);
-
-          \        // Check if the HTTP request was successful
-
-          \        print(\"got response\");
-
-          \        if (response) {
-
-          \          context.setVariable(\"response.content\",
-          response.content);
-
-          \          context.setVariable(\"response.status\", response.status);
-
-          \        } else if (error) {
-
-          \          context.setVariable(\"response.content\", error.content);
-
-          \          context.setVariable(\"response.status\", error.status);
-
-          \        }
-
-          \      }
-
-          \      httpClient.send(myRequest, onComplete);
-
-          \    }
-
-          \  "
   - name: AM-SetVariables
     type: AssignMessage
     content:
@@ -416,9 +308,9 @@ policies:
           }));
 
           var requestContent = request.content.asJSON;
-          var callType = "googlecloud";
+          var callType = "anthropic";
           var callStreaming = "non-streaming";
-          if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
+          if (url.toLowerCase().includes("/messages")) callType = "anthropic";
           if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
 
           var requestConfig = {
@@ -476,59 +368,137 @@ policies:
             key:
               parameter: Groups
         scope: environment
+  - name: OAS-Validation
+    type: OASValidation
+    content:
+      oasValidation:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: OAS-Validation
+        displayName: OAS-Validation
+        properties: {}
+        oasResource: oas://openapi.yaml
 resources:
-  - name: analytics.js
-    type: jsc
+  - name: openapi.yaml
+    type: oas
     content: |
-      var contentString = context.getVariable("response.event.current.content");
-      var type = "streaming";
-      if (!contentString) {
-        contentString = context.getVariable("response.content");
-        type = "non-streaming"
-      }
-      print(contentString);
-
-      var modelName = context.getVariable("ai.model");
-      var requestTokenCount = context.getVariable("ai.requestTokenCount");
-      var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
-      if (!timeToFirstToken) {
-        var request_start_time = context.getVariable('client.received.start.timestamp');
-        var timeNow = Date.now();
-        timeToFirstToken = timeNow - request_start_time;
-        context.setVariable("ai.timeToFirstToken", timeToFirstToken);
-      }
-      var usageData = getUsageData(contentString);
-      if (usageData.model) context.setVariable("ai.model", usageData.model);
-      if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
-      if (modelName) usageData.model = modelName;
-      if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
-      if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
-
-      if (usageData.responseTokenCount > 0) {
-        context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
-        usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
-        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
-        usageData.type = type;
-        print("Sending analytics data: " + JSON.stringify(usageData));
-        var host = context.getVariable("originalHostName");
-        var headers = {"Content-Type": "application/json"};
-        var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
-        if (apiKey) {
-          headers["x-api-key"] = apiKey;
-        }
-        var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
-        print("Sending to: " + 'https://' + host + "/ai-analytics");
-        httpClient.send(myRequest);
-      }
-  - name: ai.properties
-    type: properties
-    content: |
-      AllowedModelPatterns={AllowedModelPatterns}
-      DeniedModelPatterns={DeniedModelPatterns}
-      OverrideModel={OverrideModel}
-      DefaultModel={DefaultModel}
-      FailoverModel={FailoverModel}
-      FailoverBasePath={FailoverBasePath}
+      openapi: 3.0.0
+      info:
+        title: Anthropic Messages API
+        description: Basic request structure validation for Anthropic Messages API.
+        version: 1.0.0
+      paths:
+        /:
+          post:
+            summary: Create a Message
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - model
+                      - messages
+                      - max_tokens
+                    properties:
+                      model:
+                        type: string
+                      max_tokens:
+                        type: integer
+                      messages:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - role
+                            - content
+                          properties:
+                            role:
+                              type: string
+                            content:
+                              oneOf:
+                                - type: string
+                                - type: array
+                                  items:
+                                    type: object
+                      system:
+                        oneOf:
+                          - type: string
+                          - type: array
+                            items:
+                              type: object
+                      temperature:
+                        type: number
+                      top_p:
+                        type: number
+                      top_k:
+                        type: integer
+                      stream:
+                        type: boolean
+                      stop_sequences:
+                        type: array
+                        items:
+                          type: string
+            responses:
+              "200":
+                description: Successful response
+        /v1/messages:
+          post:
+            summary: Create a Message
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - model
+                      - messages
+                      - max_tokens
+                    properties:
+                      model:
+                        type: string
+                      max_tokens:
+                        type: integer
+                      messages:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - role
+                            - content
+                          properties:
+                            role:
+                              type: string
+                            content:
+                              oneOf:
+                                - type: string
+                                - type: array
+                                  items:
+                                    type: object
+                      system:
+                        oneOf:
+                          - type: string
+                          - type: array
+                            items:
+                              type: object
+                      temperature:
+                        type: number
+                      top_p:
+                        type: number
+                      top_k:
+                        type: integer
+                      stream:
+                        type: boolean
+                      stop_sequences:
+                        type: array
+                        items:
+                          type: string
+            responses:
+              "200":
+                description: Successful response
   - name: ai-functions.js
     type: jsc
     content: |

@@ -1,37 +1,41 @@
-name: completions-v1
-displayName: REST-ChatCompletions-v1
+name: responses-v1
+displayName: REST-Responses-v1
 type: feature
-description: REST-ChatCompletions-v1
+description: REST-Responses-v1
 documentation: ""
-categories: []
+priority: 1
+categories:
+  - llm
+  - ai
 parameters: []
-endpoints:
-  - name: completions
-    basePath: /v1/chat/completions
-    routes:
-      - name: route-google-eu
-        target: gcloud-eu
-        condition: target.route = "gcloud-eu"
-      - name: route-google
-        target: gcloud
-        condition: target.route = "gcloud"
-      - name: route-openai
-        target: openai
-        condition: target.route = "openai"
-      - name: route-anthropic
-        target: anthropic
-        condition: target.route = "anthropic"
-      - name: default
-        target: gcloud
-    flows:
-      - name: PreFlow
-        mode: Request
-        steps:
-          - name: KVM-LoadConfig
-          - name: AM-SetVariables
-          - name: OAS-Validation
-          - name: JS-CheckModel
-    faultRules: []
+defaultEndpoint:
+  name: default
+  basePath: /v1/responses
+  routes:
+    - name: route-google-eu
+      target: gcloud-eu
+      condition: target.route = "gcloud-eu"
+    - name: route-google
+      target: gcloud
+      condition: target.route = "gcloud"
+    - name: route-openai
+      target: openai
+      condition: target.route = "openai"
+    - name: route-anthropic
+      target: anthropic
+      condition: target.route = "anthropic"
+    - name: default
+      target: gcloud
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: KVM-LoadConfig
+        - name: AM-SetVariables
+        - name: OAS-Validation
+        - name: JS-CheckModel
+  faultRules: []
+endpoints: []
 targets:
   - name: anthropic
     url: https://api.anthropic.com
@@ -55,7 +59,7 @@ targets:
       properties: {}
       url: https://api.anthropic.com
   - name: gcloud-eu
-    url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/chat/completions
+    url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/responses
     flows:
       - name: PostFlow
         mode: Response
@@ -74,9 +78,9 @@ targets:
     faultRules: []
     httpTargetConnection:
       properties: {}
-      url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/chat/completions
+      url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/responses
   - name: gcloud
-    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
+    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/responses
     flows:
       - name: PostFlow
         mode: Response
@@ -95,7 +99,7 @@ targets:
     faultRules: []
     httpTargetConnection:
       properties: {}
-      url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
+      url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/responses
   - name: openai
     url: https://api.openai.com
     flows:
@@ -306,7 +310,7 @@ policies:
           var requestContent = request.content.asJSON;
           var callType = "googlecloud";
           var callStreaming = "non-streaming";
-          if (url.toLowerCase().includes("/chat/completions")) callType = "oai";
+          if (url.toLowerCase().includes("/responses")) callType = "oai";
           if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
 
           var requestConfig = {
@@ -381,13 +385,13 @@ resources:
     content: |
       openapi: 3.0.0
       info:
-        title: OpenAI Chat Completions API
-        description: Basic request structure validation for OpenAI Chat Completions API.
+        title: Responses API
+        description: Basic request structure validation for Responses API.
         version: 1.0.0
       paths:
         /:
           post:
-            summary: Create chat completion
+            summary: Create response
             requestBody:
               required: true
               content:
@@ -396,39 +400,31 @@ resources:
                     type: object
                     required:
                       - model
-                      - messages
                     properties:
                       model:
                         type: string
-                      messages:
-                        type: array
-                        items:
-                          type: object
-                          required:
-                            - role
-                          properties:
-                            role:
-                              type: string
-                            content:
-                              oneOf:
-                                - type: string
-                                - type: array
-                                  items:
-                                    type: object
+                      input:
+                        oneOf:
+                          - type: string
+                          - type: array
+                            items:
+                              type: object
+                      instructions:
+                        type: string
                       temperature:
                         type: number
                       top_p:
                         type: number
                       stream:
                         type: boolean
-                      max_tokens:
+                      max_output_tokens:
                         type: integer
             responses:
               "200":
                 description: Successful response
-        /v1/chat/completions:
+        /v1/responses:
           post:
-            summary: Create chat completion
+            summary: Create response
             requestBody:
               required: true
               content:
@@ -437,32 +433,24 @@ resources:
                     type: object
                     required:
                       - model
-                      - messages
                     properties:
                       model:
                         type: string
-                      messages:
-                        type: array
-                        items:
-                          type: object
-                          required:
-                            - role
-                          properties:
-                            role:
-                              type: string
-                            content:
-                              oneOf:
-                                - type: string
-                                - type: array
-                                  items:
-                                    type: object
+                      input:
+                        oneOf:
+                          - type: string
+                          - type: array
+                            items:
+                              type: object
+                      instructions:
+                        type: string
                       temperature:
                         type: number
                       top_p:
                         type: number
                       stream:
                         type: boolean
-                      max_tokens:
+                      max_output_tokens:
                         type: integer
             responses:
               "200":
