@@ -18,26 +18,88 @@ describe("ai-functions.js unit tests", () => {
     expect(getModelName("/publishers/google/models/gemini-1.5-pro:predict", null)).toBe("gemini-1.5-pro");
   });
 
-  it("should determine target route and clean model name", () => {
+  it("should determine target route and extract provider name", () => {
     expect(getTargetRoute("gemini-eu/gemini-1.5-flash")).toEqual({
-      provider: "google",
-      region: "eu",
-      cleanModelName: "google/gemini-1.5-flash",
-      targetRoute: "gcloud-eu"
+      provider: "gemini-eu",
+      region: "global",
+      cleanModelName: "gemini-1.5-flash",
+      targetRoute: ""
     });
 
     expect(getTargetRoute("google/gemini-flash-latest")).toEqual({
       provider: "google",
       region: "global",
-      cleanModelName: "google/gemini-flash-latest",
-      targetRoute: "gcloud"
+      cleanModelName: "gemini-flash-latest",
+      targetRoute: ""
     });
 
     expect(getTargetRoute("openai/gpt-4o")).toEqual({
       provider: "openai",
       region: "global",
-      cleanModelName: "openai/gpt-4o",
-      targetRoute: "openai"
+      cleanModelName: "gpt-4o",
+      targetRoute: ""
+    });
+
+    expect(getTargetRoute("gemini-1.5-pro")).toEqual({
+      provider: "google",
+      region: "global",
+      cleanModelName: "gemini-1.5-pro",
+      targetRoute: ""
+    });
+
+    expect(getTargetRoute("claude-3-5-sonnet")).toEqual({
+      provider: "anthropic",
+      region: "global",
+      cleanModelName: "claude-3-5-sonnet",
+      targetRoute: ""
+    });
+
+    expect(getTargetRoute("gpt-4o-mini")).toEqual({
+      provider: "openai",
+      region: "global",
+      cleanModelName: "gpt-4o-mini",
+      targetRoute: ""
+    });
+  });
+
+  it("should determine target route with new ModelRouting JSON configuration", () => {
+    const routingConfig = {
+      models: {
+        "google/gemini-flash-latest": "googlecloud-oai",
+        "anthropic/claude-sonnet-5": "googlecloud"
+      },
+      mappings: {
+        "google/gemini-flash-latest": "google/gemini-3.6-flash"
+      }
+    };
+
+    expect(getTargetRoute("google/gemini-flash-latest", routingConfig)).toEqual({
+      provider: "google",
+      region: "global",
+      cleanModelName: "gemini-3.6-flash",
+      targetRoute: "googlecloud-oai",
+      mappedModelName: "google/gemini-3.6-flash"
+    });
+
+    expect(getTargetRoute("anthropic/claude-sonnet-5", routingConfig)).toEqual({
+      provider: "anthropic",
+      region: "global",
+      cleanModelName: "claude-sonnet-5",
+      targetRoute: "googlecloud"
+    });
+
+    expect(getTargetRoute("claude-sonnet-5", routingConfig)).toEqual({
+      provider: "anthropic",
+      region: "global",
+      cleanModelName: "claude-sonnet-5",
+      targetRoute: "googlecloud"
+    });
+
+    expect(getTargetRoute("unconfigured-model", routingConfig)).toEqual({
+      provider: "unknown",
+      region: "global",
+      cleanModelName: "unconfigured-model",
+      targetRoute: ""
     });
   });
 

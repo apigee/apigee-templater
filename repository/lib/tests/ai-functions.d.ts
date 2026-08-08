@@ -1,10 +1,11 @@
 declare module "../ai-functions.js" {
   export function getModelName(urlString: string | null, contentString: string | object | null): string;
-  export function getTargetRoute(modelName: string): {
+  export function getTargetRoute(modelName: string, config?: any): {
     provider: string;
     region: string;
     cleanModelName: string;
     targetRoute: string;
+    mappedModelName?: string;
   };
   export function getPrompts(contentData: any): { userPrompt: string; allUserPrompts: string };
   export function setPrompt(contentData: any, userPrompt: string): any;

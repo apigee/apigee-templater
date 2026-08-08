@@ -38,70 +38,98 @@ function getModelName(urlString, contentString) {
   return modelName;
 }
 
-function getTargetRoute(modelName) {
+function getTargetRoute(modelName, config) {
   var result = {
     provider: "unknown",
     region: "global",
-    cleanModelName: modelName,
-    targetRoute: "gcloud"
+    cleanModelName: modelName || "",
+    targetRoute: ""
   };
 
   if (!modelName || modelName === "unknown") {
     return result;
   }
 
-  var lowerModel = modelName.toLowerCase();
-  var rawProvider = "";
-  var cleanModel = modelName;
+  var parsedConfig = null;
+  if (config) {
+    if (typeof config === "string") {
+      try {
+        parsedConfig = JSON.parse(config);
+      } catch (e) {}
+    } else if (typeof config === "object") {
+      parsedConfig = config;
+    }
+  }
 
-  if (modelName.indexOf("/") !== -1) {
-    var parts = modelName.split("/");
-    rawProvider = parts[0].toLowerCase();
+  var currentModel = modelName;
+
+  // 1. Check mappings in config
+  if (parsedConfig && parsedConfig.mappings) {
+    if (parsedConfig.mappings[currentModel]) {
+      currentModel = parsedConfig.mappings[currentModel];
+      result.mappedModelName = currentModel;
+    } else {
+      var rawProv = "";
+      var clean = currentModel;
+      if (currentModel.indexOf("/") !== -1) {
+        var p = currentModel.split("/");
+        rawProv = p[0];
+        clean = p.slice(1).join("/");
+      }
+      var provModelKey = rawProv ? (rawProv + "/" + clean) : clean;
+      if (parsedConfig.mappings[provModelKey]) {
+        currentModel = parsedConfig.mappings[provModelKey];
+        result.mappedModelName = currentModel;
+      } else if (parsedConfig.mappings[clean]) {
+        currentModel = parsedConfig.mappings[clean];
+        result.mappedModelName = currentModel;
+      }
+    }
+  }
+
+  var rawProvider = "";
+  var cleanModel = currentModel;
+
+  if (currentModel.indexOf("/") !== -1) {
+    var parts = currentModel.split("/");
+    rawProvider = parts[0];
     cleanModel = parts.slice(1).join("/");
   }
 
-  if (rawProvider === "google-eu" || rawProvider === "gcloud-eu" || rawProvider === "gemini-eu") {
-    result.provider = "google";
-    result.region = "eu";
-    result.targetRoute = "gcloud-eu";
-    result.cleanModelName = "google/" + cleanModel;
-  } else if (rawProvider === "google" || rawProvider === "gcloud" || rawProvider === "gemini") {
-    result.provider = "google";
-    result.region = "global";
-    result.targetRoute = "gcloud";
-    result.cleanModelName = modelName;
-  } else if (rawProvider === "openai") {
-    result.provider = "openai";
-    result.region = "global";
-    result.targetRoute = "openai";
-    result.cleanModelName = modelName;
-  } else if (rawProvider === "anthropic") {
-    result.provider = "anthropic";
-    result.region = "global";
-    result.targetRoute = "anthropic";
-    result.cleanModelName = modelName;
+  if (rawProvider) {
+    result.provider = rawProvider;
   } else {
-    // Default checks based on model prefix
-    if (lowerModel.indexOf("gpt-") === 0 || lowerModel.indexOf("text-embedding-") === 0 || lowerModel.indexOf("dall-e") === 0 || lowerModel.indexOf("o1-") === 0 || lowerModel.indexOf("o3-") === 0) {
-      result.provider = "openai";
-      result.region = "global";
-      result.targetRoute = "openai";
-      result.cleanModelName = "openai/" + modelName;
-    } else if (lowerModel.indexOf("claude-") === 0) {
+    var lower = currentModel.toLowerCase();
+    if (lower.indexOf("gemini") !== -1) {
+      result.provider = "google";
+    } else if (lower.indexOf("claude") !== -1) {
       result.provider = "anthropic";
-      result.region = "global";
-      result.targetRoute = "anthropic";
-      result.cleanModelName = "anthropic/" + modelName;
-    } else if (lowerModel.indexOf("gemini-") === 0 || lowerModel.indexOf("bison") !== -1 || lowerModel.indexOf("imagen") !== -1) {
-      result.provider = "google";
-      result.region = "global";
-      result.targetRoute = "gcloud";
-      result.cleanModelName = lowerModel.indexOf("google/") === 0 ? modelName : "google/" + modelName;
+    } else if (lower.indexOf("gpt") !== -1) {
+      result.provider = "openai";
     } else {
-      result.provider = "google";
-      result.region = "global";
-      result.targetRoute = "gcloud";
-      result.cleanModelName = lowerModel.indexOf("google/") === 0 ? modelName : "google/" + modelName;
+      result.provider = "unknown";
+    }
+  }
+
+  result.cleanModelName = cleanModel;
+
+  // 2. Straight model string mapping to target in models
+  if (parsedConfig && parsedConfig.models) {
+    if (parsedConfig.models[currentModel]) {
+      result.targetRoute = parsedConfig.models[currentModel];
+    } else if (parsedConfig.models[modelName]) {
+      result.targetRoute = parsedConfig.models[modelName];
+    } else if (parsedConfig.models[cleanModel]) {
+      result.targetRoute = parsedConfig.models[cleanModel];
+    }
+
+    if (!result.targetRoute) {
+      for (var modelKey in parsedConfig.models) {
+        if (modelKey.includes(currentModel)) {
+          result.targetRoute = parsedConfig.models[modelKey];
+          break;
+        }
+      }
     }
   }
 
