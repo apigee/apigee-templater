@@ -8,6 +8,9 @@ import {
   convertGeminiToOpenAi,
   convertOpenAiToImagen,
   convertImagenToOpenAi,
+  convertOpenAiToAnthropic,
+  convertAnthropicToOpenAi,
+  convertAnthropicStreamToOpenAi,
   getModelTokenLimit,
   getModelList
 } from "../ai-functions.js";
@@ -103,14 +106,149 @@ describe("ai-functions.js unit tests", () => {
     });
   });
 
-  it("should extract user prompts", () => {
+  it("should extract user prompts and detect protocol format", () => {
     const oaiBody = {
       messages: [
         { role: "system", content: "You are a helpful assistant." },
         { role: "user", content: "Hello world!" }
       ]
     };
-    expect(getPrompts(oaiBody).userPrompt).toBe("Hello world!");
+    const oaiPrompts = getPrompts(oaiBody);
+    expect(oaiPrompts.userPrompt).toBe("Hello world!");
+    expect(oaiPrompts.protocol).toBe("openai");
+
+    const anthropicBody = {
+      model: "claude-3-5-sonnet",
+      system: "You are a helpful assistant.",
+      messages: [
+        { role: "user", content: "Hello world!" }
+      ]
+    };
+    const anthropicPrompts = getPrompts(anthropicBody);
+    expect(anthropicPrompts.userPrompt).toBe("Hello world!");
+    expect(anthropicPrompts.protocol).toBe("anthropic");
+
+    const googleBody = {
+      contents: [
+        { role: "user", parts: [{ text: "Hello world!" }] }
+      ]
+    };
+    const googlePrompts = getPrompts(googleBody);
+    expect(googlePrompts.userPrompt).toBe("Hello world!");
+    expect(googlePrompts.protocol).toBe("google");
+  });
+
+  it("should convert OpenAI request format to Anthropic format and set anthropic_version", () => {
+    const openAiPayload = {
+      model: "anthropic/claude-3-5-sonnet",
+      messages: [
+        { role: "system", content: "Be concise." },
+        { role: "user", content: "What is the capital of France?" }
+      ],
+      temperature: 0.7,
+      max_tokens: 100,
+      stream: true
+    };
+
+    const googleRouteInfo = {
+      provider: "anthropic",
+      region: "global",
+      cleanModelName: "claude-3-5-sonnet",
+      targetRoute: "googlecloud-oai"
+    };
+
+    const googlePayload = convertOpenAiToAnthropic(openAiPayload, googleRouteInfo);
+    expect(googlePayload.anthropic_version).toBe("vertex-2023-10-16");
+    expect(googlePayload.model).toBeUndefined();
+
+    const emptyRoutePayload = convertOpenAiToAnthropic(openAiPayload);
+    expect(emptyRoutePayload.anthropic_version).toBe("vertex-2023-10-16");
+    expect(emptyRoutePayload.model).toBeUndefined();
+
+    const bedrockRouteInfo = {
+      provider: "anthropic",
+      region: "global",
+      cleanModelName: "claude-3-5-sonnet",
+      targetRoute: "aws-bedrock"
+    };
+
+    const bedrockPayload = convertOpenAiToAnthropic(openAiPayload, bedrockRouteInfo);
+    expect(bedrockPayload.anthropic_version).toBe("bedrock-2023-05-31");
+    expect(bedrockPayload.model).toBeUndefined();
+
+    const directAnthropicRouteInfo = {
+      provider: "anthropic",
+      region: "global",
+      cleanModelName: "claude-3-5-sonnet",
+      targetRoute: "anthropic"
+    };
+
+    const directPayload = convertOpenAiToAnthropic(openAiPayload, directAnthropicRouteInfo);
+    expect(directPayload.anthropic_version).toBeUndefined();
+    expect(directPayload.model).toBe("claude-3-5-sonnet");
+  });
+
+  it("should convert Anthropic response format to OpenAI format (non-streaming)", () => {
+    const anthropicResponse = {
+      id: "msg_123456",
+      model: "claude-3-5-sonnet-20241022",
+      content: [
+        { type: "text", text: "The capital of France is Paris." }
+      ],
+      stop_reason: "end_turn",
+      usage: {
+        input_tokens: 10,
+        output_tokens: 7
+      }
+    };
+
+    const result = convertAnthropicToOpenAi(anthropicResponse, "claude-3-5-sonnet");
+    const openAiResponse = result.openAiResponse;
+
+    expect(openAiResponse.model).toBe("claude-3-5-sonnet");
+    expect(openAiResponse.choices[0].message.content).toBe("The capital of France is Paris.");
+    expect(openAiResponse.choices[0].finish_reason).toBe("stop");
+    expect(openAiResponse.usage).toEqual({
+      prompt_tokens: 10,
+      completion_tokens: 7,
+      total_tokens: 17
+    });
+    expect(result.usageData.usageFound).toBe(true);
+    expect(result.usageData.requestTokenCount).toBe(10);
+    expect(result.usageData.responseTokenCount).toBe(7);
+  });
+
+  it("should convert Anthropic stream events to OpenAI format (streaming) and extract usage data safely", () => {
+    const startEvent = 'event: message_start\ndata: {"type":"message_start","message":{"id":"msg_123","model":"claude-3-5-sonnet","usage":{"input_tokens":15,"output_tokens":1}}}';
+    const startResult = convertAnthropicStreamToOpenAi(startEvent, "claude-3-5-sonnet");
+    expect(startResult.contentString).toContain('"object":"chat.completion.chunk"');
+    expect(startResult.contentString).toContain('"role":"assistant"');
+    expect(startResult.contentString).toContain('"prompt_tokens":15');
+    expect(startResult.usageData.usageFound).toBe(true);
+    expect(startResult.usageData.requestTokenCount).toBe(15);
+
+    const messageDeltaEvent = 'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":15,"output_tokens":549}}';
+    const deltaResult = convertAnthropicStreamToOpenAi(messageDeltaEvent, "claude-3-5-sonnet");
+    expect(deltaResult.contentString).toContain('"finish_reason":"stop"');
+    expect(deltaResult.contentString).toContain('"prompt_tokens":15');
+    expect(deltaResult.contentString).toContain('"completion_tokens":549');
+    expect(deltaResult.usageData.usageFound).toBe(true);
+    expect(deltaResult.usageData.requestTokenCount).toBe(15);
+    expect(deltaResult.usageData.responseTokenCount).toBe(549);
+
+    const textDeltaEvent = 'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}';
+    const textDeltaResult = convertAnthropicStreamToOpenAi(textDeltaEvent, "claude-3-5-sonnet");
+    expect(textDeltaResult.contentString).toContain('"content":"Hello"');
+    expect(textDeltaResult.usageData.usageFound).toBe(false);
+
+    const stopEvent = 'event: message_stop\ndata: {"type":"message_stop" }';
+    const stopResult = convertAnthropicStreamToOpenAi(stopEvent, "claude-3-5-sonnet");
+    expect(stopResult.contentString).toBe("data: [DONE]\n\n");
+    expect(stopResult.usageData.usageFound).toBe(false);
+
+    // Test getUsageData on [DONE] converted chunk (must not throw exception)
+    expect(() => getUsageData(stopResult.contentString)).not.toThrow();
+    expect(getUsageData(stopResult.contentString).usageFound).toBe(false);
   });
 
   it("should convert OpenAI request format to Gemini native format", () => {

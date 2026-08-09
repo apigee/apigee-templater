@@ -7,7 +7,7 @@ declare module "../ai-functions.js" {
     targetRoute: string;
     mappedModelName?: string;
   };
-  export function getPrompts(contentData: any): { userPrompt: string; allUserPrompts: string };
+  export function getPrompts(contentData: any): { userPrompt: string; allUserPrompts: string; protocol: string };
   export function setPrompt(contentData: any, userPrompt: string): any;
   export function getResponse(contentData: any): string;
   export function setResponse(contentData: any, content: string): any;
@@ -16,6 +16,11 @@ declare module "../ai-functions.js" {
   export function testDeniedModels(requestInfo: any): boolean;
   export function convertOpenAiToGemini(openAiPayload: any): any;
   export function convertGeminiToOpenAi(geminiResponse: any, modelName?: string): any;
+  export function convertOpenAiToImagen(openAiPayload: any): any;
+  export function convertImagenToOpenAi(imagenResponse: any, modelName?: string): any;
+  export function convertOpenAiToAnthropic(openAiPayload: any, routeInfo?: any): any;
+  export function convertAnthropicToOpenAi(anthropicData: any, modelName?: string): { contentString: string; usageData: any; openAiResponse?: any };
+  export function convertAnthropicStreamToOpenAi(contentString: string, modelName?: string): { contentString: string; usageData: any };
   export function getModelTokenLimit(modelName: string | null, quotaData: any): any;
   export function getModelList(quotaData: any): { object: string; data: Array<{ id: string; object: string; created: number; owned_by: string }> };
 }

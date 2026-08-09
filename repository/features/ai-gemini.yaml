@@ -42,14 +42,18 @@ targets:
           - name: JS-Analytics
             condition: response.content != ""
           - name: DC-TokenAnalytics
-            condition: ai.promptTokenCount != null
+            condition: ai.usageDataFound = "true"
+          - name: JS-ResetUsageDataFound
+            condition: ai.usageDataFound = "true"
       - name: EventFlow
         mode: Response
         steps:
           - name: JS-Analytics
             condition: ai.responseTokenCount == null
           - name: DC-TokenAnalytics
-            condition: ai.promptTokenCount != null
+            condition: ai.usageDataFound = "true"
+          - name: JS-ResetUsageDataFound
+            condition: ai.usageDataFound = "true"
     faultRules: []
     httpTargetConnection:
       properties:
@@ -63,6 +67,20 @@ targets:
           scopes:
             scope: https://www.googleapis.com/auth/cloud-platform
 policies:
+  - name: JS-ResetUsageDataFound
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ResetUsageDataFound
+        displayName: JS-ResetUsageDataFound
+        properties: {}
+        source: |
+          context.setVariable("ai.usageDataFound", "false");
+
   - name: AM-SetVariables
     type: AssignMessage
     content:
@@ -520,7 +538,7 @@ resources:
 
           if (!result.targetRoute) {
             for (var modelKey in parsedConfig.models) {
-              if (modelKey.includes(currentModel)) {
+              if (currentModel.includes(modelKey)) {
                 result.targetRoute = parsedConfig.models[modelKey];
                 break;
               }
@@ -535,10 +553,16 @@ resources:
         var promptInfo = {
           userPrompt: "",
           allUserPrompts: "",
+          protocol: "unknown"
         };
 
-        if (contentData && contentData["contents"]) {
-          // gemini format
+        if (!contentData) {
+          return promptInfo;
+        }
+
+        if (contentData["contents"] && Array.isArray(contentData["contents"])) {
+          // google format
+          promptInfo.protocol = "google";
           for (var i = contentData["contents"].length - 1; i >= 0; i--) {
             var content = contentData["contents"][i];
             if (
@@ -549,29 +573,55 @@ resources:
             ) {
               for (var p = content["parts"].length - 1; p >= 0; p--) {
                 var part = content["parts"][p];
-                if (!promptInfo.userPrompt && content["parts"][p]["text"]) {
-                  promptInfo.userPrompt = content["parts"][p]["text"];
+                if (!promptInfo.userPrompt && part && part["text"]) {
+                  promptInfo.userPrompt = part["text"];
                 }
 
-                if (content["parts"][p]["text"]) {
-                  promptInfo.allUserPrompts += " " + content["parts"][p]["text"];
+                if (part && part["text"]) {
+                  promptInfo.allUserPrompts += " " + part["text"];
                 }
               }
             }
           }
-        } else if (contentData && contentData["messages"]) {
-          // oapi format
+        } else if (contentData["messages"] && Array.isArray(contentData["messages"])) {
+          // anthropic or openai format
+          if (contentData["system"] !== undefined || contentData["anthropic_version"] !== undefined || contentData["top_k"] !== undefined) {
+            promptInfo.protocol = "anthropic";
+          } else {
+            promptInfo.protocol = "openai";
+          }
+
           for (var i = contentData["messages"].length - 1; i >= 0; i--) {
             var message = contentData["messages"][i];
             if (message && message["role"] && message["role"].toLowerCase() == "user") {
-              if (!promptInfo.userPrompt && message["content"]) {
-                promptInfo.userPrompt = message["content"];
+              var msgText = "";
+              if (typeof message["content"] === "string") {
+                msgText = message["content"];
+              } else if (Array.isArray(message["content"])) {
+                for (var c = 0; c < message["content"].length; c++) {
+                  var item = message["content"][c];
+                  if (item && item["type"] === "text" && item["text"]) {
+                    msgText += (msgText ? " " : "") + item["text"];
+                  } else if (typeof item === "string") {
+                    msgText += (msgText ? " " : "") + item;
+                  }
+                }
               }
 
-              if (message["content"]) {
-                promptInfo.allUserPrompts += " " + message["content"];
+              if (!promptInfo.userPrompt && msgText) {
+                promptInfo.userPrompt = msgText;
+              }
+
+              if (msgText) {
+                promptInfo.allUserPrompts += " " + msgText;
               }
             }
+          }
+        } else if (contentData["prompt"] !== undefined) {
+          promptInfo.protocol = "openai";
+          if (typeof contentData["prompt"] === "string") {
+            promptInfo.userPrompt = contentData["prompt"];
+            promptInfo.allUserPrompts = contentData["prompt"];
           }
         }
 
@@ -708,76 +758,107 @@ resources:
           requestTokenCount: 0,
           responseTokenCount: 0,
           totalTokenCount: 0,
+          usageFound: false
         };
 
+        if (!contentString) {
+          return usageData;
+        }
+
+        var cleaned = contentString.trim();
+
+        // Return early for stream markers, ping events, or non-data frames to avoid JSON parse errors
         if (
-          contentString &&
-          contentString != "[DONE]" &&
-          !contentString.startsWith("event: content_block_delta") &&
-          !contentString.startsWith("event: ping") &&
-          !contentString.startsWith("event: content_block_start") &&
-          !contentString.startsWith("event: content_block_stop") &&
-          !contentString.startsWith("event: message_stop")
+          cleaned.indexOf("[DONE]") !== -1 ||
+          cleaned.indexOf("message_stop") !== -1 ||
+          cleaned.indexOf("content_block") !== -1 ||
+          cleaned.indexOf("event: ping") !== -1
         ) {
-          contentString = contentString.replace("data: ", "");
-          contentString = contentString.replace("event: message_delta data:", "");
-          contentString = contentString.replace("event: message_delta", "");
-          contentString = contentString.replace("event: message_start", "");
+          return usageData;
+        }
 
-          try {
-            var contentData = JSON.parse(contentString);
-
-            // model
-            if (contentData["model"]) {
-              usageData.model = contentData["model"];
-            }
-            if (contentData["modelVersion"]) {
-              usageData.model = contentData["modelVersion"];
-            }
-            if (contentData["message"] && contentData["message"]["model"]) {
-              usageData.model = contentData["message"]["model"];
-            }
-            if (usageData.model.includes("/")) {
-              var modelNamePieces = usageData.model.split("/");
-              usageData.model = modelNamePieces[modelNamePieces.length - 1];
-            }
-
-            // requestTokenCount
-            // openmodels
-            if (contentData["usage"] && contentData["usage"]["prompt_tokens"]) {
-              usageData.requestTokenCount = contentData["usage"]["prompt_tokens"];
-            }
-            // claude
-            if (
-              contentData["message"] &&
-              contentData["message"]["usage"] &&
-              contentData["message"]["usage"]["input_tokens"]
-            ) {
-              usageData.requestTokenCount = contentData["message"]["usage"]["input_tokens"];
-            }
-            if (contentData["usage"] && contentData["usage"]["input_tokens"]) {
-              usageData.requestTokenCount = contentData["usage"]["input_tokens"];
-            }
-            // gemini API
-            if (contentData["usageMetadata"] && contentData["usageMetadata"]["promptTokenCount"]) {
-              usageData.requestTokenCount = contentData["usageMetadata"]["promptTokenCount"];
-            }
-
-            // responseTokenCount
-            // openmodels
-            if (contentData["usage"] && contentData["usage"]["completion_tokens"])
-              usageData.responseTokenCount = contentData["usage"]["completion_tokens"];
-            // claude
-            if (contentData["usage"] && contentData["usage"]["output_tokens"]) {
-              usageData.responseTokenCount = contentData["usage"]["output_tokens"];
-            }
-            // gemini
-            if (contentData["usageMetadata"] && contentData["usageMetadata"]["candidatesTokenCount"]) {
-              usageData.responseTokenCount = contentData["usageMetadata"]["candidatesTokenCount"];
-            }
-          } catch (e) {
-            print("Exception in getUsageData: " + JSON.stringify(e));
+        // Strip prefixes like "data: " or "event: message_delta data: "
+        if (cleaned.indexOf("data: ") !== -1) {
+          var parts = cleaned.split("data: ");
+          cleaned = parts[parts.length - 1].trim();
+        } else if (cleaned.startsWith("event: ")) {
+          var firstBrace = cleaned.indexOf("{");
+          if (firstBrace !== -1) {
+            cleaned = cleaned.substring(firstBrace).trim();
           }
+        }
+
+        if (!cleaned || !cleaned.startsWith("{")) {
+          return usageData;
+        }
+
+        try {
+          var contentData = JSON.parse(cleaned);
+
+          // model
+          if (contentData["model"]) {
+            usageData.model = contentData["model"];
+          }
+          if (contentData["modelVersion"]) {
+            usageData.model = contentData["modelVersion"];
+          }
+          if (contentData["message"] && contentData["message"]["model"]) {
+            usageData.model = contentData["message"]["model"];
+          }
+          if (usageData.model && usageData.model.includes("/")) {
+            var modelNamePieces = usageData.model.split("/");
+            usageData.model = modelNamePieces[modelNamePieces.length - 1];
+          }
+
+          // requestTokenCount
+          // openmodels / openai
+          if (contentData["usage"] && contentData["usage"]["prompt_tokens"] !== undefined) {
+            usageData.requestTokenCount = contentData["usage"]["prompt_tokens"];
+          }
+          // claude message.usage
+          if (
+            contentData["message"] &&
+            contentData["message"]["usage"] &&
+            contentData["message"]["usage"]["input_tokens"] !== undefined
+          ) {
+            usageData.requestTokenCount = contentData["message"]["usage"]["input_tokens"];
+          }
+          // claude top-level usage
+          if (contentData["usage"] && contentData["usage"]["input_tokens"] !== undefined) {
+            usageData.requestTokenCount = contentData["usage"]["input_tokens"];
+          }
+          // gemini API
+          if (contentData["usageMetadata"] && contentData["usageMetadata"]["promptTokenCount"] !== undefined) {
+            usageData.requestTokenCount = contentData["usageMetadata"]["promptTokenCount"];
+          }
+
+          // responseTokenCount
+          // openmodels / openai
+          if (contentData["usage"] && contentData["usage"]["completion_tokens"] !== undefined) {
+            usageData.responseTokenCount = contentData["usage"]["completion_tokens"];
+          }
+          // claude message.usage
+          if (
+            contentData["message"] &&
+            contentData["message"]["usage"] &&
+            contentData["message"]["usage"]["output_tokens"] !== undefined
+          ) {
+            usageData.responseTokenCount = contentData["message"]["usage"]["output_tokens"];
+          }
+          // claude top-level usage
+          if (contentData["usage"] && contentData["usage"]["output_tokens"] !== undefined) {
+            usageData.responseTokenCount = contentData["usage"]["output_tokens"];
+          }
+          // gemini API
+          if (contentData["usageMetadata"] && contentData["usageMetadata"]["candidatesTokenCount"] !== undefined) {
+            usageData.responseTokenCount = contentData["usageMetadata"]["candidatesTokenCount"];
+          }
+
+          if (usageData.requestTokenCount > 0 || usageData.responseTokenCount > 0) {
+            usageData.usageFound = true;
+          }
+        } catch (e) {
+          print("Exception in getUsageData: " + JSON.stringify(e));
         }
 
         return usageData;
@@ -1127,6 +1208,347 @@ resources:
         return result;
       }
 
+      // OpenAI to Anthropic messages format conversion
+      function convertOpenAiToAnthropic(openAiPayload, routeInfo) {
+        if (!openAiPayload) return {};
+
+        var targetModel = openAiPayload.model || "";
+        if (routeInfo) {
+          if (typeof routeInfo === "string") {
+            targetModel = routeInfo;
+          } else if (typeof routeInfo === "object") {
+            if (routeInfo.cleanModelName) {
+              targetModel = routeInfo.cleanModelName;
+            } else if (routeInfo.mappedModelName) {
+              targetModel = routeInfo.mappedModelName;
+            }
+          }
+        }
+
+        if (targetModel && targetModel.indexOf("/") !== -1) {
+          var parts = targetModel.split("/");
+          targetModel = parts[parts.length - 1];
+        }
+
+        var anthropicPayload = {
+          model: targetModel,
+          messages: [],
+          max_tokens: openAiPayload.max_tokens || openAiPayload.max_completion_tokens || 4096
+        };
+
+        var targetRoute = "";
+        if (routeInfo) {
+          if (typeof routeInfo === "string") {
+            targetRoute = routeInfo;
+          } else if (typeof routeInfo === "object" && routeInfo.targetRoute) {
+            targetRoute = routeInfo.targetRoute;
+          }
+        }
+
+        var lowerRoute = targetRoute.toLowerCase();
+        if (!lowerRoute || lowerRoute.indexOf("google") !== -1) {
+          anthropicPayload["anthropic_version"] = "vertex-2023-10-16";
+          delete anthropicPayload.model;
+        } else if (lowerRoute.indexOf("aws") !== -1 || lowerRoute.indexOf("bedrock") !== -1) {
+          anthropicPayload["anthropic_version"] = "bedrock-2023-05-31";
+          delete anthropicPayload.model;
+        }
+
+        var systemPrompts = [];
+
+        if (openAiPayload.messages && Array.isArray(openAiPayload.messages)) {
+          for (var i = 0; i < openAiPayload.messages.length; i++) {
+            var msg = openAiPayload.messages[i];
+            if (!msg) continue;
+            var role = msg.role;
+            var content = msg.content;
+
+            if (role === "system" || role === "developer") {
+              if (typeof content === "string") {
+                systemPrompts.push(content);
+              } else if (Array.isArray(content)) {
+                for (var j = 0; j < content.length; j++) {
+                  if (content[j] && content[j].type === "text" && content[j].text) {
+                    systemPrompts.push(content[j].text);
+                  }
+                }
+              }
+            } else {
+              var anthropicRole = (role === "assistant") ? "assistant" : "user";
+              var anthropicContent = content;
+
+              if (Array.isArray(content)) {
+                var formattedParts = [];
+                for (var k = 0; k < content.length; k++) {
+                  var part = content[k];
+                  if (part) {
+                    if (part.type === "text") {
+                      formattedParts.push({ type: "text", text: part.text || "" });
+                    } else if (part.type === "image_url" && part.image_url) {
+                      var urlStr = typeof part.image_url === "string" ? part.image_url : part.image_url.url;
+                      if (urlStr && urlStr.startsWith("data:")) {
+                        var matches = urlStr.match(/^data:(image\/[a-zA-Z]+);base64,(.+)$/);
+                        if (matches) {
+                          formattedParts.push({
+                            type: "image",
+                            source: {
+                              type: "base64",
+                              media_type: matches[1],
+                              data: matches[2]
+                            }
+                          });
+                        }
+                      }
+                    }
+                  }
+                }
+                anthropicContent = formattedParts;
+              }
+
+              anthropicPayload.messages.push({
+                role: anthropicRole,
+                content: anthropicContent
+              });
+            }
+          }
+        }
+
+        if (systemPrompts.length > 0) {
+          anthropicPayload.system = systemPrompts.join("\n\n");
+        }
+
+        if (openAiPayload.temperature !== undefined) anthropicPayload.temperature = openAiPayload.temperature;
+        if (openAiPayload.top_p !== undefined) anthropicPayload.top_p = openAiPayload.top_p;
+        if (openAiPayload.stream !== undefined) anthropicPayload.stream = openAiPayload.stream;
+        if (openAiPayload.stop !== undefined) {
+          anthropicPayload.stop_sequences = Array.isArray(openAiPayload.stop) ? openAiPayload.stop : [openAiPayload.stop];
+        }
+
+        return anthropicPayload;
+      }
+
+      // Anthropic response to OpenAI format conversion (non-streaming)
+      function convertAnthropicToOpenAi(anthropicData, modelName) {
+        var usageData = {
+          model: modelName || "",
+          requestTokenCount: 0,
+          responseTokenCount: 0,
+          totalTokenCount: 0,
+          usageFound: false
+        };
+
+        if (!anthropicData) {
+          return { contentString: "", usageData: usageData };
+        }
+
+        var data = anthropicData;
+        if (typeof anthropicData === "string") {
+          try {
+            data = JSON.parse(anthropicData);
+          } catch (e) {
+            return { contentString: anthropicData, usageData: usageData };
+          }
+        }
+
+        var text = "";
+        if (data.content && Array.isArray(data.content)) {
+          for (var i = 0; i < data.content.length; i++) {
+            var item = data.content[i];
+            if (item && item.type === "text" && item.text) {
+              text += item.text;
+            }
+          }
+        } else if (typeof data.content === "string") {
+          text = data.content;
+        }
+
+        var finishReason = "stop";
+        if (data.stop_reason) {
+          if (data.stop_reason === "max_tokens") finishReason = "length";
+          else if (data.stop_reason === "end_turn" || data.stop_reason === "stop_sequence") finishReason = "stop";
+          else finishReason = data.stop_reason.toLowerCase();
+        }
+
+        var msgId = data.id ? ("chatcmpl-" + data.id.replace(/^msg_/, "")) : ("chatcmpl-" + Math.random().toString(36).substring(2, 11));
+
+        var promptTokens = (data.usage && data.usage.input_tokens !== undefined) ? data.usage.input_tokens : 0;
+        var completionTokens = (data.usage && data.usage.output_tokens !== undefined) ? data.usage.output_tokens : 0;
+
+        var openAiResponse = {
+          id: msgId,
+          object: "chat.completion",
+          created: Math.floor(Date.now() / 1000),
+          model: modelName || data.model || "claude",
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                content: text
+              },
+              finish_reason: finishReason
+            }
+          ],
+          usage: {
+            prompt_tokens: promptTokens,
+            completion_tokens: completionTokens,
+            total_tokens: promptTokens + completionTokens
+          }
+        };
+
+        usageData.model = modelName || data.model || "claude";
+        usageData.requestTokenCount = promptTokens;
+        usageData.responseTokenCount = completionTokens;
+        usageData.totalTokenCount = promptTokens + completionTokens;
+        if (promptTokens > 0 || completionTokens > 0) {
+          usageData.usageFound = true;
+        }
+
+        return {
+          contentString: JSON.stringify(openAiResponse),
+          usageData: usageData,
+          openAiResponse: openAiResponse
+        };
+      }
+
+      // Anthropic stream event chunk to OpenAI format conversion (streaming)
+      function convertAnthropicStreamToOpenAi(contentString, modelName) {
+        var usageData = {
+          model: modelName || "",
+          requestTokenCount: 0,
+          responseTokenCount: 0,
+          totalTokenCount: 0,
+          usageFound: false
+        };
+
+        if (!contentString) {
+          return { contentString: contentString || "", usageData: usageData };
+        }
+
+        var raw = contentString.trim();
+
+        if (raw.indexOf("message_stop") !== -1 || raw.indexOf("[DONE]") !== -1) {
+          return { contentString: "data: [DONE]\n\n", usageData: usageData };
+        }
+
+        var jsonStr = raw;
+        if (jsonStr.indexOf("data: ") !== -1) {
+          var parts = jsonStr.split("data: ");
+          jsonStr = parts[parts.length - 1].trim();
+        }
+
+        try {
+          var eventData = JSON.parse(jsonStr);
+          var created = Math.floor(Date.now() / 1000);
+          var model = modelName || "claude";
+
+          if (eventData.type === "message_start" && eventData.message) {
+            var msgId = eventData.message.id ? ("chatcmpl-" + eventData.message.id.replace(/^msg_/, "")) : ("chatcmpl-" + Math.random().toString(36).substring(2, 11));
+            var startChunk = {
+              id: msgId,
+              object: "chat.completion.chunk",
+              created: created,
+              model: eventData.message.model || model,
+              choices: [
+                {
+                  index: 0,
+                  delta: { role: "assistant", content: "" },
+                  finish_reason: null
+                }
+              ]
+            };
+
+            if (eventData.message.usage) {
+              var pTok = eventData.message.usage.input_tokens !== undefined ? eventData.message.usage.input_tokens : 0;
+              var cTok = eventData.message.usage.output_tokens !== undefined ? eventData.message.usage.output_tokens : 0;
+              startChunk.usage = {
+                prompt_tokens: pTok,
+                completion_tokens: cTok,
+                total_tokens: pTok + cTok
+              };
+              usageData.requestTokenCount = pTok;
+              usageData.responseTokenCount = cTok;
+              usageData.totalTokenCount = pTok + cTok;
+              if (pTok > 0 || cTok > 0) {
+                usageData.usageFound = true;
+              }
+            }
+
+            return {
+              contentString: "data: " + JSON.stringify(startChunk) + "\n\n",
+              usageData: usageData
+            };
+          }
+
+          if (eventData.type === "content_block_delta" && eventData.delta && eventData.delta.text !== undefined) {
+            var deltaChunk = {
+              id: "chatcmpl-" + Math.random().toString(36).substring(2, 11),
+              object: "chat.completion.chunk",
+              created: created,
+              model: model,
+              choices: [
+                {
+                  index: 0,
+                  delta: { content: eventData.delta.text },
+                  finish_reason: null
+                }
+              ]
+            };
+            return {
+              contentString: "data: " + JSON.stringify(deltaChunk) + "\n\n",
+              usageData: usageData
+            };
+          }
+
+          if (eventData.type === "message_delta" && eventData.delta) {
+            var stopReason = eventData.delta.stop_reason;
+            var finishReason = "stop";
+            if (stopReason === "max_tokens") finishReason = "length";
+            else if (stopReason === "end_turn" || stopReason === "stop_sequence") finishReason = "stop";
+            else if (stopReason) finishReason = stopReason.toLowerCase();
+
+            var stopChunk = {
+              id: "chatcmpl-" + Math.random().toString(36).substring(2, 11),
+              object: "chat.completion.chunk",
+              created: created,
+              model: model,
+              choices: [
+                {
+                  index: 0,
+                  delta: {},
+                  finish_reason: finishReason
+                }
+              ]
+            };
+
+            if (eventData.usage) {
+              var promptTok = eventData.usage.input_tokens !== undefined ? eventData.usage.input_tokens : 0;
+              var compTok = eventData.usage.output_tokens !== undefined ? eventData.usage.output_tokens : 0;
+              stopChunk.usage = {
+                prompt_tokens: promptTok,
+                completion_tokens: compTok,
+                total_tokens: promptTok + compTok
+              };
+              usageData.requestTokenCount = promptTok;
+              usageData.responseTokenCount = compTok;
+              usageData.totalTokenCount = promptTok + compTok;
+              if (promptTok > 0 || compTok > 0) {
+                usageData.usageFound = true;
+              }
+            }
+
+            return {
+              contentString: "data: " + JSON.stringify(stopChunk) + "\n\n",
+              usageData: usageData
+            };
+          }
+        } catch (e) {
+          // Return unchanged if parsing fails
+        }
+
+        return { contentString: contentString, usageData: usageData };
+      }
+
       if (typeof exports !== "undefined") {
         exports.getModelName = getModelName;
         exports.getTargetRoute = getTargetRoute;
@@ -1141,10 +1563,11 @@ resources:
         exports.convertGeminiToOpenAi = convertGeminiToOpenAi;
         exports.convertOpenAiToImagen = convertOpenAiToImagen;
         exports.convertImagenToOpenAi = convertImagenToOpenAi;
+        exports.convertOpenAiToAnthropic = convertOpenAiToAnthropic;
+        exports.convertAnthropicToOpenAi = convertAnthropicToOpenAi;
+        exports.convertAnthropicStreamToOpenAi = convertAnthropicStreamToOpenAi;
         exports.getModelTokenLimit = getModelTokenLimit;
         exports.getModelList = getModelList;
       }
-
-
 
 tests: []
