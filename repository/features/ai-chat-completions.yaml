@@ -260,7 +260,7 @@ policies:
         displayName: JS-Analytics
         properties: {}
         source: |
-
+          
           var contentString = context.getVariable("response.event.current.content");
           var prices = JSON.parse(context.getVariable("ai.prices"));
           var type = "streaming";
@@ -279,8 +279,12 @@ policies:
 
           if (aiProtocol === "openai" && aiProvider === "anthropic") {
             if (type === "streaming" && contentString) {
-              var streamResult = convertAnthropicStreamToOpenAi(contentString, modelName);
+              var streamMsgId = context.getVariable("ai.streamMessageId");
+              var streamResult = convertAnthropicStreamToOpenAi(contentString, modelName, streamMsgId);
               contentString = streamResult.contentString;
+              if (streamResult.messageId) {
+                context.setVariable("ai.streamMessageId", streamResult.messageId);
+              }
               context.setVariable("response.event.current.content", contentString);
               usageData = streamResult.usageData;
             } else if (type === "non-streaming" && contentString) {
@@ -364,7 +368,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-
+          
           var aiKey = context.getVariable("request.header.x-ai-key");
           var apiKey = context.getVariable("request.header.x-api-key");
           if (!aiKey && apiKey) {
@@ -1876,5 +1880,4 @@ resources:
         exports.getModelTokenLimit = getModelTokenLimit;
         exports.getModelList = getModelList;
       }
-
 tests: []

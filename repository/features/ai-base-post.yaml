@@ -1,39 +1,12 @@
-name: ai-base
-displayName: AI Base Functions
+name: ai-base-post
+displayName: AI Base Post Functions
 type: feature
-description: The base AI & LLM handling with model detection, token counting and analytics.
+description: The base AI & LLM response handling with token counting and analytics.
 documentation: ""
 categories:
   - llm
   - ai
-parameters:
-  - name: ModelRouting
-    displayName: ModelRouting
-    description: Configuration input for ModelRouting
-    default: "false"
-    examples: []
-    maps: {}
-  - name: ModelRoutingKey
-    displayName: ModelRoutingKey
-    description: Configuration input for ModelRoutingKey
-    default: ModelRouting
-    examples: []
-    maps: {}
-defaultEndpoint:
-  name: default
-  basePath: /ai-base
-  routes:
-    - name: default
-      target: default
-  flows:
-    - name: PreFlow
-      mode: Request
-      position: top
-      steps:
-        - name: KVM-LoadConfig
-        - name: AM-SetVariables
-        - name: JS-CheckModel
-  faultRules: []
+parameters: []
 defaultTarget:
   name: default
   url: https://aiplatform.googleapis.com
@@ -81,28 +54,6 @@ policies:
         properties: {}
         source: |
           context.setVariable("ai.usageDataFound", "false");
-
-  - name: AM-SetVariables
-    type: AssignMessage
-    content:
-      assignMessage:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: AM-SetVariables
-        displayName: AM-SetVariables
-        properties: {}
-        remove:
-          headers:
-            header:
-              metadata:
-                name: accept-encoding
-        ignoreUnresolvedVariables: "true"
-        assignTo:
-          metadata:
-            createNew: "false"
-            transport: http
-            type: request
   - name: DC-TokenAnalytics
     type: DataCapture
     content:
@@ -272,139 +223,7 @@ policies:
             context.setVariable("ai.usageDataFound", "false");
           }
         includeUrl: jsc://ai-functions.js
-  - name: JS-CheckModel
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-CheckModel
-        displayName: JS-CheckModel
-        properties: {}
-        source: |
-
-          var aiKey = context.getVariable("request.header.x-ai-key");
-          var apiKey = context.getVariable("request.header.x-api-key");
-          if (!aiKey && apiKey) {
-            context.setVariable("request.header.x-ai-key", apiKey);
-          }
-
-          var url = context.getVariable("proxy.url");
-          var prices = context.getVariable("ai.prices");
-          if (!prices) context.setVariable ("ai.prices", JSON.stringify({
-            "default": {"requestPerMillionTokens": 1, "responsePerMillionTokens": 3}
-          }));
-
-          var requestContent = request.content.asJSON;
-          var promptInfo = getPrompts(requestContent);
-          var aiProtocol = promptInfo.protocol || "unknown";
-          context.setVariable("ai.protocol", aiProtocol);
-
-          var callStreaming = "non-streaming";
-          if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
-
-          var modelName = getModelName(url, request.content);
-
-          var modelRouting = context.getVariable("propertyset.ai.ModelRouting");
-          if (!modelRouting) {
-            modelRouting = context.getVariable("propertyset.ModelRouting");
-          }
-
-          var modelRoutingConfig = context.getVariable("ai.modelRouting");
-          var rawModel = (requestContent && requestContent["model"]) ? requestContent["model"] : modelName;
-          var routeInfo = getTargetRoute(rawModel, modelRoutingConfig);
-          print(JSON.stringify(routeInfo));
-
-          if (modelRouting && (modelRouting.toString().toLowerCase() === "true" || modelRouting === true)) {
-            if (routeInfo) {
-              if (routeInfo.targetRoute) {
-                context.setVariable("target.route", routeInfo.targetRoute);
-                context.setVariable("ai.targetRoute", routeInfo.targetRoute);
-              }
-              if (routeInfo.cleanModelName) {
-                modelName = routeInfo.cleanModelName;
-              }
-              if (requestContent && requestContent["model"] && routeInfo.mappedModelName) {
-                requestContent["model"] = routeInfo.mappedModelName;
-              }
-            }
-          }
-
-          if (routeInfo && routeInfo.provider) {
-            context.setVariable("ai.provider", routeInfo.provider);
-          }
-
-          if (aiProtocol === "openai" && routeInfo && routeInfo.provider === "anthropic") {
-            requestContent = convertOpenAiToAnthropic(requestContent, routeInfo);
-            request.content = JSON.stringify(requestContent);
-          } else if (modelRouting && requestContent && requestContent["model"] && routeInfo && routeInfo.mappedModelName) {
-            request.content = JSON.stringify(requestContent);
-          }
-
-          context.setVariable("ai.model", modelName);
-          context.setVariable("ai.requestType", callStreaming);
-          context.setVariable("ai.apiType", aiProtocol);
-          context.setVariable("ai.user", "unknown");
-
-          if (routeInfo.provider == "anthropic" && callStreaming == "streaming")
-            context.setVariable("ai.method", "streamRawPredict");
-          else if (routeInfo.provider == "anthropic" && callStreaming == "non-streaming")
-            context.setVariable("ai.method", "rawPredict");
-          else if (routeInfo.provider == "google" && callStreaming == "non-streaming")
-            context.setVariable("ai.method", "generateContent");
-          else
-            context.setVariable("ai.method", "streamGenerateContent");
-
-          if (promptInfo.userPrompt)
-            context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
-          else
-            print("Could not find user prompt!");
-        includeUrl: jsc://ai-functions.js
-  - name: KVM-LoadConfig
-    type: KeyValueMapOperations
-    content:
-      keyValueMapOperations:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: KVM-LoadConfig
-          mapIdentifier: AI-Config
-        displayName: KVM-LoadConfig
-        properties: {}
-        exclusiveCache: "false"
-        expiryTimeInSecs: "10"
-        get:
-          - metadata:
-              assignTo: ai.failoverModel
-              index: "1"
-            key:
-              parameter: FailoverModel
-          - metadata:
-              assignTo: ai.prices
-              index: "1"
-            key:
-              parameter: PriceList
-          - metadata:
-              assignTo: ai.groupsLookup
-              index: "1"
-            key:
-              parameter: GroupsLookup
-          - metadata:
-              assignTo: ai.groups
-            key:
-              parameter: Groups
-          - metadata:
-              assignTo: ai.modelRouting
-            key:
-              parameter: "{ModelRoutingKey}"
-        scope: environment
 resources:
-  - name: ai.properties
-    type: properties
-    content: |
-      ModelRouting={ModelRouting}
   - name: ai-functions.js
     type: jsc
     content: |
@@ -1706,4 +1525,3 @@ resources:
         exports.getModelList = getModelList;
       }
 
-tests: []

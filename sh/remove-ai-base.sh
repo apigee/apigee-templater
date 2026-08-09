@@ -54,26 +54,26 @@ POST_FEATURE_FILES=(
     "./repository/features/ai-security.yaml"
 )
 
-echo "Applying ai-base-pre filter/feature..."
+echo "Removing ai-base-pre filter/feature..."
 for file in "${PRE_FEATURE_FILES[@]}"; do
     if [ -f "$file" ]; then
-        echo "  - Applying to $file (-a)"
-        aft -i "$file" -a "$PRE_FEATURE"
+        echo "  - Removing from $file (-r)"
+        aft -i "$file" -r "$PRE_FEATURE"
     else
         echo "  - Warning: $file not found, skipping."
     fi
 done
 
 echo ""
-echo "Applying ai-base-post filter/feature..."
+echo "Removing ai-base-post filter/feature..."
 for file in "${POST_FEATURE_FILES[@]}"; do
     if [ -f "$file" ]; then
-        echo "  - Applying to $file (-a)"
-        aft -i "$file" -a "$POST_FEATURE"
+        echo "  - Removing from $file (-r)"
+        aft -i "$file" -r "$POST_FEATURE"
     else
         echo "  - Warning: $file not found, skipping."
     fi
 done
 
 echo ""
-echo "Successfully applied ai-base-pre and ai-base-post features."
+echo "Successfully removed ai-base-pre and ai-base-post features."

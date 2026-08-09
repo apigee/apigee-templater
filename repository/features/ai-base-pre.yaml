@@ -1,148 +1,42 @@
-name: embeddings-v1
-displayName: REST-Embeddings-v1
+name: ai-base-pre
+displayName: AI Base Pre Functions
 type: feature
-description: REST-Embeddings-v1
+description: The base AI & LLM request pre-processing with model detection and routing.
 documentation: ""
-categories: []
-parameters: []
+categories:
+  - llm
+  - ai
+parameters:
+  - name: ModelRouting
+    displayName: ModelRouting
+    description: Configuration input for ModelRouting
+    default: "false"
+    examples: []
+    maps: {}
+  - name: ModelRoutingKey
+    displayName: ModelRoutingKey
+    description: Configuration input for ModelRoutingKey
+    default: ModelRouting
+    examples: []
+    maps: {}
 defaultEndpoint:
   name: default
-  basePath: /v1/embeddings
+  basePath: /ai-base-pre
   routes:
-    - name: route-google-eu
-      target: gcloud-eu
-      condition: target.route = "gcloud-eu"
-    - name: route-google
-      target: gcloud
-      condition: target.route = "gcloud"
-    - name: route-openai
-      target: openai
-      condition: target.route = "openai"
-    - name: route-anthropic
-      target: anthropic
-      condition: target.route = "anthropic"
     - name: default
-      target: gcloud
+      target: default
   flows:
     - name: PreFlow
       mode: Request
+      position: top
       steps:
         - name: KVM-LoadConfig
         - name: AM-SetVariables
         - name: JS-CheckModel
   faultRules: []
 endpoints: []
-targets:
-  - name: anthropic
-    url: https://api.anthropic.com
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://api.anthropic.com
-  - name: gcloud-eu
-    url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/embeddings
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/embeddings
-  - name: gcloud
-    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/embeddings
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/embeddings
-  - name: openai
-    url: https://api.openai.com
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://api.openai.com
+targets: []
 policies:
-  - name: JS-ResetUsageDataFound
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-ResetUsageDataFound
-        displayName: JS-ResetUsageDataFound
-        properties: {}
-        source: |
-          context.setVariable("ai.usageDataFound", "false");
   - name: AM-SetVariables
     type: AssignMessage
     content:
@@ -164,175 +58,6 @@ policies:
             createNew: "false"
             transport: http
             type: request
-  - name: DC-TokenAnalytics
-    type: DataCapture
-    content:
-      dataCapture:
-        metadata:
-          name: DC-TokenAnalytics
-          continueOnError: "false"
-          enabled: "true"
-        displayName: DC-TokenAnalytics
-        ignoreUnresolvedVariables: "false"
-        capture:
-          - collect:
-              metadata:
-                ref: ai.model
-                default: unknown
-            dataCollector: dc_ai_model
-          - collect:
-              metadata:
-                ref: ai.promptTokenCount
-                default: "0"
-            dataCollector: dc_ai_prompt_token_count
-          - collect:
-              metadata:
-                ref: ai.responseTokenCount
-                default: "0"
-            dataCollector: dc_ai_response_token_count
-          - collect:
-              metadata:
-                ref: ai.totalTokenCount
-                default: "0"
-            dataCollector: dc_ai_total_token_count
-          - collect:
-              metadata:
-                ref: ai.responseType
-                default: unknown
-            dataCollector: dc_ai_response_type
-          - collect:
-              metadata:
-                ref: ai.timeToFirstToken
-                default: "0"
-            dataCollector: dc_ai_time_first_token
-          - collect:
-              metadata:
-                ref: ai.costCenter
-                default: unknown
-            dataCollector: dc_ai_cost_center
-          - collect:
-              metadata:
-                ref: ai.requestCost
-                default: "0"
-            dataCollector: dc_ai_request_cost
-          - collect:
-              metadata:
-                ref: ai.responseCost
-                default: "0"
-            dataCollector: dc_ai_response_cost
-          - collect:
-              metadata:
-                ref: ai.totalCost
-                default: "0"
-            dataCollector: dc_ai_total_cost
-  - name: JS-Analytics
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-Analytics
-        displayName: JS-Analytics
-        properties: {}
-        source: |
-          
-          var contentString = context.getVariable("response.event.current.content");
-          var prices = JSON.parse(context.getVariable("ai.prices"));
-          var type = "streaming";
-          if (!contentString) {
-            contentString = context.getVariable("response.content");
-            type = "non-streaming";
-          }
-          context.setVariable("ai.responseType", type);
-          print(contentString);
-
-          var modelName = context.getVariable("ai.model");
-          var aiProtocol = context.getVariable("ai.protocol");
-          var aiProvider = context.getVariable("ai.provider");
-
-          var usageData = null;
-
-          if (aiProtocol === "openai" && aiProvider === "anthropic") {
-            if (type === "streaming" && contentString) {
-              var streamMsgId = context.getVariable("ai.streamMessageId");
-              var streamResult = convertAnthropicStreamToOpenAi(contentString, modelName, streamMsgId);
-              contentString = streamResult.contentString;
-              if (streamResult.messageId) {
-                context.setVariable("ai.streamMessageId", streamResult.messageId);
-              }
-              context.setVariable("response.event.current.content", contentString);
-              usageData = streamResult.usageData;
-            } else if (type === "non-streaming" && contentString) {
-              var nonStreamResult = convertAnthropicToOpenAi(contentString, modelName);
-              contentString = nonStreamResult.contentString;
-              context.setVariable("response.content", contentString);
-              usageData = nonStreamResult.usageData;
-            }
-          }
-
-          if (!usageData) {
-            usageData = getUsageData(contentString);
-          }
-
-          if (usageData.model) context.setVariable("ai.model", usageData.model);
-
-          var existingReqTokenCount = context.getVariable("ai.requestTokenCount");
-          if (existingReqTokenCount && !usageData.requestTokenCount) {
-            usageData.requestTokenCount = existingReqTokenCount;
-          }
-
-          if (usageData.usageFound) {
-            context.setVariable("ai.usageDataFound", "true");
-            if (usageData.requestTokenCount) {
-              context.setVariable("ai.promptTokenCount", usageData.requestTokenCount);
-              context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
-            }
-            if (usageData.responseTokenCount) {
-              context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
-            }
-            usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
-            context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
-
-            var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
-            if (!timeToFirstToken) {
-              var request_start_time = context.getVariable('client.received.start.timestamp');
-              var timeNow = Date.now();
-              timeToFirstToken = timeNow - request_start_time;
-              context.setVariable("ai.timeToFirstToken", timeToFirstToken);
-            }
-            if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
-
-            var costCenter = context.getVariable("ai.costCenter");
-            if (costCenter)
-              usageData.costCenter = costCenter;
-            else
-              usageData.costCenter = "unknown";
-
-            context.setVariable("ai.costCenter", usageData.costCenter);
-            usageData.type = type;
-
-            // cost calculation
-            var requestTokenPrice = prices["default"].requestPerMillionTokens;
-            if (prices[modelName]) requestTokenPrice = prices[modelName].requestPerMillionTokens;
-            var responseTokenPrice = prices["default"].responsePerMillionTokens;
-            if (prices[modelName]) responseTokenPrice = prices[modelName].responsePerMillionTokens;
-            var requestCost = parseFloat(usageData.requestTokenCount) * (parseFloat(requestTokenPrice) / 1000000);
-            var responseCost = parseFloat(usageData.responseTokenCount) * (parseFloat(responseTokenPrice) / 1000000);
-
-            context.setVariable("ai.requestCost", requestCost);
-            context.setVariable("ai.responseCost", responseCost);
-            context.setVariable("ai.totalCost", requestCost + responseCost);
-
-            usageData.requestCost = requestCost;
-            usageData.responseCost = responseCost;
-
-            print("Analytics data: " + JSON.stringify(usageData));
-          } else {
-            context.setVariable("ai.usageDataFound", "false");
-          }
-        includeUrl: jsc://ai-functions.js
   - name: JS-CheckModel
     type: Javascript
     content:
@@ -345,7 +70,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          
+
           var aiKey = context.getVariable("request.header.x-ai-key");
           var apiKey = context.getVariable("request.header.x-api-key");
           if (!aiKey && apiKey) {
@@ -382,7 +107,6 @@ policies:
             if (routeInfo) {
               if (routeInfo.targetRoute) {
                 context.setVariable("target.route", routeInfo.targetRoute);
-                context.setVariable("ai.targetRoute", routeInfo.targetRoute);
               }
               if (routeInfo.cleanModelName) {
                 modelName = routeInfo.cleanModelName;
@@ -459,13 +183,13 @@ policies:
           - metadata:
               assignTo: ai.modelRouting
             key:
-              parameter: ModelRouting
+              parameter: "{ModelRoutingKey}"
         scope: environment
 resources:
   - name: ai.properties
     type: properties
     content: |
-      ModelRouting=false
+      ModelRouting={ModelRouting}
   - name: ai-functions.js
     type: jsc
     content: |
@@ -1766,4 +1490,3 @@ resources:
         exports.getModelTokenLimit = getModelTokenLimit;
         exports.getModelList = getModelList;
       }
-tests: []

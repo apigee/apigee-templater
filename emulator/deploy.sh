@@ -28,7 +28,6 @@ cat << 'EOF' > "$ENV_DIR/deployments.json"
   "proxies": [
     {
       "name": "auth-v1",
-      "serviceAccount": "ai-service@ai-portals-solution.iam.gserviceaccount.com"
     },
     {
       "name": "completions-v1"
