@@ -224,12 +224,14 @@ describe("ai-functions.js unit tests", () => {
     expect(startResult.contentString).toContain('"object":"chat.completion.chunk"');
     expect(startResult.contentString).toContain('"role":"assistant"');
     expect(startResult.contentString).toContain('"prompt_tokens":15');
+    expect(startResult.messageId).toBe("chatcmpl-123");
     expect(startResult.usageData.usageFound).toBe(true);
     expect(startResult.usageData.requestTokenCount).toBe(15);
 
     const messageDeltaEvent = 'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":15,"output_tokens":549}}';
-    const deltaResult = convertAnthropicStreamToOpenAi(messageDeltaEvent, "claude-3-5-sonnet");
+    const deltaResult = convertAnthropicStreamToOpenAi(messageDeltaEvent, "claude-3-5-sonnet", startResult.messageId);
     expect(deltaResult.contentString).toContain('"finish_reason":"stop"');
+    expect(deltaResult.contentString).toContain('"id":"chatcmpl-123"');
     expect(deltaResult.contentString).toContain('"prompt_tokens":15');
     expect(deltaResult.contentString).toContain('"completion_tokens":549');
     expect(deltaResult.usageData.usageFound).toBe(true);
@@ -237,13 +239,34 @@ describe("ai-functions.js unit tests", () => {
     expect(deltaResult.usageData.responseTokenCount).toBe(549);
 
     const textDeltaEvent = 'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}';
-    const textDeltaResult = convertAnthropicStreamToOpenAi(textDeltaEvent, "claude-3-5-sonnet");
+    const textDeltaResult = convertAnthropicStreamToOpenAi(textDeltaEvent, "claude-3-5-sonnet", startResult.messageId);
     expect(textDeltaResult.contentString).toContain('"content":"Hello"');
+    expect(textDeltaResult.contentString).toContain('"id":"chatcmpl-123"');
     expect(textDeltaResult.usageData.usageFound).toBe(false);
+
+    // Ping and content_block_stop should produce empty string output (no leaked events or extra line breaks)
+    const pingEvent = 'event: ping\ndata: {"type":"ping"}';
+    const pingResult = convertAnthropicStreamToOpenAi(pingEvent, "claude-3-5-sonnet");
+    expect(pingResult.contentString).toBe("");
+
+    const blockStopEvent = 'event: content_block_stop\ndata: {"type":"content_block_stop","index":0}';
+    const blockStopResult = convertAnthropicStreamToOpenAi(blockStopEvent, "claude-3-5-sonnet");
+    expect(blockStopResult.contentString).toBe("");
+
+    // Test multi-event chunk in a single string
+    const multiEvent = 'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello "}}\n\nevent: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"world"}}';
+    const multiResult = convertAnthropicStreamToOpenAi(multiEvent, "claude-3-5-sonnet", "chatcmpl-123");
+    expect(multiResult.contentString).toContain('"content":"Hello "');
+    expect(multiResult.contentString).toContain('"content":"world"');
+
+    // Test thinking delta conversion
+    const thinkingEvent = 'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"Let me think..."}}';
+    const thinkingResult = convertAnthropicStreamToOpenAi(thinkingEvent, "claude-3-5-sonnet");
+    expect(thinkingResult.contentString).toContain('"reasoning_content":"Let me think..."');
 
     const stopEvent = 'event: message_stop\ndata: {"type":"message_stop" }';
     const stopResult = convertAnthropicStreamToOpenAi(stopEvent, "claude-3-5-sonnet");
-    expect(stopResult.contentString).toBe("data: [DONE]\n\n");
+    expect(stopResult.contentString).toBe("data: [DONE]");
     expect(stopResult.usageData.usageFound).toBe(false);
 
     // Test getUsageData on [DONE] converted chunk (must not throw exception)

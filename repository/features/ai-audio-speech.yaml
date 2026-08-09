@@ -1,72 +1,20 @@
-name: audio-v1
-displayName: REST-Audio-v1
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee-templater.schema.json
+name: ai-audio-speech-v1
+displayName: REST-AI-Audio-Speech-v1
 type: feature
 description: REST-Audio-v1
 documentation: ""
 categories: []
 parameters: []
-defaultEndpoint:
-  name: default
-  basePath: /v1/audio
-  routes:
-    - name: route-google-eu
-      target: gcloud-eu
-      condition: target.route = "gcloud-eu"
-    - name: route-google
-      target: gcloud
-      condition: target.route = "gcloud"
-    - name: route-openai
-      target: openai
-      condition: target.route = "openai"
-    - name: route-anthropic
-      target: anthropic
-      condition: target.route = "anthropic"
-    - name: default
-      target: gcloud
-  flows:
-    - name: PreFlow
-      mode: Request
-      steps:
-        - name: KVM-LoadConfig
-        - name: AM-SetVariables
-        - name: JS-CheckModel
-  faultRules: []
 endpoints:
-  - name: transcriptions
-    basePath: /v1/audio/transcriptions
-    routes:
-      - name: route-google-eu
-        target: gcloud-eu
-        condition: target.route = "gcloud-eu"
-      - name: route-google
-        target: gcloud
-        condition: target.route = "gcloud"
-      - name: route-openai
-        target: openai
-        condition: target.route = "openai"
-      - name: default
-        target: gcloud
-    flows:
-      - name: PreFlow
-        mode: Request
-        steps:
-          - name: KVM-LoadConfig
-          - name: AM-SetVariables
-          - name: JS-CheckModel
   - name: speech
     basePath: /v1/audio/speech
     routes:
-      - name: route-google-eu
-        target: gcloud-eu
-        condition: target.route = "gcloud-eu"
-      - name: route-google
-        target: gcloud
-        condition: target.route = "gcloud"
-      - name: route-openai
+      - name: googlecloud
+        target: googlecloud
+      - name: openai
         target: openai
         condition: target.route = "openai"
-      - name: default
-        target: gcloud
     flows:
       - name: PreFlow
         mode: Request
@@ -75,106 +23,38 @@ endpoints:
           - name: AM-SetVariables
           - name: JS-CheckModel
 targets:
-  - name: anthropic
-    url: https://api.anthropic.com
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: ai.responseTokenCount == null
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://api.anthropic.com
-  - name: gcloud-eu
-    url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/audio
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: ai.responseTokenCount == null
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://aiplatform.eu.rep.googleapis.com/v1/projects/{organization.name}/locations/eu/endpoints/openapi/audio
-  - name: gcloud
+  - name: googlecloud
     url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/audio
     flows:
       - name: PostFlow
         mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
+        steps: []
       - name: EventFlow
         mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: ai.responseTokenCount == null
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
+        steps: []
     faultRules: []
     httpTargetConnection:
-      properties: {}
+      properties:
+        - metadata:
+            name: response.streaming.enabled
+            value: true
       url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/audio
   - name: openai
-    url: https://api.openai.com
+    url: https://api.openai.com/v1/audio/speech
     flows:
       - name: PostFlow
         mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
+        steps: []
       - name: EventFlow
         mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: ai.responseTokenCount == null
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
+        steps: []
     faultRules: []
     httpTargetConnection:
-      properties: {}
-      url: https://api.openai.com
+      properties:
+        - metadata:
+            name: response.streaming.enabled
+            value: true
+      url: https://api.openai.com/v1/audio/speech
 policies:
   - name: JS-ResetUsageDataFound
     type: Javascript
@@ -289,7 +169,7 @@ policies:
         displayName: JS-Analytics
         properties: {}
         source: |
-          
+
           var contentString = context.getVariable("response.event.current.content");
           var prices = JSON.parse(context.getVariable("ai.prices"));
           var type = "streaming";
@@ -362,7 +242,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          
+
           var aiKey = context.getVariable("request.header.x-ai-key");
           var apiKey = context.getVariable("request.header.x-api-key");
           if (!aiKey && apiKey) {
@@ -604,7 +484,7 @@ resources:
 
           if (!result.targetRoute) {
             for (var modelKey in parsedConfig.models) {
-              if (currentModel.includes(modelKey)) {
+              if (currentModel.includes(modelKey) || modelKey.includes(currentModel)) {
                 result.targetRoute = parsedConfig.models[modelKey];
                 break;
               }
@@ -1478,7 +1358,7 @@ resources:
       }
 
       // Anthropic stream event chunk to OpenAI format conversion (streaming)
-      function convertAnthropicStreamToOpenAi(contentString, modelName) {
+      function convertAnthropicStreamToOpenAi(contentString, modelName, streamMessageId) {
         var usageData = {
           model: modelName || "",
           requestTokenCount: 0,
@@ -1488,131 +1368,270 @@ resources:
         };
 
         if (!contentString) {
-          return { contentString: contentString || "", usageData: usageData };
+          return { contentString: "", usageData: usageData, messageId: streamMessageId || "" };
         }
 
-        var raw = contentString.trim();
-
-        if (raw.indexOf("message_stop") !== -1 || raw.indexOf("[DONE]") !== -1) {
-          return { contentString: "data: [DONE]\n\n", usageData: usageData };
+        var activeMsgId = streamMessageId || "";
+        if (!activeMsgId && typeof context !== "undefined" && context && context.getVariable) {
+          activeMsgId = context.getVariable("ai.streamMessageId") || "";
         }
 
-        var jsonStr = raw;
-        if (jsonStr.indexOf("data: ") !== -1) {
-          var parts = jsonStr.split("data: ");
-          jsonStr = parts[parts.length - 1].trim();
-        }
+        var rawBlocks = contentString.split(/\r?\n\r?\n/);
+        var outputChunks = [];
 
-        try {
-          var eventData = JSON.parse(jsonStr);
-          var created = Math.floor(Date.now() / 1000);
-          var model = modelName || "claude";
+        for (var b = 0; b < rawBlocks.length; b++) {
+          var raw = rawBlocks[b].trim();
+          if (!raw) continue;
 
-          if (eventData.type === "message_start" && eventData.message) {
-            var msgId = eventData.message.id ? ("chatcmpl-" + eventData.message.id.replace(/^msg_/, "")) : ("chatcmpl-" + Math.random().toString(36).substring(2, 11));
-            var startChunk = {
-              id: msgId,
-              object: "chat.completion.chunk",
-              created: created,
-              model: eventData.message.model || model,
-              choices: [
-                {
-                  index: 0,
-                  delta: { role: "assistant", content: "" },
-                  finish_reason: null
-                }
-              ]
-            };
+          if (raw.indexOf("message_stop") !== -1 || raw.indexOf("[DONE]") !== -1) {
+            outputChunks.push("data: [DONE]");
+            continue;
+          }
 
-            if (eventData.message.usage) {
-              var pTok = eventData.message.usage.input_tokens !== undefined ? eventData.message.usage.input_tokens : 0;
-              var cTok = eventData.message.usage.output_tokens !== undefined ? eventData.message.usage.output_tokens : 0;
-              startChunk.usage = {
-                prompt_tokens: pTok,
-                completion_tokens: cTok,
-                total_tokens: pTok + cTok
-              };
-              usageData.requestTokenCount = pTok;
-              usageData.responseTokenCount = cTok;
-              usageData.totalTokenCount = pTok + cTok;
-              if (pTok > 0 || cTok > 0) {
-                usageData.usageFound = true;
+          var eventType = "";
+          var dataStr = "";
+          var lines = raw.split(/\r?\n/);
+
+          for (var l = 0; l < lines.length; l++) {
+            var line = lines[l].trim();
+            if (line.startsWith("event:")) {
+              eventType = line.substring(6).trim();
+            } else if (line.startsWith("data:")) {
+              dataStr = line.substring(5).trim();
+            }
+          }
+
+          if (!dataStr && raw.startsWith("{")) {
+            dataStr = raw;
+          }
+
+          if (!dataStr) {
+            continue;
+          }
+
+          try {
+            var eventData = JSON.parse(dataStr);
+            var type = eventType || eventData.type || "";
+            var created = Math.floor(Date.now() / 1000);
+            var model = modelName || eventData.model || "claude";
+
+            if (type === "message_start" && eventData.message) {
+              if (eventData.message.id) {
+                activeMsgId = "chatcmpl-" + eventData.message.id.replace(/^msg_/, "");
+              } else if (!activeMsgId) {
+                activeMsgId = "chatcmpl-" + Math.random().toString(36).substring(2, 11);
               }
+              if (typeof context !== "undefined" && context && context.setVariable) {
+                context.setVariable("ai.streamMessageId", activeMsgId);
+              }
+
+              var startChunk = {
+                id: activeMsgId,
+                object: "chat.completion.chunk",
+                created: created,
+                model: eventData.message.model || model,
+                choices: [
+                  {
+                    index: 0,
+                    delta: { role: "assistant", content: "" },
+                    finish_reason: null
+                  }
+                ]
+              };
+
+              if (eventData.message.usage) {
+                var pTok = eventData.message.usage.input_tokens !== undefined ? eventData.message.usage.input_tokens : 0;
+                var cTok = eventData.message.usage.output_tokens !== undefined ? eventData.message.usage.output_tokens : 0;
+                startChunk.usage = {
+                  prompt_tokens: pTok,
+                  completion_tokens: cTok,
+                  total_tokens: pTok + cTok
+                };
+                usageData.requestTokenCount = pTok;
+                usageData.responseTokenCount = cTok;
+                usageData.totalTokenCount = pTok + cTok;
+                if (pTok > 0 || cTok > 0) {
+                  usageData.usageFound = true;
+                }
+              }
+
+              outputChunks.push("data: " + JSON.stringify(startChunk));
+              continue;
             }
 
-            return {
-              contentString: "data: " + JSON.stringify(startChunk) + "\n\n",
-              usageData: usageData
-            };
-          }
-
-          if (eventData.type === "content_block_delta" && eventData.delta && eventData.delta.text !== undefined) {
-            var deltaChunk = {
-              id: "chatcmpl-" + Math.random().toString(36).substring(2, 11),
-              object: "chat.completion.chunk",
-              created: created,
-              model: model,
-              choices: [
-                {
-                  index: 0,
-                  delta: { content: eventData.delta.text },
-                  finish_reason: null
-                }
-              ]
-            };
-            return {
-              contentString: "data: " + JSON.stringify(deltaChunk) + "\n\n",
-              usageData: usageData
-            };
-          }
-
-          if (eventData.type === "message_delta" && eventData.delta) {
-            var stopReason = eventData.delta.stop_reason;
-            var finishReason = "stop";
-            if (stopReason === "max_tokens") finishReason = "length";
-            else if (stopReason === "end_turn" || stopReason === "stop_sequence") finishReason = "stop";
-            else if (stopReason) finishReason = stopReason.toLowerCase();
-
-            var stopChunk = {
-              id: "chatcmpl-" + Math.random().toString(36).substring(2, 11),
-              object: "chat.completion.chunk",
-              created: created,
-              model: model,
-              choices: [
-                {
-                  index: 0,
-                  delta: {},
-                  finish_reason: finishReason
-                }
-              ]
-            };
-
-            if (eventData.usage) {
-              var promptTok = eventData.usage.input_tokens !== undefined ? eventData.usage.input_tokens : 0;
-              var compTok = eventData.usage.output_tokens !== undefined ? eventData.usage.output_tokens : 0;
-              stopChunk.usage = {
-                prompt_tokens: promptTok,
-                completion_tokens: compTok,
-                total_tokens: promptTok + compTok
-              };
-              usageData.requestTokenCount = promptTok;
-              usageData.responseTokenCount = compTok;
-              usageData.totalTokenCount = promptTok + compTok;
-              if (promptTok > 0 || compTok > 0) {
-                usageData.usageFound = true;
-              }
+            if (!activeMsgId) {
+              activeMsgId = "chatcmpl-" + Math.random().toString(36).substring(2, 11);
             }
 
-            return {
-              contentString: "data: " + JSON.stringify(stopChunk) + "\n\n",
-              usageData: usageData
-            };
+            if (type === "content_block_start" && eventData.content_block) {
+              var cb = eventData.content_block;
+              var blockIndex = eventData.index || 0;
+
+              if (cb.type === "tool_use") {
+                var toolStartChunk = {
+                  id: activeMsgId,
+                  object: "chat.completion.chunk",
+                  created: created,
+                  model: model,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: {
+                        tool_calls: [
+                          {
+                            index: blockIndex,
+                            id: cb.id || "",
+                            type: "function",
+                            function: {
+                              name: cb.name || "",
+                              arguments: ""
+                            }
+                          }
+                        ]
+                      },
+                      finish_reason: null
+                    }
+                  ]
+                };
+                outputChunks.push("data: " + JSON.stringify(toolStartChunk));
+              } else if (cb.type === "text" && cb.text) {
+                var textStartChunk = {
+                  id: activeMsgId,
+                  object: "chat.completion.chunk",
+                  created: created,
+                  model: model,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: { content: cb.text },
+                      finish_reason: null
+                    }
+                  ]
+                };
+                outputChunks.push("data: " + JSON.stringify(textStartChunk));
+              }
+              continue;
+            }
+
+            if (type === "content_block_delta" && eventData.delta) {
+              var deltaObj = eventData.delta;
+              var blockIdx = eventData.index || 0;
+
+              if (deltaObj.type === "text_delta" && deltaObj.text !== undefined) {
+                var deltaChunk = {
+                  id: activeMsgId,
+                  object: "chat.completion.chunk",
+                  created: created,
+                  model: model,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: { content: deltaObj.text },
+                      finish_reason: null
+                    }
+                  ]
+                };
+                outputChunks.push("data: " + JSON.stringify(deltaChunk));
+              } else if (deltaObj.type === "thinking_delta" && deltaObj.thinking !== undefined) {
+                var thinkingChunk = {
+                  id: activeMsgId,
+                  object: "chat.completion.chunk",
+                  created: created,
+                  model: model,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: { reasoning_content: deltaObj.thinking },
+                      finish_reason: null
+                    }
+                  ]
+                };
+                outputChunks.push("data: " + JSON.stringify(thinkingChunk));
+              } else if (deltaObj.type === "input_json_delta" && deltaObj.partial_json !== undefined) {
+                var toolDeltaChunk = {
+                  id: activeMsgId,
+                  object: "chat.completion.chunk",
+                  created: created,
+                  model: model,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: {
+                        tool_calls: [
+                          {
+                            index: blockIdx,
+                            function: { arguments: deltaObj.partial_json }
+                          }
+                        ]
+                      },
+                      finish_reason: null
+                    }
+                  ]
+                };
+                outputChunks.push("data: " + JSON.stringify(toolDeltaChunk));
+              }
+              continue;
+            }
+
+            if (type === "content_block_stop") {
+              continue;
+            }
+
+            if (type === "message_delta" && eventData.delta) {
+              var stopReason = eventData.delta.stop_reason;
+              var finishReason = "stop";
+              if (stopReason === "max_tokens") finishReason = "length";
+              else if (stopReason === "end_turn" || stopReason === "stop_sequence") finishReason = "stop";
+              else if (stopReason === "tool_use") finishReason = "tool_calls";
+              else if (stopReason) finishReason = stopReason.toLowerCase();
+
+              var stopChunk = {
+                id: activeMsgId,
+                object: "chat.completion.chunk",
+                created: created,
+                model: model,
+                choices: [
+                  {
+                    index: 0,
+                    delta: {},
+                    finish_reason: finishReason
+                  }
+                ]
+              };
+
+              if (eventData.usage) {
+                var promptTok = eventData.usage.input_tokens !== undefined ? eventData.usage.input_tokens : 0;
+                var compTok = eventData.usage.output_tokens !== undefined ? eventData.usage.output_tokens : 0;
+                stopChunk.usage = {
+                  prompt_tokens: promptTok,
+                  completion_tokens: compTok,
+                  total_tokens: promptTok + compTok
+                };
+                usageData.requestTokenCount = promptTok;
+                usageData.responseTokenCount = compTok;
+                usageData.totalTokenCount = promptTok + compTok;
+                if (promptTok > 0 || compTok > 0) {
+                  usageData.usageFound = true;
+                }
+              }
+
+              outputChunks.push("data: " + JSON.stringify(stopChunk));
+              continue;
+            }
+
+            if (type === "ping") {
+              continue;
+            }
+
+          } catch (e) {
           }
-        } catch (e) {
-          // Return unchanged if parsing fails
         }
 
-        return { contentString: contentString, usageData: usageData };
+        return {
+          contentString: outputChunks.join("\n\n"),
+          usageData: usageData,
+          messageId: activeMsgId
+        };
       }
 
       if (typeof exports !== "undefined") {
