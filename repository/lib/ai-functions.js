@@ -277,7 +277,7 @@ function getTargetRoute(modelName, config) {
     result.provider = rawProvider;
   } else {
     var lower = currentModel.toLowerCase();
-    if (lower.indexOf("gemini") !== -1) {
+    if (lower.indexOf("gemini") !== -1 || lower.indexOf("embedding") !== -1) {
       result.provider = "google";
       result.targetRoute = "googlecloud";
     } else if (lower.indexOf("claude") !== -1) {
@@ -858,21 +858,56 @@ function convertOpenAiMultipartToGemini(multipartData) {
 }
 
 function convertOpenAiToGeminiEmbeddings(openAiPayload) {
-  if (!openAiPayload) return { instances: [] };
+  if (!openAiPayload) return { content: { parts: [] } };
 
   var rawInput = openAiPayload.input || "";
-  var instances = [];
+  var textStr = "";
 
   if (Array.isArray(rawInput)) {
-    for (var i = 0; i < rawInput.length; i++) {
-      instances.push({ content: rawInput[i] });
-    }
+    textStr = rawInput.length > 0 ? rawInput[0] : "";
   } else if (typeof rawInput === "string") {
-    instances.push({ content: rawInput });
+    textStr = rawInput;
   }
 
   return {
-    instances: instances
+    content: {
+      parts: [
+        { text: textStr }
+      ]
+    }
+  };
+}
+
+// Gemini embeddings response to OpenAI embeddings response conversion
+function convertGeminiEmbeddingsToOpenAi(geminiResponse, modelName) {
+  if (!geminiResponse) return { object: "list", data: [], model: modelName || "gemini-embedding" };
+
+  var values = [];
+  if (geminiResponse.embedding && geminiResponse.embedding.values) {
+    values = geminiResponse.embedding.values;
+  } else if (geminiResponse.predictions && Array.isArray(geminiResponse.predictions) && geminiResponse.predictions.length > 0) {
+    var pred = geminiResponse.predictions[0];
+    if (pred.embeddings && pred.embeddings.values) {
+      values = pred.embeddings.values;
+    } else if (pred.values) {
+      values = pred.values;
+    }
+  }
+
+  return {
+    object: "list",
+    data: [
+      {
+        object: "embedding",
+        index: 0,
+        embedding: values
+      }
+    ],
+    model: modelName || "gemini-embedding",
+    usage: {
+      prompt_tokens: 0,
+      total_tokens: 0
+    }
   };
 }
 
@@ -889,7 +924,17 @@ function convertOpenAiPayload(openAiPayload, provider, requestType, routeInfo) {
     } else if (type === "audio-data") {
       return convertOpenAiMultipartToGemini(openAiPayload);
     } else if (type === "image-generation") {
-      return convertOpenAiToImagen(openAiPayload);
+      var modelStr = "";
+      if (openAiPayload && openAiPayload.model) {
+        modelStr = openAiPayload.model.toLowerCase();
+      } else if (routeInfo && (routeInfo.cleanModelName || routeInfo.mappedModelName)) {
+        modelStr = (routeInfo.mappedModelName || routeInfo.cleanModelName).toLowerCase();
+      }
+      if (modelStr.indexOf("imagen") !== -1) {
+        return convertOpenAiToImagen(openAiPayload);
+      } else {
+        return convertOpenAiToGeminiImage(openAiPayload);
+      }
     } else if (type === "embeddings") {
       return convertOpenAiToGeminiEmbeddings(openAiPayload);
     }
@@ -1043,6 +1088,32 @@ function convertOpenAiToImagen(openAiPayload) {
   };
 }
 
+// OpenAI image generation request to Gemini generateContent request conversion
+function convertOpenAiToGeminiImage(openAiPayload) {
+  if (!openAiPayload) return { contents: [] };
+
+  var promptText = openAiPayload.prompt || "";
+  var config = {
+    responseModalities: ["IMAGE"]
+  };
+
+  if (openAiPayload.aspect_ratio) {
+    config.aspectRatio = openAiPayload.aspect_ratio;
+  }
+
+  return {
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { text: promptText }
+        ]
+      }
+    ],
+    generationConfig: config
+  };
+}
+
 // Imagen native predict response to OpenAI image generation response conversion
 function convertImagenToOpenAi(imagenResponse, modelName) {
   if (!imagenResponse) return { created: Math.floor(Date.now() / 1000), data: [] };
@@ -1063,6 +1134,23 @@ function convertImagenToOpenAi(imagenResponse, modelName) {
         openAiResponse.data.push({
           url: pred.gcsUri
         });
+      }
+    }
+  } else if (imagenResponse.candidates && Array.isArray(imagenResponse.candidates)) {
+    for (var c = 0; c < imagenResponse.candidates.length; c++) {
+      var cand = imagenResponse.candidates[c];
+      if (cand && cand.content && cand.content.parts && Array.isArray(cand.content.parts)) {
+        for (var p = 0; p < cand.content.parts.length; p++) {
+          var part = cand.content.parts[p];
+          if (part) {
+            var inline = part.inlineData || part.inline_data;
+            if (inline && inline.data) {
+              openAiResponse.data.push({
+                b64_json: inline.data
+              });
+            }
+          }
+        }
       }
     }
   }
@@ -1675,6 +1763,7 @@ if (typeof exports !== "undefined") {
   exports.parseMultipartFormData = parseMultipartFormData;
   exports.convertOpenAiMultipartToGemini = convertOpenAiMultipartToGemini;
   exports.convertOpenAiToGeminiEmbeddings = convertOpenAiToGeminiEmbeddings;
+  exports.convertGeminiEmbeddingsToOpenAi = convertGeminiEmbeddingsToOpenAi;
   exports.convertOpenAiToGemini = convertOpenAiToGemini;
   exports.convertOpenAiToGeminiAudio = convertOpenAiToGeminiAudio;
   exports.convertGeminiAudioToOpenAi = convertGeminiAudioToOpenAi;
@@ -1682,6 +1771,7 @@ if (typeof exports !== "undefined") {
   exports.convertOpenAiPayload = convertOpenAiPayload;
   exports.convertGeminiToOpenAi = convertGeminiToOpenAi;
   exports.convertOpenAiToImagen = convertOpenAiToImagen;
+  exports.convertOpenAiToGeminiImage = convertOpenAiToGeminiImage;
   exports.convertImagenToOpenAi = convertImagenToOpenAi;
   exports.convertOpenAiToAnthropic = convertOpenAiToAnthropic;
   exports.convertAnthropicToOpenAi = convertAnthropicToOpenAi;

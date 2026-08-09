@@ -434,6 +434,26 @@ policies:
               context.setVariable("response.header.Content-Type", audioResult.mimeType || "audio/mpeg");
               context.setVariable("response.content", rawBytes);
             }
+          } else if (reqType === "image-generation" && (aiProvider === "google" || aiProvider === "gemini") && aiProtocol === "openai" && contentString) {
+            var imageObj = null;
+            try {
+              imageObj = JSON.parse(contentString);
+            } catch (e) {}
+            if (imageObj) {
+              var openAiImageResp = convertImagenToOpenAi(imageObj, modelName);
+              contentString = JSON.stringify(openAiImageResp);
+              context.setVariable("response.content", contentString);
+            }
+          } else if (reqType === "embeddings" && (aiProvider === "google" || aiProvider === "gemini") && aiProtocol === "openai" && contentString) {
+            var embedObj = null;
+            try {
+              embedObj = JSON.parse(contentString);
+            } catch (e) {}
+            if (embedObj) {
+              var openAiEmbedResp = convertGeminiEmbeddingsToOpenAi(embedObj, modelName);
+              contentString = JSON.stringify(openAiEmbedResp);
+              context.setVariable("response.content", contentString);
+            }
           }
 
           if (!usageData) {
@@ -556,16 +576,16 @@ policies:
 
           var isRoutingEnabled = modelRouting && (modelRouting.toString().toLowerCase() === "true" || modelRouting === true);
 
+          var cleanModel = (routeInfo && routeInfo.mappedModelName) ? routeInfo.mappedModelName :
+                           ((routeInfo && routeInfo.cleanModelName) ? routeInfo.cleanModelName : modelName);
+
           if (isRoutingEnabled && routeInfo) {
             if (routeInfo.targetRoute) {
               context.setVariable("target.route", routeInfo.targetRoute);
               context.setVariable("ai.targetRoute", routeInfo.targetRoute);
             }
-            if (routeInfo.cleanModelName) {
-              modelName = routeInfo.cleanModelName;
-            }
-            if (requestContent && requestContent["model"] && routeInfo.mappedModelName) {
-              requestContent["model"] = routeInfo.mappedModelName;
+            if (cleanModel) {
+              modelName = cleanModel;
             }
           }
 
@@ -592,7 +612,8 @@ policies:
               requestContent = convertOpenAiPayload(requestContent, effectiveProvider, reqInfo.requestType, routeInfo);
               request.content = JSON.stringify(requestContent);
             }
-          } else if (isRoutingEnabled && requestContent && requestContent["model"] && routeInfo && routeInfo.mappedModelName && targetRoute !== "openai" && effectiveProvider !== "openai") {
+          } else if (requestContent && typeof requestContent === "object" && requestContent["model"]) {
+            requestContent["model"] = cleanModel;
             request.content = JSON.stringify(requestContent);
           }
 
@@ -605,10 +626,14 @@ policies:
 
           if (routeInfo && routeInfo.provider === "anthropic") {
             context.setVariable("ai.method", callStreaming === "streaming" ? "streamRawPredict" : "rawPredict");
-          } else if (routeInfo && routeInfo.provider === "google" && callStreaming === "non-streaming") {
-            context.setVariable("ai.method", "generateContent");
-          } else {
-            context.setVariable("ai.method", "streamGenerateContent");
+          } else if (routeInfo && routeInfo.provider === "google") {
+            if (reqInfo.requestType === "embeddings") {
+              context.setVariable("ai.method", "embedContent");
+            } else if (callStreaming === "non-streaming") {
+              context.setVariable("ai.method", "generateContent");
+            } else {
+              context.setVariable("ai.method", "streamGenerateContent");
+            }
           }
 
           if (reqInfo.input) {
@@ -949,7 +974,7 @@ resources:
           result.provider = rawProvider;
         } else {
           var lower = currentModel.toLowerCase();
-          if (lower.indexOf("gemini") !== -1) {
+          if (lower.indexOf("gemini") !== -1 || lower.indexOf("embedding") !== -1) {
             result.provider = "google";
             result.targetRoute = "googlecloud";
           } else if (lower.indexOf("claude") !== -1) {
@@ -1530,21 +1555,56 @@ resources:
       }
 
       function convertOpenAiToGeminiEmbeddings(openAiPayload) {
-        if (!openAiPayload) return { instances: [] };
+        if (!openAiPayload) return { content: { parts: [] } };
 
         var rawInput = openAiPayload.input || "";
-        var instances = [];
+        var textStr = "";
 
         if (Array.isArray(rawInput)) {
-          for (var i = 0; i < rawInput.length; i++) {
-            instances.push({ content: rawInput[i] });
-          }
+          textStr = rawInput.length > 0 ? rawInput[0] : "";
         } else if (typeof rawInput === "string") {
-          instances.push({ content: rawInput });
+          textStr = rawInput;
         }
 
         return {
-          instances: instances
+          content: {
+            parts: [
+              { text: textStr }
+            ]
+          }
+        };
+      }
+
+      // Gemini embeddings response to OpenAI embeddings response conversion
+      function convertGeminiEmbeddingsToOpenAi(geminiResponse, modelName) {
+        if (!geminiResponse) return { object: "list", data: [], model: modelName || "gemini-embedding" };
+
+        var values = [];
+        if (geminiResponse.embedding && geminiResponse.embedding.values) {
+          values = geminiResponse.embedding.values;
+        } else if (geminiResponse.predictions && Array.isArray(geminiResponse.predictions) && geminiResponse.predictions.length > 0) {
+          var pred = geminiResponse.predictions[0];
+          if (pred.embeddings && pred.embeddings.values) {
+            values = pred.embeddings.values;
+          } else if (pred.values) {
+            values = pred.values;
+          }
+        }
+
+        return {
+          object: "list",
+          data: [
+            {
+              object: "embedding",
+              index: 0,
+              embedding: values
+            }
+          ],
+          model: modelName || "gemini-embedding",
+          usage: {
+            prompt_tokens: 0,
+            total_tokens: 0
+          }
         };
       }
 
@@ -1561,7 +1621,17 @@ resources:
           } else if (type === "audio-data") {
             return convertOpenAiMultipartToGemini(openAiPayload);
           } else if (type === "image-generation") {
-            return convertOpenAiToImagen(openAiPayload);
+            var modelStr = "";
+            if (openAiPayload && openAiPayload.model) {
+              modelStr = openAiPayload.model.toLowerCase();
+            } else if (routeInfo && (routeInfo.cleanModelName || routeInfo.mappedModelName)) {
+              modelStr = (routeInfo.mappedModelName || routeInfo.cleanModelName).toLowerCase();
+            }
+            if (modelStr.indexOf("imagen") !== -1) {
+              return convertOpenAiToImagen(openAiPayload);
+            } else {
+              return convertOpenAiToGeminiImage(openAiPayload);
+            }
           } else if (type === "embeddings") {
             return convertOpenAiToGeminiEmbeddings(openAiPayload);
           }
@@ -1715,6 +1785,32 @@ resources:
         };
       }
 
+      // OpenAI image generation request to Gemini generateContent request conversion
+      function convertOpenAiToGeminiImage(openAiPayload) {
+        if (!openAiPayload) return { contents: [] };
+
+        var promptText = openAiPayload.prompt || "";
+        var config = {
+          responseModalities: ["IMAGE"]
+        };
+
+        if (openAiPayload.aspect_ratio) {
+          config.aspectRatio = openAiPayload.aspect_ratio;
+        }
+
+        return {
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: promptText }
+              ]
+            }
+          ],
+          generationConfig: config
+        };
+      }
+
       // Imagen native predict response to OpenAI image generation response conversion
       function convertImagenToOpenAi(imagenResponse, modelName) {
         if (!imagenResponse) return { created: Math.floor(Date.now() / 1000), data: [] };
@@ -1735,6 +1831,23 @@ resources:
               openAiResponse.data.push({
                 url: pred.gcsUri
               });
+            }
+          }
+        } else if (imagenResponse.candidates && Array.isArray(imagenResponse.candidates)) {
+          for (var c = 0; c < imagenResponse.candidates.length; c++) {
+            var cand = imagenResponse.candidates[c];
+            if (cand && cand.content && cand.content.parts && Array.isArray(cand.content.parts)) {
+              for (var p = 0; p < cand.content.parts.length; p++) {
+                var part = cand.content.parts[p];
+                if (part) {
+                  var inline = part.inlineData || part.inline_data;
+                  if (inline && inline.data) {
+                    openAiResponse.data.push({
+                      b64_json: inline.data
+                    });
+                  }
+                }
+              }
             }
           }
         }
@@ -2347,6 +2460,7 @@ resources:
         exports.parseMultipartFormData = parseMultipartFormData;
         exports.convertOpenAiMultipartToGemini = convertOpenAiMultipartToGemini;
         exports.convertOpenAiToGeminiEmbeddings = convertOpenAiToGeminiEmbeddings;
+        exports.convertGeminiEmbeddingsToOpenAi = convertGeminiEmbeddingsToOpenAi;
         exports.convertOpenAiToGemini = convertOpenAiToGemini;
         exports.convertOpenAiToGeminiAudio = convertOpenAiToGeminiAudio;
         exports.convertGeminiAudioToOpenAi = convertGeminiAudioToOpenAi;
@@ -2354,6 +2468,7 @@ resources:
         exports.convertOpenAiPayload = convertOpenAiPayload;
         exports.convertGeminiToOpenAi = convertGeminiToOpenAi;
         exports.convertOpenAiToImagen = convertOpenAiToImagen;
+        exports.convertOpenAiToGeminiImage = convertOpenAiToGeminiImage;
         exports.convertImagenToOpenAi = convertImagenToOpenAi;
         exports.convertOpenAiToAnthropic = convertOpenAiToAnthropic;
         exports.convertAnthropicToOpenAi = convertAnthropicToOpenAi;

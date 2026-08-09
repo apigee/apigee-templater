@@ -8,6 +8,7 @@ import {
   parseMultipartFormData,
   convertOpenAiMultipartToGemini,
   convertOpenAiToGeminiEmbeddings,
+  convertGeminiEmbeddingsToOpenAi,
   convertOpenAiToGemini,
   convertOpenAiToGeminiAudio,
   convertGeminiAudioToOpenAi,
@@ -15,6 +16,7 @@ import {
   convertOpenAiPayload,
   convertGeminiToOpenAi,
   convertOpenAiToImagen,
+  convertOpenAiToGeminiImage,
   convertImagenToOpenAi,
   convertOpenAiToAnthropic,
   convertAnthropicToOpenAi,
@@ -112,6 +114,13 @@ describe("ai-functions.js unit tests", () => {
       region: "global",
       cleanModelName: "gpt-4o-mini",
       targetRoute: "openai"
+    });
+
+    expect(getTargetRoute("google/gemini-embedding-2")).toEqual({
+      provider: "google",
+      region: "global",
+      cleanModelName: "gemini-embedding-2",
+      targetRoute: ""
     });
   });
 
@@ -455,18 +464,42 @@ describe("ai-functions.js unit tests", () => {
     });
   });
 
-  it("should convert OpenAI embeddings request to Gemini embeddings format", () => {
+  it("should convert OpenAI embeddings request and Gemini embeddings response format", () => {
     const embeddingsReq = {
-      model: "text-embedding-3-small",
-      input: ["Hello world", "Embedding test"]
+      model: "google/gemini-embedding-001",
+      input: "This is a test sentence to embed."
     };
 
-    const converted = convertOpenAiPayload(embeddingsReq, "google", "embeddings");
-    expect(converted).toEqual({
-      instances: [
-        { content: "Hello world" },
-        { content: "Embedding test" }
-      ]
+    const convertedReq = convertOpenAiPayload(embeddingsReq, "google", "embeddings");
+    expect(convertedReq).toEqual({
+      content: {
+        parts: [
+          { text: "This is a test sentence to embed." }
+        ]
+      }
+    });
+
+    const geminiEmbedResp = {
+      embedding: {
+        values: [0.0123, -0.0456, 0.0789]
+      }
+    };
+
+    const convertedResp = convertGeminiEmbeddingsToOpenAi(geminiEmbedResp, "gemini-embedding-001");
+    expect(convertedResp).toEqual({
+      object: "list",
+      data: [
+        {
+          object: "embedding",
+          index: 0,
+          embedding: [0.0123, -0.0456, 0.0789]
+        }
+      ],
+      model: "gemini-embedding-001",
+      usage: {
+        prompt_tokens: 0,
+        total_tokens: 0
+      }
     });
   });
 
@@ -501,14 +534,15 @@ describe("ai-functions.js unit tests", () => {
     });
   });
 
-  it("should convert OpenAI image generation request to Imagen format", () => {
+  it("should convert OpenAI image generation request to Imagen format when model contains imagen", () => {
     const openAiPayload = {
+      model: "google/imagen-3.0-generate-002",
       prompt: "a majestic lion in the savanna",
       n: 2,
       response_format: "b64_json"
     };
 
-    const imagenPayload = convertOpenAiToImagen(openAiPayload);
+    const imagenPayload = convertOpenAiPayload(openAiPayload, "google", "image-generation");
 
     expect(imagenPayload).toEqual({
       instances: [{ prompt: "a majestic lion in the savanna" }],
@@ -519,7 +553,31 @@ describe("ai-functions.js unit tests", () => {
     });
   });
 
-  it("should convert Imagen response format to OpenAI image response format", () => {
+  it("should convert OpenAI image generation request to Gemini generateContent format when model is gemini", () => {
+    const openAiPayload = {
+      model: "google/gemini-3.1-flash-lite-image",
+      prompt: "A small red fox sitting in a snowy forest at sunset",
+      size: "1024x1024"
+    };
+
+    const geminiImagePayload = convertOpenAiPayload(openAiPayload, "google", "image-generation");
+
+    expect(geminiImagePayload).toEqual({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: "A small red fox sitting in a snowy forest at sunset" }
+          ]
+        }
+      ],
+      generationConfig: {
+        responseModalities: ["IMAGE"]
+      }
+    });
+  });
+
+  it("should convert Imagen and Gemini image response format to OpenAI image response format", () => {
     const imagenResponse = {
       predictions: [
         { bytesBase64Encoded: "base64data1" },
@@ -527,11 +585,33 @@ describe("ai-functions.js unit tests", () => {
       ]
     };
 
-    const openAiResponse = convertImagenToOpenAi(imagenResponse, "imagen-3.0-generate-002");
+    const openAiResponse1 = convertImagenToOpenAi(imagenResponse, "imagen-3.0-generate-002");
 
-    expect(openAiResponse.data).toEqual([
+    expect(openAiResponse1.data).toEqual([
       { b64_json: "base64data1" },
       { b64_json: "base64data2" }
+    ]);
+
+    const geminiImageResponse = {
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: "image/png",
+                  data: "geminiBase64Data"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    };
+
+    const openAiResponse2 = convertImagenToOpenAi(geminiImageResponse, "gemini-3.1-flash-lite-image");
+    expect(openAiResponse2.data).toEqual([
+      { b64_json: "geminiBase64Data" }
     ]);
   });
 
