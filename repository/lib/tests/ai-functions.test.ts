@@ -1,10 +1,18 @@
 import { describe, it, expect } from "vitest";
 import {
+  getRequestInfo,
   getModelName,
   getTargetRoute,
   getPrompts,
   getUsageData,
+  parseMultipartFormData,
+  convertOpenAiMultipartToGemini,
+  convertOpenAiToGeminiEmbeddings,
   convertOpenAiToGemini,
+  convertOpenAiToGeminiAudio,
+  convertGeminiAudioToOpenAi,
+  decodeBase64ToBytes,
+  convertOpenAiPayload,
   convertGeminiToOpenAi,
   convertOpenAiToImagen,
   convertImagenToOpenAi,
@@ -16,6 +24,48 @@ import {
 } from "../ai-functions.js";
 
 describe("ai-functions.js unit tests", () => {
+  it("should parse request info correctly for speech, transcription, images, and text requests", () => {
+    const speechReq = {
+      model: "google/gemini-3.1-flash-tts-preview",
+      input: "Hello, how are you?",
+      voice: "alloy"
+    };
+    const speechInfo = getRequestInfo("/v1/speech/audio", speechReq);
+    expect(speechInfo).toEqual({
+      input: "Hello, how are you?",
+      rawModelName: "google/gemini-3.1-flash-tts-preview",
+      modelName: "gemini-3.1-flash-tts-preview",
+      protocol: "openai",
+      requestType: "audio-text"
+    });
+
+    const transcriptionInfo = getRequestInfo("/v1/audio/transcriptions", { model: "whisper-1" });
+    expect(transcriptionInfo.requestType).toBe("audio-data");
+    expect(transcriptionInfo.modelName).toBe("whisper-1");
+    expect(transcriptionInfo.rawModelName).toBe("whisper-1");
+
+    const imageInfo = getRequestInfo("/v1/images/generations", { model: "dall-e-3", prompt: "A majestic lion" });
+    expect(imageInfo).toEqual({
+      input: "A majestic lion",
+      rawModelName: "dall-e-3",
+      modelName: "dall-e-3",
+      protocol: "openai",
+      requestType: "image-generation"
+    });
+
+    const textInfo = getRequestInfo("/v1/chat/completions", {
+      model: "openai/gpt-4o",
+      messages: [{ role: "user", content: "Tell me a joke" }]
+    });
+    expect(textInfo).toEqual({
+      input: "Tell me a joke",
+      rawModelName: "openai/gpt-4o",
+      modelName: "gpt-4o",
+      protocol: "openai",
+      requestType: "text"
+    });
+  });
+
   it("should detect model name correctly", () => {
     expect(getModelName(null, JSON.stringify({ model: "openai/gpt-4o" }))).toBe("gpt-4o");
     expect(getModelName("/publishers/google/models/gemini-1.5-pro:predict", null)).toBe("gemini-1.5-pro");
@@ -47,21 +97,21 @@ describe("ai-functions.js unit tests", () => {
       provider: "google",
       region: "global",
       cleanModelName: "gemini-1.5-pro",
-      targetRoute: ""
+      targetRoute: "googlecloud"
     });
 
     expect(getTargetRoute("claude-3-5-sonnet")).toEqual({
       provider: "anthropic",
       region: "global",
       cleanModelName: "claude-3-5-sonnet",
-      targetRoute: ""
+      targetRoute: "anthropic"
     });
 
     expect(getTargetRoute("gpt-4o-mini")).toEqual({
       provider: "openai",
       region: "global",
       cleanModelName: "gpt-4o-mini",
-      targetRoute: ""
+      targetRoute: "openai"
     });
   });
 
@@ -95,7 +145,7 @@ describe("ai-functions.js unit tests", () => {
       provider: "anthropic",
       region: "global",
       cleanModelName: "claude-sonnet-5",
-      targetRoute: "googlecloud"
+      targetRoute: "anthropic"
     });
 
     expect(getTargetRoute("unconfigured-model", routingConfig)).toEqual({
@@ -301,6 +351,122 @@ describe("ai-functions.js unit tests", () => {
         temperature: 0.7,
         maxOutputTokens: 100
       }
+    });
+  });
+
+  it("should convert OpenAI speech audio request format to Vertex Gemini TTS format via convertOpenAiPayload", () => {
+    const speechPayload = {
+      model: "google/gemini-3.1-flash-tts-preview",
+      input: "Hello, how are you?",
+      voice: "alloy"
+    };
+
+    const result = convertOpenAiPayload(speechPayload, "google", "audio-text");
+
+    expect(result).toEqual({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: "Hello, how are you?" }]
+        }
+      ],
+      generation_config: {
+        response_modalities: ["AUDIO"],
+        speech_config: {
+          voice_config: {
+            prebuilt_voice_config: {
+              voice_name: "Puck"
+            }
+          }
+        }
+      }
+    });
+  });
+
+  it("should extract base64 audio data and mimeType from Gemini TTS response", () => {
+    const geminiAudioResponse = {
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: "audio/mp3",
+                  data: "SGVsbG8gV29ybGQ="
+                }
+              }
+            ]
+          }
+        }
+      ]
+    };
+
+    const extracted = convertGeminiAudioToOpenAi(geminiAudioResponse);
+    expect(extracted).toEqual({
+      base64Data: "SGVsbG8gV29ybGQ=",
+      mimeType: "audio/mp3"
+    });
+
+    const decoded = decodeBase64ToBytes(extracted.base64Data);
+    expect(decoded.toString()).toBe("Hello World");
+  });
+
+  it("should parse multipart form data and convert OpenAI transcription request to Gemini JSON payload", () => {
+    const multipartBody = [
+      "------WebKitFormBoundary7MA4YWxkTrZu0gW",
+      'Content-Disposition: form-data; name="model"',
+      "",
+      "google/gemini-2.0-flash",
+      "------WebKitFormBoundary7MA4YWxkTrZu0gW",
+      'Content-Disposition: form-data; name="prompt"',
+      "",
+      "Transcribe audio accurately",
+      "------WebKitFormBoundary7MA4YWxkTrZu0gW",
+      'Content-Disposition: form-data; name="file"; filename="sample.wav"',
+      "Content-Type: audio/wav",
+      "",
+      "Hello Audio Bytes",
+      "------WebKitFormBoundary7MA4YWxkTrZu0gW--"
+    ].join("\r\n");
+
+    const parsed = parseMultipartFormData(multipartBody, "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW");
+    expect(parsed.model).toBe("google/gemini-2.0-flash");
+    expect(parsed.prompt).toBe("Transcribe audio accurately");
+    expect(parsed.fileMimeType).toBe("audio/wav");
+
+    const converted = convertOpenAiPayload(parsed, "google", "audio-data");
+    expect(converted).toEqual({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: "audio/wav",
+                data: Buffer.from("Hello Audio Bytes").toString("base64")
+              }
+            },
+            {
+              text: "Transcribe audio accurately"
+            }
+          ]
+        }
+      ]
+    });
+  });
+
+  it("should convert OpenAI embeddings request to Gemini embeddings format", () => {
+    const embeddingsReq = {
+      model: "text-embedding-3-small",
+      input: ["Hello world", "Embedding test"]
+    };
+
+    const converted = convertOpenAiPayload(embeddingsReq, "google", "embeddings");
+    expect(converted).toEqual({
+      instances: [
+        { content: "Hello world" },
+        { content: "Embedding test" }
+      ]
     });
   });
 

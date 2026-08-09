@@ -149,7 +149,7 @@ cp "$ENV_DIR/apps.json" "$APIGEE_ROOT_DIR/apps.json"
 aft -i ./repository/features/ai-auth.yaml -o "$DIST_DIR/auth-v1.zip"
 aft -i ./repository/features/ai-completions.yaml -o "$DIST_DIR/completions-v1.zip"
 aft -i ./repository/features/ai-embeddings.yaml -o "$DIST_DIR/embeddings-v1.zip"
-aft -i ./repository/features/ai-images.yaml -o "$DIST_DIR/images-v1.zip"
+aft -i ./repository/features/ai-images-generations.yaml -o "$DIST_DIR/images-v1.zip"
 aft -i ./repository/features/ai-audio.yaml -o "$DIST_DIR/audio-v1.zip"
 
 # 3. Unpack each proxy zip into its target folder in emulator/dist/bundle/

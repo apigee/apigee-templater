@@ -274,6 +274,7 @@ policies:
           var modelName = context.getVariable("ai.model");
           var aiProtocol = context.getVariable("ai.protocol");
           var aiProvider = context.getVariable("ai.provider");
+          var reqType = context.getVariable("ai.type");
 
           var usageData = null;
 
@@ -292,6 +293,13 @@ policies:
               contentString = nonStreamResult.contentString;
               context.setVariable("response.content", contentString);
               usageData = nonStreamResult.usageData;
+            }
+          } else if (reqType === "audio-text" && aiProvider === "google" && aiProtocol === "openai" && contentString) {
+            var audioResult = convertGeminiAudioToOpenAi(contentString);
+            if (audioResult && audioResult.base64Data) {
+              var rawBytes = decodeBase64ToBytes(audioResult.base64Data);
+              context.setVariable("response.header.Content-Type", audioResult.mimeType || "audio/mpeg");
+              context.setVariable("response.content", rawBytes);
             }
           }
 
@@ -371,80 +379,117 @@ policies:
           
           var aiKey = context.getVariable("request.header.x-ai-key");
           var apiKey = context.getVariable("request.header.x-api-key");
+
           if (!aiKey && apiKey) {
             context.setVariable("request.header.x-ai-key", apiKey);
           }
 
-          var url = context.getVariable("proxy.url");
+          var url = context.getVariable("proxy.url") || "";
+          var contentType = context.getVariable("request.header.Content-Type") || "";
           var prices = context.getVariable("ai.prices");
-          if (!prices) context.setVariable ("ai.prices", JSON.stringify({
-            "default": {"requestPerMillionTokens": 1, "responsePerMillionTokens": 3}
-          }));
-
-          var requestContent = request.content.asJSON;
-          var promptInfo = getPrompts(requestContent);
-          var aiProtocol = promptInfo.protocol || "unknown";
-          context.setVariable("ai.protocol", aiProtocol);
-
-          var callStreaming = "non-streaming";
-          if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] == true)) callStreaming = "streaming";
-
-          var modelName = getModelName(url, request.content);
-
-          var modelRouting = context.getVariable("propertyset.ai.ModelRouting");
-          if (!modelRouting) {
-            modelRouting = context.getVariable("propertyset.ModelRouting");
+          if (!prices) {
+            context.setVariable("ai.prices", JSON.stringify({
+              "default": { "requestPerMillionTokens": 1, "responsePerMillionTokens": 3 }
+            }));
           }
 
-          var modelRoutingConfig = context.getVariable("ai.modelRouting");
-          var rawModel = (requestContent && requestContent["model"]) ? requestContent["model"] : modelName;
-          var routeInfo = getTargetRoute(rawModel, modelRoutingConfig);
-          print(JSON.stringify(routeInfo));
+          var rawBody = context.getVariable("request.content") || request.content;
+          var requestContent = null;
+          try {
+            requestContent = request.content.asJSON;
+          } catch (e) {}
 
-          if (modelRouting && (modelRouting.toString().toLowerCase() === "true" || modelRouting === true)) {
-            if (routeInfo) {
-              if (routeInfo.targetRoute) {
-                context.setVariable("target.route", routeInfo.targetRoute);
-                context.setVariable("ai.targetRoute", routeInfo.targetRoute);
-              }
-              if (routeInfo.cleanModelName) {
-                modelName = routeInfo.cleanModelName;
-              }
-              if (requestContent && requestContent["model"] && routeInfo.mappedModelName) {
-                requestContent["model"] = routeInfo.mappedModelName;
-              }
+          var reqInfo = getRequestInfo(url, rawBody, contentType);
+
+          var formModel = context.getVariable("request.formparam.model");
+          if (formModel && (!reqInfo.rawModelName || reqInfo.rawModelName === "" || reqInfo.modelName === "unknown")) {
+            reqInfo.rawModelName = formModel;
+            reqInfo.modelName = formModel.split("/").pop();
+            reqInfo.protocol = "openai";
+          }
+
+          var aiProtocol = reqInfo.protocol;
+          var modelName = reqInfo.modelName;
+
+          var callStreaming = "non-streaming";
+          if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] === true)) {
+            callStreaming = "streaming";
+          }
+
+          var modelRouting = context.getVariable("propertyset.ai.ModelRouting") || context.getVariable("propertyset.ModelRouting");
+          var modelRoutingConfig = context.getVariable("ai.modelRouting");
+          var rawModel = reqInfo.rawModelName || ((requestContent && requestContent["model"]) ? requestContent["model"] : modelName);
+          var routeInfo = getTargetRoute(rawModel, modelRoutingConfig);
+
+          var isRoutingEnabled = modelRouting && (modelRouting.toString().toLowerCase() === "true" || modelRouting === true);
+
+          if (isRoutingEnabled && routeInfo) {
+            if (routeInfo.targetRoute) {
+              context.setVariable("target.route", routeInfo.targetRoute);
+              context.setVariable("ai.targetRoute", routeInfo.targetRoute);
+            }
+            if (routeInfo.cleanModelName) {
+              modelName = routeInfo.cleanModelName;
+            }
+            if (requestContent && requestContent["model"] && routeInfo.mappedModelName) {
+              requestContent["model"] = routeInfo.mappedModelName;
             }
           }
 
-          if (routeInfo && routeInfo.provider) {
-            context.setVariable("ai.provider", routeInfo.provider);
+          var effectiveProvider = (routeInfo && routeInfo.provider) ? routeInfo.provider : aiProtocol;
+          var targetRoute = context.getVariable("target.route") || (routeInfo ? routeInfo.targetRoute : "");
+          context.setVariable("ai.provider", effectiveProvider);
+
+          if (aiProtocol === "openai" && effectiveProvider !== "openai" && targetRoute !== "openai") {
+            if (reqInfo.requestType === "audio-data" && effectiveProvider === "google") {
+              var contentTypeHeader = context.getVariable("request.header.Content-Type") || "";
+              var multipartObj = parseMultipartFormData(rawBody, contentTypeHeader);
+
+              var formModel = context.getVariable("request.formparam.model");
+              if (formModel && !multipartObj.model) multipartObj.model = formModel;
+              var formPrompt = context.getVariable("request.formparam.prompt");
+              if (formPrompt && !multipartObj.prompt) multipartObj.prompt = formPrompt;
+              var formLang = context.getVariable("request.formparam.language");
+              if (formLang && !multipartObj.language) multipartObj.language = formLang;
+
+              requestContent = convertOpenAiPayload(multipartObj, effectiveProvider, reqInfo.requestType, routeInfo);
+              context.setVariable("request.header.Content-Type", "application/json");
+              request.content = JSON.stringify(requestContent);
+            } else {
+              requestContent = convertOpenAiPayload(requestContent, effectiveProvider, reqInfo.requestType, routeInfo);
+              request.content = JSON.stringify(requestContent);
+            }
+          } else if (isRoutingEnabled && requestContent && requestContent["model"] && routeInfo && routeInfo.mappedModelName && targetRoute !== "openai" && effectiveProvider !== "openai") {
+            request.content = JSON.stringify(requestContent);
           }
 
-          if (aiProtocol === "openai" && routeInfo && routeInfo.provider === "anthropic") {
-            requestContent = convertOpenAiToAnthropic(requestContent, routeInfo);
-            request.content = JSON.stringify(requestContent);
-          } else if (modelRouting && requestContent && requestContent["model"] && routeInfo && routeInfo.mappedModelName) {
-            request.content = JSON.stringify(requestContent);
-          }
-
+          context.setVariable("ai.protocol", aiProtocol);
           context.setVariable("ai.model", modelName);
           context.setVariable("ai.requestType", callStreaming);
           context.setVariable("ai.apiType", aiProtocol);
+          context.setVariable("ai.type", reqInfo.requestType);
           context.setVariable("ai.user", "unknown");
 
-          if (routeInfo.provider == "anthropic" && callStreaming == "streaming")
-            context.setVariable("ai.method", "streamRawPredict");
-          else if (routeInfo.provider == "anthropic" && callStreaming == "non-streaming")
-            context.setVariable("ai.method", "rawPredict");
-          else if (routeInfo.provider == "google" && callStreaming == "non-streaming")
+          if (routeInfo && routeInfo.provider === "anthropic") {
+            context.setVariable("ai.method", callStreaming === "streaming" ? "streamRawPredict" : "rawPredict");
+          } else if (routeInfo && routeInfo.provider === "google" && callStreaming === "non-streaming") {
             context.setVariable("ai.method", "generateContent");
-          else
+          } else {
             context.setVariable("ai.method", "streamGenerateContent");
+          }
 
-          if (promptInfo.userPrompt)
-            context.setVariable("ai.requestPrompt", promptInfo.userPrompt);
-          else
-            print("Could not find user prompt!");
+          if (reqInfo.input) {
+            context.setVariable("ai.requestPrompt", reqInfo.input);
+          } else {
+            print("Could not find user input/prompt!");
+          }
+
+          if (context.getVariable("environment.name") === "dev") {
+            print("RequestInfo: " + JSON.stringify(reqInfo));
+            print("ModelRoutingEnabled: " + JSON.stringify(modelRouting));
+            print("ModelRouting: " + JSON.stringify(modelRoutingConfig));
+            print("TargetRoute: " + JSON.stringify(routeInfo));
+          }
         includeUrl: jsc://ai-functions.js
   - name: KVM-LoadConfig
     type: KeyValueMapOperations
@@ -506,6 +551,7 @@ resources:
                     required:
                       - model
                       - messages
+                    additionalProperties: false
                     properties:
                       model:
                         type: string
@@ -515,23 +561,64 @@ resources:
                           type: object
                           required:
                             - role
+                            - content
+                          additionalProperties: false
                           properties:
                             role:
                               type: string
                             content:
+                              nullable: true
                               oneOf:
                                 - type: string
                                 - type: array
                                   items:
                                     type: object
+                            name:
+                              type: string
+                            tool_calls:
+                              type: array
+                              items:
+                                type: object
+                            tool_call_id:
+                              type: string
                       temperature:
                         type: number
                       top_p:
                         type: number
+                      n:
+                        type: integer
                       stream:
                         type: boolean
+                      stop:
+                        oneOf:
+                          - type: string
+                          - type: array
+                            items:
+                              type: string
                       max_tokens:
                         type: integer
+                      presence_penalty:
+                        type: number
+                      frequency_penalty:
+                        type: number
+                      logit_bias:
+                        type: object
+                      user:
+                        type: string
+                      tools:
+                        type: array
+                        items:
+                          type: object
+                      tool_choice:
+                        oneOf:
+                          - type: string
+                          - type: object
+                      response_format:
+                        type: object
+                      seed:
+                        type: integer
+                      service_tier:
+                        type: string
             responses:
               "200":
                 description: Successful response
@@ -547,6 +634,7 @@ resources:
                     required:
                       - model
                       - messages
+                    additionalProperties: false
                     properties:
                       model:
                         type: string
@@ -556,23 +644,64 @@ resources:
                           type: object
                           required:
                             - role
+                            - content
+                          additionalProperties: false
                           properties:
                             role:
                               type: string
                             content:
+                              nullable: true
                               oneOf:
                                 - type: string
                                 - type: array
                                   items:
                                     type: object
+                            name:
+                              type: string
+                            tool_calls:
+                              type: array
+                              items:
+                                type: object
+                            tool_call_id:
+                              type: string
                       temperature:
                         type: number
                       top_p:
                         type: number
+                      n:
+                        type: integer
                       stream:
                         type: boolean
+                      stop:
+                        oneOf:
+                          - type: string
+                          - type: array
+                            items:
+                              type: string
                       max_tokens:
                         type: integer
+                      presence_penalty:
+                        type: number
+                      frequency_penalty:
+                        type: number
+                      logit_bias:
+                        type: object
+                      user:
+                        type: string
+                      tools:
+                        type: array
+                        items:
+                          type: object
+                      tool_choice:
+                        oneOf:
+                          - type: string
+                          - type: object
+                      response_format:
+                        type: object
+                      seed:
+                        type: integer
+                      service_tier:
+                        type: string
             responses:
               "200":
                 description: Successful response
@@ -583,44 +712,221 @@ resources:
   - name: ai-functions.js
     type: jsc
     content: |
-      function getModelName(urlString, contentString) {
-        var modelName = "unknown";
-        if (urlString && urlString.includes("/publishers/anthropic/models/")) {
-          // gcp claude url format
-          var urlPieces = urlString.split("/publishers/anthropic/models/");
-          if (urlPieces.length > 1) {
-            var urlPieces2 = urlPieces[1].split(":");
-            if (urlPieces2.length > 0) {
-              modelName = urlPieces2[0];
+      function extractGoogleInput(contents) {
+        if (!contents || !Array.isArray(contents)) return "";
+        for (var i = contents.length - 1; i >= 0; i--) {
+          var item = contents[i];
+          if (item && item.role && item.role.toLowerCase() === "user" && item.parts && Array.isArray(item.parts)) {
+            for (var p = item.parts.length - 1; p >= 0; p--) {
+              if (item.parts[p] && item.parts[p].text) {
+                return item.parts[p].text;
+              }
             }
           }
-        } else if (urlString && urlString.includes("/publishers/google/models/")) {
-          // gcp gemini url format
-          var urlPieces = urlString.split("/publishers/google/models/");
-          if (urlPieces.length > 1) {
-            var urlPieces2 = urlPieces[1].split(":");
-            if (urlPieces2.length > 0) {
-              modelName = urlPieces2[0];
+        }
+        return "";
+      }
+
+      function extractMessagesInput(messages) {
+        if (!messages || !Array.isArray(messages)) return "";
+        for (var i = messages.length - 1; i >= 0; i--) {
+          var msg = messages[i];
+          if (msg && msg.role && msg.role.toLowerCase() === "user") {
+            if (typeof msg.content === "string") {
+              return msg.content;
+            }
+            if (Array.isArray(msg.content)) {
+              var parts = [];
+              for (var c = 0; c < msg.content.length; c++) {
+                var part = msg.content[c];
+                if (part && part.type === "text" && part.text) {
+                  parts.push(part.text);
+                } else if (typeof part === "string") {
+                  parts.push(part);
+                }
+              }
+              if (parts.length > 0) {
+                return parts.join(" ");
+              }
             }
           }
-        } else if (contentString) {
-          try {
-            var contentData = contentString;
-            if (typeof contentString === "string") {
-              contentData = JSON.parse(contentString);
-            } else if (contentString.asJSON) {
-              contentData = contentString.asJSON;
-            }
-            if (contentData && contentData["model"]) {
-              modelName = contentData["model"];
-              var modelNamePieces = modelName.split("/");
-              if (modelNamePieces.length > 0)
-                modelName = modelNamePieces[modelNamePieces.length - 1];
-            }
-          } catch (e) {}
+        }
+        return "";
+      }
+
+      function safeStringify(val) {
+        if (val === null || val === undefined) return "";
+        if (typeof val === "string") return val;
+        try {
+          if (typeof java !== "undefined" && java.lang && java.lang.String) {
+            return String(java.lang.String.valueOf(val));
+          }
+        } catch (e) {}
+        try {
+          return "" + val;
+        } catch (e) {}
+        try {
+          return String(val);
+        } catch (e) {}
+        return "";
+      }
+
+      function getBodyString(content) {
+        if (content === null || content === undefined) return "";
+        if (typeof content === "string") return content;
+        return safeStringify(content);
+      }
+
+      function getRequestInfo(urlString, content, contentType) {
+        var info = {
+          input: "",
+          rawModelName: "",
+          modelName: "unknown",
+          protocol: "unknown",
+          requestType: "text"
+        };
+
+        var url = urlString || "";
+        var lowerUrl = url.toLowerCase();
+
+        // 1. Detect requestType from URL
+        if (lowerUrl.includes("/audio/speech") || lowerUrl.includes("/speech/audio")) {
+          info.requestType = "audio-text";
+        } else if (lowerUrl.includes("/audio/transcription") || lowerUrl.includes("/audio/translation")) {
+          info.requestType = "audio-data";
+        } else if (lowerUrl.includes("/images/generations") || lowerUrl.includes("/images/edits") || lowerUrl.includes("/images/variations")) {
+          info.requestType = "image-generation";
+        } else if (lowerUrl.includes("/embeddings")) {
+          info.requestType = "embeddings";
         }
 
-        return modelName;
+        // Parse content JSON or multipart data
+        var contentData = null;
+        if (typeof content === "object" && content !== null && !content.asJSON && !content.asString) {
+          if (content.model !== undefined || content.contents !== undefined || content.messages !== undefined) {
+            contentData = content;
+          }
+        }
+
+        if (!contentData) {
+          var bodyStr = getBodyString(content);
+          var isMultipart = (info.requestType === "audio-data") ||
+                            (contentType && contentType.toLowerCase().indexOf("multipart") !== -1) ||
+                            (bodyStr && bodyStr.indexOf("--") === 0);
+
+          if (bodyStr && isMultipart) {
+            contentData = parseMultipartFormData(bodyStr, contentType);
+          } else if (content) {
+            if (typeof content === "object" && content.asJSON) {
+              contentData = content.asJSON;
+            } else if (typeof content === "string") {
+              try {
+                contentData = JSON.parse(content);
+              } catch (e) {}
+            } else if (bodyStr && bodyStr !== "[object Object]") {
+              try {
+                contentData = JSON.parse(bodyStr);
+              } catch (e) {}
+            } else if (typeof content === "object") {
+              contentData = content;
+            }
+          }
+        }
+
+        if (contentData && typeof contentData === "object") {
+          // Fallback requestType check from payload if URL didn't specify
+          if (info.requestType === "text") {
+            if (contentData["voice"] !== undefined && contentData["input"] !== undefined) {
+              info.requestType = "audio-text";
+            }
+          }
+
+          // 2. Extract modelName and rawModelName from payload
+          if (contentData["model"] && typeof contentData["model"] === "string") {
+            info.rawModelName = contentData["model"];
+            var modelParts = info.rawModelName.split("/");
+            info.modelName = modelParts[modelParts.length - 1];
+          } else if (contentData["modelVersion"] && typeof contentData["modelVersion"] === "string") {
+            info.rawModelName = contentData["modelVersion"];
+            info.modelName = contentData["modelVersion"];
+          }
+        }
+
+        if (info.requestType === "audio-data" && info.protocol === "unknown") {
+          info.protocol = "openai";
+        }
+
+        // If modelName still unknown, extract from GCP publisher URL format
+        if (info.modelName === "unknown" && url) {
+          if (url.includes("/publishers/anthropic/models/")) {
+            var aParts = url.split("/publishers/anthropic/models/");
+            if (aParts.length > 1) {
+              info.modelName = aParts[1].split(":")[0];
+            }
+          } else if (url.includes("/publishers/google/models/")) {
+            var gParts = url.split("/publishers/google/models/");
+            if (gParts.length > 1) {
+              info.modelName = gParts[1].split(":")[0];
+            }
+          }
+        }
+
+        // 3. Detect protocol and extract main input prompt/text
+        if (contentData && typeof contentData === "object") {
+          if (contentData["contents"] && Array.isArray(contentData["contents"])) {
+            info.protocol = "google";
+            info.input = extractGoogleInput(contentData["contents"]);
+          } else if (contentData["messages"] && Array.isArray(contentData["messages"])) {
+            if (
+              contentData["system"] !== undefined ||
+              contentData["anthropic_version"] !== undefined ||
+              contentData["top_k"] !== undefined
+            ) {
+              info.protocol = "anthropic";
+            } else {
+              info.protocol = "openai";
+            }
+            info.input = extractMessagesInput(contentData["messages"]);
+          } else if (contentData["prompt"] !== undefined) {
+            info.protocol = "openai";
+            if (typeof contentData["prompt"] === "string") {
+              info.input = contentData["prompt"];
+            } else if (Array.isArray(contentData["prompt"])) {
+              info.input = contentData["prompt"].join(" ");
+            }
+          } else if (contentData["input"] !== undefined) {
+            info.protocol = "openai";
+            if (typeof contentData["input"] === "string") {
+              info.input = contentData["input"];
+            } else if (Array.isArray(contentData["input"])) {
+              info.input = contentData["input"].join(" ");
+            }
+          }
+        }
+
+        if (info.protocol === "unknown" && url) {
+          if (url.includes("/publishers/google/")) {
+            info.protocol = "google";
+          } else if (url.includes("/publishers/anthropic/")) {
+            info.protocol = "anthropic";
+          }
+        }
+
+        return info;
+      }
+
+      function getModelName(urlString, contentString) {
+        var info = getRequestInfo(urlString, contentString);
+        return info.modelName;
+      }
+
+      function getPrompts(contentData) {
+        var info = getRequestInfo("", contentData);
+        return {
+          userPrompt: info.input,
+          allUserPrompts: info.input,
+          protocol: info.protocol
+        };
       }
 
       function getTargetRoute(modelName, config) {
@@ -687,10 +993,13 @@ resources:
           var lower = currentModel.toLowerCase();
           if (lower.indexOf("gemini") !== -1) {
             result.provider = "google";
+            result.targetRoute = "googlecloud";
           } else if (lower.indexOf("claude") !== -1) {
             result.provider = "anthropic";
+            result.targetRoute = "anthropic";
           } else if (lower.indexOf("gpt") !== -1) {
             result.provider = "openai";
+            result.targetRoute = "openai";
           } else {
             result.provider = "unknown";
           }
@@ -719,85 +1028,6 @@ resources:
         }
 
         return result;
-      }
-
-      function getPrompts(contentData) {
-        var promptInfo = {
-          userPrompt: "",
-          allUserPrompts: "",
-          protocol: "unknown"
-        };
-
-        if (!contentData) {
-          return promptInfo;
-        }
-
-        if (contentData["contents"] && Array.isArray(contentData["contents"])) {
-          // google format
-          promptInfo.protocol = "google";
-          for (var i = contentData["contents"].length - 1; i >= 0; i--) {
-            var content = contentData["contents"][i];
-            if (
-              content &&
-              content["role"] &&
-              content["role"].toLowerCase() == "user" &&
-              content["parts"]
-            ) {
-              for (var p = content["parts"].length - 1; p >= 0; p--) {
-                var part = content["parts"][p];
-                if (!promptInfo.userPrompt && part && part["text"]) {
-                  promptInfo.userPrompt = part["text"];
-                }
-
-                if (part && part["text"]) {
-                  promptInfo.allUserPrompts += " " + part["text"];
-                }
-              }
-            }
-          }
-        } else if (contentData["messages"] && Array.isArray(contentData["messages"])) {
-          // anthropic or openai format
-          if (contentData["system"] !== undefined || contentData["anthropic_version"] !== undefined || contentData["top_k"] !== undefined) {
-            promptInfo.protocol = "anthropic";
-          } else {
-            promptInfo.protocol = "openai";
-          }
-
-          for (var i = contentData["messages"].length - 1; i >= 0; i--) {
-            var message = contentData["messages"][i];
-            if (message && message["role"] && message["role"].toLowerCase() == "user") {
-              var msgText = "";
-              if (typeof message["content"] === "string") {
-                msgText = message["content"];
-              } else if (Array.isArray(message["content"])) {
-                for (var c = 0; c < message["content"].length; c++) {
-                  var item = message["content"][c];
-                  if (item && item["type"] === "text" && item["text"]) {
-                    msgText += (msgText ? " " : "") + item["text"];
-                  } else if (typeof item === "string") {
-                    msgText += (msgText ? " " : "") + item;
-                  }
-                }
-              }
-
-              if (!promptInfo.userPrompt && msgText) {
-                promptInfo.userPrompt = msgText;
-              }
-
-              if (msgText) {
-                promptInfo.allUserPrompts += " " + msgText;
-              }
-            }
-          }
-        } else if (contentData["prompt"] !== undefined) {
-          promptInfo.protocol = "openai";
-          if (typeof contentData["prompt"] === "string") {
-            promptInfo.userPrompt = contentData["prompt"];
-            promptInfo.allUserPrompts = contentData["prompt"];
-          }
-        }
-
-        return promptInfo;
       }
 
       function setPrompt(contentData, userPrompt) {
@@ -1155,6 +1385,289 @@ resources:
         }
 
         return geminiPayload;
+      }
+
+      // OpenAI audio speech request to Gemini native audio format conversion
+      function convertOpenAiToGeminiAudio(openAiPayload) {
+        if (!openAiPayload) return {};
+
+        var inputText = "";
+        if (typeof openAiPayload.input === "string") {
+          inputText = openAiPayload.input;
+        } else if (Array.isArray(openAiPayload.input)) {
+          inputText = openAiPayload.input.join(" ");
+        } else if (typeof openAiPayload.prompt === "string") {
+          inputText = openAiPayload.prompt;
+        }
+
+        var voiceMap = {
+          "alloy": "Puck",
+          "echo": "Charon",
+          "fable": "Kore",
+          "onyx": "Fenrir",
+          "nova": "Aoede",
+          "shimmer": "Kore",
+          "ash": "Puck",
+          "coral": "Kore",
+          "sage": "Charon",
+          "verse": "Fenrir"
+        };
+
+        var rawVoice = openAiPayload.voice || "alloy";
+        var voiceName = "Puck";
+        if (voiceMap[rawVoice.toLowerCase()]) {
+          voiceName = voiceMap[rawVoice.toLowerCase()];
+        } else if (rawVoice) {
+          voiceName = rawVoice;
+        }
+
+        return {
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: inputText }
+              ]
+            }
+          ],
+          generation_config: {
+            response_modalities: ["AUDIO"],
+            speech_config: {
+              voice_config: {
+                prebuilt_voice_config: {
+                  voice_name: voiceName
+                }
+              }
+            }
+          }
+        };
+      }
+
+      function encodeBytesToBase64(data) {
+        if (!data) return "";
+        try {
+          if (typeof java !== "undefined" && java.util && java.util.Base64) {
+            if (typeof data === "string") {
+              var bytes = data.split("").map(function(c) { return c.charCodeAt(0) & 0xFF; });
+              return java.util.Base64.getEncoder().encodeToString(bytes);
+            }
+            return java.util.Base64.getEncoder().encodeToString(data);
+          }
+        } catch (e) {}
+        try {
+          if (typeof Buffer !== "undefined") {
+            return Buffer.from(data).toString("base64");
+          }
+        } catch (e) {}
+        return "";
+      }
+
+      function parseMultipartFormData(body, contentType) {
+        var result = {
+          model: "",
+          prompt: "",
+          language: "",
+          fileMimeType: "audio/mp3",
+          fileBase64: ""
+        };
+
+        if (!body) return result;
+
+        var strBody = typeof body === "string" ? body : safeStringify(body);
+
+        var boundary = "";
+        if (contentType && contentType.includes("boundary=")) {
+          var rawBoundary = contentType.split("boundary=")[1].split(";")[0].trim();
+          if ((rawBoundary.startsWith('"') && rawBoundary.endsWith('"')) || (rawBoundary.startsWith("'") && rawBoundary.endsWith("'"))) {
+            rawBoundary = rawBoundary.substring(1, rawBoundary.length - 1);
+          }
+          boundary = "--" + rawBoundary;
+        } else if (typeof strBody === "string" && strBody.indexOf("--") === 0) {
+          var firstLineEnd = strBody.indexOf("\r\n");
+          if (firstLineEnd === -1) firstLineEnd = strBody.indexOf("\n");
+          if (firstLineEnd !== -1) {
+            boundary = strBody.substring(0, firstLineEnd).trim();
+          }
+        }
+
+        if (!boundary) return result;
+
+        var parts = strBody.split(boundary);
+        for (var i = 0; i < parts.length; i++) {
+          var part = parts[i];
+          if (!part || part === "--" || part === "--\r\n" || part === "--\n") continue;
+
+          var headerEndIndex = part.indexOf("\r\n\r\n");
+          var delimiterLength = 4;
+          if (headerEndIndex === -1) {
+            headerEndIndex = part.indexOf("\n\n");
+            delimiterLength = 2;
+          }
+
+          if (headerEndIndex === -1) continue;
+
+          var headersText = part.substring(0, headerEndIndex);
+          var bodyText = part.substring(headerEndIndex + delimiterLength);
+
+          if (bodyText.endsWith("\r\n")) {
+            bodyText = bodyText.substring(0, bodyText.length - 2);
+          } else if (bodyText.endsWith("\n")) {
+            bodyText = bodyText.substring(0, bodyText.length - 1);
+          }
+
+          var nameMatch = headersText.match(/name="([^"]+)"/i);
+          var fieldName = nameMatch ? nameMatch[1] : "";
+
+          if (fieldName === "model") {
+            result.model = bodyText.trim();
+          } else if (fieldName === "prompt") {
+            result.prompt = bodyText.trim();
+          } else if (fieldName === "language") {
+            result.language = bodyText.trim();
+          } else if (fieldName === "file") {
+            var contentTypeMatch = headersText.match(/Content-Type:\s*([^\r\n;]+)/i);
+            if (contentTypeMatch) {
+              result.fileMimeType = contentTypeMatch[1].trim();
+            }
+            result.fileBase64 = encodeBytesToBase64(bodyText);
+          }
+        }
+
+        return result;
+      }
+
+      function convertOpenAiMultipartToGemini(multipartData) {
+        if (!multipartData) return {};
+
+        var mimeType = multipartData.fileMimeType || "audio/mp3";
+        var base64Data = multipartData.fileBase64 || "";
+        var promptText = multipartData.prompt || "Transcribe this audio file accurately.";
+
+        if (multipartData.language) {
+          promptText += " The spoken language is " + multipartData.language + ".";
+        }
+
+        var parts = [];
+        if (base64Data) {
+          parts.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data
+            }
+          });
+        }
+
+        parts.push({
+          text: promptText
+        });
+
+        return {
+          contents: [
+            {
+              role: "user",
+              parts: parts
+            }
+          ]
+        };
+      }
+
+      function convertOpenAiToGeminiEmbeddings(openAiPayload) {
+        if (!openAiPayload) return { instances: [] };
+
+        var rawInput = openAiPayload.input || "";
+        var instances = [];
+
+        if (Array.isArray(rawInput)) {
+          for (var i = 0; i < rawInput.length; i++) {
+            instances.push({ content: rawInput[i] });
+          }
+        } else if (typeof rawInput === "string") {
+          instances.push({ content: rawInput });
+        }
+
+        return {
+          instances: instances
+        };
+      }
+
+      // Dispatcher for converting OpenAI payload to target provider & request type
+      function convertOpenAiPayload(openAiPayload, provider, requestType, routeInfo) {
+        if (!openAiPayload) return {};
+
+        var prov = (provider || "").toLowerCase();
+        var type = (requestType || "text").toLowerCase();
+
+        if (prov === "google") {
+          if (type === "audio-text") {
+            return convertOpenAiToGeminiAudio(openAiPayload);
+          } else if (type === "audio-data") {
+            return convertOpenAiMultipartToGemini(openAiPayload);
+          } else if (type === "image-generation") {
+            return convertOpenAiToImagen(openAiPayload);
+          } else if (type === "embeddings") {
+            return convertOpenAiToGeminiEmbeddings(openAiPayload);
+          }
+          return openAiPayload;
+        } else if (prov === "anthropic") {
+          return convertOpenAiToAnthropic(openAiPayload, routeInfo);
+        }
+
+        return openAiPayload;
+      }
+
+      // Extract raw base64 audio data and mimeType from Gemini TTS response
+      function convertGeminiAudioToOpenAi(geminiResponse) {
+        var responseData = geminiResponse;
+        if (typeof geminiResponse === "string") {
+          try {
+            responseData = JSON.parse(geminiResponse);
+          } catch (e) {}
+        }
+
+        var base64Data = "";
+        var mimeType = "audio/mpeg";
+
+        if (responseData && responseData.candidates && Array.isArray(responseData.candidates) && responseData.candidates.length > 0) {
+          var cand = responseData.candidates[0];
+          if (cand && cand.content && cand.content.parts && Array.isArray(cand.content.parts) && cand.content.parts.length > 0) {
+            for (var i = 0; i < cand.content.parts.length; i++) {
+              var part = cand.content.parts[i];
+              if (part) {
+                var inline = part.inlineData || part.inline_data;
+                if (inline && inline.data) {
+                  base64Data = inline.data;
+                  if (inline.mimeType) {
+                    mimeType = inline.mimeType;
+                  } else if (inline.mime_type) {
+                    mimeType = inline.mime_type;
+                  }
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        return {
+          base64Data: base64Data,
+          mimeType: mimeType
+        };
+      }
+
+      // Helper to decode base64 string to native bytes (Java byte[] in Apigee, Buffer in Node)
+      function decodeBase64ToBytes(base64Str) {
+        if (!base64Str) return "";
+        try {
+          if (typeof java !== "undefined" && java.util && java.util.Base64) {
+            return java.util.Base64.getDecoder().decode(base64Str);
+          }
+        } catch (e) {}
+        try {
+          if (typeof Buffer !== "undefined") {
+            return Buffer.from(base64Str, "base64");
+          }
+        } catch (e) {}
+        return base64Str;
       }
 
       // Gemini native response to OpenAI format conversion
@@ -1861,6 +2374,8 @@ resources:
       }
 
       if (typeof exports !== "undefined") {
+        exports.safeStringify = safeStringify;
+        exports.getRequestInfo = getRequestInfo;
         exports.getModelName = getModelName;
         exports.getTargetRoute = getTargetRoute;
         exports.getPrompts = getPrompts;
@@ -1870,7 +2385,15 @@ resources:
         exports.getUsageData = getUsageData;
         exports.testAllowedModels = testAllowedModels;
         exports.testDeniedModels = testDeniedModels;
+        exports.encodeBytesToBase64 = encodeBytesToBase64;
+        exports.parseMultipartFormData = parseMultipartFormData;
+        exports.convertOpenAiMultipartToGemini = convertOpenAiMultipartToGemini;
+        exports.convertOpenAiToGeminiEmbeddings = convertOpenAiToGeminiEmbeddings;
         exports.convertOpenAiToGemini = convertOpenAiToGemini;
+        exports.convertOpenAiToGeminiAudio = convertOpenAiToGeminiAudio;
+        exports.convertGeminiAudioToOpenAi = convertGeminiAudioToOpenAi;
+        exports.decodeBase64ToBytes = decodeBase64ToBytes;
+        exports.convertOpenAiPayload = convertOpenAiPayload;
         exports.convertGeminiToOpenAi = convertGeminiToOpenAi;
         exports.convertOpenAiToImagen = convertOpenAiToImagen;
         exports.convertImagenToOpenAi = convertImagenToOpenAi;
