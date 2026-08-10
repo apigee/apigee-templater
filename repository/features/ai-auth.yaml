@@ -502,7 +502,7 @@ policies:
         displayName: JS-Analytics
         properties: {}
         source: |
-          
+
           function safeJsonParse(str) {
             if (!str) return null;
             if (typeof str === "object") return str;
@@ -672,7 +672,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          
+
           function safeJsonParse(str) {
             if (!str) return null;
             if (typeof str === "object") return str;
@@ -850,7 +850,7 @@ resources:
   - name: ai.properties
     type: properties
     content: |
-      ModelRouting=false
+      ModelRouting=true
   - name: ai-functions.js
     type: jsc
     content: |
