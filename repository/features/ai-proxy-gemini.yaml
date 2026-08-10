@@ -1,85 +1,63 @@
-name: ai-caching
-displayName: ""
+name: ai-proxy-gemini
+displayName: Gemini Target
 type: feature
-description: Applies Apigee semantic caching to the AI model proxy.
-documentation: |
-  ## Prerequisites
-  * Set up your Vertex AI search index as described here: https://docs.cloud.google.com/apigee/docs/api-platform/tutorials/using-semantic-caching-policies.
-categories: []
+description: Targets the Gemini native API endpoint for proxying Gemini native requests.
+documentation: null
+categories:
+  - llm
+  - ai
 parameters:
-  - name: VertexPredictUrl
-    displayName: VertexPredictUrl
-    description: Configuration input for VertexPredictUrl
-    default: https://europe-west1-aiplatform.googleapis.com/v1/projects/apigee-klab1/locations/europe-west1/publishers/google/models/text-embedding-004:predict
-    examples: []
-    maps: {}
-  - name: VertexSearchUrl
-    displayName: VertexSearchUrl
-    description: Configuration input for VertexSearchUrl
-    default: https://1509539040.europe-west1-978892257176.vdb.vertexai.goog/v1/projects/apigee-klab1/locations/europe-west1/indexEndpoints/5228226168586502144:findNeighbors
-    examples: []
-    maps: {}
-  - name: VertexUpsertUrl
-    displayName: VertexUpsertUrl
-    description: Configuration input for VertexUpsertUrl
-    default: https://europe-west1-aiplatform.googleapis.com/v1/projects/apigee-klab1/locations/europe-west1/indexes/5231146471469875200:upsertDatapoints
-    examples: []
-    maps: {}
-defaultEndpoint:
-  name: default
-  basePath: /ai-caching
-  routes:
-    - name: default
-      target: default
-  flows:
-    - name: PreFlow
-      mode: Request
-      steps:
-        - name: KVM-LoadConfig
-        - name: AM-SetVariables
-        - name: JS-CheckModel
-        - name: SCL-Semantic-Cache-Lookup
-          condition: ai.requestType == "non-streaming"
-  faultRules: []
-defaultTarget:
-  name: default
-  url: https://aiplatform.googleapis.com
-  auth: GoogleAccessToken
-  scopes:
-    - https://www.googleapis.com/auth/cloud-platform
-  flows:
-    - name: PreFlow
-      mode: Response
-      steps:
-        - name: SCP-Semantic-Cache-Populate
-          condition: ai.requestType == "non-streaming"
-    - name: PostFlow
-      mode: Response
-      steps:
-        - name: JS-Analytics
-          condition: response.content != ""
-        - name: DC-TokenAnalytics
-          condition: ai.usageDataFound = "true"
-        - name: JS-ResetUsageDataFound
-          condition: ai.usageDataFound = "true"
-    - name: EventFlow
-      mode: Response
-      steps:
-        - name: JS-Analytics
-        - name: DC-TokenAnalytics
-          condition: ai.usageDataFound = "true"
-        - name: JS-ResetUsageDataFound
-          condition: ai.usageDataFound = "true"
-  faultRules: []
-  httpTargetConnection:
-    properties: {}
-    url: https://aiplatform.googleapis.com
-    authentication:
-      googleAccessToken:
-        scopes:
-          scope: https://www.googleapis.com/auth/cloud-platform
-endpoints: []
-targets: []
+  - name: BasePath
+    paths:
+      - $.endpoints[:1].basePath
+    description: The base path to offer the AI proxy on.
+    default: /gemini
+    examples:
+      - /gemini
+      - /llm
+endpoints:
+  - name: gemini
+    basePath: /gemini
+    routes:
+      - name: default
+        target: gemini
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: KVM-LoadConfig
+          - name: AM-SetVariables
+          - name: JS-CheckModel
+    faultRules: []
+targets:
+  - name: gemini
+    url: https://generativelanguage.googleapis.com
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+          - name: DC-TokenAnalytics
+            condition: ai.usageDataFound = "true"
+          - name: JS-ResetUsageDataFound
+            condition: ai.usageDataFound = "true"
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+          - name: DC-TokenAnalytics
+            condition: ai.usageDataFound = "true"
+          - name: JS-ResetUsageDataFound
+            condition: ai.usageDataFound = "true"
+    faultRules: []
+    httpTargetConnection:
+      properties:
+        property:
+          metadata:
+            name: io.timeout.millis
+          value: "18000000"
+      url: https://generativelanguage.googleapis.com
 policies:
   - name: JS-ResetUsageDataFound
     type: Javascript
@@ -93,155 +71,7 @@ policies:
         displayName: JS-ResetUsageDataFound
         properties: {}
         source: |
-          context.setVariable("ai.usageDataFound", "false");
-  - name: SCL-Semantic-Cache-Lookup
-    type: SemanticCacheLookup
-    content:
-      semanticCacheLookup:
-        metadata:
-          async: "false"
-          continueOnError: "false"
-          enabled: "true"
-          name: SCL-Semantic-Cache-Lookup
-        displayName: Semantic Cache Lookup
-        ignoreUnresolvedVariables: "false"
-        userPromptSource: "{ai.requestPrompt}"
-        embeddings:
-          vertexAi:
-            url: "{propertyset.caching.VertexPredictUrl}"
-        similaritySearch:
-          vertexAi:
-            url: "{propertyset.caching.VertexSearchUrl}"
-            deployedIndexId: semantic_cache
-            threshold: "0.95"
-  - name: SCP-Semantic-Cache-Populate
-    type: SemanticCachePopulate
-    content:
-      semanticCachePopulate:
-        metadata:
-          async: "false"
-          continueOnError: "false"
-          enabled: "true"
-          name: SCP-Semantic-Cache-Populate
-        displayName: Semantic Cache Populate
-        ignoreUnresolvedVariables: "false"
-        similaritySearch:
-          vertexAi:
-            url: "{propertyset.caching.VertexUpsertUrl}"
-        ttlInSeconds: "60"
-  - name: AM-SetVariables
-    type: AssignMessage
-    content:
-      assignMessage:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: AM-SetVariables
-        displayName: AM-SetVariables
-        properties: {}
-        remove:
-          headers:
-            header:
-              metadata:
-                name: accept-encoding
-        ignoreUnresolvedVariables: "true"
-        assignTo:
-          metadata:
-            createNew: "false"
-            transport: http
-            type: request
-  - name: DC-TokenAnalytics
-    type: DataCapture
-    content:
-      dataCapture:
-        metadata:
-          name: DC-TokenAnalytics
-          continueOnError: "false"
-          enabled: "true"
-        displayName: DC-TokenAnalytics
-        ignoreUnresolvedVariables: "false"
-        capture:
-          - collect:
-              metadata:
-                ref: ai.model
-                default: unknown
-            dataCollector: dc_ai_model
-          - collect:
-              metadata:
-                ref: ai.promptTokenCount
-                default: "0"
-            dataCollector: dc_ai_prompt_token_count
-          - collect:
-              metadata:
-                ref: ai.responseTokenCount
-                default: "0"
-            dataCollector: dc_ai_response_token_count
-          - collect:
-              metadata:
-                ref: ai.totalTokenCount
-                default: "0"
-            dataCollector: dc_ai_total_token_count
-          - collect:
-              metadata:
-                ref: ai.responseType
-                default: unknown
-            dataCollector: dc_ai_response_type
-          - collect:
-              metadata:
-                ref: ai.timeToFirstToken
-                default: "0"
-            dataCollector: dc_ai_time_first_token
-          - collect:
-              metadata:
-                ref: ai.costCenter
-                default: unknown
-            dataCollector: dc_ai_cost_center
-          - collect:
-              metadata:
-                ref: ai.requestCost
-                default: "0"
-            dataCollector: dc_ai_request_cost
-          - collect:
-              metadata:
-                ref: ai.responseCost
-                default: "0"
-            dataCollector: dc_ai_response_cost
-          - collect:
-              metadata:
-                ref: ai.totalCost
-                default: "0"
-            dataCollector: dc_ai_total_cost
-  - name: JS-Analytics
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-Analytics
-        displayName: JS-Analytics
-        properties: {}
-        source: |
           
-          function safeJsonParse(str) {
-            if (!str) return null;
-            if (typeof str === "object") return str;
-            if (typeof str !== "string") return null;
-            var cleaned = str.trim();
-            if (cleaned.indexOf("{") !== 0 && cleaned.indexOf("[") !== 0) return null;
-            try {
-              return JSON.parse(cleaned);
-            } catch (e1) {
-              try {
-                var sanitized = cleaned.replace(/\r?\n/g, "\\n");
-                return JSON.parse(sanitized);
-              } catch (e2) {
-                return null;
-              }
-            }
-          }
-
           var currentFlow = context.getVariable("current.flow.name");
           var contentString = null;
           var type = "non-streaming";
@@ -299,20 +129,14 @@ policies:
               context.setVariable("response.content", rawBytes);
             }
           } else if (reqType === "image-generation" && (aiProvider === "google" || aiProvider === "gemini") && aiProtocol === "openai" && contentString) {
-            var imageObj = null;
-            try {
-              imageObj = JSON.parse(contentString);
-            } catch (e) {}
+            var imageObj = safeJsonParse(contentString);
             if (imageObj) {
               var openAiImageResp = convertImagenToOpenAi(imageObj, modelName);
               contentString = JSON.stringify(openAiImageResp);
               context.setVariable("response.content", contentString);
             }
           } else if (reqType === "embeddings" && (aiProvider === "google" || aiProvider === "gemini") && aiProtocol === "openai" && contentString) {
-            var embedObj = null;
-            try {
-              embedObj = JSON.parse(contentString);
-            } catch (e) {}
+            var embedObj = safeJsonParse(contentString);
             if (embedObj) {
               var openAiEmbedResp = convertGeminiEmbeddingsToOpenAi(embedObj, modelName);
               contentString = JSON.stringify(openAiEmbedResp);
@@ -345,7 +169,7 @@ policies:
 
             var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
             if (!timeToFirstToken) {
-              var request_start_time = context.getVariable('client.received.start.timestamp');
+              var request_start_time = context.getVariable("client.received.start.timestamp");
               var timeNow = Date.now();
               timeToFirstToken = timeNow - request_start_time;
               context.setVariable("ai.timeToFirstToken", timeToFirstToken);
@@ -362,21 +186,14 @@ policies:
             usageData.type = type;
 
             // cost calculation
-            var requestTokenPrice = prices["default"].requestPerMillionTokens;
-            if (prices[modelName]) requestTokenPrice = prices[modelName].requestPerMillionTokens;
-            var responseTokenPrice = prices["default"].responsePerMillionTokens;
-            if (prices[modelName]) responseTokenPrice = prices[modelName].responsePerMillionTokens;
+            var requestTokenPrice = (prices && prices["default"]) ? prices["default"].requestPerMillionTokens : 0;
+            if (prices && prices[modelName]) requestTokenPrice = prices[modelName].requestPerMillionTokens;
+            var responseTokenPrice = (prices && prices["default"]) ? prices["default"].responsePerMillionTokens : 0;
+            if (prices && prices[modelName]) responseTokenPrice = prices[modelName].responsePerMillionTokens;
             var requestCost = parseFloat(usageData.requestTokenCount) * (parseFloat(requestTokenPrice) / 1000000);
             var responseCost = parseFloat(usageData.responseTokenCount) * (parseFloat(responseTokenPrice) / 1000000);
-
-            context.setVariable("ai.requestCost", requestCost);
-            context.setVariable("ai.responseCost", responseCost);
-            context.setVariable("ai.totalCost", requestCost + responseCost);
-
-            usageData.requestCost = requestCost;
-            usageData.responseCost = responseCost;
-
-            print("Analytics data: " + JSON.stringify(usageData));
+            usageData.totalCost = requestCost + responseCost;
+            context.setVariable("ai.totalCost", usageData.totalCost.toString());
           } else {
             context.setVariable("ai.usageDataFound", "false");
           }
@@ -567,13 +384,28 @@ policies:
             key:
               parameter: ModelRouting
         scope: environment
+  - name: AM-SetVariables
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetVariables
+        displayName: AM-SetVariables
+        properties: {}
+        remove:
+          headers:
+            header:
+              metadata:
+                name: accept-encoding
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
 resources:
-  - name: caching.properties
-    type: properties
-    content: |
-      VertexPredictUrl={VertexPredictUrl}
-      VertexSearchUrl={VertexSearchUrl}
-      VertexUpsertUrl={VertexUpsertUrl}
   - name: analytics.js
     type: jsc
     content: |

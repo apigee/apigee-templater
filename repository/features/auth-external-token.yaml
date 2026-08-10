@@ -551,17 +551,14 @@ policies:
         get:
           - metadata:
               assignTo: ai.failoverModel
-              index: "1"
             key:
               parameter: FailoverModel
           - metadata:
               assignTo: ai.prices
-              index: "1"
             key:
               parameter: PriceList
           - metadata:
               assignTo: ai.groupsLookup
-              index: "1"
             key:
               parameter: GroupsLookup
           - metadata:

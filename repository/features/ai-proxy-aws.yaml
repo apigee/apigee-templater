@@ -1,0 +1,40 @@
+name: ai-proxy-aws
+displayName: ai-proxy-aws
+type: feature
+description: Proxy for AWS models.
+documentation: ""
+categories: []
+parameters:
+  - name: BasePath
+    paths:
+      - $.endpoints[:1].basePath
+    description: The base path to offer the proxy on.
+    default: /aws
+    examples:
+      - /llm
+      - /models
+  - name: AwsRegion
+    description: The AWS region to call the bedrock model on.
+    default: us-east-1
+    examples:
+      - eu-west-1
+      - ap-southeast-1
+endpoints:
+  - name: aws
+    basePath: /aws
+    routes:
+      - name: aws
+        target: aws
+    flows: []
+    faultRules: []
+targets:
+  - name: aws
+    url: https://bedrock-mantle.{AwsRegion}.api.aws
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      properties: {}
+      url: https://bedrock-mantle.{AwsRegion}.api.aws
+policies: []
+resources: []
+tests: []

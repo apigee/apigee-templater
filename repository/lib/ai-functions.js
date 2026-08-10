@@ -1,3 +1,47 @@
+if (!String.prototype.startsWith) {
+  String.prototype.startsWith = function(search, pos) {
+    return this.substr(!pos || pos < 0 ? 0 : +pos, search.length) === search;
+  };
+}
+if (!String.prototype.endsWith) {
+  String.prototype.endsWith = function(search, this_len) {
+    if (this_len === undefined || this_len > this.length) {
+      this_len = this.length;
+    }
+    return this.substring(this_len - search.length, this_len) === search;
+  };
+}
+if (!String.prototype.includes) {
+  String.prototype.includes = function(search, start) {
+    if (typeof start !== 'number') {
+      start = 0;
+    }
+    if (start + search.length > this.length) {
+      return false;
+    } else {
+      return this.indexOf(search, start) !== -1;
+    }
+  };
+}
+
+function safeJsonParse(str) {
+  if (!str) return null;
+  if (typeof str === "object") return str;
+  if (typeof str !== "string") return null;
+  var cleaned = str.trim();
+  if (cleaned.indexOf("{") !== 0 && cleaned.indexOf("[") !== 0) return null;
+  try {
+    return JSON.parse(cleaned);
+  } catch (e1) {
+    try {
+      var sanitized = cleaned.replace(/\r?\n/g, "\\n");
+      return JSON.parse(sanitized);
+    } catch (e2) {
+      return null;
+    }
+  }
+}
+
 function extractGoogleInput(contents) {
   if (!contents || !Array.isArray(contents)) return "";
   for (var i = contents.length - 1; i >= 0; i--) {
@@ -465,18 +509,27 @@ function getUsageData(contentString) {
     return usageData;
   }
 
-  // Strip prefixes like "data: " or "event: message_delta data: "
-  if (cleaned.indexOf("data: ") !== -1) {
-    var parts = cleaned.split("data: ");
-    cleaned = parts[parts.length - 1].trim();
-  } else if (cleaned.startsWith("event: ")) {
+  // Extract last JSON object from data: lines if present
+  if (cleaned.indexOf("data:") !== -1) {
+    var lines = cleaned.split(/\r?\n/);
+    for (var i = lines.length - 1; i >= 0; i--) {
+      var l = lines[i].trim();
+      if (l.indexOf("data:") === 0) {
+        var candidate = l.substring(5).trim();
+        if (candidate.indexOf("{") === 0) {
+          cleaned = candidate;
+          break;
+        }
+      }
+    }
+  } else if (cleaned.indexOf("event: ") === 0) {
     var firstBrace = cleaned.indexOf("{");
     if (firstBrace !== -1) {
       cleaned = cleaned.substring(firstBrace).trim();
     }
   }
 
-  if (!cleaned || !cleaned.startsWith("{")) {
+  if (!cleaned || cleaned.indexOf("{") !== 0) {
     return usageData;
   }
 
@@ -1502,28 +1555,32 @@ function convertAnthropicStreamToOpenAi(contentString, modelName, streamMessageI
     }
 
     var eventType = "";
-    var dataStr = "";
+    var dataLines = [];
     var lines = raw.split(/\r?\n/);
 
     for (var l = 0; l < lines.length; l++) {
       var line = lines[l].trim();
-      if (line.startsWith("event:")) {
+      if (line.indexOf("event:") === 0) {
         eventType = line.substring(6).trim();
-      } else if (line.startsWith("data:")) {
-        dataStr = line.substring(5).trim();
+      } else if (line.indexOf("data:") === 0) {
+        dataLines.push(line.substring(5).trim());
+      } else if (dataLines.length > 0 && line) {
+        dataLines.push(line);
       }
     }
 
-    if (!dataStr && raw.startsWith("{")) {
-      dataStr = raw;
+    var dataStr = dataLines.join("").trim();
+
+    if (!dataStr && raw.indexOf("{") === 0) {
+      dataStr = raw.trim();
     }
 
-    if (!dataStr) {
+    var eventData = safeJsonParse(dataStr);
+    if (!eventData) {
       continue;
     }
 
     try {
-      var eventData = JSON.parse(dataStr);
       var type = eventType || eventData.type || "";
       var created = Math.floor(Date.now() / 1000);
       var model = modelName || eventData.model || "claude";

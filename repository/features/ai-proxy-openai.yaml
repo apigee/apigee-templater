@@ -1,0 +1,34 @@
+name: ai-proxy-openai
+displayName: ai-proxy-openai
+type: feature
+description: Proxy for OpenAI models.
+documentation: ""
+categories: []
+parameters:
+  - name: BasePath
+    paths:
+      - $.endpoints[:1].basePath
+    description: The base path to offer the proxy on.
+    default: /openai
+    examples:
+      - /llm
+      - /models
+endpoints:
+  - name: openai
+    basePath: /openai
+    routes:
+      - name: openai
+        target: openai
+    flows: []
+    faultRules: []
+targets:
+  - name: openai
+    url: https://api.openai.com
+    flows: []
+    faultRules: []
+    httpTargetConnection:
+      properties: {}
+      url: https://api.openai.com
+policies: []
+resources: []
+tests: []

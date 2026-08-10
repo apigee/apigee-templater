@@ -1,0 +1,33 @@
+name: REST-AI-EntraToken-v1
+type: template
+description: API template for REST-AI-EntraToken-v1
+features:
+  - ../features/auth-entra-token.yaml
+parameters:
+  - name: EntraTenantId
+    displayName: Entra Tenant ID
+    description: Fallback Microsoft Entra ID Directory (Tenant) ID or "common".
+    default: common
+    examples:
+      - common
+      - 00000000-0000-0000-0000-000000000000
+  - name: EntraScope
+    displayName: Entra Scope
+    description: Fallback scope to request from Microsoft Entra ID.
+    default: https://graph.microsoft.com/.default
+    examples:
+      - https://graph.microsoft.com/.default
+  - name: EntraClientId
+    displayName: Entra Client ID
+    description: Fallback Client ID configured in property set.
+    default: ""
+  - name: EntraClientSecret
+    displayName: Entra Client Secret
+    description: Fallback Client Secret configured in property set.
+    default: ""
+endpoints:
+  - name: entra
+    basePath: /auth/entra/token
+    routes:
+      - name: entra
+targets: []

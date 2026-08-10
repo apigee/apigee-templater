@@ -333,6 +333,34 @@ describe("ai-functions.js unit tests", () => {
     expect(getUsageData(stopResult.contentString).usageFound).toBe(false);
   });
 
+  it("should extract usage data from non-streaming Gemini OpenAPI response", () => {
+    const geminiOaiResponse = JSON.stringify({
+      choices: [{
+        finish_reason: "stop",
+        index: 0,
+        logprobs: null,
+        message: { content: "Hello! How can I help you today?", role: "assistant" }
+      }],
+      created: 1786342630,
+      id: "5mx5arOeEoXAz_IPutTnmQ8",
+      model: "google/gemini-flash-latest",
+      object: "chat.completion",
+      system_fingerprint: "",
+      usage: {
+        completion_tokens: 9,
+        extra_properties: { google: { traffic_type: "ON_DEMAND" } },
+        prompt_tokens: 2,
+        total_tokens: 11
+      }
+    });
+
+    const usage = getUsageData(geminiOaiResponse);
+    expect(usage.model).toBe("gemini-flash-latest");
+    expect(usage.requestTokenCount).toBe(2);
+    expect(usage.responseTokenCount).toBe(9);
+    expect(usage.usageFound).toBe(true);
+  });
+
   it("should convert OpenAI request format to Gemini native format", () => {
     const openAiPayload = {
       model: "gemini-eu/gemini-1.5-flash",

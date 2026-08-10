@@ -1,33 +1,19 @@
-name: ai-caching
-displayName: ""
+name: ai-presidio
+displayName: ai-presidio
 type: feature
-description: Applies Apigee semantic caching to the AI model proxy.
-documentation: |
-  ## Prerequisites
-  * Set up your Vertex AI search index as described here: https://docs.cloud.google.com/apigee/docs/api-platform/tutorials/using-semantic-caching-policies.
+description: ai-presidio
+documentation: ""
 categories: []
 parameters:
-  - name: VertexPredictUrl
-    displayName: VertexPredictUrl
-    description: Configuration input for VertexPredictUrl
-    default: https://europe-west1-aiplatform.googleapis.com/v1/projects/apigee-klab1/locations/europe-west1/publishers/google/models/text-embedding-004:predict
-    examples: []
-    maps: {}
-  - name: VertexSearchUrl
-    displayName: VertexSearchUrl
-    description: Configuration input for VertexSearchUrl
-    default: https://1509539040.europe-west1-978892257176.vdb.vertexai.goog/v1/projects/apigee-klab1/locations/europe-west1/indexEndpoints/5228226168586502144:findNeighbors
-    examples: []
-    maps: {}
-  - name: VertexUpsertUrl
-    displayName: VertexUpsertUrl
-    description: Configuration input for VertexUpsertUrl
-    default: https://europe-west1-aiplatform.googleapis.com/v1/projects/apigee-klab1/locations/europe-west1/indexes/5231146471469875200:upsertDatapoints
+  - name: ModelRouting
+    displayName: ModelRouting
+    description: Configuration input for ModelRouting
+    default: "false"
     examples: []
     maps: {}
 defaultEndpoint:
   name: default
-  basePath: /ai-caching
+  basePath: /ai-presidio
   routes:
     - name: default
       target: default
@@ -38,97 +24,20 @@ defaultEndpoint:
         - name: KVM-LoadConfig
         - name: AM-SetVariables
         - name: JS-CheckModel
-        - name: SCL-Semantic-Cache-Lookup
-          condition: ai.requestType == "non-streaming"
+        - name: SC-PresidioAnonymizer
+        - name: JS-SetAnonymizedPrompt
   faultRules: []
 defaultTarget:
   name: default
   url: https://aiplatform.googleapis.com
-  auth: GoogleAccessToken
-  scopes:
-    - https://www.googleapis.com/auth/cloud-platform
-  flows:
-    - name: PreFlow
-      mode: Response
-      steps:
-        - name: SCP-Semantic-Cache-Populate
-          condition: ai.requestType == "non-streaming"
-    - name: PostFlow
-      mode: Response
-      steps:
-        - name: JS-Analytics
-          condition: response.content != ""
-        - name: DC-TokenAnalytics
-          condition: ai.usageDataFound = "true"
-        - name: JS-ResetUsageDataFound
-          condition: ai.usageDataFound = "true"
-    - name: EventFlow
-      mode: Response
-      steps:
-        - name: JS-Analytics
-        - name: DC-TokenAnalytics
-          condition: ai.usageDataFound = "true"
-        - name: JS-ResetUsageDataFound
-          condition: ai.usageDataFound = "true"
+  flows: []
   faultRules: []
   httpTargetConnection:
     properties: {}
     url: https://aiplatform.googleapis.com
-    authentication:
-      googleAccessToken:
-        scopes:
-          scope: https://www.googleapis.com/auth/cloud-platform
 endpoints: []
 targets: []
 policies:
-  - name: JS-ResetUsageDataFound
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-ResetUsageDataFound
-        displayName: JS-ResetUsageDataFound
-        properties: {}
-        source: |
-          context.setVariable("ai.usageDataFound", "false");
-  - name: SCL-Semantic-Cache-Lookup
-    type: SemanticCacheLookup
-    content:
-      semanticCacheLookup:
-        metadata:
-          async: "false"
-          continueOnError: "false"
-          enabled: "true"
-          name: SCL-Semantic-Cache-Lookup
-        displayName: Semantic Cache Lookup
-        ignoreUnresolvedVariables: "false"
-        userPromptSource: "{ai.requestPrompt}"
-        embeddings:
-          vertexAi:
-            url: "{propertyset.caching.VertexPredictUrl}"
-        similaritySearch:
-          vertexAi:
-            url: "{propertyset.caching.VertexSearchUrl}"
-            deployedIndexId: semantic_cache
-            threshold: "0.95"
-  - name: SCP-Semantic-Cache-Populate
-    type: SemanticCachePopulate
-    content:
-      semanticCachePopulate:
-        metadata:
-          async: "false"
-          continueOnError: "false"
-          enabled: "true"
-          name: SCP-Semantic-Cache-Populate
-        displayName: Semantic Cache Populate
-        ignoreUnresolvedVariables: "false"
-        similaritySearch:
-          vertexAi:
-            url: "{propertyset.caching.VertexUpsertUrl}"
-        ttlInSeconds: "60"
   - name: AM-SetVariables
     type: AssignMessage
     content:
@@ -150,237 +59,6 @@ policies:
             createNew: "false"
             transport: http
             type: request
-  - name: DC-TokenAnalytics
-    type: DataCapture
-    content:
-      dataCapture:
-        metadata:
-          name: DC-TokenAnalytics
-          continueOnError: "false"
-          enabled: "true"
-        displayName: DC-TokenAnalytics
-        ignoreUnresolvedVariables: "false"
-        capture:
-          - collect:
-              metadata:
-                ref: ai.model
-                default: unknown
-            dataCollector: dc_ai_model
-          - collect:
-              metadata:
-                ref: ai.promptTokenCount
-                default: "0"
-            dataCollector: dc_ai_prompt_token_count
-          - collect:
-              metadata:
-                ref: ai.responseTokenCount
-                default: "0"
-            dataCollector: dc_ai_response_token_count
-          - collect:
-              metadata:
-                ref: ai.totalTokenCount
-                default: "0"
-            dataCollector: dc_ai_total_token_count
-          - collect:
-              metadata:
-                ref: ai.responseType
-                default: unknown
-            dataCollector: dc_ai_response_type
-          - collect:
-              metadata:
-                ref: ai.timeToFirstToken
-                default: "0"
-            dataCollector: dc_ai_time_first_token
-          - collect:
-              metadata:
-                ref: ai.costCenter
-                default: unknown
-            dataCollector: dc_ai_cost_center
-          - collect:
-              metadata:
-                ref: ai.requestCost
-                default: "0"
-            dataCollector: dc_ai_request_cost
-          - collect:
-              metadata:
-                ref: ai.responseCost
-                default: "0"
-            dataCollector: dc_ai_response_cost
-          - collect:
-              metadata:
-                ref: ai.totalCost
-                default: "0"
-            dataCollector: dc_ai_total_cost
-  - name: JS-Analytics
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-Analytics
-        displayName: JS-Analytics
-        properties: {}
-        source: |
-          
-          function safeJsonParse(str) {
-            if (!str) return null;
-            if (typeof str === "object") return str;
-            if (typeof str !== "string") return null;
-            var cleaned = str.trim();
-            if (cleaned.indexOf("{") !== 0 && cleaned.indexOf("[") !== 0) return null;
-            try {
-              return JSON.parse(cleaned);
-            } catch (e1) {
-              try {
-                var sanitized = cleaned.replace(/\r?\n/g, "\\n");
-                return JSON.parse(sanitized);
-              } catch (e2) {
-                return null;
-              }
-            }
-          }
-
-          var currentFlow = context.getVariable("current.flow.name");
-          var contentString = null;
-          var type = "non-streaming";
-
-          if (currentFlow === "EventFlow") {
-            contentString = context.getVariable("response.event.current.content");
-            type = "streaming";
-          } else {
-            contentString = context.getVariable("response.content");
-            type = "non-streaming";
-          }
-
-          if (!contentString) {
-            contentString = context.getVariable("response.content") || context.getVariable("response.event.current.content");
-          }
-
-          var rawPrices = context.getVariable("ai.prices");
-          var prices = safeJsonParse(rawPrices);
-          if (!prices) {
-            prices = {
-              "default": { "requestPerMillionTokens": 1, "responsePerMillionTokens": 3 }
-            };
-          }
-          context.setVariable("ai.responseType", type);
-          print(contentString);
-
-          var modelName = context.getVariable("ai.model");
-          var aiProtocol = context.getVariable("ai.protocol");
-          var aiProvider = context.getVariable("ai.provider");
-          var reqType = context.getVariable("ai.type");
-
-          var usageData = null;
-
-          if (aiProtocol === "openai" && aiProvider === "anthropic") {
-            if (type === "streaming" && contentString) {
-              var streamMsgId = context.getVariable("ai.streamMessageId");
-              var streamResult = convertAnthropicStreamToOpenAi(contentString, modelName, streamMsgId);
-              contentString = streamResult.contentString;
-              if (streamResult.messageId) {
-                context.setVariable("ai.streamMessageId", streamResult.messageId);
-              }
-              context.setVariable("response.event.current.content", contentString);
-              usageData = streamResult.usageData;
-            } else if (type === "non-streaming" && contentString) {
-              var nonStreamResult = convertAnthropicToOpenAi(contentString, modelName);
-              contentString = nonStreamResult.contentString;
-              context.setVariable("response.content", contentString);
-              usageData = nonStreamResult.usageData;
-            }
-          } else if (reqType === "audio-text" && aiProvider === "google" && aiProtocol === "openai" && contentString) {
-            var audioResult = convertGeminiAudioToOpenAi(contentString);
-            if (audioResult && audioResult.base64Data) {
-              var rawBytes = decodeBase64ToBytes(audioResult.base64Data);
-              context.setVariable("response.header.Content-Type", audioResult.mimeType || "audio/mpeg");
-              context.setVariable("response.content", rawBytes);
-            }
-          } else if (reqType === "image-generation" && (aiProvider === "google" || aiProvider === "gemini") && aiProtocol === "openai" && contentString) {
-            var imageObj = null;
-            try {
-              imageObj = JSON.parse(contentString);
-            } catch (e) {}
-            if (imageObj) {
-              var openAiImageResp = convertImagenToOpenAi(imageObj, modelName);
-              contentString = JSON.stringify(openAiImageResp);
-              context.setVariable("response.content", contentString);
-            }
-          } else if (reqType === "embeddings" && (aiProvider === "google" || aiProvider === "gemini") && aiProtocol === "openai" && contentString) {
-            var embedObj = null;
-            try {
-              embedObj = JSON.parse(contentString);
-            } catch (e) {}
-            if (embedObj) {
-              var openAiEmbedResp = convertGeminiEmbeddingsToOpenAi(embedObj, modelName);
-              contentString = JSON.stringify(openAiEmbedResp);
-              context.setVariable("response.content", contentString);
-            }
-          }
-
-          if (!usageData) {
-            usageData = getUsageData(contentString);
-          }
-
-          if (usageData.model) context.setVariable("ai.model", usageData.model);
-
-          var existingReqTokenCount = context.getVariable("ai.requestTokenCount");
-          if (existingReqTokenCount && !usageData.requestTokenCount) {
-            usageData.requestTokenCount = existingReqTokenCount;
-          }
-
-          if (usageData.usageFound) {
-            context.setVariable("ai.usageDataFound", "true");
-            if (usageData.requestTokenCount) {
-              context.setVariable("ai.promptTokenCount", usageData.requestTokenCount);
-              context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
-            }
-            if (usageData.responseTokenCount) {
-              context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
-            }
-            usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
-            context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
-
-            var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
-            if (!timeToFirstToken) {
-              var request_start_time = context.getVariable('client.received.start.timestamp');
-              var timeNow = Date.now();
-              timeToFirstToken = timeNow - request_start_time;
-              context.setVariable("ai.timeToFirstToken", timeToFirstToken);
-            }
-            if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
-
-            var costCenter = context.getVariable("ai.costCenter");
-            if (costCenter)
-              usageData.costCenter = costCenter;
-            else
-              usageData.costCenter = "unknown";
-
-            context.setVariable("ai.costCenter", usageData.costCenter);
-            usageData.type = type;
-
-            // cost calculation
-            var requestTokenPrice = prices["default"].requestPerMillionTokens;
-            if (prices[modelName]) requestTokenPrice = prices[modelName].requestPerMillionTokens;
-            var responseTokenPrice = prices["default"].responsePerMillionTokens;
-            if (prices[modelName]) responseTokenPrice = prices[modelName].responsePerMillionTokens;
-            var requestCost = parseFloat(usageData.requestTokenCount) * (parseFloat(requestTokenPrice) / 1000000);
-            var responseCost = parseFloat(usageData.responseTokenCount) * (parseFloat(responseTokenPrice) / 1000000);
-
-            context.setVariable("ai.requestCost", requestCost);
-            context.setVariable("ai.responseCost", responseCost);
-            context.setVariable("ai.totalCost", requestCost + responseCost);
-
-            usageData.requestCost = requestCost;
-            usageData.responseCost = responseCost;
-
-            print("Analytics data: " + JSON.stringify(usageData));
-          } else {
-            context.setVariable("ai.usageDataFound", "false");
-          }
-        includeUrl: jsc://ai-functions.js
   - name: JS-CheckModel
     type: Javascript
     content:
@@ -393,24 +71,6 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          
-          function safeJsonParse(str) {
-            if (!str) return null;
-            if (typeof str === "object") return str;
-            if (typeof str !== "string") return null;
-            var cleaned = str.trim();
-            if (cleaned.indexOf("{") !== 0 && cleaned.indexOf("[") !== 0) return null;
-            try {
-              return JSON.parse(cleaned);
-            } catch (e1) {
-              try {
-                var sanitized = cleaned.replace(/\r?\n/g, "\\n");
-                return JSON.parse(sanitized);
-              } catch (e2) {
-                return null;
-              }
-            }
-          }
 
           var aiKey = context.getVariable("request.header.x-ai-key");
           var apiKey = context.getVariable("request.header.x-api-key");
@@ -448,7 +108,7 @@ policies:
           var modelName = reqInfo.modelName;
 
           var callStreaming = "non-streaming";
-          if (url.toLowerCase().includes("stream") || (requestContent && requestContent["stream"] === true)) {
+          if (url.toLowerCase().indexOf("stream") !== -1 || (requestContent && requestContent["stream"] === true)) {
             callStreaming = "streaming";
           }
 
@@ -490,46 +150,55 @@ policies:
 
               requestContent = convertOpenAiPayload(multipartObj, effectiveProvider, reqInfo.requestType, routeInfo);
               context.setVariable("request.header.Content-Type", "application/json");
-              request.content = JSON.stringify(requestContent);
             } else {
-              requestContent = convertOpenAiPayload(requestContent, effectiveProvider, reqInfo.requestType, routeInfo);
-              request.content = JSON.stringify(requestContent);
+              requestContent = convertOpenAiPayload(requestContent || rawBody, effectiveProvider, reqInfo.requestType, routeInfo);
             }
-          } else if (requestContent && typeof requestContent === "object" && requestContent["model"]) {
-            requestContent["model"] = cleanModel;
             request.content = JSON.stringify(requestContent);
           }
 
           context.setVariable("ai.protocol", aiProtocol);
-          context.setVariable("ai.model", modelName);
-          context.setVariable("ai.requestType", callStreaming);
-          context.setVariable("ai.apiType", aiProtocol);
           context.setVariable("ai.type", reqInfo.requestType);
-          context.setVariable("ai.user", "unknown");
-
-          if (routeInfo && routeInfo.provider === "anthropic") {
-            context.setVariable("ai.method", callStreaming === "streaming" ? "streamRawPredict" : "rawPredict");
-          } else if (routeInfo && routeInfo.provider === "google") {
-            if (reqInfo.requestType === "embeddings") {
-              context.setVariable("ai.method", "embedContent");
-            } else if (callStreaming === "non-streaming") {
-              context.setVariable("ai.method", "generateContent");
-            } else {
-              context.setVariable("ai.method", "streamGenerateContent");
+          context.setVariable("ai.model", modelName);
+          context.setVariable("ai.callStreaming", callStreaming);
+          context.setVariable("ai.prompt", reqInfo.input);
+        includeUrl: jsc://ai-functions.js
+  - name: JS-SetAnonymizedPrompt
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-SetAnonymizedPrompt
+        displayName: JS-SetAnonymizedPrompt
+        properties: {}
+        source: |
+          var responseContent = context.getVariable("presidioResponse.content");
+          if (responseContent) {
+            try {
+              var responseObj = JSON.parse(responseContent);
+              if (responseObj && responseObj.text !== undefined) {
+                context.setVariable("ai.requestPrompt", responseObj.text);
+                var requestContent = null;
+                try {
+                  requestContent = request.content.asJSON;
+                } catch (e) {
+                  var rawContent = context.getVariable("request.content");
+                  if (rawContent) {
+                    try {
+                      requestContent = JSON.parse(rawContent);
+                    } catch (e2) {}
+                  }
+                }
+                if (requestContent) {
+                  var updatedRequestContent = setPrompt(requestContent, responseObj.text);
+                  context.setVariable("request.content", JSON.stringify(updatedRequestContent));
+                }
+              }
+            } catch (e) {
+              print("Error parsing Presidio response: " + e);
             }
-          }
-
-          if (reqInfo.input) {
-            context.setVariable("ai.requestPrompt", reqInfo.input);
-          } else {
-            print("Could not find user input/prompt!");
-          }
-
-          if (context.getVariable("environment.name") === "dev") {
-            print("RequestInfo: " + JSON.stringify(reqInfo));
-            print("ModelRoutingEnabled: " + JSON.stringify(modelRouting));
-            print("ModelRouting: " + JSON.stringify(modelRoutingConfig));
-            print("TargetRoute: " + JSON.stringify(routeInfo));
           }
         includeUrl: jsc://ai-functions.js
   - name: KVM-LoadConfig
@@ -567,60 +236,42 @@ policies:
             key:
               parameter: ModelRouting
         scope: environment
+  - name: SC-PresidioAnonymizer
+    type: ServiceCallout
+    content:
+      serviceCallout:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: SC-PresidioAnonymizer
+        displayName: SC-PresidioAnonymizer
+        properties: {}
+        request:
+          metadata:
+            clearPayload: "true"
+            variable: presidioRequest
+          ignoreUnresolvedVariables: "false"
+          set:
+            verb: POST
+            payload:
+              metadata:
+                contentType: application/json
+              value: |
+                {
+                  "text": "{ai.requestPrompt}",
+                  "anonymizers": {
+                    "DEFAULT": { "type": "replace", "new_value": "*******" }
+                  },
+                  "analyzer_results": [
+                    { "start": 11, "end": 19, "entity_type": "PERSON", "score": 0.85 },
+                    { "start": 44, "end": 56, "entity_type": "PHONE_NUMBER", "score": 0.75 }
+                  ]
+                }
+        response: presidioResponse
+        httpTargetConnection:
+          properties: {}
+          url: https://presidio-anonymizer-323709580283.europe-west3.run.app/anonymize
 resources:
-  - name: caching.properties
-    type: properties
-    content: |
-      VertexPredictUrl={VertexPredictUrl}
-      VertexSearchUrl={VertexSearchUrl}
-      VertexUpsertUrl={VertexUpsertUrl}
-  - name: analytics.js
-    type: jsc
-    content: |
-      var contentString = context.getVariable("response.event.current.content");
-      var type = "streaming";
-      if (!contentString) {
-        contentString = context.getVariable("response.content");
-        type = "non-streaming"
-      }
-      print(contentString);
-
-      var modelName = context.getVariable("ai.model");
-      var requestTokenCount = context.getVariable("ai.requestTokenCount");
-      var timeToFirstToken = context.getVariable("ai.timeToFirstToken");
-      if (!timeToFirstToken) {
-        var request_start_time = context.getVariable('client.received.start.timestamp');
-        var timeNow = Date.now();
-        timeToFirstToken = timeNow - request_start_time;
-        context.setVariable("ai.timeToFirstToken", timeToFirstToken);
-      }
-      var usageData = getUsageData(contentString);
-      if (usageData.model) context.setVariable("ai.model", usageData.model);
-      if (usageData.requestTokenCount) context.setVariable("ai.requestTokenCount", usageData.requestTokenCount);
-      if (modelName) usageData.model = modelName;
-      if (requestTokenCount) usageData.requestTokenCount = requestTokenCount;
-      if (timeToFirstToken) usageData.timeToFirstToken = timeToFirstToken;
-
-      if (usageData.responseTokenCount > 0) {
-        context.setVariable("ai.responseTokenCount", usageData.responseTokenCount);
-        usageData.totalTokenCount = usageData.requestTokenCount + usageData.responseTokenCount;
-        context.setVariable("ai.totalTokenCount", usageData.totalTokenCount.toString());
-        usageData.type = type;
-        print("Sending analytics data: " + JSON.stringify(usageData));
-        var host = context.getVariable("originalHostName");
-        var headers = {"Content-Type": "application/json"};
-        var apiKey = context.getVariable("verifyapikey.VA-VerifyKey.client_id");
-        if (apiKey) {
-          headers["x-api-key"] = apiKey;
-        }
-        var myRequest = new Request('https://' + host + "/ai-analytics","POST", headers, JSON.stringify(usageData));
-        print("Sending to: " + 'https://' + host + "/ai-analytics");
-        httpClient.send(myRequest);
-      }
-  - name: ai.properties
-    type: properties
-    content: |
-      ModelRouting=false
   - name: ai-functions.js
     type: jsc
     content: |
@@ -2463,4 +2114,8 @@ resources:
         exports.getModelList = getModelList;
       }
 
+  - name: ai.properties
+    type: properties
+    content: |
+      ModelRouting=false
 tests: []
