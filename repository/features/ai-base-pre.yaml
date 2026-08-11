@@ -10,7 +10,7 @@ parameters:
   - name: ModelRouting
     displayName: ModelRouting
     description: Configuration input for ModelRouting
-    default: "false"
+    default: "true"
     examples: []
     maps: {}
   - name: ModelRoutingKey

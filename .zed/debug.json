@@ -12,13 +12,11 @@
     "stopOnEntry": false,
     "args": [
       "-i",
-      "ai-proxy-googlecloud",
+      "./repository/templates/REST-AI-Completions-v1.yaml",
       "-o",
       "./test.local.yaml",
       "-f",
       "proxy",
-      "-p",
-      "ModelBasePath=/gemini,AllowedModelPatterns=gemini,FallbackModel=gemini-flash-latest",
     ],
   },
   {

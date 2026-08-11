@@ -1,0 +1,9 @@
+name: REST-AI-Models-v1
+type: template
+description: API template for REST-AI-Models-v1
+features:
+  - ../features/ai-auth.yaml
+  - ../features/ai-models.yaml
+parameters: []
+endpoints: []
+targets: []

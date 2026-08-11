@@ -1,4 +1,5 @@
-// Run to update all repository/features that contains ai-functions.js with the latest version. Run either with `node repository/lib/sync-ai-functions.js` or `npm run sync-ai-functions` from the root directory.
+// Run to update configured repository/features with the latest ai-functions.js version.
+// Run either with `node repository/lib/sync-ai-functions.js` or `npm run sync-ai-functions` from the root directory.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -9,6 +10,12 @@ const rootDir = path.resolve(__dirname, "../..");
 const aiFunctionsPath = path.join(__dirname, "ai-functions.js");
 const featuresDir = path.join(rootDir, "repository/features");
 
+// Array of target YAML files to sync. Only files explicitly configured in this array will be updated.
+const TARGET_FILES = [
+  "ai-base-pre.yaml",
+  "ai-base-post.yaml"
+];
+
 function syncAiFunctions() {
   const jsContent = fs.readFileSync(aiFunctionsPath, "utf-8");
   const indentedJs = jsContent
@@ -16,11 +23,20 @@ function syncAiFunctions() {
     .map((line) => (line.trim().length > 0 ? "      " + line : ""))
     .join("\n");
 
-  const files = fs.readdirSync(featuresDir).filter((f) => f.endsWith(".yaml"));
   let updatedCount = 0;
 
-  for (const file of files) {
-    const filePath = path.join(featuresDir, file);
+  for (const entry of TARGET_FILES) {
+    const filePath = path.isAbsolute(entry)
+      ? entry
+      : entry.includes("/")
+      ? path.resolve(rootDir, entry)
+      : path.join(featuresDir, entry);
+
+    if (!fs.existsSync(filePath)) {
+      console.warn(`Warning: Configured target file not found: ${entry}`);
+      continue;
+    }
+
     let yamlContent = fs.readFileSync(filePath, "utf-8");
     let fileModified = false;
 
@@ -67,14 +83,14 @@ function syncAiFunctions() {
 
     if (fileModified) {
       fs.writeFileSync(filePath, yamlContent, "utf-8");
-      console.log(`Updated feature file: ${file}`);
+      console.log(`Updated feature file: ${path.basename(filePath)}`);
       updatedCount++;
     } else {
-      console.log(`No changes needed for ${file}`);
+      console.log(`No changes needed for ${path.basename(filePath)}`);
     }
   }
 
-  console.log(`\nSync complete! Updated ${updatedCount} feature file(s).`);
+  console.log(`\nSync complete! Updated ${updatedCount} configured feature file(s).`);
 }
 
 syncAiFunctions();

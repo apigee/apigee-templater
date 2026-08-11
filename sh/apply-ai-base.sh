@@ -22,37 +22,12 @@ fi
 
 # List of file paths for ai-base-pre
 PRE_FEATURE_FILES=(
-    "./repository/features/ai-audio-speech.yaml"
-    "./repository/features/ai-audio-transcriptions.yaml"
-    "./repository/features/ai-auth.yaml"
-    "./repository/features/ai-caching.yaml"
     "./repository/features/ai-chat-completions.yaml"
-    "./repository/features/ai-embeddings.yaml"
-    "./repository/features/ai-proxy-googlecloud.yaml"
-    "./repository/features/ai-proxy-gemini.yaml"
-    "./repository/features/ai-images-generations.yaml"
-    "./repository/features/ai-messages.yaml"
-    "./repository/features/ai-models.yaml"
-    "./repository/features/ai-pii-masking.yaml"
-    "./repository/features/ai-responses.yaml"
-    "./repository/features/ai-modelarmor.yaml"
 )
 
 # List of file paths for ai-base-post
 POST_FEATURE_FILES=(
-    "./repository/features/ai-audio-speech.yaml"
-    "./repository/features/ai-auth.yaml"
-    "./repository/features/ai-caching.yaml"
     "./repository/features/ai-chat-completions.yaml"
-    "./repository/features/ai-embeddings.yaml"
-    "./repository/features/ai-gcloud.yaml"
-    "./repository/features/ai-gemini.yaml"
-    "./repository/features/ai-images-generations.yaml"
-    "./repository/features/ai-messages.yaml"
-    "./repository/features/ai-models.yaml"
-    "./repository/features/ai-pii-masking.yaml"
-    "./repository/features/ai-responses.yaml"
-    "./repository/features/ai-security.yaml"
 )
 
 echo "Applying ai-base-pre filter/feature..."

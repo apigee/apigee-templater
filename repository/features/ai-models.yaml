@@ -9,11 +9,11 @@ categories:
   - llm
   - ai
 parameters: []
-defaultEndpoint:
-  name: default
+endpoints:
+- name: models
   basePath: /v1/models
   routes:
-    - name: route-models
+    - name: models
   flows:
     - name: PostFlow
       mode: Response
@@ -44,7 +44,6 @@ defaultEndpoint:
     steps:
       - name: AM-Unauthorized
         condition: fault.name == "InvalidApiKey" OR fault.name == "FailedToResolveAPIKey"
-endpoints: []
 targets: []
 policies:
   - name: JS-ResetUsageDataFound
@@ -393,7 +392,7 @@ policies:
         displayName: JS-Analytics
         properties: {}
         source: |
-          
+
           function safeJsonParse(str) {
             if (!str) return null;
             if (typeof str === "object") return str;
@@ -563,7 +562,7 @@ policies:
         displayName: JS-CheckModel
         properties: {}
         source: |
-          
+
           function safeJsonParse(str) {
             if (!str) return null;
             if (typeof str === "object") return str;

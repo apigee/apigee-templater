@@ -1338,15 +1338,19 @@ export class ApigeeConverter {
     feature: Feature,
     parameters: { [key: string]: string } = {},
   ): Proxy {
-    // save original parameters, no don't do it, not needed.
-    // proxy.parameters = proxy.parameters.concat(feature.parameters);
-
-    // replace parameters from runtime
-    let applyFeature = this.featureReplaceParameters(
-      feature,
-      originalFeature.parameters,
-      parameters,
-    );
+    let applyFeature = feature;
+    // merge / overwrite originalFeature.parameters with applyFeature.parameters
+    if (applyFeature.parameters && applyFeature.parameters.length > 0) {
+      if (!originalFeature.parameters) originalFeature.parameters = [];
+      for (let param of applyFeature.parameters) {
+        let paramIndex = originalFeature.parameters.findIndex((x) => x.name === param.name);
+        if (paramIndex === -1) {
+          originalFeature.parameters.push(param);
+        } else {
+          originalFeature.parameters[paramIndex] = param;
+        }
+      }
+    }
 
     // merge endpoint flows
     if (applyFeature.defaultEndpoint) {

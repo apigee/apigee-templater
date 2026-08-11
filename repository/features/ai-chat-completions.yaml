@@ -14,7 +14,7 @@ parameters:
   - name: ModelRoutingKey
     displayName: ModelRoutingKey
     description: Configuration input for ModelRoutingKey
-    default: ModelRoutingText
+    default: ModelRouting
     examples: []
     maps: {}
 endpoints:
@@ -602,7 +602,7 @@ policies:
           - metadata:
               assignTo: ai.modelRouting
             key:
-              parameter: ModelRoutingText
+              parameter: "{ModelRoutingKey}"
         scope: environment
 resources:
   - name: openapi.yaml
@@ -783,7 +783,7 @@ resources:
   - name: ai.properties
     type: properties
     content: |
-      ModelRouting=true
+      ModelRouting={ModelRouting}
   - name: ai-functions.js
     type: jsc
     content: |
@@ -2625,5 +2625,4 @@ resources:
         exports.getModelTokenLimit = getModelTokenLimit;
         exports.getModelList = getModelList;
       }
-
 tests: []
