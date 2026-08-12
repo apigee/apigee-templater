@@ -33,7 +33,7 @@ const auth = new GoogleAuth({
 import { stdin } from "process";
 
 process.on("uncaughtException", function (e) {
-  console.error(e);
+  // console.error(e);
   console.error(`${chalk.redBright("! Error: An unexpected error occurred. " + e.message)}`);
 });
 
@@ -647,27 +647,36 @@ export class cli {
               let token = await auth.getAccessToken();
               if (token) options.token = token;
             }
-            if (pieces && pieces.length > 1 && pieces[0]) {
-              lastRevision = await this.apigeeService.apigeeProxyExport(
-                options.name,
-                outputPath,
-                pieces[0], options.drz,
-                "Bearer " + options.token,
-              );
-            }
-            // deploy to apigee
-            if (pieces && pieces.length > 2 && pieces[0] && pieces[2] && lastRevision) {
-              let serviceAccount = "";
-              let environment = pieces[2];
-              if (pieces.length === 4 && pieces[3]) serviceAccount = pieces[3];
-              this.apigeeService.apigeeProxyRevisionDeploy(
-                options.name,
-                lastRevision,
-                serviceAccount,
-                environment,
-                pieces[0], options.drz,
-                "Bearer " + options.token,
-              );
+
+            try {
+              if (pieces && pieces.length > 1 && pieces[0]) {
+                lastRevision = await this.apigeeService.apigeeProxyExport(
+                  options.name,
+                  outputPath,
+                  pieces[0], options.drz,
+                  "Bearer " + options.token,
+                );
+                if (!lastRevision) throw "Proxy could not be deployed.";
+              }
+              // deploy to apigee
+              if (pieces && pieces.length > 2 && pieces[0] && pieces[2] && lastRevision) {
+                let serviceAccount = "";
+                let environment = pieces[2];
+                if (pieces.length === 4 && pieces[3]) serviceAccount = pieces[3];
+                let deployResult = await this.apigeeService.apigeeProxyRevisionDeploy(
+                  options.name,
+                  lastRevision,
+                  serviceAccount,
+                  environment,
+                  pieces[0], options.drz,
+                  "Bearer " + options.token,
+                );
+                if (!deployResult) throw "Proxy could not be deployed.";
+              }
+            } catch (ex) {
+              // delete proxy zip
+              fs.rmSync(outputPath);
+              throw ex;
             }
 
             // delete proxy zip
