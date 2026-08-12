@@ -8,3 +8,6 @@ proxies
 .env
 /agents-py
 /agents-ts
+tree.json
+trace.json
+maps.json

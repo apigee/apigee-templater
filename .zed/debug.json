@@ -10,14 +10,7 @@
     "request": "launch",
     "program": "dist/bin/apigee-templater.js",
     "stopOnEntry": false,
-    "args": [
-      "-i",
-      "./repository/templates/REST-AI-Completions-v1.yaml",
-      "-o",
-      "./test.local.yaml",
-      "-f",
-      "proxy",
-    ],
+    "args": [],
   },
   {
     "adapter": "JavaScript",

@@ -391,7 +391,9 @@ export class cli {
         feature = new Feature();
         feature.name = options.name;
       } else {
+        console.log("Template created, now converting to feature...");
         template = this.converter.templateCreate(options.name, basePath, options.targetUrl);
+        options.format = "feature";
       }
       if (!options.output) options.output = options.name + ".yaml";
     } else if (
@@ -717,6 +719,9 @@ export class cli {
             if (testFeature) proxy = this.converter.proxyRemoveFeature(proxy, testFeature) ?? proxy;
           }
           if (proxy) feature = this.converter.proxyToFeature(proxy);
+        } else if (template) {
+          let tempProxy = this.converter.templateToProxy(template, []);
+          feature = this.converter.proxyToFeature(tempProxy);
         }
         process.chdir(startDir);
         if (feature) {

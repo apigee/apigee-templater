@@ -1,0 +1,18 @@
+[
+  {
+    "name": "AI-Config",
+    "encrypted": false,
+    "maskedValues": false,
+    "entriesList": [
+      {
+        "name": "ModelRouting"
+      },
+      {
+        "name": "ModelRoutingText"
+      },
+      {
+        "name": "PriceList"
+      }
+    ]
+  }
+]
