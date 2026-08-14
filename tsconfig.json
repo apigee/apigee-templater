@@ -13,5 +13,6 @@
     "isolatedModules": true,
     "skipLibCheck": true
   },
-  "exclude": ["./test/**/*", "./dist/**/*", "./repository/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["tests/**/*", "dist/**/*", "repository/**/*"]
 }

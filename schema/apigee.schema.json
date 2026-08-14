@@ -105,6 +105,16 @@
       "required": ["name"],
       "additionalProperties": false
     },
+    "HTTPTargetConnection": {
+      "type": "object",
+      "properties": {
+        "URL": { "type": "string" },
+        "Properties": { "type": "object" },
+        "SSLInfo": { "type": "object" },
+        "LoadBalancer": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
     "ProxyTarget": {
       "type": "object",
       "properties": {
@@ -125,18 +135,74 @@
           "items": { "$ref": "#/definitions/Flow" }
         },
         "defaultFaultRule": { "$ref": "#/definitions/FaultRule" },
-        "httpTargetConnection": { "type": ["object", "null"] },
-        "localTargetConnection": { "type": ["object", "null"] }
+        "httpTargetConnection": {
+          "type": ["object", "null"],
+          "additionalProperties": true
+        },
+        "HTTPTargetConnection": {
+          "type": ["object", "null"],
+          "additionalProperties": true
+        },
+        "localTargetConnection": { "type": ["object", "null"] },
+        "LocalTargetConnection": { "type": ["object", "null"] }
       },
       "required": ["name"],
       "additionalProperties": false
+    },
+    "PolicyContent": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "continueOnError": { "type": "string" },
+            "enabled": { "type": "string" },
+            "async": { "type": "string" },
+            "timeLimit": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "DisplayName": { "type": "string" },
+        "Properties": { "type": "object" },
+        "Source": { "type": "string" },
+        "IncludeURL": { "type": "string" },
+        "ResourceURL": { "type": "string" },
+        "AssignTo": { "type": ["object", "string"] },
+        "IgnoreUnresolvedVariables": { "type": ["string", "boolean"] },
+        "AssignVariable": { "type": ["array", "object"] },
+        "Remove": { "type": "object" },
+        "Add": { "type": "object" },
+        "Set": { "type": "object" },
+        "Copy": { "type": "object" },
+        "Get": { "type": ["array", "object"] },
+        "Put": { "type": ["array", "object"] },
+        "Delete": { "type": ["array", "object"] },
+        "Key": { "type": "object" },
+        "Scope": { "type": "string" },
+        "ExclusiveCache": { "type": ["string", "boolean"] },
+        "ExpiryTimeInSecs": { "type": ["string", "number"] },
+        "Capture": { "type": ["array", "object"] },
+        "Collect": { "type": ["array", "object"] },
+        "FaultRules": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Flow" }
+        },
+        "DefaultFaultRule": { "$ref": "#/definitions/FaultRule" }
+      },
+      "additionalProperties": true
     },
     "Policy": {
       "type": "object",
       "properties": {
         "name": { "type": "string" },
         "type": { "type": "string" },
-        "content": { "type": "object" }
+        "content": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PolicyContent"
+          }
+        }
       },
       "required": ["name", "type"],
       "additionalProperties": false
@@ -205,8 +271,11 @@
       "properties": {
         "name": { "type": "string" },
         "type": { "type": "string", "const": "template" },
+        "gateway": { "type": "string" },
+        "schemaVersion": { "type": "string" },
         "priority": { "type": "number" },
         "description": { "type": "string" },
+        "documentation": { "type": "string" },
         "features": {
           "type": "array",
           "items": { "type": "string" }
@@ -228,7 +297,7 @@
           "items": { "$ref": "#/definitions/Test" }
         }
       },
-      "required": ["name", "type"],
+      "required": ["name", "type", "gateway", "schemaVersion"],
       "additionalProperties": false
     },
     "Feature": {
@@ -238,6 +307,8 @@
         "displayName": { "type": "string" },
         "uid": { "type": "string" },
         "type": { "type": "string", "const": "feature" },
+        "gateway": { "type": "string" },
+        "schemaVersion": { "type": "string" },
         "description": { "type": "string" },
         "documentation": { "type": "string" },
         "priority": { "type": "number" },
@@ -272,7 +343,7 @@
           "items": { "$ref": "#/definitions/Test" }
         }
       },
-      "required": ["name", "type"],
+      "required": ["name", "type", "gateway", "schemaVersion"],
       "additionalProperties": false
     },
     "Proxy": {
@@ -282,6 +353,8 @@
         "displayName": { "type": "string" },
         "uid": { "type": "string" },
         "type": { "type": "string", "const": "proxy" },
+        "gateway": { "type": "string" },
+        "schemaVersion": { "type": "string" },
         "priority": { "type": "number" },
         "categories": {
           "type": "array",
@@ -314,7 +387,7 @@
           "items": { "$ref": "#/definitions/Test" }
         }
       },
-      "required": ["name", "type"],
+      "required": ["name", "type", "gateway", "schemaVersion"],
       "additionalProperties": false
     }
   }

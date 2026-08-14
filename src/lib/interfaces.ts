@@ -1,4 +1,8 @@
 export class Template {
+  constructor() {
+    this.gateway = "apigee";
+    this.schemaVersion = "1.0.0";
+  }
   name: string = "";
   type: string = "template";
   gateway: string = "apigee";
@@ -31,6 +35,10 @@ export class Test {
 }
 
 export class Proxy {
+  constructor() {
+    this.gateway = "apigee";
+    this.schemaVersion = "1.0.0";
+  }
   name: string = "";
   displayName?: string = "";
   uid?: string;
@@ -120,6 +128,10 @@ export class Resource {
 }
 
 export class Feature {
+  constructor() {
+    this.gateway = "apigee";
+    this.schemaVersion = "1.0.0";
+  }
   name: string = "";
   displayName?: string = "";
   uid?: string;

@@ -1,8 +1,10 @@
-name: ai-chat-completions-v1
+name: ai-chat-completions
 displayName: REST-ChatCompletions-v1
 type: feature
 description: REST-ChatCompletions-v1
 documentation: ""
+gateway: apigee
+schemaVersion: 1.0.0
 categories: []
 parameters:
   - name: ModelRouting
@@ -22,17 +24,17 @@ endpoints:
     basePath: /v1/chat/completions
     routes:
       - name: route-googlecloud
-        target: googlecloud
         condition: target.route = "googlecloud"
+        target: googlecloud
       - name: route-googlecloud-oai
-        target: googlecloud-oai
         condition: target.route = "googlecloud-oai"
+        target: googlecloud-oai
       - name: route-openai
-        target: openai
         condition: target.route = "openai"
+        target: openai
       - name: route-anthropic
-        target: anthropic
         condition: target.route = "anthropic"
+        target: anthropic
       - name: default
         target: googlecloud
     flows:
@@ -45,6 +47,30 @@ endpoints:
           - name: OAS-Validation
     faultRules: []
 targets:
+  - name: googlecloud-oai
+    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+          - name: DC-TokenAnalytics
+            condition: ai.usageDataFound = "true"
+          - name: JS-ResetUsageDataFound
+            condition: ai.usageDataFound = "true"
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+          - name: DC-TokenAnalytics
+            condition: ai.usageDataFound = "true"
+          - name: JS-ResetUsageDataFound
+            condition: ai.usageDataFound = "true"
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/endpoints/openapi/chat/completions
   - name: anthropic
     url: https://api.anthropic.com
     flows:
@@ -67,56 +93,8 @@ targets:
             condition: ai.usageDataFound = "true"
     faultRules: []
     httpTargetConnection:
-      properties: {}
-      url: https://api.anthropic.com
-  - name: googlecloud-oai
-    url: https://aiplatform.googleapis.com/v1/projects/{ai.googleCloudProject}/locations/global/endpoints/openapi/chat/completions
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://aiplatform.googleapis.com/v1/projects/{ai.googleCloudProject}/locations/global/endpoints/openapi/chat/completions
-  - name: googlecloud
-    url: https://aiplatform.googleapis.com/v1/projects/{ai.googleCloudProject}/locations/global/publishers/{ai.provider}/models/{ai.model}:{ai.method}
-    flows:
-      - name: PostFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-            condition: response.content != ""
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-      - name: EventFlow
-        mode: Response
-        steps:
-          - name: JS-Analytics
-          - name: DC-TokenAnalytics
-            condition: ai.usageDataFound = "true"
-          - name: JS-ResetUsageDataFound
-            condition: ai.usageDataFound = "true"
-    faultRules: []
-    httpTargetConnection:
-      properties: {}
-      url: https://aiplatform.googleapis.com/v1/projects/{ai.googleCloudProject}/locations/global/publishers/{ai.provider}/models/{ai.model}:{ai.method}
+      Properties: {}
+      URL: https://api.anthropic.com
   - name: openai
     url: https://api.openai.com
     flows:
@@ -139,129 +117,45 @@ targets:
             condition: ai.usageDataFound = "true"
     faultRules: []
     httpTargetConnection:
-      properties: {}
-      url: https://api.openai.com
+      Properties: {}
+      URL: https://api.openai.com
+  - name: googlecloud
+    url: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/publishers/{ai.provider}/models/{ai.model}:{ai.method}
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+            condition: response.content != ""
+          - name: DC-TokenAnalytics
+            condition: ai.usageDataFound = "true"
+          - name: JS-ResetUsageDataFound
+            condition: ai.usageDataFound = "true"
+      - name: EventFlow
+        mode: Response
+        steps:
+          - name: JS-Analytics
+          - name: DC-TokenAnalytics
+            condition: ai.usageDataFound = "true"
+          - name: JS-ResetUsageDataFound
+            condition: ai.usageDataFound = "true"
+    faultRules: []
+    httpTargetConnection:
+      Properties: {}
+      URL: https://aiplatform.googleapis.com/v1/projects/{organization.name}/locations/global/publishers/{ai.provider}/models/{ai.model}:{ai.method}
 policies:
-  - name: OAS-Validation
-    type: OASValidation
-    content:
-      oasValidation:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: OAS-Validation
-        displayName: OAS-Validation
-        properties: {}
-        options:
-          validateMessageBody: true
-        oasResource: oas://openapi.yaml
-  - name: JS-ResetUsageDataFound
-    type: Javascript
-    content:
-      javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-ResetUsageDataFound
-        displayName: JS-ResetUsageDataFound
-        properties: {}
-        source: |
-          context.setVariable("ai.usageDataFound", "false");
-  - name: AM-SetVariables
-    type: AssignMessage
-    content:
-      assignMessage:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: AM-SetVariables
-        displayName: AM-SetVariables
-        properties: {}
-        remove:
-          headers:
-            header:
-              metadata:
-                name: accept-encoding
-        ignoreUnresolvedVariables: "true"
-        assignTo:
-          metadata:
-            createNew: "false"
-            transport: http
-            type: request
-  - name: DC-TokenAnalytics
-    type: DataCapture
-    content:
-      dataCapture:
-        metadata:
-          name: DC-TokenAnalytics
-          continueOnError: "false"
-          enabled: "true"
-        displayName: DC-TokenAnalytics
-        ignoreUnresolvedVariables: "false"
-        capture:
-          - collect:
-              metadata:
-                ref: ai.model
-                default: unknown
-            dataCollector: dc_ai_model
-          - collect:
-              metadata:
-                ref: ai.promptTokenCount
-                default: "0"
-            dataCollector: dc_ai_prompt_token_count
-          - collect:
-              metadata:
-                ref: ai.responseTokenCount
-                default: "0"
-            dataCollector: dc_ai_response_token_count
-          - collect:
-              metadata:
-                ref: ai.totalTokenCount
-                default: "0"
-            dataCollector: dc_ai_total_token_count
-          - collect:
-              metadata:
-                ref: ai.responseType
-                default: unknown
-            dataCollector: dc_ai_response_type
-          - collect:
-              metadata:
-                ref: ai.timeToFirstToken
-                default: "0"
-            dataCollector: dc_ai_time_first_token
-          - collect:
-              metadata:
-                ref: ai.costCenter
-                default: unknown
-            dataCollector: dc_ai_cost_center
-          - collect:
-              metadata:
-                ref: ai.requestCost
-                default: "0"
-            dataCollector: dc_ai_request_cost
-          - collect:
-              metadata:
-                ref: ai.responseCost
-                default: "0"
-            dataCollector: dc_ai_response_cost
-          - collect:
-              metadata:
-                ref: ai.totalCost
-                default: "0"
-            dataCollector: dc_ai_total_cost
   - name: JS-Analytics
     type: Javascript
     content:
-      javascript:
+      Javascript:
         metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-Analytics
-        displayName: JS-Analytics
-        properties: {}
-        source: |
+        DisplayName: JS-Analytics
+        Properties: {}
+        Source: |
 
           function safeJsonParse(str) {
             if (!str) return null;
@@ -419,19 +313,32 @@ policies:
           } else {
             context.setVariable("ai.usageDataFound", "false");
           }
-        includeUrl: jsc://ai-functions.js
+        IncludeURL: jsc://ai-functions.js
+  - name: JS-ResetUsageDataFound
+    type: Javascript
+    content:
+      Javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ResetUsageDataFound
+        DisplayName: JS-ResetUsageDataFound
+        Properties: {}
+        Source: |
+          context.setVariable("ai.usageDataFound", "false");
   - name: JS-CheckModel
     type: Javascript
     content:
-      javascript:
+      Javascript:
         metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-CheckModel
-        displayName: JS-CheckModel
-        properties: {}
-        source: |
+        DisplayName: JS-CheckModel
+        Properties: {}
+        Source: |
 
           function safeJsonParse(str) {
             if (!str) return null;
@@ -564,56 +471,141 @@ policies:
             print("Could not find user input/prompt!");
           }
 
-          if (context.getVariable("request.header.x-debug") === "true") {
+          if (context.getVariable("environment.name") === "dev") {
             print("RequestInfo: " + JSON.stringify(reqInfo));
             print("ModelRoutingEnabled: " + JSON.stringify(modelRouting));
             print("ModelRouting: " + JSON.stringify(modelRoutingConfig));
             print("TargetRoute: " + JSON.stringify(routeInfo));
           }
-
-          var googleCloudProject = context.getVariable("organization.name");
-          var newProject = context.getVariable("request.header.x-project");
-
-          if (newProject)
-            context.setVariable("ai.googleCloudProject", newProject);
-          else
-            context.setVariable("ai.googleCloudProject", googleCloudProject);
-        includeUrl: jsc://ai-functions.js
+        IncludeURL: jsc://ai-functions.js
+  - name: AM-SetVariables
+    type: AssignMessage
+    content:
+      AssignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetVariables
+        DisplayName: AM-SetVariables
+        Properties: {}
+        Remove:
+          Headers:
+            Header:
+              metadata:
+                name: accept-encoding
+        IgnoreUnresolvedVariables: "true"
+        AssignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
   - name: KVM-LoadConfig
     type: KeyValueMapOperations
     content:
-      keyValueMapOperations:
+      KeyValueMapOperations:
         metadata:
           continueOnError: "false"
           enabled: "true"
           name: KVM-LoadConfig
           mapIdentifier: AI-Config
-        displayName: KVM-LoadConfig
-        properties: {}
-        exclusiveCache: "false"
-        expiryTimeInSecs: "10"
-        get:
+        DisplayName: KVM-LoadConfig
+        Properties: {}
+        ExclusiveCache: "false"
+        ExpiryTimeInSecs: "10"
+        Get:
           - metadata:
               assignTo: ai.failoverModel
-            key:
-              parameter: FailoverModel
+            Key:
+              Parameter: FailoverModel
           - metadata:
               assignTo: ai.prices
-            key:
-              parameter: PriceList
+            Key:
+              Parameter: PriceList
           - metadata:
               assignTo: ai.groupsLookup
-            key:
-              parameter: GroupsLookup
+            Key:
+              Parameter: GroupsLookup
           - metadata:
               assignTo: ai.groups
-            key:
-              parameter: Groups
+            Key:
+              Parameter: Groups
           - metadata:
               assignTo: ai.modelRouting
-            key:
-              parameter: ModelRoutingText
-        scope: environment
+            Key:
+              Parameter: ModelRoutingText
+        Scope: environment
+  - name: DC-TokenAnalytics
+    type: DataCapture
+    content:
+      DataCapture:
+        metadata:
+          name: DC-TokenAnalytics
+          continueOnError: "false"
+          enabled: "true"
+        DisplayName: DC-TokenAnalytics
+        IgnoreUnresolvedVariables: "false"
+        Capture:
+          - Collect:
+              metadata:
+                ref: ai.model
+                default: unknown
+            DataCollector: dc_ai_model
+          - Collect:
+              metadata:
+                ref: ai.promptTokenCount
+                default: "0"
+            DataCollector: dc_ai_prompt_token_count
+          - Collect:
+              metadata:
+                ref: ai.responseTokenCount
+                default: "0"
+            DataCollector: dc_ai_response_token_count
+          - Collect:
+              metadata:
+                ref: ai.totalTokenCount
+                default: "0"
+            DataCollector: dc_ai_total_token_count
+          - Collect:
+              metadata:
+                ref: ai.responseType
+                default: unknown
+            DataCollector: dc_ai_response_type
+          - Collect:
+              metadata:
+                ref: ai.timeToFirstToken
+                default: "0"
+            DataCollector: dc_ai_time_first_token
+          - Collect:
+              metadata:
+                ref: ai.costCenter
+                default: unknown
+            DataCollector: dc_ai_cost_center
+          - Collect:
+              metadata:
+                ref: ai.requestCost
+                default: "0"
+            DataCollector: dc_ai_request_cost
+          - Collect:
+              metadata:
+                ref: ai.responseCost
+                default: "0"
+            DataCollector: dc_ai_response_cost
+          - Collect:
+              metadata:
+                ref: ai.totalCost
+                default: "0"
+            DataCollector: dc_ai_total_cost
+  - name: OAS-Validation
+    type: OASValidation
+    content:
+      OASValidation:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: OAS-Validation
+        DisplayName: OAS-Validation
+        Properties: {}
+        OASResource: oas://openapi.yaml
 resources:
   - name: openapi.yaml
     type: oas
@@ -707,10 +699,93 @@ resources:
             responses:
               "200":
                 description: Successful response
+        /v1/chat/completions:
+          post:
+            summary: Create chat completion
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - model
+                      - messages
+                    additionalProperties: false
+                    properties:
+                      model:
+                        type: string
+                      messages:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - role
+                            - content
+                          additionalProperties: false
+                          properties:
+                            role:
+                              type: string
+                            content:
+                              nullable: true
+                              oneOf:
+                                - type: string
+                                - type: array
+                                  items:
+                                    type: object
+                            name:
+                              type: string
+                            tool_calls:
+                              type: array
+                              items:
+                                type: object
+                            tool_call_id:
+                              type: string
+                      temperature:
+                        type: number
+                      top_p:
+                        type: number
+                      n:
+                        type: integer
+                      stream:
+                        type: boolean
+                      stop:
+                        oneOf:
+                          - type: string
+                          - type: array
+                            items:
+                              type: string
+                      max_tokens:
+                        type: integer
+                      presence_penalty:
+                        type: number
+                      frequency_penalty:
+                        type: number
+                      logit_bias:
+                        type: object
+                      user:
+                        type: string
+                      tools:
+                        type: array
+                        items:
+                          type: object
+                      tool_choice:
+                        oneOf:
+                          - type: string
+                          - type: object
+                      response_format:
+                        type: object
+                      seed:
+                        type: integer
+                      service_tier:
+                        type: string
+            responses:
+              "200":
+                description: Successful response
   - name: ai.properties
     type: properties
     content: |
-      ModelRouting=true
+      ModelRouting={ModelRouting}
   - name: ai-functions.js
     type: jsc
     content: |

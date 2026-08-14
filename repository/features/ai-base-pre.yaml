@@ -3,6 +3,8 @@ displayName: AI Base Pre Functions
 type: feature
 description: The base AI & LLM request pre-processing with model detection and routing.
 documentation: ""
+gateway: apigee
+schemaVersion: 1.0.0
 categories:
   - llm
   - ai
@@ -37,40 +39,19 @@ defaultEndpoint:
 endpoints: []
 targets: []
 policies:
-  - name: AM-SetVariables
-    type: AssignMessage
-    content:
-      assignMessage:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: AM-SetVariables
-        displayName: AM-SetVariables
-        properties: {}
-        remove:
-          headers:
-            header:
-              metadata:
-                name: accept-encoding
-        ignoreUnresolvedVariables: "true"
-        assignTo:
-          metadata:
-            createNew: "false"
-            transport: http
-            type: request
   - name: JS-CheckModel
     type: Javascript
     content:
-      javascript:
+      Javascript:
         metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-CheckModel
-        displayName: JS-CheckModel
-        properties: {}
-        source: |
-
+        DisplayName: JS-CheckModel
+        Properties: {}
+        Source: |
+          
           function safeJsonParse(str) {
             if (!str) return null;
             if (typeof str === "object") return str;
@@ -202,56 +183,69 @@ policies:
             print("Could not find user input/prompt!");
           }
 
-          if (context.getVariable("request.header.x-debug") === "true") {
+          if (context.getVariable("environment.name") === "dev") {
             print("RequestInfo: " + JSON.stringify(reqInfo));
             print("ModelRoutingEnabled: " + JSON.stringify(modelRouting));
             print("ModelRouting: " + JSON.stringify(modelRoutingConfig));
             print("TargetRoute: " + JSON.stringify(routeInfo));
           }
-
-          var googleCloudProject = context.getVariable("organization.name");
-          var newProject = context.getVariable("request.header.x-project");
-
-          if (newProject)
-            context.setVariable("ai.googleCloudProject", newProject);
-          else
-            context.setVariable("ai.googleCloudProject", googleCloudProject);
-        includeUrl: jsc://ai-functions.js
+        IncludeURL: jsc://ai-functions.js
+  - name: AM-SetVariables
+    type: AssignMessage
+    content:
+      AssignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetVariables
+        DisplayName: AM-SetVariables
+        Properties: {}
+        Remove:
+          Headers:
+            Header:
+              metadata:
+                name: accept-encoding
+        IgnoreUnresolvedVariables: "true"
+        AssignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
   - name: KVM-LoadConfig
     type: KeyValueMapOperations
     content:
-      keyValueMapOperations:
+      KeyValueMapOperations:
         metadata:
           continueOnError: "false"
           enabled: "true"
           name: KVM-LoadConfig
           mapIdentifier: AI-Config
-        displayName: KVM-LoadConfig
-        properties: {}
-        exclusiveCache: "false"
-        expiryTimeInSecs: "10"
-        get:
+        DisplayName: KVM-LoadConfig
+        Properties: {}
+        ExclusiveCache: "false"
+        ExpiryTimeInSecs: "10"
+        Get:
           - metadata:
               assignTo: ai.failoverModel
-            key:
-              parameter: FailoverModel
+            Key:
+              Parameter: FailoverModel
           - metadata:
               assignTo: ai.prices
-            key:
-              parameter: PriceList
+            Key:
+              Parameter: PriceList
           - metadata:
               assignTo: ai.groupsLookup
-            key:
-              parameter: GroupsLookup
+            Key:
+              Parameter: GroupsLookup
           - metadata:
               assignTo: ai.groups
-            key:
-              parameter: Groups
+            Key:
+              Parameter: Groups
           - metadata:
               assignTo: ai.modelRouting
-            key:
-              parameter: "{ModelRoutingKey}"
-        scope: environment
+            Key:
+              Parameter: ModelRouting
+        Scope: environment
 resources:
   - name: ai.properties
     type: properties
@@ -2099,3 +2093,4 @@ resources:
         exports.getModelList = getModelList;
       }
 
+tests: []

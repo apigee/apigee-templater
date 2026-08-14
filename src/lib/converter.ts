@@ -1009,6 +1009,8 @@ export class ApigeeConverter {
       name: tempName,
       type: "template",
       description: "API template for " + name,
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
       features: [],
       parameters: [],
       endpoints: [],
@@ -1949,6 +1951,8 @@ export class ApigeeConverter {
     newFeature.description = proxy.description;
     newFeature.documentation = proxy.documentation ?? "";
     newFeature.parameters = proxy.parameters;
+    newFeature.gateway = "apigee";
+    newFeature.schemaVersion = "1.0.0";
     if (proxy.uid) newFeature.uid = proxy.uid;
     if (proxy.priority) newFeature.priority = proxy.priority;
     if (proxy.tests) newFeature.tests = proxy.tests;
