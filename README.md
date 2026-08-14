@@ -98,6 +98,8 @@ The proxy YAML & JSON formats is easy to understand and edit, with all proxy flo
 name: SimpleProxy-v1
 displayName: SimpleProxy-v1
 type: proxy
+gateway: apigee
+schemaVersion: 1.0.0
 description: A simple proxy to the Apigee mock target.
 endpoints:
   - name: default
@@ -117,22 +119,23 @@ targets:
     flows: []
     faultRules: []
     httpTargetConnection:
-      url: https://mocktarget.apigee.net
+      Properties: {}
+      URL: https://mocktarget.apigee.net
 policies:
   - name: JS-SetResponse
     type: Javascript
     content:
-      javascript:
+      Javascript:
         metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-SetResponse
-        displayName: JS-SetResponse
-        properties: {}
-    source: |-
-      print("hello world!!");
-      context.proxyResponse.content += "hello world!";
+        DisplayName: JS-SetResponse
+        Properties: {}
+        Source: |-
+          print("hello world!!");
+          context.proxyResponse.content += "hello world!";
 resources: []
 ```
 

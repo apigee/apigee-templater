@@ -436,6 +436,16 @@
           title: "type",
           tip: "The kind of Apigee artifact. <code>proxy</code> = an API proxy. Other values include <code>sharedflow</code> for reusable flow bundles.",
         },
+        gateway: {
+          kind: "TOP-LEVEL KEY",
+          title: "gateway",
+          tip: "Mandatory property specifying the target gateway platform (e.g. <code>apigee</code>).",
+        },
+        schemaVersion: {
+          kind: "TOP-LEVEL KEY",
+          title: "schemaVersion",
+          tip: "Mandatory property specifying the specification schema version (e.g. <code>1.0.0</code>).",
+        },
         categories: {
           kind: "TOP-LEVEL KEY",
           title: "categories",
@@ -707,6 +717,18 @@
           T("punc", ": "),
           T("y-string", "proxy"),
         ],
+        // gateway: apigee
+        [
+          T("y-key-top", "gateway", { tip: TIP.gateway, anchor: "l-gateway" }),
+          T("punc", ": "),
+          T("y-string", "apigee"),
+        ],
+        // schemaVersion: 1.0.0
+        [
+          T("y-key-top", "schemaVersion", { tip: TIP.schemaVersion, anchor: "l-schemaVersion" }),
+          T("punc", ": "),
+          T("y-string", "1.0.0"),
+        ],
         // 4: categories: []
         [
           T("y-key-top", "categories", {
@@ -898,14 +920,21 @@
           T("y-key", "httpTargetConnection", { tip: TIP.httpTargetConnection }),
           T("punc", ":"),
         ],
-        // 29:      url: https://mocktarget.apigee.net
+        // 29:      Properties: {}
         [
           T("text", "      "),
-          T("y-key", "url", { tip: TIP.url }),
+          T("y-key", "Properties", { tip: TIP.properties }),
+          T("punc", ": "),
+          T("y-punc", "{}", { tip: TIP.empty_map }),
+        ],
+        // 30:      URL: https://mocktarget.apigee.net
+        [
+          T("text", "      "),
+          T("y-key", "URL", { tip: TIP.url }),
           T("punc", ": "),
           T("y-string", "https://mocktarget.apigee.net"),
         ],
-        // 30:   - name: httpbin
+        // 31:   - name: httpbin
         [
           T("text", "  "),
           T("y-dash", "- ", { tip: TIP.dash }),
@@ -913,42 +942,49 @@
           T("punc", ": "),
           T("y-string", "httpbin"),
         ],
-        // 31:    url: https://httpbin.org
+        // 32:    url: https://httpbin.org
         [
           T("text", "    "),
           T("y-key", "url", { tip: TIP.url }),
           T("punc", ": "),
           T("y-string", "https://httpbin.org"),
         ],
-        // 32:    flows: []
+        // 33:    flows: []
         [
           T("text", "    "),
           T("y-key", "flows", { tip: TIP.tgt_flows }),
           T("punc", ": "),
           T("y-punc", "[]", { tip: TIP.empty_list }),
         ],
-        // 33:    faultRules: []
+        // 34:    faultRules: []
         [
           T("text", "    "),
           T("y-key", "faultRules", { tip: TIP.faultRules }),
           T("punc", ": "),
           T("y-punc", "[]", { tip: TIP.empty_list }),
         ],
-        // 34:    httpTargetConnection:
+        // 35:    httpTargetConnection:
         [
           T("text", "    "),
           T("y-key", "httpTargetConnection", { tip: TIP.httpTargetConnection }),
           T("punc", ":"),
         ],
-        // 35:      url: https://httpbin.org
+        // 36:      Properties: {}
         [
           T("text", "      "),
-          T("y-key", "url", { tip: TIP.url }),
+          T("y-key", "Properties", { tip: TIP.properties }),
+          T("punc", ": "),
+          T("y-punc", "{}", { tip: TIP.empty_map }),
+        ],
+        // 37:      URL: https://httpbin.org
+        [
+          T("text", "      "),
+          T("y-key", "URL", { tip: TIP.url }),
           T("punc", ": "),
           T("y-string", "https://httpbin.org"),
         ],
 
-        // 36: policies:
+        // 38: policies:
         [
           T("y-key-top", "policies", {
             tip: TIP.policies,
@@ -956,7 +992,7 @@
           }),
           T("punc", ":"),
         ],
-        // 37:   - name: JS-SetResponse
+        // 39:   - name: JS-SetResponse
         [
           T("text", "  "),
           T("y-dash", "- ", { tip: TIP.dash }),
@@ -964,87 +1000,87 @@
           T("punc", ": "),
           T("y-string", "JS-SetResponse"),
         ],
-        // 38:    type: Javascript
+        // 40:    type: Javascript
         [
           T("text", "    "),
           T("y-key", "type", { tip: TIP.policy_type }),
           T("punc", ": "),
           T("y-string", "Javascript"),
         ],
-        // 39:    content:
+        // 41:    content:
         [
           T("text", "    "),
           T("y-key", "content", { tip: TIP.content }),
           T("punc", ":"),
         ],
-        // 40:      javascript:
+        // 42:      Javascript:
         [
           T("text", "      "),
-          T("y-key", "javascript", { tip: TIP.javascript }),
+          T("y-key", "Javascript", { tip: TIP.javascript }),
           T("punc", ":"),
         ],
-        // 41:        metadata:
+        // 43:        metadata:
         [
           T("text", "        "),
           T("y-key", "metadata", { tip: TIP.metadata }),
           T("punc", ":"),
         ],
-        // 42:          continueOnError: "false"
+        // 44:          continueOnError: "false"
         [
           T("text", "          "),
           T("y-key", "continueOnError", { tip: TIP.continueOnError }),
           T("punc", ": "),
           T("y-string", '"false"', { tip: TIP.qstring }),
         ],
-        // 43:          enabled: "true"
+        // 45:          enabled: "true"
         [
           T("text", "          "),
           T("y-key", "enabled", { tip: TIP.enabled }),
           T("punc", ": "),
           T("y-string", '"true"', { tip: TIP.qstring }),
         ],
-        // 44:          timeLimit: "200"
+        // 46:          timeLimit: "200"
         [
           T("text", "          "),
           T("y-key", "timeLimit", { tip: TIP.timeLimit }),
           T("punc", ": "),
           T("y-string", '"200"', { tip: TIP.qstring }),
         ],
-        // 45:          name: JS-SetResponse
+        // 47:          name: JS-SetResponse
         [
           T("text", "          "),
           T("y-key", "name", { tip: TIP.policy_name }),
           T("punc", ": "),
           T("y-string", "JS-SetResponse"),
         ],
-        // 46:        displayName: JS-SetResponse
+        // 48:        DisplayName: JS-SetResponse
         [
           T("text", "        "),
-          T("y-key", "displayName", { tip: TIP.displayName }),
+          T("y-key", "DisplayName", { tip: TIP.displayName }),
           T("punc", ": "),
           T("y-string", "JS-SetResponse"),
         ],
-        // 47:        properties: {}
+        // 49:        Properties: {}
         [
           T("text", "        "),
-          T("y-key", "properties", { tip: TIP.properties }),
+          T("y-key", "Properties", { tip: TIP.properties }),
           T("punc", ": "),
           T("y-punc", "{}", { tip: TIP.empty_map }),
         ],
-        // 52:    content: |-
+        // 50:        Source: |-
         [
-          T("text", "    "),
-          T("y-key", "source", { tip: TIP.res_content }),
+          T("text", "        "),
+          T("y-key", "Source", { tip: TIP.res_content }),
           T("punc", ": "),
           T("y-pipe", "|-", { tip: TIP.pipe }),
         ],
-        // 53:      print("hello world!!");
-        [T("text", "      "), T("y-string", 'print("hello world!!");')],
-        // 54: (empty)
+        // 51:          print("hello world!!");
+        [T("text", "          "), T("y-string", 'print("hello world!!");')],
+        // 52: (empty)
         [T("text", "")],
-        // 55:      context.proxyResponse.content += "hello world!";
+        // 53:          context.proxyResponse.content += "hello world!";
         [
-          T("text", "      "),
+          T("text", "          "),
           T("y-string", 'context.proxyResponse.content += "hello world!";'),
         ],
 
