@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee-templater.schema.json",
+  "$id": "https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee.schema.json",
   "title": "Apigee Templater YAML Schema",
   "description": "JSON Schema validating Apigee Templater YAML specifications (Templates, Features, and Proxies)",
   "oneOf": [
