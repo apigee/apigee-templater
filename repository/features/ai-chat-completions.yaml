@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee.schema.v5.json
 name: ai-chat-completions
 displayName: REST-ChatCompletions-v1
 type: feature

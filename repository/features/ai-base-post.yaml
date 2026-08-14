@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee.schema.v5.json
 name: ai-base-post
 displayName: AI Base Post Functions
 type: feature
@@ -62,7 +63,7 @@ policies:
         DisplayName: JS-Analytics
         Properties: {}
         Source: |
-          
+
           function safeJsonParse(str) {
             if (!str) return null;
             if (typeof str === "object") return str;
