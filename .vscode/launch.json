@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "bun",
+      "request": "launch",
+      "name": "Debug AFT CLI (Bun)",
+      "program": "${workspaceFolder}/src/bin/apigee-templater.ts",
+      "args": ["-n", "TestProxy", "-b", "/v1/test", "-u", "https://httpbin.org", "-o", "/tmp/test-proxy.yaml"],
+      "cwd": "${workspaceFolder}",
+      "stopOnEntry": false
+    }
+  ]
+}

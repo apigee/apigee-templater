@@ -4,6 +4,7 @@ output
 build
 *.local.*
 *.local
+local
 temp
 data
 .env

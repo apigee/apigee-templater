@@ -1,13 +1,24 @@
 <p align="center"><img width="244" height="244" alt="aft logo" src="https://amalbagee.web.app/apigee/aft-logo.png" />
 
-# Apigee Feature Templater (aft) v4
+# Apigee Feature Templater (aft) v5
 
 ![image](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
-![image](https://img.shields.io/badge/Node%20js-007ACC?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![image](https://img.shields.io/badge/Bun-101010?style=for-the-badge&logo=bun&logoColor=white)
 ![image](https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)
+![image](https://img.shields.io/badge/Status-Beta-orange?style=for-the-badge)
 ![image](https://img.shields.io/badge/Apache--2.0-green?style=for-the-badge)
 
-**Apigee Feature Templater** is a command line tool to help manage Apigee templates & proxies. It can easily convert between **Apigee X proxies,** **Apigee exported bundles**, **YAML** & **JSON** formats, as well as bringing merge capabilities for features and templates.
+> [!NOTE]
+> **AFT v5 is currently in Beta testing!** We've refactored `aft` to run natively on Bun with zero-dependency standalone binaries. If you encounter any bugs or have feature requests, please [open an issue](https://github.com/apigee/apigee-templater/issues).
+
+> [!IMPORTANT]
+> 🚀 **Exciting News: Native Apigee X & `gcloud` YAML Proxy Support is now in BETA!**
+> 
+> Google Cloud has launched native [Apigee YAML Proxy Configurations](https://docs.cloud.google.com/apigee/docs/api-platform/fundamentals/configure-proxy-with-yaml) and [`gcloud beta apigee apis import`](https://docs.cloud.google.com/sdk/gcloud/reference/beta/apigee/apis/import)!
+> 
+> **AFT v5** is fully aligned with the official Apigee YAML schema, giving you a seamless bridge between local feature templating and native `gcloud` / Apigee X deployments.
+
+**Apigee Feature Templater** is a fast CLI tool to help manage Apigee templates & proxies. It can easily convert between **Apigee X proxies,** **Apigee exported bundles**, **YAML** & **JSON** formats, as well as bringing merge capabilities for features and templates.
 
 ## Features
 * 🔋 **Batteries included** - all conversions in all directions from a simple CLI, with complete resources and policies in a single YAML or JSON file.
@@ -16,14 +27,52 @@
 * ⛲ **Feature Driven Development** - create reusable feature files that can be easily applied to many proxies, teams & deployments.
 
 ## Install the CLI
+
+### Option 1: One-Line Installer (Zero dependencies)
+
+The easiest way to install `aft` globally on your machine without requiring Node.js or Bun:
+
+**macOS & Linux**:
 ```sh
-# install to use the 'aft' command
-npm i apigee-templater -g
-# or update
-npm update apigee-templater -g
+curl -fsSL https://raw.githubusercontent.com/apigee/apigee-templater/main/install.sh | sh
 ```
 
-Optionally clone this repository to run the below examples.
+**Windows (PowerShell)**:
+```powershell
+iwr -useb https://raw.githubusercontent.com/apigee/apigee-templater/main/install.ps1 | iex
+```
+
+### Option 2: Package Managers (`npm` / `bun` / `npx` / `bunx`)
+
+If you already use Node.js or Bun:
+
+```sh
+# Global install
+npm i apigee-templater -g
+# OR
+bun i apigee-templater -g
+
+# Run instantly without global installation
+npx aft -h
+# OR
+bunx aft -h
+```
+
+### Option 3: Manual Binary Download
+
+Download pre-compiled, zero-dependency binaries directly from [GitHub Releases](https://github.com/apigee/apigee-templater/releases):
+
+* 🐧 **Linux (x64)**: `aft-linux-x64`
+* 🐧 **Linux (ARM64)**: `aft-linux-arm64`
+* 🍎 **macOS (Apple Silicon)**: `aft-darwin-arm64`
+* 🍎 **macOS (Intel)**: `aft-darwin-x64`
+* 🪟 **Windows (x64)**: `aft-windows-x64.exe`
+
+Make the downloaded binary executable (`chmod +x aft-linux-x64`) and place it in your `PATH`.
+
+---
+
+Optionally clone this repository to run the below examples:
 
 ```sh
 git clone https://github.com/apigee/apigee-templater.git

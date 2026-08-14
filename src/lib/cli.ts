@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2022-2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,28 +25,35 @@ import { Proxy, Feature, Template } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 import { GoogleAuth } from "google-auth-library";
 import { version } from "./version.js";
+import { stdin } from "process";
 
 const auth = new GoogleAuth({
   scopes: "https://www.googleapis.com/auth/cloud-platform",
 });
 
-import { stdin } from "process";
-
 process.on("uncaughtException", function (e) {
-  // console.error(e);
-  console.error(`${chalk.redBright("! Error: An unexpected error occurred. " + e.message)}`);
+  console.error(`\n${chalk.bgRed.white.bold(" ERROR ")} ${chalk.red(e.message)}\n`);
 });
 
 /**
- * The CLI class parses and collects the user inputs, and generates / depoys the proxy on-demand.
- * @date 1/31/2022 - 8:47:32 AM
- *
- * @export
- * @class cli
+ * The CLI class parses and collects user inputs, and generates / deploys Apigee proxies, features and templates.
  */
 export class cli {
   converter = new ApigeeConverter("./", false);
   apigeeService = new ApigeeTemplaterService("./", false);
+
+  private printLogo() {
+    const vStr = ("v" + version).padEnd(8);
+    const logoText = `
+  ┌───────────────────────────────────────────────────────────┐
+  │            _   _                                          │
+  │     __ _  / _| | |_         APIGEE                        │
+  │    / _\` || |_  |  _|        FEATURE                       │
+  │   | (_| ||  _| | |_         TEMPLATER                     │
+  │    \\__,_||_|    \\__|                            ${vStr}  │
+  └───────────────────────────────────────────────────────────┘`;
+    console.log(chalk.cyan.bold(logoText));
+  }
 
   parseArgumentsIntoOptions(rawArgs: string[]): cliArgs {
     const args = arg(
@@ -80,7 +87,7 @@ export class cli {
         "-h": "--help",
         "-v": "--version",
         "-c": "--config",
-        "-d": "--drz"
+        "-d": "--drz",
       },
       {
         argv: rawArgs.slice(2),
@@ -88,13 +95,10 @@ export class cli {
     );
 
     if ((args["--applyFeature"] || args["--removeFeature"]) && args["_"] && args["_"][0]) {
-      // user wants to apply a feature, set input
       args["--input"] = args["_"][0];
     } else if (args["_"] && args["_"][0] && args["--output"]) {
-      // user wants to output something, set input
       args["--input"] = args["_"][0];
     } else if (args["_"] && args["_"][0]) {
-      // user wants to create a new template or proxy, set output
       args["--output"] =
         !args["_"][0].toLowerCase().endsWith(".yaml") &&
         !args["_"][0].toLowerCase().endsWith(".json")
@@ -148,7 +152,7 @@ export class cli {
         questions.push({
           type: "input",
           name: "name",
-          message: "Let's create a new template! What should it be called?",
+          message: chalk.cyan("Let's create a new template! What should it be called?"),
           default: "MyTemplate",
           transformer: (input: string) => {
             return input.replace(/ /g, "-");
@@ -159,7 +163,7 @@ export class cli {
           questions.push({
             type: "input",
             name: "basePath",
-            message: "Which base path should be used, or none for now?",
+            message: chalk.cyan("Which base path should be used, or none for now?"),
             default: options.name ? "/" + options.name : "/v1/coolapi",
             transformer: (input: string) => {
               return input.replace(/ /g, "-");
@@ -171,7 +175,7 @@ export class cli {
           questions.push({
             type: "input",
             name: "targetUrl",
-            message: "Do you want to add a target url to receive traffic?",
+            message: chalk.cyan("Do you want to add a target url to receive traffic?"),
             default: "https://mocktarget.apigee.net",
             transformer: (input: string) => {
               return input.replace(/ /g, "-");
@@ -221,29 +225,46 @@ export class cli {
   }
 
   printHelp() {
+    this.printLogo();
     console.log(
-      `${chalk.bold(chalk.magentaBright(`> Welcome to Apigee Feature Templater ${version}! All parameters:`))}`,
+      `\n  ${chalk.bold.magenta("Apigee Feature Templater")} ${chalk.cyan(`v${version}`)}`
     );
-    for (const line of helpCommands) {
-      console.log(`${line.name}: ${chalk.italic(chalk.magentaBright(line.description))} `);
+    console.log(`  ${chalk.white("Provides tooling for feature development of Apigee proxies using YAML, JSON, and ZIP formats.")}\n`);
+
+    console.log(`  ${chalk.bold.cyan("USAGE:")}`);
+    console.log(`    ${chalk.green("aft")} ${chalk.yellow("[options]")} ${chalk.dim("[<input> | <output>]")}\n`);
+
+    console.log(`  ${chalk.bold.cyan("OPTIONS:")}`);
+    for (const cmd of helpCommands) {
+      const flags = chalk.bold.yellow(cmd.name.padEnd(22));
+      const desc = chalk.white(cmd.description);
+      console.log(`    ${flags} ${desc}`);
     }
+    console.log();
   }
 
   printVersion() {
-    console.log(`${chalk.bold(chalk.magentaBright(`> Apigee Feature Templater ${version}.`))}`);
+    this.printLogo();
+    console.log(`  ${chalk.bold.magenta("Apigee Feature Templater")} ${chalk.bold.yellow("v" + version)}\n`);
   }
 
   async printFeatures() {
-    console.log(
-      `${chalk.bold(chalk.magentaBright(`> Welcome to Apigee Feature Templater ${version}! All features:`))}`,
-    );
+    this.printLogo();
+    console.log(`\n  ${chalk.bold.cyan("📦 Available Apigee Features:")}\n`);
 
     let allFeatures = await this.apigeeService.featuresList();
 
-    for (let feature of allFeatures) {
-      console.log(`${feature.name}: ${chalk.italic(chalk.magentaBright(feature.description))} `);
-      // console.log(`${feature.name}`);
+    if (allFeatures.length === 0) {
+      console.log(`    ${chalk.yellow("No features found in repository.")}\n`);
+      return;
     }
+
+    for (let feature of allFeatures) {
+      const nameBadge = chalk.bgMagenta.white.bold(` ${feature.name.padEnd(20)} `);
+      const desc = chalk.italic.white(feature.description || "No description");
+      console.log(`    ${nameBadge} ${desc}`);
+    }
+    console.log(`\n  ${chalk.dim(`Total features available: ${allFeatures.length}`)}\n`);
   }
 
   processDataSpec(): Promise<string> {
@@ -253,36 +274,23 @@ export class cli {
         receivedData += data;
       });
       stdin.on("end", () => {
-        // Input will have a \n appended
-        // receivedData = receivedData.slice(0, -1);
         resolve(receivedData);
       });
     });
   }
 
-  /**
-   * Process the user inputs and generates / deploys the proxy
-   * @date 1/31/2022 - 8:42:28 AM
-   *
-   * @async
-   * @param {cliArgs} args The user input args to the process
-   */
   installSkill() {
     try {
       const homeDir = process.env.HOME || process.env.USERPROFILE;
       if (!homeDir) return;
 
-      // Candidate global skills directories
-      const targetBaseDirs = [
-        path.join(homeDir, ".agents", "skills")
-      ];
+      const targetBaseDirs = [path.join(homeDir, ".agents", "skills")];
 
-      // Try multiple potential source locations for the skill file
       const currentFileDir = path.dirname(new URL(import.meta.url).pathname);
       const possibleSkillSources = [
         path.join(currentFileDir, "..", "skills", "apigee-templater"),
         path.join(currentFileDir, "..", "..", "skills", "apigee-templater"),
-        path.join(process.cwd(), "skills", "apigee-templater")
+        path.join(process.cwd(), "skills", "apigee-templater"),
       ];
 
       let sourceSkillDir = "";
@@ -306,25 +314,44 @@ export class cli {
           }
           fs.cpSync(sourceSkillDir, targetSkillDir, { recursive: true });
         } catch (e) {
-          // Continue to next dir if one location fails
+          // Continue if one directory fails
         }
       }
     } catch (e) {
-      // Ignore errors silently if installation fails (e.g., permission issues)
+      // Ignore errors silently
     }
+  }
+
+  private printOverviewCard(title: string, summaryLines: string[], outputPath: string) {
+    console.log(`\n  ${chalk.bgCyan.black.bold(" OVERVIEW ")} ${chalk.bold.magenta(title)}`);
+    console.log(chalk.gray("  ─────────────────────────────────────────────────────────"));
+    for (const line of summaryLines) {
+      if (line.startsWith("Name:")) {
+        console.log(`    ${chalk.bold("Name:")}        ${chalk.cyan(line.replace("Name: ", ""))}`);
+      } else if (line.startsWith("Endpoints:")) {
+        console.log(`    ${chalk.bold("Endpoints:")}`);
+      } else if (line.startsWith("Targets:")) {
+        console.log(`    ${chalk.bold("Targets:")}`);
+      } else if (line.startsWith("Policies:")) {
+        console.log(`    ${chalk.bold("Policies:")}`);
+      } else if (line.startsWith("Resources:")) {
+        console.log(`    ${chalk.bold("Resources:")}`);
+      } else if (line.startsWith("- ")) {
+        console.log(`      ${chalk.green("•")} ${chalk.white(line.substring(2))}`);
+      } else {
+        console.log(`    ${line}`);
+      }
+    }
+    console.log(chalk.gray("  ─────────────────────────────────────────────────────────"));
+    console.log(`  ${chalk.green.bold("✔ Output written to:")} ${chalk.bold.yellow(outputPath)}\n`);
   }
 
   async process(args: string[]) {
     this.installSkill();
 
     if (!stdin.setRawMode) {
-      // We have received raw data piped in, so do our spec generation
-      let payloadInput = await this.processDataSpec();
-
-      console.log(
-        `${chalk.bold(chalk.magentaBright("> Data piping from stdin is not yet supported."))}`,
-      );
-
+      await this.processDataSpec();
+      console.log(`\n  ${chalk.yellow("⚠ Data piping from stdin is not yet supported.")}\n`);
       return;
     }
 
@@ -351,19 +378,21 @@ export class cli {
         if (token) options.token = token;
       }
       let apigeeConfig = await this.apigeeService.apigeeConfigGet(
-        options.config, options.drz,
+        options.config,
+        options.drz,
         "Bearer " + options.token,
       );
 
       console.log(JSON.stringify(apigeeConfig, null, 2));
-
       return;
     }
 
     if (!options.input) {
+      this.printLogo();
       console.log(
-        `${chalk.bold(chalk.magentaBright("> Welcome to Apigee Feature Templater " + version))}, ${chalk.green("use -h to view all command line options.")} `,
+        `  ${chalk.bold.magenta("Welcome to Apigee Feature Templater " + version)}`
       );
+      console.log(`  ${chalk.green("Use -h to view all command line options.")}\n`);
     }
 
     options = await this.promptForMissingOptions(options);
@@ -372,7 +401,8 @@ export class cli {
     let feature: Feature | undefined = undefined;
     let proxy: Proxy | undefined = undefined;
     let startDir = process.cwd();
-    // parse parameters
+
+    // Parse parameters
     let inputParameters: { [key: string]: string } = {};
     if (options.parameters) {
       let paramPairs = options.parameters.split(",");
@@ -384,16 +414,15 @@ export class cli {
     }
 
     if (!options.input) {
-      // create new template
+      // Create new template
       let basePath = options.basePath;
-      // if (!basePath) basePath = "/" + options.name.toLowerCase().replaceAll(" ", "-")
       if (options.format == "feature") {
         feature = new Feature();
         feature.name = options.name;
       } else {
-        console.log("Template created, now converting to feature...");
+        // console.log(`  ${chalk.cyan("ℹ Template created, converting to feature...")}`);
         template = this.converter.templateCreate(options.name, basePath, options.targetUrl);
-        options.format = "feature";
+        if (!options.format && options.basePath && options.targetUrl) options.format = "feature";
       }
       if (!options.output) options.output = options.name + ".yaml";
     } else if (
@@ -401,7 +430,7 @@ export class cli {
       !options.input.toLowerCase().startsWith("https://") &&
       !options.input.toLowerCase().startsWith("http://")
     ) {
-      // this is an apigee proxy reference
+      // Apigee proxy reference ORG:PROXY
       let pieces = options.input.split(":");
       if (pieces && pieces.length > 1 && pieces[0] && pieces[1]) {
         if (!options.token) {
@@ -411,7 +440,8 @@ export class cli {
         if (!options.name) options.name = pieces[1];
         let apigeePath = await this.apigeeService.apigeeProxyGet(
           pieces[1],
-          pieces[0], options.drz,
+          pieces[0],
+          options.drz,
           "Bearer " + options.token,
         );
         if (apigeePath) {
@@ -419,10 +449,11 @@ export class cli {
           proxy = await this.converter.apigeeZipToProxy(options.name, apigeePath, importParameters);
           fs.rmSync(apigeePath);
         } else {
-          // try shared flows
+          // Try shared flows
           let sharedFlowPath = await this.apigeeService.apigeeSharedFlowGet(
             pieces[1],
-            pieces[0], options.drz,
+            pieces[0],
+            options.drz,
             "Bearer " + options.token,
           );
 
@@ -441,15 +472,14 @@ export class cli {
       else if (file && file["type"] === "feature") feature = file as Feature;
       else if (file) {
         console.log(
-          `${chalk.bold(chalk.redBright(`> Error reading '${options.input}', could not determine its type: \n ${JSON.stringify(file, null, 2)}`))}`,
+          `  ${chalk.red.bold("✖ Error reading '" + options.input + "', could not determine its type:")}\n  ${JSON.stringify(file, null, 2)}`
         );
         return;
       }
-      // change working directory so that path resolutions will work
       let dirName = path.dirname(options.input);
       process.chdir(dirName);
     } else {
-      // try to load it from remote repositories
+      // Remote repository load
       if (
         options.input.toLowerCase().startsWith("https://") ||
         options.input.toLowerCase().startsWith("http://")
@@ -471,16 +501,18 @@ export class cli {
       }
       if (options.input.endsWith(":")) options.input = options.input.replace(":", "");
       let proxyList = await this.apigeeService.apigeeProxiesList(
-        options.input, options.drz,
+        options.input,
+        options.drz,
         `Bearer ${options.token}`,
       );
       if (!options.output && proxyList && proxyList["proxies"] && proxyList["proxies"].length > 0) {
         console.log(
-          `${chalk.bold(chalk.magentaBright(`> Apigee org ${options.input} proxies, get proxy info with -i '${options.input}:NAME'`))}`,
+          `\n  ${chalk.cyan.bold("Apigee org " + options.input + " proxies:")} ${chalk.gray("(get proxy info with -i '" + options.input + ":NAME')")}`
         );
-        for (let proxy of proxyList["proxies"]) {
-          console.log(` - ${proxy["name"]}`);
+        for (let p of proxyList["proxies"]) {
+          console.log(`    ${chalk.green("•")} ${p["name"]}`);
         }
+        console.log();
       }
       return;
     } else {
@@ -489,7 +521,6 @@ export class cli {
         if (!options.output) options.output = options.input;
 
         if (options.output.includes(":") && !inputParameters["PROJECT_ID"]) {
-          // set PROJECT_ID with included project
           let pieces = options.output.split(":");
           if (pieces.length >= 1 && pieces[0]) inputParameters["PROJECT_ID"] = pieces[0];
         }
@@ -500,7 +531,6 @@ export class cli {
           path.dirname(options.output) != "." &&
           fs.existsSync(path.dirname(options.output))
         ) {
-          // this is a path, get relative path from output
           relativePath = path.relative(path.dirname(options.output), options.applyFeature);
         }
         let applyFeature = await this.apigeeService.featureGet(options.applyFeature);
@@ -517,7 +547,7 @@ export class cli {
         } else if (feature && applyFeature) {
           feature = this.converter.featureApplyFeature(feature, applyFeature, inputParameters);
         } else if (!applyFeature) {
-          console.error(`Could not load feature ${relativePath}.`);
+          console.error(`  ${chalk.red.bold("✖ Could not load feature:")} ${relativePath}`);
         }
       } else if (options.removeFeature) {
         process.chdir(startDir);
@@ -549,7 +579,7 @@ export class cli {
         }
       }
 
-      // HALF TIME - generally print generated output overview
+      // Determine output format
       if (proxy) {
         if (!options.format) options.format = "proxy";
       } else if (template) {
@@ -558,7 +588,7 @@ export class cli {
         if (!options.format) options.format = "feature";
       } else {
         console.log(
-          `${chalk.bold(chalk.redBright(`> Input '${options.input}' could not be loaded, maybe incorrect spelling?`))}`,
+          `  ${chalk.red.bold("✖ Input '" + options.input + "' could not be loaded. Please check spelling or path.")}`
         );
         return;
       }
@@ -589,7 +619,6 @@ export class cli {
         if (proxy) outputPath = await this.converter.proxyToApigeeZip(proxy, removeDir);
         if (proxy && outputPath) {
           if (options.output.toLowerCase().endsWith(".dir")) {
-            // remove zip
             fs.rmSync(outputPath);
             fs.cpSync(outputPath.replace(".zip", ""), options.output.replace(".dir", ""), {
               recursive: true,
@@ -600,16 +629,17 @@ export class cli {
             fs.rmSync(outputPath);
           }
 
-          console.log(`${chalk.bold(chalk.magentaBright(`> Proxy ${proxy.name} overview: `))}`);
-          console.log(this.converter.proxyToString(proxy));
-          console.log(`${chalk.bold(chalk.magentaBright("> Proxy written to " + options.output))}`);
+          this.printOverviewCard(
+            `Proxy ${proxy.name}`,
+            this.converter.proxyToStringArray(proxy),
+            options.output
+          );
         } else {
-          console.log(`${chalk.bold(chalk.redBright("> Error, could not write proxy zip."))}`);
+          console.log(`  ${chalk.red.bold("✖ Error: Could not write proxy zip.")}`);
           return;
         }
       } else if (options.output && options.format == "proxy") {
         if (options.output.includes(":") && !inputParameters["PROJECT_ID"]) {
-          // set PROJECT_ID with included project
           let pieces = options.output.split(":");
           if (pieces.length >= 1 && pieces[0]) inputParameters["PROJECT_ID"] = pieces[0];
         }
@@ -642,7 +672,7 @@ export class cli {
             if (!options.name) options.name = proxy.name;
             let pieces = options.output.split(":");
             let lastRevision = "";
-            // export to apigee
+
             if (!options.token) {
               let token = await auth.getAccessToken();
               if (token) options.token = token;
@@ -653,12 +683,12 @@ export class cli {
                 lastRevision = await this.apigeeService.apigeeProxyExport(
                   options.name,
                   outputPath,
-                  pieces[0], options.drz,
+                  pieces[0],
+                  options.drz,
                   "Bearer " + options.token,
                 );
-                if (!lastRevision) throw "Proxy could not be deployed.";
+                if (!lastRevision) throw new Error("Proxy could not be exported.");
               }
-              // deploy to apigee
               if (pieces && pieces.length > 2 && pieces[0] && pieces[2] && lastRevision) {
                 let serviceAccount = "";
                 let environment = pieces[2];
@@ -668,26 +698,27 @@ export class cli {
                   lastRevision,
                   serviceAccount,
                   environment,
-                  pieces[0], options.drz,
+                  pieces[0],
+                  options.drz,
                   "Bearer " + options.token,
                 );
-                if (!deployResult) throw "Proxy could not be deployed.";
+                if (!deployResult) throw new Error("Proxy could not be deployed.");
               }
             } catch (ex) {
-              // delete proxy zip
               fs.rmSync(outputPath);
               throw ex;
             }
 
-            // delete proxy zip
             fs.rmSync(outputPath);
           }
 
-          console.log(`${chalk.bold(chalk.magentaBright(`> Proxy ${proxy.name} overview: `))}`);
-          console.log(this.converter.proxyToString(proxy));
-          console.log(`${chalk.bold(chalk.magentaBright("> Proxy written to " + options.output))}`);
+          this.printOverviewCard(
+            `Proxy ${proxy.name}`,
+            this.converter.proxyToStringArray(proxy),
+            options.output
+          );
         } else {
-          console.log(`${chalk.bold(chalk.redBright("> Error, could not create proxy."))}`);
+          console.log(`  ${chalk.red.bold("✖ Error: Could not create proxy.")}`);
           return;
         }
       } else if (options.output && options.format == "template") {
@@ -697,7 +728,6 @@ export class cli {
         process.chdir(startDir);
 
         if (template) {
-          // this.converter.templateUpdateParameters(template, inputParameters);
           if (options.name) template.name = options.name;
           if (options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(template, null, 2));
@@ -711,19 +741,15 @@ export class cli {
             );
           }
 
-          console.log(
-            `${chalk.bold(chalk.magentaBright(`> Template ${template.name} overview: `))}`,
-          );
-          console.log(this.converter.templateToString(template));
-          console.log(
-            `${chalk.bold(chalk.magentaBright("> Template written to " + options.output))}`,
+          this.printOverviewCard(
+            `Template ${template.name}`,
+            this.converter.templateToString(template).split("\n"),
+            options.output
           );
         }
       } else if (options.output && options.format == "feature") {
         if (proxy) {
           if (options.removeFeature) {
-            // let outputDir = path.dirname(options.output);
-            // process.chdir(outputDir);
             let testFeature = await this.apigeeService.featureGet(options.removeFeature);
             if (testFeature) proxy = this.converter.proxyRemoveFeature(proxy, testFeature) ?? proxy;
           }
@@ -748,10 +774,10 @@ export class cli {
             );
           }
 
-          console.log(`${chalk.bold(chalk.magentaBright(`> Feature ${feature.name} overview: `))}`);
-          console.log(this.converter.featureToString(feature));
-          console.log(
-            `${chalk.bold(chalk.magentaBright("> Feature written to " + options.output))}`,
+          this.printOverviewCard(
+            `Feature ${feature.name}`,
+            this.converter.featureToString(feature).split("\n"),
+            options.output
           );
         }
       }
@@ -777,15 +803,10 @@ export class cli {
         let inputString = fs.readFileSync(inputPath, "utf8");
         if (inputString) input = JSON.parse(inputString);
       } else {
-        // try to load extracted proxy zip dir
         input = this.converter.apigeeFolderToProxy(name, inputPath);
       }
 
-      if (input) {
-        resolve(input);
-      } else {
-        resolve(undefined);
-      }
+      resolve(input || undefined);
     });
   }
 
@@ -806,11 +827,7 @@ export class cli {
         if (inputString) input = JSON.parse(inputString);
       }
 
-      if (input) {
-        resolve(input);
-      } else {
-        resolve(undefined);
-      }
+      resolve(input || undefined);
     });
   }
 }
@@ -848,7 +865,7 @@ const helpCommands = [
   },
   {
     name: "--format, -f",
-    description: "An optional format to convert the input into: 'proxy', 'template' or 'feature'.",
+    description: "An optional format to convert input into: 'proxy', 'template' or 'feature'.",
   },
   {
     name: "--applyFeature, -a",
@@ -873,7 +890,7 @@ const helpCommands = [
   {
     name: "--parameters, -p",
     description:
-      "If generating a proxy from a template, these parameters are used for substitutions (param1=value1,param2=value2).",
+      "If generating a proxy from a template, parameter substitutions (param1=val1,param2=val2).",
   },
   {
     name: "--config, -c",
@@ -882,7 +899,7 @@ const helpCommands = [
   {
     name: "--token, -t",
     description:
-      "A Google Cloud token to use with the Apigee API, not needed if default application credentials are available.",
+      "Google Cloud token for Apigee API (uses Application Default Credentials if omitted).",
   },
   {
     name: "--help, -h",
@@ -890,7 +907,7 @@ const helpCommands = [
   },
   {
     name: "--version, -v",
-    description: "Display version and help.",
+    description: "Display version info.",
   },
   {
     name: "--drz, -d",

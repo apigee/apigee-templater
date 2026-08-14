@@ -296,6 +296,12 @@ export class ApigeeTemplaterService {
       } else if (fs.existsSync(this.featuresPath + tempName + ".yaml")) {
         featureString = fs.readFileSync(this.featuresPath + tempName + ".yaml", "utf8");
         foundYaml = true;
+      } else if (fs.existsSync("repository/features/" + tempName + ".json")) {
+        featureString = fs.readFileSync("repository/features/" + tempName + ".json", "utf8");
+        foundJson = true;
+      } else if (fs.existsSync("repository/features/" + tempName + ".yaml")) {
+        featureString = fs.readFileSync("repository/features/" + tempName + ".yaml", "utf8");
+        foundYaml = true;
       } else if (fs.existsSync(tempName)) {
         featureString = fs.readFileSync(tempName, "utf8");
         // let dirName = path.dirname(tempName);

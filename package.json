@@ -1,17 +1,20 @@
 {
   "name": "apigee-templater",
-  "version": "4.5.14",
-  "description": "Provides tooling for feature development of Apigee proxies using YAML, JSON and ZIP formats, and REST, MCP & CLI interfaces.",
-  "main": "index.js",
+  "version": "5.0.0",
+  "description": "Provides tooling for feature development of Apigee proxies using YAML, JSON and ZIP formats.",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
   "directories": {
     "doc": "docs",
     "example": "examples"
   },
   "scripts": {
-    "build": "npm run sync-ai-functions && genversion ./src/lib/version.ts --esm && npx tsc && node copy-assets.js",
-    "start": "npm run build && node dist/index.js",
-    "sync-ai-functions": "node repository/lib/sync-ai-functions.js",
-    "test": "npm run build && vitest run repository/lib/tests/ai-functions.test.ts"
+    "build": "rm -rf dist && bun run sync-ai-functions && bun build --sourcemap=none ./src/index.ts ./src/bin/apigee-templater.ts --target=bun --outdir=./dist && node copy-assets.js",
+    "build:binaries": "bun run build && bun build --compile --target=bun-linux-x64 ./src/bin/apigee-templater.ts --outfile dist/aft-linux-x64 && bun build --compile --target=bun-linux-arm64 ./src/bin/apigee-templater.ts --outfile dist/aft-linux-arm64 && bun build --compile --target=bun-darwin-x64 ./src/bin/apigee-templater.ts --outfile dist/aft-darwin-x64 && bun build --compile --target=bun-darwin-arm64 ./src/bin/apigee-templater.ts --outfile dist/aft-darwin-arm64 && bun build --compile --target=bun-windows-x64 ./src/bin/apigee-templater.ts --outfile dist/aft-windows-x64.exe",
+    "release": "./sh/release.sh",
+    "start": "bun run src/bin/apigee-templater.ts",
+    "sync-ai-functions": "bun run repository/lib/sync-ai-functions.js",
+    "test": "bun test"
   },
   "repository": {
     "type": "git",
@@ -25,7 +28,10 @@
     "apigee-templater": "./dist/bin/apigee-templater.js"
   },
   "keywords": [
-    "apigee"
+    "apigee",
+    "bun",
+    "cli",
+    "templater"
   ],
   "author": "tyler.ayers@gmail.com",
   "license": "Apache-2.0",
@@ -36,13 +42,9 @@
   "homepage": "https://github.com/apigee/apigee-templater#readme",
   "dependencies": {
     "@google/genai": "^1.31.0",
-    "@modelcontextprotocol/sdk": "^1.17.3",
-    "@types/jsonpath": "^0.2.4",
     "apigee-portal-module": "^0.8.0",
     "arg": "^5.0.2",
     "chalk": "^5.6.0",
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
     "google-auth-library": "^10.4.1",
     "inquirer": "^12.9.4",
     "jsonpath": "^1.1.1",
@@ -52,13 +54,10 @@
     "yazl": "^3.3.1"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.3",
-    "@types/node": "^24.3.0",
+    "@types/bun": "^1.2.0",
+    "@types/jsonpath": "^0.2.4",
     "@types/yauzl": "^2.10.3",
     "@types/yazl": "^3.3.0",
-    "genversion": "^3.2.0",
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "typescript": "^5.9.2"
   }
 }

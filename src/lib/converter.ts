@@ -2064,7 +2064,7 @@ export class ApigeeConverter {
     const newObj: any = {};
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
-        let newKey = this.toCamelCase(key);
+        let newKey = key;  // this.toCamelCase(key);
         // metadata sounds cooler ;)
         if (key === "_attributes") newKey = "metadata";
         if (newKey === "value") newKey = "setValue";
@@ -2135,7 +2135,7 @@ export class ApigeeConverter {
           if (parentName === "_attributes") newKey = "value";
           else newKey = "Value";
         } else if (parentName !== "_attributes" && parentName != "_text") {
-          newKey = this.removeCamelCase(newKey);
+          // newKey = this.removeCamelCase(newKey);
         }
 
         if (typeof value === "object" && value !== null) {

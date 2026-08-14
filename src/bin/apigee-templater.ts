@@ -1,6 +1,6 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2022-2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,4 +20,4 @@ import cli from "../lib/cli.js";
 process.removeAllListeners("warning");
 
 const myCli = new cli();
-myCli.process(process.argv);
+await myCli.process(process.argv);

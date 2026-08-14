@@ -1,24 +1,33 @@
-// Project-local debug tasks
-//
-// For more documentation on how to configure debug tasks,
-// see: https://zed.dev/docs/debugger
 [
   {
     "adapter": "JavaScript",
-    "label": "test 1",
-    "type": "pwa-node",
+    "label": "Debug AFT CLI",
+    "type": "node",
     "request": "launch",
-    "program": "dist/bin/apigee-templater.js",
-    "stopOnEntry": false,
+    "runtimeExecutable": "bun",
+    "runtimeArgs": ["run"],
+    "program": "$ZED_WORKTREE_ROOT/src/bin/apigee-templater.ts",
     "args": [],
+    "stopOnEntry": false
   },
   {
     "adapter": "JavaScript",
-    "label": "test 2",
-    "type": "pwa-node",
+    "label": "Debug Active TS File",
+    "type": "node",
     "request": "launch",
-    "program": "dist/bin/apigee-templater.js",
-    "stopOnEntry": false,
-    "args": ["-i", "oidcmock.local.yaml", "-o", "oidcmock.local.zip"],
+    "runtimeExecutable": "bun",
+    "runtimeArgs": ["run"],
+    "program": "$ZED_FILE",
+    "stopOnEntry": false
   },
+  {
+    "adapter": "JavaScript",
+    "label": "Debug Bun Tests",
+    "type": "node",
+    "request": "launch",
+    "runtimeExecutable": "bun",
+    "runtimeArgs": ["test"],
+    "program": "$ZED_WORKTREE_ROOT/tests/cli.test.ts",
+    "stopOnEntry": false
+  }
 ]

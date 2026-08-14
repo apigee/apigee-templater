@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { ApigeeConverter } from "../../../src/lib/converter.js";
-import { Feature, Parameter } from "../../../src/lib/interfaces.js";
+import { describe, it, expect } from "bun:test";
+import { ApigeeConverter } from "../src/lib/converter.js";
+import { Feature } from "../src/lib/interfaces.js";
 
 describe("featureApplyFeature parameter merging", () => {
   it("should add new parameters and overwrite existing parameters by name", () => {
@@ -17,7 +17,7 @@ describe("featureApplyFeature parameter merging", () => {
           description: "Original param 1",
           maps: {},
           examples: [],
-          default: "original_val1"
+          default: "original_val1",
         },
         {
           name: "Param2",
@@ -25,13 +25,13 @@ describe("featureApplyFeature parameter merging", () => {
           description: "Original param 2",
           maps: {},
           examples: [],
-          default: "original_val2"
-        }
+          default: "original_val2",
+        },
       ],
       endpoints: [],
       targets: [],
       policies: [],
-      resources: []
+      resources: [],
     };
 
     const applyFeature: Feature = {
@@ -45,7 +45,7 @@ describe("featureApplyFeature parameter merging", () => {
           description: "Overwritten param 2",
           maps: {},
           examples: [],
-          default: "new_val2"
+          default: "new_val2",
         },
         {
           name: "Param3",
@@ -53,13 +53,13 @@ describe("featureApplyFeature parameter merging", () => {
           description: "New param 3",
           maps: {},
           examples: [],
-          default: "new_val3"
-        }
+          default: "new_val3",
+        },
       ],
       endpoints: [],
       targets: [],
       policies: [],
-      resources: []
+      resources: [],
     };
 
     const merged = converter.featureApplyFeature(originalFeature, applyFeature);

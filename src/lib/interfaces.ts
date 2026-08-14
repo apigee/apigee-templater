@@ -1,6 +1,8 @@
 export class Template {
   name: string = "";
   type: string = "template";
+  gateway: string = "apigee";
+  schemaVersion: string = "1.0.0"
   priority?: number;
   description: string = "";
   features: string[] = [];
@@ -33,6 +35,8 @@ export class Proxy {
   displayName?: string = "";
   uid?: string;
   type: string = "proxy";
+  gateway: string = "apigee";
+  schemaVersion: string = "1.0.0"
   priority?: number;
   categories?: string[] = [];
   description: string = "";
@@ -122,6 +126,8 @@ export class Feature {
   type: string = "feature";
   description: string = "";
   documentation?: string = "";
+  gateway: string = "apigee";
+  schemaVersion: string = "1.0.0"
   priority?: number;
   categories?: string[] = [];
   parameters: Parameter[] = [];
