@@ -1,22 +1,12 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee.schema.v5.json
 name: ai-base-post
 displayName: AI Base Post Functions
 type: feature
 description: The base AI & LLM response handling with token counting and analytics.
 documentation: ""
-gateway: apigee
-schemaVersion: 1.0.0
 categories:
   - llm
   - ai
 parameters: []
-defaultEndpoint:
-  name: default
-  basePath: /ai-base-post
-  routes:
-    - name: default
-  flows: []
-  faultRules: []
 defaultTarget:
   name: default
   url: https://aiplatform.googleapis.com
@@ -42,27 +32,101 @@ defaultTarget:
           condition: ai.usageDataFound = "true"
   faultRules: []
   httpTargetConnection:
-    Properties:
-      Property:
+    properties:
+      property:
         metadata:
           name: io.timeout.millis
-        _text: "18000000"
-    URL: https://aiplatform.googleapis.com
+        value: "18000000"
+    url: https://aiplatform.googleapis.com
 endpoints: []
 targets: []
 policies:
+  - name: JS-ResetUsageDataFound
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          timeLimit: "200"
+          name: JS-ResetUsageDataFound
+        displayName: JS-ResetUsageDataFound
+        properties: {}
+        source: |
+          context.setVariable("ai.usageDataFound", "false");
+  - name: DC-TokenAnalytics
+    type: DataCapture
+    content:
+      dataCapture:
+        metadata:
+          name: DC-TokenAnalytics
+          continueOnError: "false"
+          enabled: "true"
+        displayName: DC-TokenAnalytics
+        ignoreUnresolvedVariables: "false"
+        capture:
+          - collect:
+              metadata:
+                ref: ai.model
+                default: unknown
+            dataCollector: dc_ai_model
+          - collect:
+              metadata:
+                ref: ai.promptTokenCount
+                default: "0"
+            dataCollector: dc_ai_prompt_token_count
+          - collect:
+              metadata:
+                ref: ai.responseTokenCount
+                default: "0"
+            dataCollector: dc_ai_response_token_count
+          - collect:
+              metadata:
+                ref: ai.totalTokenCount
+                default: "0"
+            dataCollector: dc_ai_total_token_count
+          - collect:
+              metadata:
+                ref: ai.responseType
+                default: unknown
+            dataCollector: dc_ai_response_type
+          - collect:
+              metadata:
+                ref: ai.timeToFirstToken
+                default: "0"
+            dataCollector: dc_ai_time_first_token
+          - collect:
+              metadata:
+                ref: ai.costCenter
+                default: unknown
+            dataCollector: dc_ai_cost_center
+          - collect:
+              metadata:
+                ref: ai.requestCost
+                default: "0"
+            dataCollector: dc_ai_request_cost
+          - collect:
+              metadata:
+                ref: ai.responseCost
+                default: "0"
+            dataCollector: dc_ai_response_cost
+          - collect:
+              metadata:
+                ref: ai.totalCost
+                default: "0"
+            dataCollector: dc_ai_total_cost
   - name: JS-Analytics
     type: Javascript
     content:
-      Javascript:
+      javascript:
         metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-Analytics
-        DisplayName: JS-Analytics
-        Properties: {}
-        Source: |
+        displayName: JS-Analytics
+        properties: {}
+        source: |
 
           function safeJsonParse(str) {
             if (!str) return null;
@@ -220,81 +284,7 @@ policies:
           } else {
             context.setVariable("ai.usageDataFound", "false");
           }
-        IncludeURL: jsc://ai-functions.js
-  - name: JS-ResetUsageDataFound
-    type: Javascript
-    content:
-      Javascript:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          timeLimit: "200"
-          name: JS-ResetUsageDataFound
-        DisplayName: JS-ResetUsageDataFound
-        Properties: {}
-        Source: |
-          context.setVariable("ai.usageDataFound", "false");
-  - name: DC-TokenAnalytics
-    type: DataCapture
-    content:
-      DataCapture:
-        metadata:
-          name: DC-TokenAnalytics
-          continueOnError: "false"
-          enabled: "true"
-        DisplayName: DC-TokenAnalytics
-        IgnoreUnresolvedVariables: "false"
-        Capture:
-          - Collect:
-              metadata:
-                ref: ai.model
-                default: unknown
-            DataCollector: dc_ai_model
-          - Collect:
-              metadata:
-                ref: ai.promptTokenCount
-                default: "0"
-            DataCollector: dc_ai_prompt_token_count
-          - Collect:
-              metadata:
-                ref: ai.responseTokenCount
-                default: "0"
-            DataCollector: dc_ai_response_token_count
-          - Collect:
-              metadata:
-                ref: ai.totalTokenCount
-                default: "0"
-            DataCollector: dc_ai_total_token_count
-          - Collect:
-              metadata:
-                ref: ai.responseType
-                default: unknown
-            DataCollector: dc_ai_response_type
-          - Collect:
-              metadata:
-                ref: ai.timeToFirstToken
-                default: "0"
-            DataCollector: dc_ai_time_first_token
-          - Collect:
-              metadata:
-                ref: ai.costCenter
-                default: unknown
-            DataCollector: dc_ai_cost_center
-          - Collect:
-              metadata:
-                ref: ai.requestCost
-                default: "0"
-            DataCollector: dc_ai_request_cost
-          - Collect:
-              metadata:
-                ref: ai.responseCost
-                default: "0"
-            DataCollector: dc_ai_response_cost
-          - Collect:
-              metadata:
-                ref: ai.totalCost
-                default: "0"
-            DataCollector: dc_ai_total_cost
+        includeUrl: jsc://ai-functions.js
 resources:
   - name: ai-functions.js
     type: jsc
@@ -498,6 +488,12 @@ resources:
             var gParts = url.split("/publishers/google/models/");
             if (gParts.length > 1) {
               info.modelName = gParts[1].split(":")[0];
+            }
+          } else if (url.includes(":generate")) {
+            var gParts = url.split(":generate");
+            if (gParts.length > 1) {
+              var uParts = gParts[0].split("/");
+              info.modelName = uParts[uParts.length - 1];
             }
           }
         }
@@ -2137,5 +2133,3 @@ resources:
         exports.getModelTokenLimit = getModelTokenLimit;
         exports.getModelList = getModelList;
       }
-
-tests: []

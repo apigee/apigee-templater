@@ -5,19 +5,20 @@
     "type": "node",
     "request": "launch",
     "runtimeExecutable": "bun",
-    "runtimeArgs": ["run"],
+    "runtimeArgs": ["--inspect-brk=9229"],
     "program": "$ZED_WORKTREE_ROOT/src/bin/apigee-templater.ts",
-    "args": ["-i", "ai-portals-solution:ai-chat-completions", "-o", "ai-chat-completions.yaml", "-f", "feature"],
+    "args": ["-i", "test.local.yaml", "-o", "test-2.local.yaml", "-f", "proxy"],
+    "attachSimplePort": 9229,
+    "cwd": "$ZED_WORKTREE_ROOT",
     "stopOnEntry": false
   },
   {
     "adapter": "JavaScript",
-    "label": "Debug Active TS File",
+    "label": "Attach to Bun (Port 9229)",
     "type": "node",
-    "request": "launch",
-    "runtimeExecutable": "bun",
-    "runtimeArgs": ["run"],
-    "program": "$ZED_FILE",
+    "request": "attach",
+    "port": 9229,
+    "cwd": "$ZED_WORKTREE_ROOT",
     "stopOnEntry": false
   },
   {
@@ -26,8 +27,10 @@
     "type": "node",
     "request": "launch",
     "runtimeExecutable": "bun",
-    "runtimeArgs": ["test"],
+    "runtimeArgs": ["test", "--inspect-brk=9229"],
     "program": "$ZED_WORKTREE_ROOT/tests/cli.test.ts",
+    "attachSimplePort": 9229,
+    "cwd": "$ZED_WORKTREE_ROOT",
     "stopOnEntry": false
   }
 ]

@@ -42,23 +42,7 @@ curl -fsSL https://raw.githubusercontent.com/apigee/apigee-templater/main/instal
 iwr -useb https://raw.githubusercontent.com/apigee/apigee-templater/main/install.ps1 | iex
 ```
 
-### Option 2: Package Managers (`npm` / `bun` / `npx` / `bunx`)
-
-If you already use Node.js or Bun:
-
-```sh
-# Global install
-npm i apigee-templater -g
-# OR
-bun i apigee-templater -g
-
-# Run instantly without global installation
-npx aft -h
-# OR
-bunx aft -h
-```
-
-### Option 3: Manual Binary Download
+### Option 2: Manual Binary Download
 
 Download pre-compiled, zero-dependency binaries directly from [GitHub Releases](https://github.com/apigee/apigee-templater/releases):
 
@@ -71,13 +55,6 @@ Download pre-compiled, zero-dependency binaries directly from [GitHub Releases](
 Make the downloaded binary executable (`chmod +x aft-linux-x64`) and place it in your `PATH`.
 
 ---
-
-Optionally clone this repository to run the below examples:
-
-```sh
-git clone https://github.com/apigee/apigee-templater.git
-cd apigee-templater
-```
 
 ## Display help
 ```bash
@@ -173,9 +150,10 @@ aft -i SimpleProxy-v1.yaml -o SimpleProxy-v1.zip
 
 ### Convert and deploy a proxy YAML to Apigee X
 ```bash
+# simple import
 aft -i SimpleProxy-v1.yaml -o MyApigeeOrg:SimpleProxy-v1:MyApigeeEnvironment
-# deploy with a service account
-aft -i SimpleProxy-v1.yaml -o MyApigeeOrg:SimpleProxy-v1:MyApigeeEnvironment:mysa@myproject.iam.gserviceaccount.com
+# deploy with a service account to the dev environment
+aft -i SimpleProxy-v1.yaml -o MyApigeeOrg:SimpleProxy-v1:dev:mysa@myproject.iam.gserviceaccount.com
 ```
 
 ## Feature templating
@@ -185,52 +163,28 @@ With feature templating, Apigee expert teams can create the features, and anyone
 
 Let's create an AI model proxy for Gemini in a few simple feature commands.
 
-### Create a template
-```bash
-aft AI-Gemini.yaml
-```
-
-### Add a proxy feature
-You can find the built-in features for each release in this repository under `./repository/features', or just create your own and reference as files.
-
-```bash
-aft -i AI-Gemini.yaml -a ai-proxy-gemini -p "GeminiBasePath=/llm"
-```
-
-Notice the `-p "GeminiBasePath=/gemini"` command line parameter. This sets a parameter for the feature with a custom value (instead of the default value). In this case the base path that the AI proxy will receive traffic on will be `/llm` instead of the default `/gemini`.
-
-### Add an auth feature
-Our canonical AI Auth feature uses API key authn/authz, but could easily support OAuth, SAML, JWTs, or any external IDP.
-```bash
-aft -i AI-Gemini.yaml -a ai-auth
-```
-
-### Deploy the template
-Now we're going to deploy our AI Gemini template, creating a proxy that includes the Gemini feauture from `ai-proxy-gemini`, along with authn/authz through the `ai-auth` feature.
-
-```bash
-aft -i AI-Gemini.yaml -o MyApigeeOrg:AI-Gemini:MyApigeeEnvironment:mysa@myproject.iam.gserviceaccount.com
-```
-
-Since we have our own auth for the API, we will do a token exchange and use the `mysa` service account to authorize the call with the Gemini backend.
-
 ### Create a feature
-It's easy to create a feature, just start with an Apigee proxy configuration that does exactly what you need, and export it as a feature.
-
-You can easily deploy a feature YAML to an Apigee org to develop and test it.
-
 ```bash
-aft -i ./repository/features/response-helloworld.yaml -o MyApigeeOrg:HelloWorldFeature
+aft -n REST-AI-Gemini -b /v1/models -u https://generativelanguage.googleapis.com/v1/models
 ```
 
-### Export a proxy to a feature
-You can always take the changed proxy, and convert back to a feature definition, with documentation and parameter descriptions.
+You should have a `REST-AI-Gemini.yaml` feature YAML file that has a simple proxy to the Gemini API endpoints.
+
+### Create a template
+A template collects features that will be deployed as one proxy to Apigee. We can create a template with a command, and add our Gemini feature.
 
 ```bash
-aft -i MyApigeeOrg:HelloWorldFeature -o response-helloworld.yaml -f feature
+# create a template
+aft REST-AI-Gateway.yaml
+# apply the Gemini feature
+aft REST-AI-Gateway.yaml -a REST-AI-Gemini.yaml
+# deploy to Apigee X to the dev environment
+aft REST-AI-Gateway.yaml -o MyApigeeOrg:REST-AI-Gateway:dev
 ```
 
-Notice the `-f feature` command line parameter - this means save this proxy as a feature, with extra metadata for parameters, documentation and other metadata.
+### Convert between templates, features and proxies
+
+You can convert any Apigee proxy to/from a feature just by using the **-f feature** flag, which turns any proxy into a feature, with parameters and the possibility to apply policies to all endpoints and targets in destination proxies (the **default** endpoint and **default** target policies are applied to all endpoints and targets in a destination proxy, which can be useful to apply general flows like auth or traffic management).
 
 ### Common variables
 

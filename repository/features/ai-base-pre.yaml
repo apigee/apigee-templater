@@ -1,37 +1,24 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee.schema.v5.json
 name: ai-base-pre
 displayName: AI Base Pre Functions
 type: feature
 description: The base AI & LLM request pre-processing with model detection and routing.
 documentation: ""
-gateway: apigee
-schemaVersion: 1.0.0
 categories:
   - llm
   - ai
 parameters:
   - name: ModelRouting
-    displayName: ModelRouting
-    description: Configuration input for ModelRouting
     default: "true"
-    examples: []
-    maps: {}
   - name: ModelRoutingKey
-    displayName: ModelRoutingKey
-    description: Configuration input for ModelRoutingKey
-    default: ModelRouting
-    examples: []
-    maps: {}
+    default: ModelRoutingText
 defaultEndpoint:
   name: default
   basePath: /ai-base-pre
   routes:
     - name: default
-      target: default
   flows:
     - name: PreFlow
       mode: Request
-      position: top
       steps:
         - name: KVM-LoadConfig
         - name: AM-SetVariables
@@ -40,18 +27,39 @@ defaultEndpoint:
 endpoints: []
 targets: []
 policies:
+  - name: AM-SetVariables
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetVariables
+        displayName: AM-SetVariables
+        properties: {}
+        remove:
+          headers:
+            header:
+              metadata:
+                name: accept-encoding
+        ignoreUnresolvedVariables: "true"
+        assignTo:
+          metadata:
+            createNew: "false"
+            transport: http
+            type: request
   - name: JS-CheckModel
     type: Javascript
     content:
-      Javascript:
+      javascript:
         metadata:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
           name: JS-CheckModel
-        DisplayName: JS-CheckModel
-        Properties: {}
-        Source: |
+        displayName: JS-CheckModel
+        properties: {}
+        source: |
 
           function safeJsonParse(str) {
             if (!str) return null;
@@ -184,69 +192,59 @@ policies:
             print("Could not find user input/prompt!");
           }
 
-          if (context.getVariable("environment.name") === "dev") {
+          if (context.getVariable("request.header.x-debug") === "true") {
             print("RequestInfo: " + JSON.stringify(reqInfo));
             print("ModelRoutingEnabled: " + JSON.stringify(modelRouting));
             print("ModelRouting: " + JSON.stringify(modelRoutingConfig));
             print("TargetRoute: " + JSON.stringify(routeInfo));
+            print("ai.Model: " + modelName);
+            print("ai.Protocol: " + aiProtocol);
+            print("ai.Provider: " + effectiveProvider);
           }
-        IncludeURL: jsc://ai-functions.js
-  - name: AM-SetVariables
-    type: AssignMessage
-    content:
-      AssignMessage:
-        metadata:
-          continueOnError: "false"
-          enabled: "true"
-          name: AM-SetVariables
-        DisplayName: AM-SetVariables
-        Properties: {}
-        Remove:
-          Headers:
-            Header:
-              metadata:
-                name: accept-encoding
-        IgnoreUnresolvedVariables: "true"
-        AssignTo:
-          metadata:
-            createNew: "false"
-            transport: http
-            type: request
+
+          var googleCloudProject = context.getVariable("organization.name");
+          var newProject = context.getVariable("request.header.x-project");
+
+          if (newProject)
+            context.setVariable("ai.googleCloudProject", newProject);
+          else
+            context.setVariable("ai.googleCloudProject", googleCloudProject);
+        includeUrl: jsc://ai-functions.js
   - name: KVM-LoadConfig
     type: KeyValueMapOperations
     content:
-      KeyValueMapOperations:
+      keyValueMapOperations:
         metadata:
           continueOnError: "false"
           enabled: "true"
           name: KVM-LoadConfig
           mapIdentifier: AI-Config
-        DisplayName: KVM-LoadConfig
-        Properties: {}
-        ExclusiveCache: "false"
-        ExpiryTimeInSecs: "10"
-        Get:
+        displayName: KVM-LoadConfig
+        properties: {}
+        exclusiveCache: "false"
+        expiryTimeInSecs: "10"
+        get:
           - metadata:
               assignTo: ai.failoverModel
-            Key:
-              Parameter: FailoverModel
+            key:
+              parameter: FailoverModel
           - metadata:
               assignTo: ai.prices
-            Key:
-              Parameter: PriceList
+            key:
+              parameter: PriceList
           - metadata:
               assignTo: ai.groupsLookup
-            Key:
-              Parameter: GroupsLookup
+            key:
+              parameter: GroupsLookup
           - metadata:
               assignTo: ai.groups
-            Key:
-              Parameter: Groups
+            key:
+              parameter: Groups
           - metadata:
               assignTo: ai.modelRouting
-            Key:
-              Parameter: ModelRouting
-        Scope: environment
+            key:
+              parameter: "{ModelRoutingKey}"
+        scope: environment
 resources:
   - name: ai.properties
     type: properties
@@ -454,6 +452,12 @@ resources:
             var gParts = url.split("/publishers/google/models/");
             if (gParts.length > 1) {
               info.modelName = gParts[1].split(":")[0];
+            }
+          } else if (url.includes(":generate")) {
+            var gParts = url.split(":generate");
+            if (gParts.length > 1) {
+              var uParts = gParts[0].split("/");
+              info.modelName = uParts[uParts.length - 1];
             }
           }
         }
@@ -2093,5 +2097,3 @@ resources:
         exports.getModelTokenLimit = getModelTokenLimit;
         exports.getModelList = getModelList;
       }
-
-tests: []
