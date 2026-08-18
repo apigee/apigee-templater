@@ -54,6 +54,23 @@ Download pre-compiled, zero-dependency binaries directly from [GitHub Releases](
 
 Make the downloaded binary executable (`chmod +x aft-linux-x64`) and place it in your `PATH`.
 
+### Shell Auto-Completion (Tab-to-Complete)
+
+Enable dynamic shell auto-completion for feature names (`-a`, `-r`), formats (`-f`), and CLI flags across **macOS (Zsh/Bash)**, **Linux (Bash/Zsh/Fish)**, and **Windows (PowerShell)**:
+
+```bash
+# Automatically detect shell (Zsh, Bash, Fish, PowerShell) and install
+aft completion install
+```
+
+To view or manually source the raw completion script:
+```bash
+aft completion zsh         # macOS / Linux default
+aft completion bash        # Bash
+aft completion fish        # Fish
+aft completion powershell  # Windows PowerShell (alias: pwsh)
+```
+
 ---
 
 ## Display help

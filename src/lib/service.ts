@@ -87,38 +87,42 @@ export class ApigeeTemplaterService {
   public async featuresList(): Promise<Feature[]> {
     return new Promise<Feature[]>(async (resolve, reject) => {
       let features: Feature[] = [];
-      let featureNames: string[] = fs.readdirSync(this.featuresPath);
 
-      for (let featurePath of featureNames) {
+      const candidateDirs = [
+        this.featuresPath,
+        path.join(import.meta.dirname, "..", "features"),
+        path.join(import.meta.dirname, "..", "..", "repository", "features"),
+        path.join(import.meta.dirname, "..", "..", "data", "features"),
+        path.join(process.cwd(), "features"),
+        path.join(process.cwd(), "data", "features"),
+        path.join(process.cwd(), "repository", "features"),
+      ];
+
+      const visitedDirs = new Set<string>();
+
+      for (const dir of candidateDirs) {
+        if (!dir || !fs.existsSync(dir)) continue;
+        const resolved = path.resolve(dir);
+        if (visitedDirs.has(resolved)) continue;
+        visitedDirs.add(resolved);
+
         try {
-          if (featurePath.endsWith(".json")) {
-            let feature: Feature = JSON.parse(
-              fs.readFileSync(this.featuresPath + featurePath, "utf8"),
-            );
-            if (feature && feature.type === "feature") features.push(feature);
-          } else if (featurePath.endsWith(".yaml") || featurePath.endsWith(".yml")) {
-            let feature: Feature = YAML.parse(
-              fs.readFileSync(this.featuresPath + featurePath, "utf8"),
-            );
-            if (feature && feature.type === "feature") features.push(feature);
-          }
-        } catch (e) {}
-      }
-
-      featureNames = fs.readdirSync(import.meta.dirname + "/../features");
-
-      for (let featurePath of featureNames) {
-        try {
-          if (featurePath.endsWith(".json")) {
-            let feature: Feature = JSON.parse(
-              fs.readFileSync(import.meta.dirname + "/../features/" + featurePath, "utf8"),
-            );
-            if (feature && feature.type === "feature") features.push(feature);
-          } else if (featurePath.endsWith(".yaml") || featurePath.endsWith(".yml")) {
-            let feature: Feature = YAML.parse(
-              fs.readFileSync(import.meta.dirname + "/../features/" + featurePath, "utf8"),
-            );
-            if (feature && feature.type === "feature") features.push(feature);
+          const featureNames = fs.readdirSync(resolved);
+          for (const featurePath of featureNames) {
+            try {
+              const fullPath = path.join(resolved, featurePath);
+              if (featurePath.endsWith(".json")) {
+                const feature: Feature = JSON.parse(fs.readFileSync(fullPath, "utf8"));
+                if (feature && feature.type === "feature" && !features.some((f) => f.name === feature.name)) {
+                  features.push(feature);
+                }
+              } else if (featurePath.endsWith(".yaml") || featurePath.endsWith(".yml")) {
+                const feature: Feature = YAML.parse(fs.readFileSync(fullPath, "utf8"));
+                if (feature && feature.type === "feature" && !features.some((f) => f.name === feature.name)) {
+                  features.push(feature);
+                }
+              }
+            } catch (e) {}
           }
         } catch (e) {}
       }

@@ -25,6 +25,7 @@ import { Proxy, Feature, Template } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 import { GoogleAuth } from "google-auth-library";
 import { version } from "./version.js";
+import { CompletionManager } from "./completion.js";
 import { stdin } from "process";
 
 const auth = new GoogleAuth({
@@ -232,7 +233,11 @@ export class cli {
     console.log(`  ${chalk.white("Provides tooling for feature development of Apigee proxies using YAML, JSON, and ZIP formats.")}\n`);
 
     console.log(`  ${chalk.bold.cyan("USAGE:")}`);
-    console.log(`    ${chalk.green("aft")} ${chalk.yellow("[options]")} ${chalk.dim("[<input> | <output>]")}\n`);
+    console.log(`    ${chalk.green("aft")} ${chalk.yellow("[options]")} ${chalk.dim("[<input> | <output>]")}`);
+    console.log(`    ${chalk.green("aft")} ${chalk.yellow("completion <install | zsh | bash | fish | powershell>")}\n`);
+
+    console.log(`  ${chalk.bold.cyan("COMMANDS:")}`);
+    console.log(`    ${chalk.bold.yellow("completion".padEnd(22))} ${chalk.white("Install or display shell tab-completion scripts (install, uninstall, zsh, bash, fish, powershell).")}\n`);
 
     console.log(`  ${chalk.bold.cyan("OPTIONS:")}`);
     for (const cmd of helpCommands) {
@@ -241,6 +246,107 @@ export class cli {
       console.log(`    ${flags} ${desc}`);
     }
     console.log();
+  }
+
+  handleCompletionCommand(target?: string) {
+    if (target === "install") {
+      CompletionManager.install();
+    } else if (target === "uninstall") {
+      CompletionManager.uninstall();
+    } else if (target === "bash") {
+      console.log(CompletionManager.getBashScript().trim());
+    } else if (target === "zsh") {
+      console.log(CompletionManager.getZshScript().trim());
+    } else if (target === "fish") {
+      console.log(CompletionManager.getFishScript().trim());
+    } else if (target === "powershell" || target === "pwsh" || target === "ps") {
+      console.log(CompletionManager.getPowerShellScript().trim());
+    } else {
+      CompletionManager.printInstructions();
+    }
+  }
+
+  async handleCompletion(prevWord: string, currentWord: string) {
+    try {
+      if (["-a", "--applyFeature", "-r", "--removeFeature"].includes(prevWord)) {
+        const features = await this.apigeeService.featuresList();
+        const names = Array.from(new Set(features.map((f) => f.name))).filter(
+          (name) => !currentWord || name.startsWith(currentWord)
+        );
+        if (names.length > 0) {
+          console.log(names.join("\n"));
+        }
+        return;
+      }
+
+      if (["-f", "--format"].includes(prevWord)) {
+        const formats = ["proxy", "template", "feature"].filter(
+          (fmt) => !currentWord || fmt.startsWith(currentWord)
+        );
+        if (formats.length > 0) console.log(formats.join("\n"));
+        return;
+      }
+
+      if (["-d", "--drz"].includes(prevWord)) {
+        const regions = ["us", "eu", "in"].filter(
+          (r) => !currentWord || r.startsWith(currentWord)
+        );
+        if (regions.length > 0) console.log(regions.join("\n"));
+        return;
+      }
+
+      if (prevWord === "completion") {
+        const actions = ["install", "uninstall", "zsh", "bash", "fish", "powershell", "pwsh"].filter(
+          (a) => !currentWord || a.startsWith(currentWord)
+        );
+        if (actions.length > 0) console.log(actions.join("\n"));
+        return;
+      }
+
+      if (currentWord.startsWith("-")) {
+        const flags = [
+          "--input",
+          "--name",
+          "--basePath",
+          "--targetUrl",
+          "--output",
+          "--format",
+          "--applyFeature",
+          "--removeFeature",
+          "--listFeatures",
+          "--parameters",
+          "--token",
+          "--config",
+          "--drz",
+          "--help",
+          "--version",
+          "-i",
+          "-n",
+          "-b",
+          "-u",
+          "-o",
+          "-f",
+          "-a",
+          "-r",
+          "-l",
+          "-p",
+          "-t",
+          "-c",
+          "-d",
+          "-h",
+          "-v",
+        ].filter((flag) => flag.startsWith(currentWord));
+        if (flags.length > 0) console.log(flags.join("\n"));
+        return;
+      }
+
+      const defaultSuggestions = ["completion"].filter(
+        (cmd) => !currentWord || cmd.startsWith(currentWord)
+      );
+      if (defaultSuggestions.length > 0) console.log(defaultSuggestions.join("\n"));
+    } catch (e) {
+      // Suppress errors during completion
+    }
   }
 
   printVersion() {
@@ -347,6 +453,21 @@ export class cli {
   }
 
   async process(args: string[]) {
+    // Fast path for shell auto-completion queries
+    if (args.length > 2 && args[2] === "--complete") {
+      const prevWord = args[3] || "";
+      const currentWord = args[4] || "";
+      await this.handleCompletion(prevWord, currentWord);
+      return;
+    }
+
+    // Command route for shell auto-completion setup
+    if (args.length > 2 && args[2] === "completion") {
+      const target = args[3];
+      this.handleCompletionCommand(target);
+      return;
+    }
+
     this.installSkill();
 
     if (!stdin.setRawMode) {

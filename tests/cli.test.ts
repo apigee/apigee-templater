@@ -52,4 +52,48 @@ describe("AFT Bun CLI test suite", () => {
     expect(version).toBeDefined();
     expect(typeof version).toBe("string");
   });
+
+  it("should generate shell completion scripts", () => {
+    const { CompletionManager } = require("../src/lib/completion.js");
+    const bashScript = CompletionManager.getBashScript();
+    const zshScript = CompletionManager.getZshScript();
+    const fishScript = CompletionManager.getFishScript();
+    const psScript = CompletionManager.getPowerShellScript();
+
+    expect(bashScript).toContain("_aft_completions");
+    expect(bashScript).toContain("complete -F _aft_completions aft");
+    expect(zshScript).toContain("compdef _aft_completions aft");
+    expect(fishScript).toContain("complete -c aft");
+    expect(psScript).toContain("Register-ArgumentCompleter");
+    expect(psScript).toContain("aft");
+  });
+
+  it("should handle feature auto-completion for -a and --applyFeature", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.handleCompletion("-a", "");
+      expect(logs.length).toBeGreaterThan(0);
+      const output = logs.join("\n");
+      expect(output).toContain("ai-base-pre");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should handle format auto-completion for -f and --format", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.handleCompletion("-f", "p");
+      expect(logs).toContain("proxy");
+    } finally {
+      console.log = origLog;
+    }
+  });
 });
+
