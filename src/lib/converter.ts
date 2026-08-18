@@ -1,7 +1,7 @@
 import * as xmljs from "xml-js";
 import yauzl from "yauzl";
 import yazl from "yazl";
-import jp from "jsonpath";
+import { JSONPath } from "jsonpath-plus";
 import path from "path";
 import fs from "fs";
 import vm from "vm";
@@ -1593,7 +1593,14 @@ export class ApigeeConverter {
                 newParamValue = newParamValue.substring(parseInt(chopNumber));
               }
             }
-            jp.value(tempFeature, newPath, newParamValue);
+            const matches = JSONPath({ path: newPath, json: tempFeature, resultType: "all" });
+            if (matches.length > 0) {
+              for (const match of matches) {
+                if (match.parent && match.parentProperty !== undefined) {
+                  match.parent[match.parentProperty] = newParamValue;
+                }
+              }
+            }
             parameter.default = newParamValue;
             featureString = JSON.stringify(tempFeature);
           }
@@ -2178,27 +2185,18 @@ export class ApigeeConverter {
   }
 
   public removeJsonNodes(obj: any, pathExpression: string): any {
-    // Retrieve the full paths for all matching nodes
-    const paths = jp.paths(obj, pathExpression);
+    const matches = JSONPath({ path: pathExpression, json: obj, resultType: "all" });
 
     // Iterate backwards to avoid index shifting issues when deleting array elements
-    for (let i = paths.length - 1; i >= 0; i--) {
-      const path = paths[i];
-      if (path) {
-        const parentPath = path.slice(0, -1);
-        const keyToRemove = path[path.length - 1];
-
-        // Navigate to the parent object/array
-        const parent = parentPath.length === 0 ? obj : jp.value(obj, jp.stringify(parentPath));
-
-        if (parent) {
-          if (Array.isArray(parent)) {
-            // Use splice for arrays to maintain correct array length and indices
-            parent.splice(Number(keyToRemove), 1);
-          } else {
-            // Use delete for standard object properties
-            if (keyToRemove) delete parent[keyToRemove];
-          }
+    for (let i = matches.length - 1; i >= 0; i--) {
+      const match = matches[i];
+      if (match && match.parent && match.parentProperty !== undefined) {
+        if (Array.isArray(match.parent)) {
+          // Use splice for arrays to maintain correct array length and indices
+          match.parent.splice(Number(match.parentProperty), 1);
+        } else {
+          // Use delete for standard object properties
+          delete match.parent[match.parentProperty];
         }
       }
     }

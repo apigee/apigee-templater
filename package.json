@@ -1,6 +1,6 @@
 {
   "name": "apigee-templater",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "Provides tooling for feature development of Apigee proxies using YAML, JSON and ZIP formats.",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -11,7 +11,7 @@
   "scripts": {
     "build": "rm -rf dist && bun run sync-ai-functions && bun build --sourcemap=none ./src/index.ts ./src/bin/apigee-templater.ts --target=bun --outdir=./dist && node copy-assets.js",
     "build:binaries": "bun run build && bun build --compile --target=bun-linux-x64 ./src/bin/apigee-templater.ts --outfile dist/aft-linux-x64 && bun build --compile --target=bun-linux-arm64 ./src/bin/apigee-templater.ts --outfile dist/aft-linux-arm64 && bun build --compile --target=bun-darwin-x64 ./src/bin/apigee-templater.ts --outfile dist/aft-darwin-x64 && bun build --compile --target=bun-darwin-arm64 ./src/bin/apigee-templater.ts --outfile dist/aft-darwin-arm64 && bun build --compile --target=bun-windows-x64 ./src/bin/apigee-templater.ts --outfile dist/aft-windows-x64.exe",
-    "release": "./sh/release.sh",
+    "release": "./release.sh",
     "start": "bun run src/bin/apigee-templater.ts",
     "sync-ai-functions": "bun run repository/lib/sync-ai-functions.js",
     "test": "bun test"
@@ -21,7 +21,8 @@
     "url": "git+https://github.com/apigee/apigee-templater.git"
   },
   "files": [
-    "dist/"
+    "dist/",
+    "!dist/aft-*"
   ],
   "bin": {
     "aft": "./dist/bin/apigee-templater.js",
@@ -47,7 +48,7 @@
     "chalk": "^5.6.0",
     "google-auth-library": "^10.4.1",
     "inquirer": "^12.9.4",
-    "jsonpath": "^1.1.1",
+    "jsonpath-plus": "^10.4.0",
     "xml-js": "^1.6.11",
     "yaml": "^2.8.1",
     "yauzl": "^3.2.0",
@@ -55,7 +56,6 @@
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",
-    "@types/jsonpath": "^0.2.4",
     "@types/yauzl": "^2.10.3",
     "@types/yazl": "^3.3.0",
     "ajv": "^8.20.0",

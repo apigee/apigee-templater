@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee.schema.v5.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee.schema.json
 name: REST-AI-Chat-Completions
 type: template
 description: API template for REST-AI-Chat-Completions
