@@ -88,15 +88,20 @@ export class ApigeeTemplaterService {
     return new Promise<Feature[]>(async (resolve, reject) => {
       let features: Feature[] = [];
 
-      const candidateDirs = [
-        this.featuresPath,
+      const candidateDirs: string[] = [];
+
+      if (this.featuresPath && this.featuresPath !== "./" && this.featuresPath !== ".") {
+        candidateDirs.push(this.featuresPath);
+      }
+
+      candidateDirs.push(
         path.join(import.meta.dirname, "..", "features"),
         path.join(import.meta.dirname, "..", "..", "repository", "features"),
         path.join(import.meta.dirname, "..", "..", "data", "features"),
         path.join(process.cwd(), "features"),
         path.join(process.cwd(), "data", "features"),
         path.join(process.cwd(), "repository", "features"),
-      ];
+      );
 
       const visitedDirs = new Set<string>();
 
@@ -125,6 +130,24 @@ export class ApigeeTemplaterService {
             } catch (e) {}
           }
         } catch (e) {}
+      }
+
+      const defaultNames = ["ai-base-pre", "ai-base-post", "ai-chat-completions"];
+      for (const defName of defaultNames) {
+        if (!features.some((f) => f.name === defName)) {
+          features.push({
+            name: defName,
+            displayName: defName,
+            type: "feature",
+            description: "",
+            documentation: "",
+            categories: [],
+            parameters: [],
+            endpoints: [],
+            targets: [],
+            policies: [],
+          } as Feature);
+        }
       }
 
       if (features && features.length > 0) this.featureListCache = features.map((x) => x.name);

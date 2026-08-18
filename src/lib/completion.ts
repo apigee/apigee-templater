@@ -29,11 +29,19 @@ _aft_completions() {
   local cur prev completions
   cur="\${COMP_WORDS[COMP_CWORD]}"
   prev="\${COMP_WORDS[COMP_CWORD-1]}"
-  completions="$(aft --complete "$prev" "$cur" 2>/dev/null)"
-  COMPREPLY=( $(compgen -W "$completions" -- "$cur") )
+
+  if [[ "$prev" == "-a" || "$prev" == "--applyFeature" || "$prev" == "-r" || "$prev" == "--removeFeature" || "$prev" == "-f" || "$prev" == "--format" || "$prev" == "-d" || "$prev" == "--drz" || "$prev" == "completion" || "$cur" == -* ]]; then
+    completions="$(aft --complete "$prev" "$cur" 2>/dev/null)"
+    if [[ -n "$completions" ]]; then
+      COMPREPLY=( $(compgen -W "$completions" -- "$cur") )
+      return 0
+    fi
+  fi
+
+  COMPREPLY=( $(compgen -f -o plusdirs -- "$cur") )
 }
-complete -F _aft_completions aft
-complete -F _aft_completions apigee-templater
+complete -o filenames -o default -o bashdefault -F _aft_completions aft
+complete -o filenames -o default -o bashdefault -F _aft_completions apigee-templater
 `;
   }
 
@@ -42,13 +50,21 @@ complete -F _aft_completions apigee-templater
 #compdef aft apigee-templater
 
 _aft_completions() {
-  local -a completions
   local prev="\${words[CURRENT-1]}"
   local cur="\${words[CURRENT]}"
-  completions=("\${(@f)$(aft --complete "$prev" "$cur" 2>/dev/null)}")
-  if [[ -n "$completions" ]]; then
-    compadd -a completions
+  local -a completions
+
+  if [[ "$prev" == "-a" || "$prev" == "--applyFeature" || "$prev" == "-r" || "$prev" == "--removeFeature" || "$prev" == "-f" || "$prev" == "--format" || "$prev" == "-d" || "$prev" == "--drz" || "$prev" == "completion" || "$cur" == -* ]]; then
+    completions=("\${(@f)$(aft --complete "$prev" "$cur" 2>/dev/null)}")
+    completions=("\${(@)completions:#}")
+
+    if [[ \${#completions[@]} -gt 0 ]]; then
+      compadd -a completions
+      return 0
+    fi
   fi
+
+  _files
 }
 
 compdef _aft_completions aft
@@ -58,6 +74,13 @@ compdef _aft_completions apigee-templater
 
   static getFishScript(): string {
     return `
+function __fish_aft_needs_complete
+  set -l cmd (commandline -poc)
+  set -l prev "$cmd[-1]"
+  set -l cur (commandline -ct)
+  string match -q -r '^-' -- "$cur"; or string match -q -r '^(-a|--applyFeature|-r|--removeFeature|-f|--format|-d|--drz|completion)$' -- "$prev"
+end
+
 function __fish_aft_complete
   set -l cmd (commandline -poc)
   set -l prev "$cmd[-1]"
@@ -65,8 +88,8 @@ function __fish_aft_complete
   aft --complete "$prev" "$cur" 2>/dev/null
 end
 
-complete -c aft -f -a '(__fish_aft_complete)'
-complete -c apigee-templater -f -a '(__fish_aft_complete)'
+complete -c aft -n '__fish_aft_needs_complete' -f -a '(__fish_aft_complete)'
+complete -c apigee-templater -n '__fish_aft_needs_complete' -f -a '(__fish_aft_complete)'
 `;
   }
 
@@ -81,11 +104,19 @@ Register-ArgumentCompleter -Native -CommandName 'aft', 'apigee-templater', 'aft.
         $prev = $elements[$elements.Count - 2].Extent.Text
     }
 
-    $completions = & aft --complete "$prev" "$wordToComplete" 2>$null
-    if ($completions) {
-        $completions | ForEach-Object {
-            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+    if ($prev -match '^(-a|--applyFeature|-r|--removeFeature|-f|--format|-d|--drz|completion)$' -or $wordToComplete -like '-*') {
+        $completions = & aft --complete "$prev" "$wordToComplete" 2>$null
+        if ($completions) {
+            $completions | ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+            }
+            return
         }
+    }
+
+    Get-ChildItem -Path "$wordToComplete*" -ErrorAction SilentlyContinue | ForEach-Object {
+        $name = if ($_.PSIsContainer) { "$($_.Name)/" } else { $_.Name }
+        [System.Management.Automation.CompletionResult]::new($name, $name, 'ProviderItem', $name)
     }
 }
 `;

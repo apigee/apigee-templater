@@ -270,11 +270,48 @@ export class cli {
     try {
       if (["-a", "--applyFeature", "-r", "--removeFeature"].includes(prevWord)) {
         const features = await this.apigeeService.featuresList();
-        const names = Array.from(new Set(features.map((f) => f.name))).filter(
+        const featureNames = features.map((f) => f.name);
+
+        const localFiles: string[] = [];
+        try {
+          let targetDir = ".";
+          if (currentWord.includes("/")) {
+            if (currentWord.endsWith("/")) {
+              targetDir = currentWord.replace(/\/+$/, "");
+            } else {
+              targetDir = path.dirname(currentWord);
+            }
+          }
+
+          if (fs.existsSync(targetDir)) {
+            const entries = fs.readdirSync(targetDir, { withFileTypes: true });
+            for (const entry of entries) {
+              if (entry.isDirectory()) {
+                if (!entry.name.startsWith(".")) {
+                  const dirPath = targetDir === "." ? `${entry.name}/` : `${targetDir}/${entry.name}/`;
+                  if (!currentWord || dirPath.startsWith(currentWord)) {
+                    localFiles.push(dirPath);
+                  }
+                }
+              } else if (
+                entry.name.endsWith(".yaml") ||
+                entry.name.endsWith(".yml") ||
+                entry.name.endsWith(".json")
+              ) {
+                const filePath = targetDir === "." ? entry.name : `${targetDir}/${entry.name}`;
+                if (!currentWord || filePath.startsWith(currentWord)) {
+                  localFiles.push(filePath);
+                }
+              }
+            }
+          }
+        } catch (e) {}
+
+        const allCandidates = Array.from(new Set([...featureNames, ...localFiles])).filter(
           (name) => !currentWord || name.startsWith(currentWord)
         );
-        if (names.length > 0) {
-          console.log(names.join("\n"));
+        if (allCandidates.length > 0) {
+          console.log(allCandidates.join("\n"));
         }
         return;
       }
@@ -340,10 +377,12 @@ export class cli {
         return;
       }
 
-      const defaultSuggestions = ["completion"].filter(
-        (cmd) => !currentWord || cmd.startsWith(currentWord)
-      );
-      if (defaultSuggestions.length > 0) console.log(defaultSuggestions.join("\n"));
+      if (currentWord === "completion") {
+        console.log("completion");
+        return;
+      }
+
+      // No output: shell automatically falls back to standard file / path completion
     } catch (e) {
       // Suppress errors during completion
     }

@@ -61,11 +61,12 @@ describe("AFT Bun CLI test suite", () => {
     const psScript = CompletionManager.getPowerShellScript();
 
     expect(bashScript).toContain("_aft_completions");
-    expect(bashScript).toContain("complete -F _aft_completions aft");
+    expect(bashScript).toContain("complete -o filenames -o default -o bashdefault -F _aft_completions aft");
     expect(zshScript).toContain("compdef _aft_completions aft");
+    expect(zshScript).toContain("_files");
     expect(fishScript).toContain("complete -c aft");
     expect(psScript).toContain("Register-ArgumentCompleter");
-    expect(psScript).toContain("aft");
+    expect(psScript).toContain("Get-ChildItem");
   });
 
   it("should handle feature auto-completion for -a and --applyFeature", async () => {
@@ -91,6 +92,22 @@ describe("AFT Bun CLI test suite", () => {
     try {
       await myCli.handleCompletion("-f", "p");
       expect(logs).toContain("proxy");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should output nothing for file arguments to allow shell native file completion", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.handleCompletion("", "Test.yaml");
+      expect(logs.length).toBe(0);
+
+      await myCli.handleCompletion("-o", "");
+      expect(logs.length).toBe(0);
     } finally {
       console.log = origLog;
     }

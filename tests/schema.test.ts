@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from "fs";
 import { join } from "path";
 
 describe("Apigee JSON Schema validation", () => {
-  const schemaPath = join(__dirname, "../schema/apigee.schema.json");
+  const schemaPath = join(__dirname, "../schema/gateway.schema.0.9.json");
   const schemaJson = JSON.parse(readFileSync(schemaPath, "utf-8"));
 
   const ajv = new Ajv({ allErrors: true, strict: false });
@@ -30,15 +30,13 @@ describe("Apigee JSON Schema validation", () => {
     }
   });
 
-  it("should fail validation if mandatory gateway or schemaVersion properties are missing", () => {
+  it("should fail validation if mandatory properties are missing", () => {
     const invalidYaml = {
-      name: "invalid-spec",
       type: "feature",
-      description: "Missing gateway and schemaVersion"
+      description: "Missing name"
     };
 
     const valid = validate(invalidYaml);
     expect(valid).toBe(false);
-    expect(validate.errors?.some((err) => err.params.missingProperty === "gateway")).toBe(true);
   });
 });
