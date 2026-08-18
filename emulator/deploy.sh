@@ -3,11 +3,13 @@ set -e
 
 # Feature YAML paths to build and deploy (add or remove feature YAMLs here)
 FEATURE_FILES=(
-  "repository/features/ai-chat-completions.yaml"
+  "repository/features/ai-base-pre.yaml"
+  "repository/templates/REST-AI-Completions.yaml"
 )
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+EMULATOR_MGMT_URL="${EMULATOR_MGMT_URL:-http://localhost:8080}"
 
 cd "$ROOT_DIR"
 
@@ -15,7 +17,6 @@ DIST_DIR="$ROOT_DIR/emulator/dist"
 BUNDLE_DIR="$DIST_DIR/bundle"
 ENV_DIR="$BUNDLE_DIR/src/main/apigee/environments/test"
 PROXIES_DIR="$BUNDLE_DIR/src/main/apigee/apiproxies"
-APIGEE_ROOT_DIR="$BUNDLE_DIR/src/main/apigee"
 
 # Clean and recreate emulator/dist
 rm -rf "$DIST_DIR"
@@ -38,8 +39,8 @@ with open('$YAML_FILE') as f:
 print(data.get('name', '') if isinstance(data, dict) else '')
 ")
 
-  if [ -z "$PROXY_NAME" ]; then
-    PROXY_NAME=$(basename "$YAML_FILE" .yaml)
+  if [ -z "$PROXY_NAME" ] || [ "$PROXY_NAME" = "ai-chat-completions-v1" ]; then
+    PROXY_NAME="completions-v1"
   fi
 
   echo "Building proxy '$PROXY_NAME' from '$YAML_FILE'..."
@@ -53,160 +54,53 @@ print(data.get('name', '') if isinstance(data, dict) else '')
   PROXIES+=("$PROXY_NAME")
 done
 
+# Generate minimal environment deployment configuration
 PROXIES_JSON=$(python3 -c "import sys, json; print(json.dumps(sys.argv[1:]))" "${PROXIES[@]}")
 
-# 1. Generate environment and test setup configuration files dynamically
-python3 -c "
-import json
+cat << EOF > "$ENV_DIR/env.json"
+{
+  "name": "test"
+}
+EOF
 
-env_dir = '$ENV_DIR'
-proxies = json.loads('''$PROXIES_JSON''')
+cat << EOF > "$ENV_DIR/deployments.json"
+{
+  "proxies": $PROXIES_JSON
+}
+EOF
 
-# env.json
-with open(f'{env_dir}/env.json', 'w') as f:
-    json.dump({'name': 'test'}, f, indent=2)
+# Copy datacollectors.json to environment directory
+cp "$SCRIPT_DIR/datacollectors.json" "$ENV_DIR/datacollectors.json"
 
-# deployments.json
-deployments = {'proxies': [{'name': p} for p in proxies]}
-with open(f'{env_dir}/deployments.json', 'w') as f:
-    json.dump(deployments, f, indent=2)
-
-# datacollectors.json
-datacollectors = [
-  {'name': 'dc_ai_model', 'type': 'STRING'},
-  {'name': 'dc_ai_user', 'type': 'STRING'},
-  {'name': 'dc_ai_provider', 'type': 'STRING'},
-  {'name': 'dc_ai_cost_center', 'type': 'STRING'},
-  {'name': 'dc_ai_response_type', 'type': 'STRING'},
-  {'name': 'dc_ai_total_token_count', 'type': 'INTEGER'},
-  {'name': 'dc_ai_prompt_token_count', 'type': 'INTEGER'},
-  {'name': 'dc_ai_response_token_count', 'type': 'INTEGER'},
-  {'name': 'dc_ai_time_first_token', 'type': 'INTEGER'},
-  {'name': 'dc_ai_request_cost', 'type': 'FLOAT'},
-  {'name': 'dc_ai_response_cost', 'type': 'FLOAT'},
-  {'name': 'dc_ai_total_cost', 'type': 'FLOAT'}
-]
-with open(f'{env_dir}/datacollectors.json', 'w') as f:
-    json.dump(datacollectors, f, indent=2)
-
-# products.json / apiproducts.json (AI Product includes all deployed proxies)
-products = [
-  {
-    'name': 'AI Product',
-    'displayName': 'AI Product',
-    'description': 'AI Product',
-    'approvalType': 'auto',
-    'environments': ['test'],
-    'proxies': proxies,
-    'apiResources': ['/', '/*', '/**'],
-    'quota': '1000',
-    'quotaInterval': '1',
-    'quotaTimeUnit': 'minute',
-    'attributes': [{'name': 'access', 'value': 'public'}]
-  }
-]
-with open(f'{env_dir}/products.json', 'w') as f:
-    json.dump(products, f, indent=2)
-
-# developers.json
-developers = [
-  {
-    'email': 'developer@example.com',
-    'firstName': 'Test',
-    'lastName': 'Developer',
-    'userName': 'testdeveloper',
-    'attributes': [{'name': 'costCenter', 'value': 'CC-1234'}]
-  }
-]
-with open(f'{env_dir}/developers.json', 'w') as f:
-    json.dump(developers, f, indent=2)
-
-# developerapps.json
-apps = [
-  {
-    'name': 'ai-app',
-    'displayName': 'AI App',
-    'developerEmail': 'developer@example.com',
-    'callbackUrl': '',
-    'expiryType': 'never',
-    'apiProducts': ['AI Product'],
-    'credentials': [
-      {
-        'consumerKey': 'test-api-key-12345',
-        'consumerSecret': 'test-secret-12345',
-        'apiProducts': [{'apiproduct': 'AI Product', 'status': 'approved'}],
-        'status': 'approved'
-      }
-    ],
-    'attributes': []
-  }
-]
-with open(f'{env_dir}/developerapps.json', 'w') as f:
-    json.dump(apps, f, indent=2)
-
-# Fixed KVM Data (AI-Config) for maps.json
-maps = [
-  {
-    'name': 'AI-Config',
-    'scope': 'environment',
-    'environment': 'test',
-    'entries': {
-      'ModelRouting': '{\"models\": {\"google/\": \"googlecloud\", \"anthropic/\": \"googlecloud\", \"openai/\": \"openai\"}, \"mappings\": {\"google/gemini-flash-latest\": \"google/gemini-3.6-flash\"}}',
-      'ModelRoutingText': '{\"models\": {\"google/\": \"googlecloud-oai\", \"anthropic/\": \"googlecloud\", \"openai/\": \"openai\"}, \"mappings\": {\"google/gemini-flash-latest\": \"google/gemini-3.6-flash\"}}',
-      'PriceList': '{\"default\": {\"requestPerMillionTokens\": 1, \"responsePerMillionTokens\": 3}}'
-    }
-  }
-]
-with open(f'{env_dir}/maps.json', 'w') as f:
-    json.dump(maps, f, indent=2)
-"
-
-# Copy configurations to alternate file names and bundle root
-cp "$ENV_DIR/products.json" "$ENV_DIR/apiproducts.json"
-cp "$ENV_DIR/developerapps.json" "$ENV_DIR/apps.json"
-
-cp "$ENV_DIR/products.json" "$APIGEE_ROOT_DIR/products.json"
-cp "$ENV_DIR/apiproducts.json" "$APIGEE_ROOT_DIR/apiproducts.json"
-cp "$ENV_DIR/developers.json" "$APIGEE_ROOT_DIR/developers.json"
-cp "$ENV_DIR/developerapps.json" "$APIGEE_ROOT_DIR/developerapps.json"
-cp "$ENV_DIR/apps.json" "$APIGEE_ROOT_DIR/apps.json"
-cp "$ENV_DIR/maps.json" "$APIGEE_ROOT_DIR/maps.json"
-
-# 2. Package the full bundle into bundle.zip
+# Package deployment bundle
 DEPLOY_ZIP="$DIST_DIR/bundle.zip"
 (cd "$BUNDLE_DIR" && zip -q -r "$DEPLOY_ZIP" src)
 
-# 3. Create testdata.zip for /v1/emulator/setup/tests
+# Reset emulator
+echo "Resetting Apigee Emulator..."
+curl -s -X POST "$EMULATOR_MGMT_URL/v1/emulator/reset" > /dev/null
+
+# Deploy test data directly from local JSON files
 TESTDATA_ZIP="$DIST_DIR/testdata.zip"
-TESTDATA_DIR="$DIST_DIR/testdata"
-mkdir -p "$TESTDATA_DIR"
+(cd "$SCRIPT_DIR" && zip -q "$TESTDATA_ZIP" datacollectors.json developerapps.json developers.json maps.json products.json)
 
-cp "$ENV_DIR/products.json" "$TESTDATA_DIR/products.json"
-cp "$ENV_DIR/developers.json" "$TESTDATA_DIR/developers.json"
-cp "$ENV_DIR/developerapps.json" "$TESTDATA_DIR/developerapps.json"
-cp "$ENV_DIR/maps.json" "$TESTDATA_DIR/maps.json"
+echo "Deploying test data to Apigee Emulator..."
+TEST_STATUS=$(curl -s -o /tmp/emulator_setup_response.txt -w "%{http_code}" -X POST "$EMULATOR_MGMT_URL/v1/emulator/setup/tests" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@$TESTDATA_ZIP")
 
-(cd "$TESTDATA_DIR" && zip -q -r "$TESTDATA_ZIP" .)
+echo "Test Setup HTTP Status: $TEST_STATUS"
+if [ "$TEST_STATUS" -ne 200 ]; then
+  cat /tmp/emulator_setup_response.txt
+  exit 1
+fi
 
-# 4. Reset emulator
-curl -s -X POST "http://localhost:8080/v1/emulator/reset" > /dev/null
-
-# 5. Deploy bundle contract to Apigee Emulator
-HTTP_STATUS=$(curl -s -o /tmp/emulator_response.txt -w "%{http_code}" -X POST \
-  "http://localhost:8080/v1/emulator/deploy?environment=test" \
+# Deploy proxy bundle second
+echo "Deploying proxies to Apigee Emulator..."
+DEPLOY_STATUS=$(curl -s -o /tmp/emulator_response.txt -w "%{http_code}" -X POST "$EMULATOR_MGMT_URL/v1/emulator/deploy?environment=test" \
   -H "Content-Type: application/zip" \
   --data-binary "@$DEPLOY_ZIP")
 
-echo "Deployment HTTP Status: $HTTP_STATUS"
+echo "Deployment HTTP Status: $DEPLOY_STATUS"
 cat /tmp/emulator_response.txt
-echo ""
-
-# 6. Load test data (KVMs, developers, apps, products) into emulator
-SETUP_STATUS=$(curl -s -o /tmp/emulator_setup_response.txt -w "%{http_code}" -X POST \
-  "http://localhost:8080/v1/emulator/setup/tests" \
-  -H "Content-Type: application/zip" \
-  --data-binary "@$TESTDATA_ZIP")
-
-echo "Test Setup HTTP Status: $SETUP_STATUS"
-cat /tmp/emulator_setup_response.txt
 echo ""

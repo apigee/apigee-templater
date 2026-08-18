@@ -8,27 +8,17 @@ categories:
   - ai
 parameters:
   - name: ModelRouting
-    displayName: ModelRouting
-    description: Configuration input for ModelRouting
     default: "true"
-    examples: []
-    maps: {}
   - name: ModelRoutingKey
-    displayName: ModelRoutingKey
-    description: Configuration input for ModelRoutingKey
-    default: ModelRouting
-    examples: []
-    maps: {}
+    default: ModelRoutingText
 defaultEndpoint:
   name: default
   basePath: /ai-base-pre
   routes:
     - name: default
-      target: default
   flows:
     - name: PreFlow
       mode: Request
-      position: top
       steps:
         - name: KVM-LoadConfig
         - name: AM-SetVariables
@@ -207,6 +197,9 @@ policies:
             print("ModelRoutingEnabled: " + JSON.stringify(modelRouting));
             print("ModelRouting: " + JSON.stringify(modelRoutingConfig));
             print("TargetRoute: " + JSON.stringify(routeInfo));
+            print("ai.Model: " + modelName);
+            print("ai.Protocol: " + aiProtocol);
+            print("ai.Provider: " + effectiveProvider);
           }
 
           var googleCloudProject = context.getVariable("organization.name");
@@ -459,6 +452,12 @@ resources:
             var gParts = url.split("/publishers/google/models/");
             if (gParts.length > 1) {
               info.modelName = gParts[1].split(":")[0];
+            }
+          } else if (url.includes(":generate")) {
+            var gParts = url.split(":generate");
+            if (gParts.length > 1) {
+              var uParts = gParts[0].split("/");
+              info.modelName = uParts[uParts.length - 1];
             }
           }
         }
@@ -2098,4 +2097,3 @@ resources:
         exports.getModelTokenLimit = getModelTokenLimit;
         exports.getModelList = getModelList;
       }
-

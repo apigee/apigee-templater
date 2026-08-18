@@ -198,6 +198,12 @@ function getRequestInfo(urlString, content, contentType) {
       if (gParts.length > 1) {
         info.modelName = gParts[1].split(":")[0];
       }
+    } else if (url.includes(":generate")) {
+      var gParts = url.split(":generate");
+      if (gParts.length > 1) {
+        var uParts = gParts[0].split("/");
+        info.modelName = uParts[uParts.length - 1];
+      }
     }
   }
 

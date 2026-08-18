@@ -1,0 +1,14 @@
+[
+  {"name": "dc_ai_model", "type": "STRING"},
+  {"name": "dc_ai_user", "type": "STRING"},
+  {"name": "dc_ai_provider", "type": "STRING"},
+  {"name": "dc_ai_cost_center", "type": "STRING"},
+  {"name": "dc_ai_response_type", "type": "STRING"},
+  {"name": "dc_ai_total_token_count", "type": "INTEGER"},
+  {"name": "dc_ai_prompt_token_count", "type": "INTEGER"},
+  {"name": "dc_ai_response_token_count", "type": "INTEGER"},
+  {"name": "dc_ai_time_first_token", "type": "INTEGER"},
+  {"name": "dc_ai_request_cost", "type": "FLOAT"},
+  {"name": "dc_ai_response_cost", "type": "FLOAT"},
+  {"name": "dc_ai_total_cost", "type": "FLOAT"}
+]

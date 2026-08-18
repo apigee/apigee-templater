@@ -61,11 +61,41 @@
       cursor: pointer;
       border: none;
       font-size: 0.85rem;
-      transition: background 0.2s;
+      transition: background 0.2s, opacity 0.2s;
     }
 
     .btn:hover {
       background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .select-input {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      outline: none;
+      max-width: 260px;
+    }
+
+    .select-input:focus {
+      border-color: var(--accent);
+    }
+
+    .select-input:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     input[type="file"] {
@@ -161,6 +191,18 @@
       border-radius: 8px;
       padding: 14px;
       margin-bottom: 12px;
+      transition: border-color 0.2s;
+    }
+
+    @keyframes highlightPulse {
+      0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.8); border-color: var(--accent); }
+      50% { box-shadow: 0 0 0 8px rgba(56, 189, 248, 0); border-color: var(--accent); }
+      100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); border-color: var(--accent); }
+    }
+
+    .step-card.highlight {
+      animation: highlightPulse 1.5s ease-out;
+      border-color: var(--accent);
     }
 
     .step-card.error {
@@ -243,6 +285,82 @@
       margin: 20px;
       border-radius: 12px;
     }
+
+    /* Modal Dialog */
+    .modal-dialog {
+      background: var(--bg-secondary);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      max-width: 650px;
+      width: 90vw;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      margin: auto;
+    }
+
+    .modal-dialog::backdrop {
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+    }
+
+    .dialog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .dialog-header h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.4rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 4px;
+    }
+    .close-btn:hover {
+      color: var(--text-main);
+    }
+
+    .dialog-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .modal-dialog textarea {
+      width: 100%;
+      height: 240px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-family: monospace;
+      font-size: 0.8rem;
+      padding: 10px;
+      box-sizing: border-box;
+      resize: vertical;
+      outline: none;
+    }
+
+    .modal-dialog textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 16px;
+    }
   </style>
 </head>
 <body>
@@ -250,8 +368,12 @@
 <header>
   <div class="title">Apigee Emulator Trace Visualizer</div>
   <div class="controls">
-    <label class="btn" for="fileInput">Open trace.json</label>
+    <select id="policySelect" class="select-input" disabled>
+      <option value="">Jump to Policy Step...</option>
+    </select>
+    <label class="btn" for="fileInput">Open File</label>
     <input type="file" id="fileInput" accept=".json">
+    <button class="btn" id="openJsonBtn" type="button">Open JSON</button>
   </div>
 </header>
 
@@ -268,10 +390,93 @@
   </div>
 </div>
 
+<dialog id="jsonDialog" class="modal-dialog">
+  <div class="dialog-header">
+    <h3>Open Trace JSON</h3>
+    <button class="close-btn" id="closeDialogBtn" type="button" aria-label="Close dialog">&times;</button>
+  </div>
+  <p class="dialog-desc">Paste trace JSON content below to visualize:</p>
+  <textarea id="jsonTextarea" placeholder="Paste trace JSON here..."></textarea>
+  <div class="dialog-actions">
+    <button class="btn btn-secondary" id="cancelJsonBtn" type="button">Cancel</button>
+    <button class="btn" id="loadJsonBtn" type="button">Load JSON</button>
+  </div>
+</dialog>
+
 <script>
   let traceData = null;
 
   document.getElementById('fileInput').addEventListener('change', handleFile);
+
+  const jsonDialog = document.getElementById('jsonDialog');
+  const jsonTextarea = document.getElementById('jsonTextarea');
+  const openJsonBtn = document.getElementById('openJsonBtn');
+  const closeDialogBtn = document.getElementById('closeDialogBtn');
+  const cancelJsonBtn = document.getElementById('cancelJsonBtn');
+  const loadJsonBtn = document.getElementById('loadJsonBtn');
+  const policySelect = document.getElementById('policySelect');
+
+  openJsonBtn.addEventListener('click', async () => {
+    jsonTextarea.value = '';
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          jsonTextarea.value = text.trim();
+        }
+      } catch (e) {
+        // Clipboard read permission denied or not available; fallback to empty textarea
+        console.debug('Clipboard access unavailable:', e);
+      }
+    }
+    jsonDialog.showModal();
+    jsonTextarea.focus();
+    if (jsonTextarea.value) {
+      jsonTextarea.select();
+    }
+  });
+
+  closeDialogBtn.addEventListener('click', () => jsonDialog.close());
+  cancelJsonBtn.addEventListener('click', () => jsonDialog.close());
+
+  jsonDialog.addEventListener('click', (e) => {
+    const rect = jsonDialog.getBoundingClientRect();
+    const isInDialog = (
+      rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+      rect.left <= e.clientX && e.clientX <= rect.left + rect.width
+    );
+    if (!isInDialog) {
+      jsonDialog.close();
+    }
+  });
+
+  loadJsonBtn.addEventListener('click', () => {
+    const str = jsonTextarea.value.trim();
+    if (!str) {
+      alert('Please paste a JSON string.');
+      return;
+    }
+    try {
+      const json = JSON.parse(str);
+      renderTrace(json);
+      jsonDialog.close();
+    } catch (err) {
+      alert('Invalid JSON: ' + err.message);
+    }
+  });
+
+  policySelect.addEventListener('change', (e) => {
+    const targetId = e.target.value;
+    if (targetId) {
+      const card = document.getElementById(targetId);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.remove('highlight');
+        void card.offsetWidth;
+        card.classList.add('highlight');
+      }
+    }
+  });
 
   window.addEventListener('dragover', (e) => e.preventDefault());
   window.addEventListener('drop', (e) => {
@@ -349,6 +554,9 @@
 
     if (messages.length > 0) {
       renderMessageDetails(messages[0]);
+    } else {
+      policySelect.innerHTML = '<option value="">Jump to Policy Step...</option>';
+      policySelect.disabled = true;
     }
   }
 
@@ -357,11 +565,16 @@
     mainView.innerHTML = '<div class="timeline" id="timeline"></div>';
     const timeline = document.getElementById('timeline');
 
-    msg.point.forEach(pt => {
+    policySelect.innerHTML = '<option value="">Jump to Policy Step...</option>';
+    let policyCount = 0;
+
+    msg.point.forEach((pt, ptIdx) => {
       if (!pt.results || pt.results.length === 0) return;
 
+      const cardId = `step-card-${ptIdx}`;
       const card = document.createElement('div');
       card.className = 'step-card';
+      card.id = cardId;
 
       let stepName = pt.id;
       let properties = [];
@@ -382,6 +595,18 @@
 
       const dispNameProp = properties.find(p => p.name === 'stepDefinition-displayName' || p.name === 'From');
       if (dispNameProp) stepName += `: ${dispNameProp.value}`;
+
+      // Populate policy execution steps dropdown
+      if (pt.id === 'Execution') {
+        const policyProp = properties.find(p => p.name === 'stepDefinition-displayName' || p.name === 'stepDefinition-name');
+        if (policyProp && policyProp.value) {
+          const opt = document.createElement('option');
+          opt.value = cardId;
+          opt.textContent = `Execution: ${policyProp.value}`;
+          policySelect.appendChild(opt);
+          policyCount++;
+        }
+      }
 
       let propsHTML = '';
       if (properties.length > 0) {
@@ -425,6 +650,8 @@
 
       timeline.appendChild(card);
     });
+
+    policySelect.disabled = policyCount === 0;
   }
 
   function escapeHtml(str) {

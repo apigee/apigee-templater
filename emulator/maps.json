@@ -1,18 +1,12 @@
 [
   {
     "name": "AI-Config",
-    "encrypted": false,
-    "maskedValues": false,
-    "entriesList": [
-      {
-        "name": "ModelRouting"
-      },
-      {
-        "name": "ModelRoutingText"
-      },
-      {
-        "name": "PriceList"
-      }
-    ]
+    "scope": "environment",
+    "environment": "test",
+    "entries": {
+      "ModelRouting": "{\"models\": {\"google/\": \"googlecloud\", \"anthropic/\": \"googlecloud\", \"openai/\": \"openai\"}, \"mappings\": {\"google/gemini-flash-latest\": \"google/gemini-3.6-flash\"}}",
+      "ModelRoutingText": "{\"models\": {\"google/\": \"googlecloud-oai\", \"anthropic/\": \"googlecloud\", \"openai/\": \"openai\"}, \"mappings\": {\"google/gemini-flash-latest\": \"google/gemini-3.6-flash\"}}",
+      "PriceList": "{\"default\": {\"requestPerMillionTokens\": 1, \"responsePerMillionTokens\": 3}}"
+    }
   }
 ]

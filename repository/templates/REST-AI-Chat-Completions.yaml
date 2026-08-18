@@ -3,8 +3,9 @@ type: template
 description: API template for REST-AI-Completions-v1
 features:
   - ../features/ai-chat-completions.yaml
+  - ../features/ai-base-pre.yaml
   - ../features/ai-auth.yaml
-  - ../features/auth-external-token.yaml
+  - ../features/ai-base-post.yaml
 parameters:
   - name: ModelRouting
     displayName: ModelRouting
