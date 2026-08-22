@@ -833,6 +833,11 @@
       color: #0f172a !important;
       font-weight: 600 !important;
     }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -841,7 +846,8 @@
     <div class="brand">
       <div class="logo-badge">Aft</div>
       <div class="title">Templater Editor</div>
-      <span class="file-tag" id="current-filename">sample-proxy.yaml</span>
+      <span class="file-tag" id="current-filename" title="Click to rename" onclick="promptSetName()" style="cursor: pointer;">sample-proxy.yaml</span>
+      <button class="btn" id="btn-set-name" style="display: none; padding: 2px 10px; font-size: 0.78rem;" onclick="promptSetName()">Set Name</button>
     </div>
     <div class="controls">
       <button class="btn" onclick="document.getElementById('file-input').click()">
@@ -857,6 +863,11 @@
       <button class="btn btn-primary" onclick="downloadYaml()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
         Save File
+      </button>
+
+      <button class="btn" id="btn-test-modal" onclick="openTestModal()" title="Deploy & Test on Bungee Runtime">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        Test
       </button>
 
       <div id="status-btn" class="status-badge status-valid" onclick="toggleValidationPanel()">
@@ -880,7 +891,7 @@
       <div class="pane-content" id="visual-tab-flows">
         <div style="display: flex; justify-content: space-between; margin-bottom: 16px; align-items: center; flex-wrap: wrap; gap: 10px;">
           <h3 style="font-size: 0.9rem; color: var(--text-muted); margin: 0;">Flows Pipeline</h3>
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="flows-header-actions">
             <button class="btn" onclick="openAddEndpointModal()">+ Add Endpoint</button>
             <button class="btn" onclick="openAddTargetModal()">+ Add Target</button>
           </div>
@@ -1205,6 +1216,74 @@
           <button class="btn" onclick="closeStepModal()">Cancel</button>
           <button class="btn btn-primary" onclick="saveStepFromModal()">Save Step</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Test & Deploy Modal -->
+  <div class="modal-overlay" id="test-modal">
+    <div class="modal" style="max-width: 900px; width: 90vw; max-height: 85vh; height: auto;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="logo-badge" style="background: rgba(56, 189, 248, 0.15); color: var(--accent); border-color: rgba(56, 189, 248, 0.3);">Test</div>
+          <h3 id="test-modal-title">Test &amp; Deploy with Bungee Runtime</h3>
+        </div>
+        <button class="btn" onclick="closeTestModal()">✕</button>
+      </div>
+      <div class="modal-body" style="gap: 16px; overflow-y: auto;">
+        <!-- Definition Overview Card -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Target Definition</div>
+            <div style="font-size: 1.05rem; font-weight: 600; color: var(--text-main); font-family: var(--font-code);" id="test-modal-target-name">sample-proxy</div>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span class="policy-type-badge" id="test-modal-target-type" style="font-size: 0.78rem;">proxy</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-code);" id="test-modal-target-filename">sample-proxy.yaml</span>
+          </div>
+        </div>
+
+        <!-- Bungee Runtime Configuration -->
+        <div class="form-group">
+          <label for="test-runtime-url" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Bungee Runtime URL</span>
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">Saved automatically to local storage</span>
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="test-runtime-url" class="form-control" style="flex: 1; font-family: var(--font-code); font-size: 0.85rem;" placeholder="http://localhost:8080/api/templates" onchange="saveRuntimeUrl()" oninput="saveRuntimeUrl()" />
+            <button class="btn" style="white-space: nowrap; font-size: 0.8rem;" onclick="resetRuntimeUrl()">Reset Default</button>
+          </div>
+        </div>
+
+        <!-- Deploy Action and Result Box -->
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Deployment</label>
+            <button class="btn btn-primary" id="btn-deploy-runtime" onclick="deployToRuntime()" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>Deploy</span>
+            </button>
+          </div>
+
+          <div id="test-deploy-result" style="display: none; border-radius: 8px; padding: 14px; font-size: 0.85rem; border: 1px solid var(--border); background: var(--bg-primary);">
+            <!-- Dynamic Result Content -->
+          </div>
+        </div>
+
+        <!-- Test Invocations Placeholder (Future Extension) -->
+        <div style="border-top: 1px dashed var(--border); padding-top: 14px; margin-top: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Test Invocations</span>
+            <span class="policy-ref-badge ref-unused" style="font-size: 0.7rem;">Coming Soon</span>
+          </div>
+          <div style="background: rgba(30, 41, 59, 0.3); border: 1px dashed var(--border); border-radius: 8px; padding: 14px; color: var(--text-muted); font-size: 0.82rem; text-align: center;">
+            Interactive proxy and feature endpoint test calls will be available here after deployment.
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div></div>
+        <button class="btn" onclick="closeTestModal()">Close</button>
       </div>
     </div>
   </div>
@@ -2014,6 +2093,11 @@ policies:
             closeSnippetModal();
             closed = true;
           }
+          const testModal = document.getElementById('test-modal');
+          if (testModal && testModal.classList.contains('open')) {
+            closeTestModal();
+            closed = true;
+          }
           if (!closed && valPanel && valPanel.classList.contains('open')) {
             toggleValidationPanel();
           }
@@ -2519,8 +2603,6 @@ policies:
       // Synchronous live input change listener with 300ms debounce to allow typing
       codeMirrorEditor.on('change', (cm, changeObj) => {
         if (changeObj && (changeObj.origin === 'paste' || changeObj.origin === 'setValue')) {
-          currentFileName = '';
-          updateFileNameDisplay();
           isInitialDocumentLoad = true;
         }
         if (!isProgrammaticEdit) {
@@ -2532,8 +2614,6 @@ policies:
       });
 
       codeMirrorEditor.on('paste', () => {
-        currentFileName = '';
-        updateFileNameDisplay();
         isInitialDocumentLoad = true;
       });
 
@@ -2840,6 +2920,9 @@ policies:
         updateDiagnosticsUI(false, issues, schemaUrl);
         return;
       }
+
+      // Update filename display in header based on name property
+      updateFileNameDisplay();
 
       // Dynamic Schema Validation via header tag
       const valResult = await getValidatorForYaml(schemaUrl, currentYamlObj);
@@ -3275,6 +3358,48 @@ policies:
     }
 
     // Endpoint CRUD
+    function openAddDefaultEndpointModal() {
+      if (!currentYamlObj) currentYamlObj = {};
+      const isFeature = String(currentYamlObj.type || '').toLowerCase() === 'feature';
+      const defaultSnippet = isFeature ? {
+        name: 'default',
+        flows: [
+          {
+            name: 'PreFlow',
+            mode: 'Request',
+            steps: []
+          }
+        ]
+      } : {
+        name: 'default',
+        basePath: '/',
+        routes: [
+          {
+            name: 'default',
+            target: 'default'
+          }
+        ],
+        flows: [
+          {
+            name: 'PreFlow',
+            mode: 'Request',
+            steps: []
+          }
+        ]
+      };
+
+      openSnippetModal('Add Default Endpoint (YAML)', jsyaml.dump(defaultSnippet, { lineWidth: -1 }), (parsed) => {
+        if (!parsed.name) {
+          parsed.name = 'default';
+        }
+        if (!parsed.flows) {
+          parsed.flows = [];
+        }
+        currentYamlObj.defaultEndpoint = parsed;
+        return true;
+      });
+    }
+
     function openAddEndpointModal() {
       const defaultSnippet = {
         name: 'custom-endpoint',
@@ -3349,6 +3474,42 @@ policies:
     }
 
     // Target CRUD
+    function openAddDefaultTargetModal() {
+      if (!currentYamlObj) currentYamlObj = {};
+      const isFeature = String(currentYamlObj.type || '').toLowerCase() === 'feature';
+      const defaultSnippet = isFeature ? {
+        name: 'default',
+        flows: [
+          {
+            name: 'PostFlow',
+            mode: 'Response',
+            steps: []
+          }
+        ]
+      } : {
+        name: 'default',
+        url: 'https://api.example.com',
+        flows: [
+          {
+            name: 'PostFlow',
+            mode: 'Response',
+            steps: []
+          }
+        ]
+      };
+
+      openSnippetModal('Add Default Target (YAML)', jsyaml.dump(defaultSnippet, { lineWidth: -1 }), (parsed) => {
+        if (!parsed.name) {
+          parsed.name = 'default';
+        }
+        if (!parsed.flows) {
+          parsed.flows = [];
+        }
+        currentYamlObj.defaultTarget = parsed;
+        return true;
+      });
+    }
+
     function openAddTargetModal() {
       const defaultSnippet = {
         name: 'custom-target',
@@ -3431,6 +3592,28 @@ policies:
       const container = document.getElementById('flows-builder');
       container.innerHTML = '';
 
+      if (!obj) obj = {};
+      const isFeature = !!(obj && String(obj.type).toLowerCase() === 'feature');
+
+      const headerActions = document.getElementById('flows-header-actions');
+      if (headerActions) {
+        let buttonsHtml = '';
+        if (isFeature) {
+          if (!obj.defaultEndpoint) {
+            buttonsHtml += '<button class="btn" onclick="openAddDefaultEndpointModal()">+ Add Default Endpoint</button>';
+          }
+          if (!obj.defaultTarget) {
+            buttonsHtml += '<button class="btn" onclick="openAddDefaultTargetModal()">+ Add Default Target</button>';
+          }
+          buttonsHtml += '<button class="btn" onclick="openAddEndpointModal()">+ Add Endpoint</button>';
+          buttonsHtml += '<button class="btn" onclick="openAddTargetModal()">+ Add Target</button>';
+        } else {
+          buttonsHtml += '<button class="btn" onclick="openAddEndpointModal()">+ Add Endpoint</button>';
+          buttonsHtml += '<button class="btn" onclick="openAddTargetModal()">+ Add Target</button>';
+        }
+        headerActions.innerHTML = buttonsHtml;
+      }
+
       const standardFlows = [
         { name: 'PreFlow', mode: 'Request', label: 'PreFlow (Request)' },
         { name: 'PreFlow', mode: 'Response', label: 'PreFlow (Response)' },
@@ -3462,7 +3645,7 @@ policies:
         selectOptionsHtml += '<option value="CUSTOM">+ Custom Flow...</option>';
 
         let metaBarHtml = '';
-        if (!isTarget && meta) {
+        if (!isTarget && meta && (meta.basePath !== undefined || (meta.routes && meta.routes.length > 0))) {
           let routesHtml = '';
           if (meta.routes && meta.routes.length > 0) {
             routesHtml = meta.routes.map(r => {
@@ -3638,7 +3821,11 @@ policies:
       if (!hasEndpoints) {
         const emptyEp = document.createElement('div');
         emptyEp.style.cssText = 'padding: 14px; background: rgba(30, 41, 59, 0.3); border: 1px dashed var(--border); border-radius: 8px; text-align: center; color: var(--text-muted); font-size: 0.82rem; margin-bottom: 14px;';
-        emptyEp.innerHTML = `No Endpoints configured. <button class="btn" style="margin-left: 8px; padding: 2px 8px; font-size: 0.75rem;" onclick="openAddEndpointModal()">+ Add Endpoint</button>`;
+        if (isFeature) {
+          emptyEp.innerHTML = `No Endpoints configured. <button class="btn" style="margin-left: 8px; padding: 2px 8px; font-size: 0.75rem;" onclick="openAddDefaultEndpointModal()">+ Add Default Endpoint</button><button class="btn" style="margin-left: 6px; padding: 2px 8px; font-size: 0.75rem;" onclick="openAddEndpointModal()">+ Add Endpoint</button>`;
+        } else {
+          emptyEp.innerHTML = `No Endpoints configured. <button class="btn" style="margin-left: 8px; padding: 2px 8px; font-size: 0.75rem;" onclick="openAddEndpointModal()">+ Add Endpoint</button>`;
+        }
         container.appendChild(emptyEp);
       }
 
@@ -3661,7 +3848,11 @@ policies:
       if (!hasTargets) {
         const emptyTg = document.createElement('div');
         emptyTg.style.cssText = 'padding: 14px; background: rgba(30, 41, 59, 0.3); border: 1px dashed var(--border); border-radius: 8px; text-align: center; color: var(--text-muted); font-size: 0.82rem; margin-bottom: 14px;';
-        emptyTg.innerHTML = `No Targets configured (No-Target / Direct Response). <button class="btn" style="margin-left: 8px; padding: 2px 8px; font-size: 0.75rem;" onclick="openAddTargetModal()">+ Add Target</button>`;
+        if (isFeature) {
+          emptyTg.innerHTML = `No Targets configured. <button class="btn" style="margin-left: 8px; padding: 2px 8px; font-size: 0.75rem;" onclick="openAddDefaultTargetModal()">+ Add Default Target</button><button class="btn" style="margin-left: 6px; padding: 2px 8px; font-size: 0.75rem;" onclick="openAddTargetModal()">+ Add Target</button>`;
+        } else {
+          emptyTg.innerHTML = `No Targets configured (No-Target / Direct Response). <button class="btn" style="margin-left: 8px; padding: 2px 8px; font-size: 0.75rem;" onclick="openAddTargetModal()">+ Add Target</button>`;
+        }
         container.appendChild(emptyTg);
       }
     }
@@ -4432,13 +4623,14 @@ policies:
 
     function getFlowsByCtxType(ctxType) {
       if (!currentYamlObj) return [];
+      const isFeature = String(currentYamlObj.type || '').toLowerCase() === 'feature';
       if (ctxType === 'defaultEndpoint') {
-        if (!currentYamlObj.defaultEndpoint) currentYamlObj.defaultEndpoint = { name: 'default', basePath: '/', flows: [] };
+        if (!currentYamlObj.defaultEndpoint) currentYamlObj.defaultEndpoint = isFeature ? { name: 'default', flows: [] } : { name: 'default', basePath: '/', flows: [] };
         if (!currentYamlObj.defaultEndpoint.flows) currentYamlObj.defaultEndpoint.flows = [];
         return currentYamlObj.defaultEndpoint.flows;
       }
       if (ctxType === 'defaultTarget') {
-        if (!currentYamlObj.defaultTarget) currentYamlObj.defaultTarget = { name: 'default', url: '', flows: [] };
+        if (!currentYamlObj.defaultTarget) currentYamlObj.defaultTarget = isFeature ? { name: 'default', flows: [] } : { name: 'default', url: '', flows: [] };
         if (!currentYamlObj.defaultTarget.flows) currentYamlObj.defaultTarget.flows = [];
         return currentYamlObj.defaultTarget.flows;
       }
@@ -4562,21 +4754,61 @@ policies:
 
     function updateFileNameDisplay() {
       const tag = document.getElementById('current-filename');
-      if (tag) {
-        if (currentFileName) {
-          tag.innerText = currentFileName;
+      const setNameBtn = document.getElementById('btn-set-name');
+
+      const nameProp = (currentYamlObj && currentYamlObj.name) ? String(currentYamlObj.name).trim() : '';
+
+      if (nameProp) {
+        const displayName = (nameProp.endsWith('.yaml') || nameProp.endsWith('.yml')) 
+          ? nameProp 
+          : `${nameProp}.yaml`;
+        currentFileName = displayName;
+        if (tag) {
+          tag.innerText = displayName;
           tag.style.display = '';
-        } else {
+        }
+        if (setNameBtn) {
+          setNameBtn.style.display = 'none';
+        }
+      } else {
+        currentFileName = '';
+        if (tag) {
           tag.innerText = '';
           tag.style.display = 'none';
+        }
+        if (setNameBtn) {
+          setNameBtn.style.display = '';
         }
       }
     }
 
-    function loadFile(file) {
-      currentFileName = file.name;
-      updateFileNameDisplay();
+    function promptSetName() {
+      const currentName = (currentYamlObj && currentYamlObj.name) ? String(currentYamlObj.name).trim() : '';
+      const input = prompt('Enter a name for this proxy/feature definition:', currentName || '');
+      if (input === null) return;
+      const trimmed = input.trim().replace(/\.(yaml|yml)$/i, '');
+      if (!trimmed) {
+        alert('Name cannot be empty.');
+        return;
+      }
 
+      if (!currentYamlObj) currentYamlObj = {};
+
+      const reorderedObj = {};
+      if (currentYamlObj.gateway !== undefined) reorderedObj.gateway = currentYamlObj.gateway;
+      if (currentYamlObj.schemaVersion !== undefined) reorderedObj.schemaVersion = currentYamlObj.schemaVersion;
+      reorderedObj.name = trimmed;
+      for (const k of Object.keys(currentYamlObj)) {
+        if (k !== 'gateway' && k !== 'schemaVersion' && k !== 'name') {
+          reorderedObj[k] = currentYamlObj[k];
+        }
+      }
+      currentYamlObj = reorderedObj;
+      currentFileName = `${trimmed}.yaml`;
+      updateYamlFromObj();
+    }
+
+    function loadFile(file) {
       const reader = new FileReader();
       reader.onload = (e) => {
         isInitialDocumentLoad = true;
@@ -4623,6 +4855,224 @@ policies:
       a.href = URL.createObjectURL(blob);
       a.download = currentFileName || defaultName;
       a.click();
+    }
+
+    // Bungee Runtime Testing & Deployment
+    const STORAGE_KEY_RUNTIME_URL = 'aft_bungee_runtime_url';
+    const DEFAULT_RUNTIME_URL = 'http://localhost:8080/api/templates';
+
+    function getRuntimeUrl() {
+      return localStorage.getItem(STORAGE_KEY_RUNTIME_URL) || DEFAULT_RUNTIME_URL;
+    }
+
+    function saveRuntimeUrl() {
+      const input = document.getElementById('test-runtime-url');
+      if (input) {
+        const val = input.value.trim() || DEFAULT_RUNTIME_URL;
+        localStorage.setItem(STORAGE_KEY_RUNTIME_URL, val);
+      }
+    }
+
+    function resetRuntimeUrl() {
+      const input = document.getElementById('test-runtime-url');
+      if (input) {
+        input.value = DEFAULT_RUNTIME_URL;
+        localStorage.setItem(STORAGE_KEY_RUNTIME_URL, DEFAULT_RUNTIME_URL);
+      }
+    }
+
+    function openTestModal() {
+      const nameProp = (currentYamlObj && currentYamlObj.name) ? String(currentYamlObj.name).trim() : '';
+      if (!nameProp) {
+        alert('A "name" property is required in the YAML definition before testing. Please set a name first.');
+        promptSetName();
+        return;
+      }
+
+      const targetNameEl = document.getElementById('test-modal-target-name');
+      const targetTypeEl = document.getElementById('test-modal-target-type');
+      const targetFileEl = document.getElementById('test-modal-target-filename');
+      const urlInput = document.getElementById('test-runtime-url');
+
+      if (targetNameEl) targetNameEl.innerText = nameProp;
+      if (targetTypeEl) targetTypeEl.innerText = currentYamlObj.type || 'proxy';
+      if (targetFileEl) targetFileEl.innerText = currentFileName || `${nameProp}.yaml`;
+      if (urlInput) urlInput.value = getRuntimeUrl();
+
+      document.getElementById('test-modal').classList.add('open');
+    }
+
+    function closeTestModal() {
+      document.getElementById('test-modal').classList.remove('open');
+    }
+
+    async function deployToRuntime() {
+      const urlInput = document.getElementById('test-runtime-url');
+      const runtimeUrl = (urlInput ? urlInput.value.trim() : '') || getRuntimeUrl();
+      saveRuntimeUrl();
+
+      const deployBtn = document.getElementById('btn-deploy-runtime');
+      const resultBox = document.getElementById('test-deploy-result');
+
+      const originalBtnHtml = deployBtn.innerHTML;
+      deployBtn.disabled = true;
+      deployBtn.innerHTML = `
+        <svg class="spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+        <span>Deploying...</span>
+      `;
+
+      resultBox.style.display = 'block';
+      resultBox.style.borderColor = 'var(--border)';
+      resultBox.style.background = 'var(--bg-primary)';
+      resultBox.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted);">
+          <span>Sending POST request to <code style="color: var(--accent);">${escapeHtml(runtimeUrl)}</code>...</span>
+        </div>
+      `;
+
+      const startTime = Date.now();
+      const yamlContent = codeMirrorEditor ? codeMirrorEditor.getValue() : '';
+
+      try {
+        const response = await fetch(runtimeUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/yaml; charset=utf-8',
+            'Accept': 'application/json, text/plain, */*'
+          },
+          body: yamlContent
+        });
+
+        const duration = Date.now() - startTime;
+        let responseBody = '';
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          try {
+            const json = await response.json();
+            responseBody = JSON.stringify(json, null, 2);
+          } catch (e) {
+            responseBody = await response.text();
+          }
+        } else {
+          responseBody = await response.text();
+        }
+
+        if (response.ok) {
+          let rebuildUrl = '';
+          try {
+            rebuildUrl = new URL('/rebuild', runtimeUrl).href;
+          } catch (e) {
+            rebuildUrl = runtimeUrl.replace(/\/api\/templates.*$/, '') + '/rebuild';
+          }
+
+          resultBox.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted);">
+              <span>Deployed template. Triggering runtime rebuild at <code style="color: var(--accent);">${escapeHtml(rebuildUrl)}</code>...</span>
+            </div>
+          `;
+
+          let rebuildSuccess = false;
+          let rebuildStatusText = '';
+          let rebuildBody = '';
+          try {
+            const rebuildRes = await fetch(rebuildUrl, {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json, text/plain, */*'
+              }
+            });
+            const rbContentType = rebuildRes.headers.get('content-type') || '';
+            if (rbContentType.includes('application/json')) {
+              try {
+                rebuildBody = JSON.stringify(await rebuildRes.json(), null, 2);
+              } catch (e) {
+                rebuildBody = await rebuildRes.text();
+              }
+            } else {
+              rebuildBody = await rebuildRes.text();
+            }
+
+            if (rebuildRes.ok) {
+              rebuildSuccess = true;
+              rebuildStatusText = `HTTP ${rebuildRes.status} ${rebuildRes.statusText || 'OK'}`;
+            } else {
+              rebuildStatusText = `HTTP ${rebuildRes.status} ${rebuildRes.statusText || 'Error'}`;
+            }
+          } catch (rbErr) {
+            rebuildStatusText = rbErr.message || 'Network error';
+          }
+
+          const totalDuration = Date.now() - startTime;
+          if (rebuildSuccess) {
+            resultBox.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+            resultBox.style.background = 'rgba(34, 197, 94, 0.08)';
+            resultBox.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 6px; color: var(--success); font-weight: 600;">
+                  <span>✓</span> <span>Deployed &amp; Rebuilt Successfully</span>
+                </div>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">${totalDuration}ms</span>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+                <span class="policy-ref-badge ref-active">Template POST: HTTP ${response.status}</span>
+                <span class="policy-ref-badge ref-active">Rebuild POST: ${escapeHtml(rebuildStatusText)}</span>
+              </div>
+              ${responseBody ? `<div style="margin-top: 8px;"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Template Response:</div><pre style="background: var(--bg-primary); padding: 10px; border-radius: 6px; font-family: var(--font-code); font-size: 0.8rem; overflow-x: auto; max-height: 160px; color: var(--text-main); margin: 0;">${escapeHtml(responseBody)}</pre></div>` : ''}
+              ${rebuildBody ? `<div style="margin-top: 8px;"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Rebuild Response:</div><pre style="background: var(--bg-primary); padding: 10px; border-radius: 6px; font-family: var(--font-code); font-size: 0.8rem; overflow-x: auto; max-height: 160px; color: var(--text-main); margin: 0;">${escapeHtml(rebuildBody)}</pre></div>` : ''}
+            `;
+          } else {
+            resultBox.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+            resultBox.style.background = 'rgba(245, 158, 11, 0.08)';
+            resultBox.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 6px; color: var(--warning); font-weight: 600;">
+                  <span>⚠</span> <span>Template Deployed, but Rebuild Failed</span>
+                </div>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">${totalDuration}ms</span>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+                <span class="policy-ref-badge ref-active">Template POST: HTTP ${response.status}</span>
+                <span style="font-size: 0.75rem; background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 2px 6px; border-radius: 4px;">Rebuild POST: ${escapeHtml(rebuildStatusText)}</span>
+              </div>
+              ${rebuildBody ? `<div style="margin-top: 8px;"><pre style="background: var(--bg-primary); padding: 10px; border-radius: 6px; font-family: var(--font-code); font-size: 0.8rem; overflow-x: auto; max-height: 160px; color: #f87171; margin: 0;">${escapeHtml(rebuildBody)}</pre></div>` : ''}
+            `;
+          }
+        } else {
+          resultBox.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+          resultBox.style.background = 'rgba(239, 68, 68, 0.08)';
+          resultBox.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 6px; color: var(--error); font-weight: 600;">
+                <span>✕</span> <span>Deployment Failed</span>
+                <span style="font-size: 0.75rem; background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 2px 6px; border-radius: 4px;">HTTP ${response.status} ${response.statusText || 'Error'}</span>
+              </div>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">${duration}ms</span>
+            </div>
+            ${responseBody ? `<div style="margin-top: 8px;"><pre style="background: var(--bg-primary); padding: 10px; border-radius: 6px; font-family: var(--font-code); font-size: 0.8rem; overflow-x: auto; max-height: 200px; color: #f87171; margin: 0;">${escapeHtml(responseBody)}</pre></div>` : ''}
+          `;
+        }
+      } catch (err) {
+        const duration = Date.now() - startTime;
+        resultBox.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        resultBox.style.background = 'rgba(239, 68, 68, 0.08)';
+        resultBox.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 6px; color: var(--error); font-weight: 600;">
+              <span>✕</span> <span>Deployment Request Failed</span>
+            </div>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">${duration}ms</span>
+          </div>
+          <div style="font-size: 0.8rem; color: #f87171; margin-bottom: 6px;">
+            <strong>Error:</strong> ${escapeHtml(err.message || String(err))}
+          </div>
+          <div style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
+            Could not reach bungee-runtime at <code>${escapeHtml(runtimeUrl)}</code>. Ensure the service is running, the port/endpoint is accessible, and CORS headers allow requests from this origin.
+          </div>
+        `;
+      } finally {
+        deployBtn.disabled = false;
+        deployBtn.innerHTML = originalBtnHtml;
+      }
     }
   </script>
 </body>
