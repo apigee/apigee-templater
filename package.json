@@ -9,11 +9,10 @@
     "example": "examples"
   },
   "scripts": {
-    "build": "rm -rf dist && bun run sync-ai-functions && bun build --sourcemap=none ./src/index.ts ./src/bin/apigee-templater.ts --target=bun --outdir=./dist && node copy-assets.js",
+    "build": "rm -rf dist && bun build --sourcemap=none ./src/index.ts ./src/bin/apigee-templater.ts --target=bun --outdir=./dist && node copy-assets.js",
     "build:binaries": "bun run build && bun build --compile --target=bun-linux-x64 ./src/bin/apigee-templater.ts --outfile dist/aft-linux-x64 && bun build --compile --target=bun-linux-arm64 ./src/bin/apigee-templater.ts --outfile dist/aft-linux-arm64 && bun build --compile --target=bun-darwin-x64 ./src/bin/apigee-templater.ts --outfile dist/aft-darwin-x64 && bun build --compile --target=bun-darwin-arm64 ./src/bin/apigee-templater.ts --outfile dist/aft-darwin-arm64 && bun build --compile --target=bun-windows-x64 ./src/bin/apigee-templater.ts --outfile dist/aft-windows-x64.exe",
     "release": "./release.sh",
     "start": "bun run src/bin/apigee-templater.ts",
-    "sync-ai-functions": "bun run repository/lib/sync-ai-functions.js",
     "test": "bun test"
   },
   "repository": {

@@ -71,4 +71,11 @@ case ":$PATH:" in
     ;;
 esac
 
+echo ""
+echo "Recommended next steps:"
+echo "  1. Enable shell auto-completion:"
+echo "     aft completion install"
+echo "  2. Install AI coding assistant skill (Antigravity, Gemini CLI, Claude, Cursor):"
+echo "     aft skill install"
+echo ""
 echo "Run 'aft -h' to get started!"

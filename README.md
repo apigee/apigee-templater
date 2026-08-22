@@ -71,6 +71,68 @@ aft completion fish        # Fish
 aft completion powershell  # Windows PowerShell (alias: pwsh)
 ```
 
+### AI Agent Skill Installation
+
+Install the native `apigee-templater` skill for AI coding assistants (such as Google Antigravity, Gemini CLI, Claude Code, Cursor, Codex, and others):
+
+```bash
+# Installs the apigee-templater skill to ~/.agents/skills/apigee-templater
+aft skill install
+
+# To remove the skill later
+aft skill uninstall
+```
+
+### Cache Management
+
+`aft` caches remote templates and features in a lightweight local file cache (`~/.aft/cache/`). The cache is automatically refreshed once it is older than 24 hours. You can inspect or clear the cache at any time:
+
+```bash
+# Clear local cached templates and features
+aft cache clear
+```
+
+### Updating `aft`
+
+To update to the latest release, re-run the install script:
+
+**macOS & Linux**:
+```sh
+curl -fsSL https://raw.githubusercontent.com/apigee/apigee-templater/main/install.sh | sh
+```
+
+**Windows (PowerShell)**:
+```powershell
+iwr -useb https://raw.githubusercontent.com/apigee/apigee-templater/main/install.ps1 | iex
+```
+
+### Uninstalling `aft`
+
+To completely remove `aft`, its shell completions, skills, and cache:
+
+```bash
+# 1. Remove shell completions, AI skill, and local cache
+aft completion uninstall
+aft skill uninstall
+aft cache clear
+
+# 2. Remove the binary
+# macOS & Linux:
+rm -f ~/.local/bin/aft
+# (or /usr/local/bin/aft if installed as root)
+```
+
+**Windows (PowerShell)**:
+```powershell
+# 1. Remove shell completions and AI skill
+aft completion uninstall
+aft skill uninstall
+aft cache clear
+
+# 2. Remove the binary directory
+Remove-Item -Recurse -Force "$env:LocalAppData\Programs\aft"
+```
+
 ---
 
 ## Display help
@@ -208,6 +270,9 @@ You can convert any Apigee proxy to/from a feature just by using the **-f featur
 These Apigee variable names are commonly used in features, making extension and re-use esaier.
 
 * **ai.model** - The name of the AI model being used or requested, for example **gemini-flash-latest**.
+* **ai.user** - The actual user using the model (email, user_id).
+* **ai.provider** - The provider of the model.
+* **ai.protocol** - The API protocol format of the calls (either google, openai, anthropic, or other)
 * **ai.requestType** - The type of AI request being made, either **streaming** or **non-streaming**.
 * **ai.apiType** - The API type of the AI request, currently eitehr **googlecloud** for Model Garden requests, or **oai** for the standard messaging format.
 * **ai.requestPrompt** - The user's request prompt to the AI model.
@@ -215,18 +280,24 @@ These Apigee variable names are commonly used in features, making extension and 
 * **ai.responseTokenCount** - The response token count data from the AI model.
 * **ai.totalTokenCount** - The total request and response token count.
 * **ai.timeToFirstToken** - The number of milliseconds until the first token is returned by the AI model.
+* **ai.prices** - A price list for models in this format: {"default": { "requestPerMillionTokens": 1, "responsePerMillionTokens": 3 }, "claude-sonnet-5": { "requestPerMillionTokens": 3, "responsePerMillionTokens": 15 }}
 
 ### Common data collectors
 
 These data collectors are commonly used in features, making extension and re-use easier.
 
 * **dc_ai_model** - STRING - The name of the AI model being used or requested.
+* **dc_ai_user** - STRING - The actual user id (email or id) of the model.
+* **dc_ai_provider** - STRING - The provider of the model.
 * **dc_ai_cost_center** - STRING - The name of the cost center of the user.
 * **dc_ai_total_token_count** - INTEGER - The total token count of the request & response.
 * **dc_ai_prompt_token_count** - INTEGER - The request prompt token count.
 * **dc_ai_response_token_count** - INTEGER - The response prompt token count.
 * **dc_ai_response_type** - STRING - either `streaming` or `non-streaming`.
 * **dc_ai_time_first_token** - INTEGER - The time in milliseconds to the first token response of the model.
+* **dc_ai_request_cost** - FLOAT - The cost of the model request.
+* **dc_ai_response_cost** - FLOAT - The cost of the model response.
+* **dc_ai_total_cost** - FLOAT - The total cost of the call.
 
 ## License 📜
 

@@ -234,10 +234,14 @@ export class cli {
 
     console.log(`  ${chalk.bold.cyan("USAGE:")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("[options]")} ${chalk.dim("[<input> | <output>]")}`);
-    console.log(`    ${chalk.green("aft")} ${chalk.yellow("completion <install | zsh | bash | fish | powershell>")}\n`);
+    console.log(`    ${chalk.green("aft")} ${chalk.yellow("completion <install | zsh | bash | fish | powershell>")}`);
+    console.log(`    ${chalk.green("aft")} ${chalk.yellow("skill <install | uninstall>")}`);
+    console.log(`    ${chalk.green("aft")} ${chalk.yellow("cache <clear>")}\n`);
 
     console.log(`  ${chalk.bold.cyan("COMMANDS:")}`);
-    console.log(`    ${chalk.bold.yellow("completion".padEnd(22))} ${chalk.white("Install or display shell tab-completion scripts (install, uninstall, zsh, bash, fish, powershell).")}\n`);
+    console.log(`    ${chalk.bold.yellow("completion".padEnd(22))} ${chalk.white("Install or display shell tab-completion scripts (install, uninstall, zsh, bash, fish, powershell).")}`);
+    console.log(`    ${chalk.bold.yellow("skill".padEnd(22))} ${chalk.white("Install or uninstall Apigee Templater skill for AI coding assistants.")}`);
+    console.log(`    ${chalk.bold.yellow("cache".padEnd(22))} ${chalk.white("Manage local cache of templates and features (clear).")}\n`);
 
     console.log(`  ${chalk.bold.cyan("OPTIONS:")}`);
     for (const cmd of helpCommands) {
@@ -263,6 +267,119 @@ export class cli {
       console.log(CompletionManager.getPowerShellScript().trim());
     } else {
       CompletionManager.printInstructions();
+    }
+  }
+
+  async handleSkillCommand(target?: string) {
+    if (target === "install") {
+      await this.installSkillCommand();
+    } else if (target === "uninstall") {
+      this.uninstallSkillCommand();
+    } else {
+      console.log(`\n  ${chalk.bold.cyan("📦 Apigee Templater AI Agent Skill:")}\n`);
+      console.log(`  ${chalk.white("Installs the Apigee Templater skill for AI assistants (Antigravity, Gemini CLI, Claude Code, Cursor, Codex, etc.).")}\n`);
+      console.log(`  ${chalk.bold.cyan("USAGE:")}`);
+      console.log(`    ${chalk.green("aft skill install")}     ${chalk.white("Install skill to ~/.agents/skills/apigee-templater")}`);
+      console.log(`    ${chalk.green("aft skill uninstall")}   ${chalk.white("Remove installed skill")}\n`);
+    }
+  }
+
+  async installSkillCommand() {
+    try {
+      const homeDir = process.env.HOME || process.env.USERPROFILE;
+      if (!homeDir) {
+        console.log(`\n  ${chalk.red("❌ Could not determine user home directory.")}\n`);
+        return;
+      }
+
+      const targetDir = path.join(homeDir, ".agents", "skills", "apigee-templater");
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
+      const currentFileDir = path.dirname(new URL(import.meta.url).pathname);
+      const possibleSkillSources = [
+        path.join(currentFileDir, "..", "skills", "apigee-templater"),
+        path.join(currentFileDir, "..", "..", "skills", "apigee-templater"),
+        path.join(process.cwd(), "skills", "apigee-templater"),
+      ];
+
+      let sourceSkillDir = "";
+      for (const sourceDir of possibleSkillSources) {
+        if (fs.existsSync(path.join(sourceDir, "SKILL.md"))) {
+          sourceSkillDir = sourceDir;
+          break;
+        }
+      }
+
+      if (sourceSkillDir) {
+        fs.cpSync(sourceSkillDir, targetDir, { recursive: true });
+        console.log(`\n  ${chalk.green.bold("✔ Successfully installed Apigee Templater skill!")}`);
+        console.log(`    Location: ${chalk.cyan(targetDir)}`);
+        console.log(`    Compatible with: ${chalk.dim("Antigravity, Gemini CLI, Claude Code, Cursor, Codex, and other AI agents.")}\n`);
+      } else {
+        console.log(`  ${chalk.dim("Fetching latest skill definition from GitHub...")}`);
+        const skillUrl = "https://raw.githubusercontent.com/apigee/apigee-templater/main/skills/apigee-templater/SKILL.md";
+        const res = await fetch(skillUrl);
+        if (res.status === 200) {
+          const content = await res.text();
+          fs.writeFileSync(path.join(targetDir, "SKILL.md"), content, "utf8");
+          console.log(`\n  ${chalk.green.bold("✔ Successfully installed Apigee Templater skill!")}`);
+          console.log(`    Location: ${chalk.cyan(targetDir)}`);
+          console.log(`    Compatible with: ${chalk.dim("Antigravity, Gemini CLI, Claude Code, Cursor, Codex, and other AI agents.")}\n`);
+        } else {
+          console.log(`\n  ${chalk.red("❌ Could not locate or download apigee-templater skill.")}\n`);
+        }
+      }
+    } catch (e: any) {
+      console.log(`\n  ${chalk.red("❌ Failed to install skill:")} ${e.message}\n`);
+    }
+  }
+
+  uninstallSkillCommand() {
+    try {
+      const homeDir = process.env.HOME || process.env.USERPROFILE;
+      if (!homeDir) return;
+      const targetDir = path.join(homeDir, ".agents", "skills", "apigee-templater");
+      if (fs.existsSync(targetDir)) {
+        fs.rmSync(targetDir, { recursive: true, force: true });
+        console.log(`\n  ${chalk.green.bold("✔ Successfully uninstalled Apigee Templater skill.")}\n`);
+      } else {
+        console.log(`\n  ${chalk.yellow("ℹ Skill is not currently installed.")}\n`);
+      }
+    } catch (e: any) {
+      console.log(`\n  ${chalk.red("❌ Failed to uninstall skill:")} ${e.message}\n`);
+    }
+  }
+
+  handleCacheCommand(target?: string) {
+    if (target === "clear" || target === "clean" || target === "purge" || target === "delete") {
+      const { cleared, errors } = this.apigeeService.clearCache();
+      if (errors.length > 0) {
+        console.log(`\n  ${chalk.yellow("⚠ Errors clearing cache:")} ${errors.join(", ")}\n`);
+      } else {
+        console.log(`\n  ${chalk.green.bold("✔ Local cache cleared successfully.")} ${chalk.dim(`(${this.apigeeService.getCacheDir()})`)}\n`);
+      }
+    } else {
+      const cacheDir = this.apigeeService.getCacheDir();
+      console.log(`\n  ${chalk.bold.cyan("💾 AFT Local File Cache:")}\n`);
+      console.log(`    Location: ${chalk.cyan(cacheDir)}`);
+      if (fs.existsSync(cacheDir)) {
+        const files = fs.readdirSync(cacheDir);
+        if (files.length === 0) {
+          console.log(`    ${chalk.dim("Cache is currently empty.")}`);
+        } else {
+          for (const file of files) {
+            const stats = fs.statSync(path.join(cacheDir, file));
+            const ageHours = Math.round((Date.now() - stats.mtimeMs) / (1000 * 60 * 60));
+            console.log(`    - ${chalk.bold(file)}: ${chalk.dim(`${stats.size} bytes, modified ${ageHours}h ago`)}`);
+          }
+        }
+      } else {
+        console.log(`    ${chalk.dim("Cache directory does not exist yet.")}`);
+      }
+      console.log(`\n  Usage:`);
+      console.log(`    ${chalk.green("aft cache clear")}   ${chalk.white("Clear cached templates and features")}\n`);
     }
   }
 
@@ -340,6 +457,22 @@ export class cli {
         return;
       }
 
+      if (prevWord === "skill") {
+        const actions = ["install", "uninstall"].filter(
+          (a) => !currentWord || a.startsWith(currentWord)
+        );
+        if (actions.length > 0) console.log(actions.join("\n"));
+        return;
+      }
+
+      if (prevWord === "cache") {
+        const actions = ["clear"].filter(
+          (a) => !currentWord || a.startsWith(currentWord)
+        );
+        if (actions.length > 0) console.log(actions.join("\n"));
+        return;
+      }
+
       if (currentWord.startsWith("-")) {
         const flags = [
           "--input",
@@ -377,8 +510,8 @@ export class cli {
         return;
       }
 
-      if (currentWord === "completion") {
-        console.log("completion");
+      if (currentWord === "completion" || currentWord === "skill" || currentWord === "cache") {
+        console.log(currentWord);
         return;
       }
 
@@ -424,49 +557,6 @@ export class cli {
     });
   }
 
-  installSkill() {
-    try {
-      const homeDir = process.env.HOME || process.env.USERPROFILE;
-      if (!homeDir) return;
-
-      const targetBaseDirs = [path.join(homeDir, ".agents", "skills")];
-
-      const currentFileDir = path.dirname(new URL(import.meta.url).pathname);
-      const possibleSkillSources = [
-        path.join(currentFileDir, "..", "skills", "apigee-templater"),
-        path.join(currentFileDir, "..", "..", "skills", "apigee-templater"),
-        path.join(process.cwd(), "skills", "apigee-templater"),
-      ];
-
-      let sourceSkillDir = "";
-      for (const sourceDir of possibleSkillSources) {
-        if (fs.existsSync(path.join(sourceDir, "SKILL.md"))) {
-          sourceSkillDir = sourceDir;
-          break;
-        }
-      }
-
-      if (!sourceSkillDir) return;
-
-      for (const baseDir of targetBaseDirs) {
-        try {
-          if (!fs.existsSync(baseDir)) {
-            fs.mkdirSync(baseDir, { recursive: true });
-          }
-          const targetSkillDir = path.join(baseDir, "apigee-templater");
-          if (!fs.existsSync(targetSkillDir)) {
-            fs.mkdirSync(targetSkillDir, { recursive: true });
-          }
-          fs.cpSync(sourceSkillDir, targetSkillDir, { recursive: true });
-        } catch (e) {
-          // Continue if one directory fails
-        }
-      }
-    } catch (e) {
-      // Ignore errors silently
-    }
-  }
-
   private printOverviewCard(title: string, summaryLines: string[], outputPath: string) {
     console.log(`\n  ${chalk.bgCyan.black.bold(" OVERVIEW ")} ${chalk.bold.magenta(title)}`);
     console.log(chalk.gray("  ─────────────────────────────────────────────────────────"));
@@ -507,7 +597,19 @@ export class cli {
       return;
     }
 
-    this.installSkill();
+    // Command route for AI agent skill installation
+    if (args.length > 2 && args[2] === "skill") {
+      const target = args[3];
+      await this.handleSkillCommand(target);
+      return;
+    }
+
+    // Command route for local file cache management
+    if (args.length > 2 && args[2] === "cache") {
+      const target = args[3];
+      this.handleCacheCommand(target);
+      return;
+    }
 
     if (!stdin.setRawMode) {
       await this.processDataSpec();

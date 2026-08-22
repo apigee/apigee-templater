@@ -343,7 +343,7 @@
           "items": { "$ref": "#/definitions/Test" }
         }
       },
-      "required": ["name", "type", "gateway", "schemaVersion"],
+      "required": ["type", "gateway", "schemaVersion"],
       "additionalProperties": false
     },
     "Proxy": {

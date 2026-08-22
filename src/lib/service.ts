@@ -2,6 +2,7 @@ import { ApigeeConverter } from "./converter.js";
 import { Template, Proxy, Feature, ApigeeConfig } from "./interfaces.js";
 import fs from "fs";
 import path from "path";
+import os from "os";
 import * as YAML from "yaml";
 import { Blob } from "buffer";
 
@@ -14,12 +15,128 @@ export class ApigeeTemplaterService {
   public templateListCache: string[] = [];
   public featureListCache: string[] = [];
 
+  private cacheTtlMs: number = 24 * 60 * 60 * 1000; // 1 day in milliseconds
+
+  templatesRepository = process.env.AFT_TEMPLATES_REPOSITORY
+    ? process.env.AFT_TEMPLATES_REPOSITORY
+    : "https://github.com/gcp-samples/apigee-templates-repository/tree/main/templates";
+  featuresRepository = process.env.AFT_FEATURES_REPOSITORY
+    ? process.env.AFT_FEATURES_REPOSITORY
+    : "https://github.com/gcp-samples/apigee-templates-repository/tree/main/features";
+
   remoteGetBaseUrl = process.env.TEMPLATER_GET_BASE_URL
     ? process.env.TEMPLATER_GET_BASE_URL
     : "https://raw.githubusercontent.com/apigee/apigee-templater/refs/heads/main/repository/";
   remoteListUrl = process.env.TEMPLATER_LIST_URL
     ? process.env.TEMPLATER_LIST_URL
     : "https://api.github.com/repos/apigee/apigee-templater/contents/repository/";
+
+  public getCacheDir(): string {
+    const homeDir = os.homedir() || process.env.HOME || process.env.USERPROFILE || ".";
+    return path.join(homeDir, ".aft", "cache");
+  }
+
+  private getCachePath(key: "templates" | "features"): string {
+    return path.join(this.getCacheDir(), `${key}.json`);
+  }
+
+  private readCache<T>(key: "templates" | "features"): T[] | null {
+    try {
+      const filePath = this.getCachePath(key);
+      if (!fs.existsSync(filePath)) return null;
+
+      const raw = fs.readFileSync(filePath, "utf8");
+      const parsed = JSON.parse(raw);
+
+      if (!parsed || !Array.isArray(parsed.data)) return null;
+
+      const age = Date.now() - (parsed.timestamp || 0);
+      if (age < this.cacheTtlMs && parsed.data.length > 0) {
+        return parsed.data as T[];
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  private readStaleCache<T>(key: "templates" | "features"): T[] | null {
+    try {
+      const filePath = this.getCachePath(key);
+      if (!fs.existsSync(filePath)) return null;
+      const raw = fs.readFileSync(filePath, "utf8");
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
+        return parsed.data as T[];
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  private writeCache<T>(key: "templates" | "features", data: T[]): void {
+    try {
+      const filePath = this.getCachePath(key);
+      const dir = path.dirname(filePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      const payload = {
+        timestamp: Date.now(),
+        data,
+      };
+      fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), "utf8");
+    } catch (e) {}
+  }
+
+  public clearCache(): { cleared: string[]; errors: string[] } {
+    const cleared: string[] = [];
+    const errors: string[] = [];
+    const cacheDir = this.getCacheDir();
+
+    if (fs.existsSync(cacheDir)) {
+      try {
+        const files = fs.readdirSync(cacheDir);
+        for (const file of files) {
+          const p = path.join(cacheDir, file);
+          try {
+            fs.rmSync(p, { recursive: true, force: true });
+            cleared.push(file);
+          } catch (err: any) {
+            errors.push(`${file}: ${err.message}`);
+          }
+        }
+      } catch (err: any) {
+        errors.push(err.message);
+      }
+    }
+    this.templateListCache = [];
+    this.featureListCache = [];
+    return { cleared, errors };
+  }
+
+  private getRepoApiUrl(repoUrl: string): string {
+    const treeMatch = repoUrl.match(/^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/tree\/([^\/]+)(?:\/(.*))?$/);
+    if (treeMatch) {
+      const [, owner, repo, branch, repoPath] = treeMatch;
+      const pathSuffix = repoPath ? `/${repoPath}` : "";
+      return `https://api.github.com/repos/${owner}/${repo}/contents${pathSuffix}?ref=${branch}`;
+    }
+
+    const rawMatch = repoUrl.match(/^https?:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)(?:\/(.*))?$/);
+    if (rawMatch) {
+      const [, owner, repo, branch, repoPath] = rawMatch;
+      const pathSuffix = repoPath ? `/${repoPath}` : "";
+      return `https://api.github.com/repos/${owner}/${repo}/contents${pathSuffix}?ref=${branch}`;
+    }
+
+    const repoMatch = repoUrl.match(/^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/?$/);
+    if (repoMatch) {
+      const [, owner, repo] = repoMatch;
+      return `https://api.github.com/repos/${owner}/${repo}/contents`;
+    }
+
+    return repoUrl;
+  }
 
   constructor(basePath: string = "", subDirs: boolean = true) {
     if (basePath && subDirs) {
@@ -35,122 +152,173 @@ export class ApigeeTemplaterService {
     }
   }
 
-  public async templatesList(): Promise<Template[]> {
+  public async templatesList(forceRefresh: boolean = false): Promise<Template[]> {
     return new Promise(async (resolve, reject) => {
-      let templates: Template[] = [];
-      let templateNames: string[] = fs.readdirSync(this.templatesPath);
-
-      for (let templatePath of templateNames) {
-        if (templatePath.endsWith(".json")) {
-          let template: Template = JSON.parse(
-            fs.readFileSync(this.templatesPath + templatePath, "utf8"),
-          );
-          templates.push(template);
-        } else if (templatePath.endsWith(".yaml")) {
-          let template: Template = YAML.parse(
-            fs.readFileSync(this.templatesPath + templatePath, "utf8"),
-          );
-          templates.push(template);
+      if (!forceRefresh) {
+        const cached = this.readCache<Template>("templates");
+        if (cached && cached.length > 0) {
+          this.templateListCache = cached.map((x) => x.name);
+          return resolve(cached);
         }
       }
 
-      let response = await fetch(this.remoteListUrl + "templates");
+      let templates: Template[] = [];
+      const repoUrl = process.env.AFT_TEMPLATES_REPOSITORY || this.templatesRepository;
 
-      if (response.status == 200) {
-        let remoteTemplates: any = await response.json();
-        if (remoteTemplates && remoteTemplates.length > 0) {
-          for (let template of remoteTemplates) {
-            if (
-              template &&
-              template["name"] &&
-              (template["name"].endsWith(".json") || template["name"].endsWith(".yaml"))
-            ) {
-              let downloadResponse = await fetch(template["download_url"]);
-              if (downloadResponse.status == 200) {
-                let remoteTemplate: Template;
-                let remoteTemplateText = await downloadResponse.text();
-                if (template["name"].endsWith(".yaml"))
-                  remoteTemplate = YAML.parse(remoteTemplateText) as Template;
-                else remoteTemplate = JSON.parse(remoteTemplateText) as Template;
-                let templateExistsIndex = templates.findIndex((x) => x.name == remoteTemplate.name);
-                if (templateExistsIndex == -1) templates.push(remoteTemplate);
+      try {
+        const apiUrl = this.getRepoApiUrl(repoUrl);
+        const response = await fetch(apiUrl, {
+          headers: { "User-Agent": "apigee-templater" },
+        });
+
+        if (response.status === 200) {
+          const remoteTemplates: any = await response.json();
+          if (Array.isArray(remoteTemplates) && remoteTemplates.length > 0) {
+            for (const item of remoteTemplates) {
+              if (
+                item &&
+                item.name &&
+                (item.name.endsWith(".json") || item.name.endsWith(".yaml") || item.name.endsWith(".yml"))
+              ) {
+                if (item.download_url) {
+                  try {
+                    const downloadResponse = await fetch(item.download_url);
+                    if (downloadResponse.status === 200) {
+                      const text = await downloadResponse.text();
+                      let remoteTemplate: Template;
+                      if (item.name.endsWith(".yaml") || item.name.endsWith(".yml")) {
+                        remoteTemplate = YAML.parse(text) as Template;
+                      } else {
+                        remoteTemplate = JSON.parse(text) as Template;
+                      }
+                      const idx = templates.findIndex((x) => x.name === remoteTemplate.name);
+                      if (idx === -1) templates.push(remoteTemplate);
+                    }
+                  } catch (e) {}
+                } else {
+                  const name = item.name.replace(/\.(json|yaml|yml)$/, "");
+                  if (!templates.some((x) => x.name === name)) {
+                    templates.push({
+                      name: name,
+                      type: "template",
+                      gateway: "apigee",
+                      schemaVersion: "1.0.0",
+                      description: "",
+                      features: [],
+                      parameters: [],
+                      endpoints: [],
+                      targets: [],
+                    } as Template);
+                  }
+                }
               }
             }
           }
         }
+      } catch (e) {}
+
+      if (templates && templates.length > 0) {
+        this.writeCache("templates", templates);
+        this.templateListCache = templates.map((x) => x.name);
+      } else {
+        const stale = this.readStaleCache<Template>("templates");
+        if (stale && stale.length > 0) {
+          templates = stale;
+          this.templateListCache = templates.map((x) => x.name);
+        }
       }
-      if (templates && templates.length > 0) this.templateListCache = templates.map((x) => x.name);
+
       resolve(templates);
     });
   }
 
-  public async featuresList(): Promise<Feature[]> {
+  public async featuresList(forceRefresh: boolean = false): Promise<Feature[]> {
     return new Promise<Feature[]>(async (resolve, reject) => {
-      let features: Feature[] = [];
-
-      const candidateDirs: string[] = [];
-
-      if (this.featuresPath && this.featuresPath !== "./" && this.featuresPath !== ".") {
-        candidateDirs.push(this.featuresPath);
-      }
-
-      candidateDirs.push(
-        path.join(import.meta.dirname, "..", "features"),
-        path.join(import.meta.dirname, "..", "..", "repository", "features"),
-        path.join(import.meta.dirname, "..", "..", "data", "features"),
-        path.join(process.cwd(), "features"),
-        path.join(process.cwd(), "data", "features"),
-        path.join(process.cwd(), "repository", "features"),
-      );
-
-      const visitedDirs = new Set<string>();
-
-      for (const dir of candidateDirs) {
-        if (!dir || !fs.existsSync(dir)) continue;
-        const resolved = path.resolve(dir);
-        if (visitedDirs.has(resolved)) continue;
-        visitedDirs.add(resolved);
-
-        try {
-          const featureNames = fs.readdirSync(resolved);
-          for (const featurePath of featureNames) {
-            try {
-              const fullPath = path.join(resolved, featurePath);
-              if (featurePath.endsWith(".json")) {
-                const feature: Feature = JSON.parse(fs.readFileSync(fullPath, "utf8"));
-                if (feature && feature.type === "feature" && !features.some((f) => f.name === feature.name)) {
-                  features.push(feature);
-                }
-              } else if (featurePath.endsWith(".yaml") || featurePath.endsWith(".yml")) {
-                const feature: Feature = YAML.parse(fs.readFileSync(fullPath, "utf8"));
-                if (feature && feature.type === "feature" && !features.some((f) => f.name === feature.name)) {
-                  features.push(feature);
-                }
-              }
-            } catch (e) {}
-          }
-        } catch (e) {}
-      }
-
-      const defaultNames = ["ai-base-pre", "ai-base-post", "ai-chat-completions"];
-      for (const defName of defaultNames) {
-        if (!features.some((f) => f.name === defName)) {
-          features.push({
-            name: defName,
-            displayName: defName,
-            type: "feature",
-            description: "",
-            documentation: "",
-            categories: [],
-            parameters: [],
-            endpoints: [],
-            targets: [],
-            policies: [],
-          } as Feature);
+      if (!forceRefresh) {
+        const cached = this.readCache<Feature>("features");
+        if (cached && cached.length > 0) {
+          this.featureListCache = cached.map((x) => x.name);
+          return resolve(cached);
         }
       }
 
-      if (features && features.length > 0) this.featureListCache = features.map((x) => x.name);
+      let features: Feature[] = [];
+      const repoUrl = process.env.AFT_FEATURES_REPOSITORY || this.featuresRepository;
+
+      try {
+        const apiUrl = this.getRepoApiUrl(repoUrl);
+        const response = await fetch(apiUrl, {
+          headers: { "User-Agent": "apigee-templater" },
+        });
+
+        if (response.status === 200) {
+          const remoteFeatures: any = await response.json();
+          if (Array.isArray(remoteFeatures) && remoteFeatures.length > 0) {
+            const validItems = remoteFeatures.filter(
+              (item) =>
+                item &&
+                item.name &&
+                (item.name.endsWith(".json") || item.name.endsWith(".yaml") || item.name.endsWith(".yml")),
+            );
+
+            const fetchedFeatures = await Promise.all(
+              validItems.map(async (item) => {
+                if (item.download_url) {
+                  try {
+                    const downloadResponse = await fetch(item.download_url);
+                    if (downloadResponse.status === 200) {
+                      const text = await downloadResponse.text();
+                      let remoteFeature: Feature;
+                      if (item.name.endsWith(".yaml") || item.name.endsWith(".yml")) {
+                        remoteFeature = YAML.parse(text) as Feature;
+                      } else {
+                        remoteFeature = JSON.parse(text) as Feature;
+                      }
+                      if (remoteFeature && remoteFeature.name) {
+                        return remoteFeature;
+                      }
+                    }
+                  } catch (e) {}
+                }
+                const name = item.name.replace(/\.(json|yaml|yml)$/, "");
+                return {
+                  name: name,
+                  displayName: name,
+                  type: "feature",
+                  description: "",
+                  documentation: "",
+                  gateway: "apigee",
+                  schemaVersion: "1.0.0",
+                  categories: [],
+                  parameters: [],
+                  endpoints: [],
+                  targets: [],
+                  policies: [],
+                  resources: [],
+                } as Feature;
+              }),
+            );
+
+            for (const feature of fetchedFeatures) {
+              if (feature && !features.some((f) => f.name === feature.name)) {
+                features.push(feature);
+              }
+            }
+          }
+        }
+      } catch (e) {}
+
+      if (features && features.length > 0) {
+        this.writeCache("features", features);
+        this.featureListCache = features.map((x) => x.name);
+      } else {
+        const stale = this.readStaleCache<Feature>("features");
+        if (stale && stale.length > 0) {
+          features = stale;
+          this.featureListCache = features.map((x) => x.name);
+        }
+      }
+
       resolve(features);
     });
   }
@@ -244,6 +412,10 @@ export class ApigeeTemplaterService {
       if (templateString) {
         if (foundJson) result = JSON.parse(templateString);
         else result = YAML.parse(templateString);
+      } else {
+        const allTemplates = await this.templatesList();
+        const found = allTemplates.find((t) => t.name === tempName || t.name === name);
+        if (found) result = found;
       }
 
       resolve(result);
@@ -369,6 +541,10 @@ export class ApigeeTemplaterService {
       if (featureString) {
         if (foundJson) result = JSON.parse(featureString);
         else result = YAML.parse(featureString);
+      } else {
+        const allFeatures = await this.featuresList();
+        const found = allFeatures.find((f) => f.name === tempName || f.name === name || f.displayName === name);
+        if (found) result = found;
       }
 
       resolve(result);

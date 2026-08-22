@@ -655,8 +655,12 @@
       </button>
       <input type="file" id="file-input" accept=".yaml,.yml" style="display: none;" onchange="handleFileSelect(event)" />
       
+      <button class="btn" onclick="pasteYaml()">
+        📋 Paste YAML
+      </button>
+
       <button class="btn" onclick="copyYamlToClipboard()">
-        📋 Copy YAML
+        📄 Copy YAML
       </button>
       <button class="btn btn-primary" onclick="downloadYaml()">
         💾 Save File
@@ -724,6 +728,31 @@
         <button class="btn" style="padding: 2px 8px; font-size: 0.75rem;" onclick="toggleValidationPanel()">Close</button>
       </div>
       <div class="validation-list" id="validation-issues-list"></div>
+    </div>
+  </div>
+
+  <!-- Paste YAML Modal -->
+  <div class="modal-overlay" id="paste-modal">
+    <div class="modal" style="max-width: 900px; height: 80vh;">
+      <div class="modal-header">
+        <h3>Paste YAML Definition</h3>
+        <button class="btn" onclick="closePasteModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group flex-fill">
+          <label>Paste your Feature, Template, or Proxy YAML below:</label>
+          <textarea id="modal-paste-yaml" class="form-control" style="font-family: var(--font-code); font-size: 0.85rem;" placeholder="# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json&#10;gateway: apigee&#10;schemaVersion: 1.0.0&#10;name: my-proxy&#10;displayName: My Proxy&#10;type: proxy&#10;..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div style="font-size: 0.8rem; color: var(--text-muted);">
+          Tip: Supports full Proxy, Template, and Feature YAML definitions.
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn" onclick="closePasteModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="loadPastedYamlFromModal()">Load YAML</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -806,329 +835,727 @@
   </div>
 
   <script>
-    const EMBEDDED_SCHEMA = {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee-templater.schema.json",
-      "title": "Apigee Templater YAML Schema",
-      "description": "JSON Schema validating Apigee Templater YAML specifications (Templates, Features, and Proxies)",
-      "oneOf": [
-        { "$ref": "#/definitions/Feature" },
-        { "$ref": "#/definitions/Proxy" },
-        { "$ref": "#/definitions/Template" }
-      ],
-      "definitions": {
-        "Step": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "condition": { "type": "string" }
-          },
-          "required": ["name"],
-          "additionalProperties": false
-        },
-        "Flow": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "mode": { "type": "string", "enum": ["Request", "Response", ""] },
-            "position": { "type": "string" },
-            "condition": { "type": "string" },
-            "steps": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Step" }
-            }
-          },
-          "required": ["name"],
-          "additionalProperties": false
-        },
-        "FaultRule": {
-          "allOf": [
-            { "$ref": "#/definitions/Flow" },
-            {
-              "type": "object",
-              "properties": {
-                "alwaysEnforce": { "type": "boolean" }
-              }
-            }
-          ]
-        },
-        "Route": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "condition": { "type": "string" },
-            "target": { "type": "string" }
-          },
-          "required": ["name"],
-          "additionalProperties": false
-        },
-        "Endpoint": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "basePath": { "type": "string" },
-            "routes": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Route" }
-            }
-          },
-          "required": ["name", "basePath"],
-          "additionalProperties": false
-        },
-        "ProxyEndpoint": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "basePath": { "type": "string" },
-            "routes": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Route" }
-            },
-            "flows": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Flow" }
-            },
-            "postClientFlow": { "$ref": "#/definitions/Flow" },
-            "faultRules": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Flow" }
-            },
-            "defaultFaultRule": { "$ref": "#/definitions/FaultRule" }
-          },
-          "required": ["name"],
-          "additionalProperties": false
-        },
-        "Target": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "url": { "type": "string" },
-            "auth": { "type": "string" },
-            "scopes": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "aud": { "type": "string" }
-          },
-          "required": ["name"],
-          "additionalProperties": false
-        },
-        "ProxyTarget": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "url": { "type": "string" },
-            "auth": { "type": "string" },
-            "scopes": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "aud": { "type": "string" },
-            "flows": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Flow" }
-            },
-            "faultRules": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Flow" }
-            },
-            "defaultFaultRule": { "$ref": "#/definitions/FaultRule" },
-            "httpTargetConnection": { "type": ["object", "null"] },
-            "localTargetConnection": { "type": ["object", "null"] }
-          },
-          "required": ["name"],
-          "additionalProperties": false
-        },
-        "Policy": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "type": { "type": "string" },
-            "content": { "type": "object" }
-          },
-          "required": ["name", "type"],
-          "additionalProperties": false
-        },
-        "Resource": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "type": { "type": "string" },
-            "content": { "type": "string" }
-          },
-          "required": ["name", "type", "content"],
-          "additionalProperties": false
-        },
-        "Parameter": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "paths": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "displayName": { "type": "string" },
-            "description": { "type": "string" },
-            "maps": { "type": "object" },
-            "examples": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "default": { "type": "string" }
-          },
-          "required": ["name"],
-          "additionalProperties": false
-        },
-        "Test": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "description": { "type": "string" },
-            "url": { "type": "string" },
-            "path": { "type": "string" },
-            "method": { "type": "string" },
-            "headers": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "request": { "type": "string" },
-            "queryParams": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "variables": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "assertions": {
-              "type": "array",
-              "items": { "type": "string" }
-            }
-          },
-          "required": ["name"],
-          "additionalProperties": false
-        },
-        "Template": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "type": { "type": "string", "const": "template" },
-            "priority": { "type": "number" },
-            "description": { "type": "string" },
-            "features": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "parameters": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Parameter" }
-            },
-            "endpoints": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Endpoint" }
-            },
-            "targets": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Target" }
-            },
-            "tests": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Test" }
-            }
-          },
-          "required": ["name", "type"],
-          "additionalProperties": false
-        },
-        "Feature": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "displayName": { "type": "string" },
-            "uid": { "type": "string" },
-            "type": { "type": "string", "const": "feature" },
-            "description": { "type": "string" },
-            "documentation": { "type": "string" },
-            "priority": { "type": "number" },
-            "categories": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "parameters": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Parameter" }
-            },
-            "defaultEndpoint": { "$ref": "#/definitions/ProxyEndpoint" },
-            "defaultTarget": { "$ref": "#/definitions/ProxyTarget" },
-            "endpoints": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/ProxyEndpoint" }
-            },
-            "targets": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/ProxyTarget" }
-            },
-            "policies": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Policy" }
-            },
-            "resources": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Resource" }
-            },
-            "tests": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Test" }
-            }
-          },
-          "required": ["name", "type"],
-          "additionalProperties": false
-        },
-        "Proxy": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "displayName": { "type": "string" },
-            "uid": { "type": "string" },
-            "type": { "type": "string", "const": "proxy" },
-            "priority": { "type": "number" },
-            "categories": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "description": { "type": "string" },
-            "documentation": { "type": "string" },
-            "parameters": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Parameter" }
-            },
-            "endpoints": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/ProxyEndpoint" }
-            },
-            "targets": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/ProxyTarget" }
-            },
-            "policies": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Policy" }
-            },
-            "resources": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Resource" }
-            },
-            "tests": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/Test" }
-            }
-          },
-          "required": ["name", "type"],
-          "additionalProperties": false
+    // Embedded standard schemas for offline and fallback support
+    const SCHEMA_GATEWAY_1_0 = {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee.schema.v5.json",
+  "title": "Apigee Templater YAML Schema",
+  "description": "JSON Schema validating Apigee Templater YAML specifications (Templates, Features, and Proxies)",
+  "oneOf": [
+    { "$ref": "#/definitions/Feature" },
+    { "$ref": "#/definitions/Proxy" },
+    { "$ref": "#/definitions/Template" }
+  ],
+  "definitions": {
+    "Step": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "condition": { "type": "string" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "Flow": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "mode": { "type": "string", "enum": ["Request", "Response", ""] },
+        "position": { "type": "string" },
+        "condition": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Step" }
         }
-      }
-    };
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "FaultRule": {
+      "allOf": [
+        { "$ref": "#/definitions/Flow" },
+        {
+          "type": "object",
+          "properties": {
+            "alwaysEnforce": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "Route": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "condition": { "type": "string" },
+        "target": { "type": "string" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "Endpoint": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "basePath": { "type": "string" },
+        "routes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Route" }
+        }
+      },
+      "required": ["name", "basePath"],
+      "additionalProperties": false
+    },
+    "ProxyEndpoint": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "basePath": { "type": "string" },
+        "routes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Route" }
+        },
+        "flows": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Flow" }
+        },
+        "postClientFlow": { "$ref": "#/definitions/Flow" },
+        "faultRules": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Flow" }
+        },
+        "defaultFaultRule": { "$ref": "#/definitions/FaultRule" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "Target": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "auth": { "type": "string" },
+        "scopes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "aud": { "type": "string" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "HTTPTargetConnection": {
+      "type": "object",
+      "properties": {
+        "URL": { "type": "string" },
+        "Properties": { "type": "object" },
+        "SSLInfo": { "type": "object" },
+        "LoadBalancer": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "ProxyTarget": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "auth": { "type": "string" },
+        "scopes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "aud": { "type": "string" },
+        "flows": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Flow" }
+        },
+        "faultRules": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Flow" }
+        },
+        "defaultFaultRule": { "$ref": "#/definitions/FaultRule" },
+        "httpTargetConnection": {
+          "type": ["object", "null"],
+          "additionalProperties": true
+        },
+        "HTTPTargetConnection": {
+          "type": ["object", "null"],
+          "additionalProperties": true
+        },
+        "localTargetConnection": { "type": ["object", "null"] },
+        "LocalTargetConnection": { "type": ["object", "null"] }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "PolicyContent": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "continueOnError": { "type": "string" },
+            "enabled": { "type": "string" },
+            "async": { "type": "string" },
+            "timeLimit": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "DisplayName": { "type": "string" },
+        "Properties": { "type": "object" },
+        "Source": { "type": "string" },
+        "IncludeURL": { "type": "string" },
+        "ResourceURL": { "type": "string" },
+        "AssignTo": { "type": ["object", "string"] },
+        "IgnoreUnresolvedVariables": { "type": ["string", "boolean"] },
+        "AssignVariable": { "type": ["array", "object"] },
+        "Remove": { "type": "object" },
+        "Add": { "type": "object" },
+        "Set": { "type": "object" },
+        "Copy": { "type": "object" },
+        "Get": { "type": ["array", "object"] },
+        "Put": { "type": ["array", "object"] },
+        "Delete": { "type": ["array", "object"] },
+        "Key": { "type": "object" },
+        "Scope": { "type": "string" },
+        "ExclusiveCache": { "type": ["string", "boolean"] },
+        "ExpiryTimeInSecs": { "type": ["string", "number"] },
+        "Capture": { "type": ["array", "object"] },
+        "Collect": { "type": ["array", "object"] },
+        "FaultRules": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Flow" }
+        },
+        "DefaultFaultRule": { "$ref": "#/definitions/FaultRule" }
+      },
+      "additionalProperties": true
+    },
+    "Policy": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "content": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PolicyContent"
+          }
+        }
+      },
+      "required": ["name", "type"],
+      "additionalProperties": false
+    },
+    "Resource": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "content": { "type": "string" }
+      },
+      "required": ["name", "type", "content"],
+      "additionalProperties": false
+    },
+    "Parameter": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "displayName": { "type": "string" },
+        "description": { "type": "string" },
+        "maps": { "type": "object" },
+        "examples": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "default": { "type": "string" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "Test": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "url": { "type": "string" },
+        "path": { "type": "string" },
+        "method": { "type": "string" },
+        "headers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "request": { "type": "string" },
+        "queryParams": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "variables": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "assertions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "Template": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "const": "template" },
+        "gateway": { "type": "string" },
+        "schemaVersion": { "type": "string" },
+        "priority": { "type": "number" },
+        "description": { "type": "string" },
+        "documentation": { "type": "string" },
+        "features": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Parameter" }
+        },
+        "endpoints": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Endpoint" }
+        },
+        "targets": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Target" }
+        },
+        "tests": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Test" }
+        }
+      },
+      "required": ["name", "type", "gateway", "schemaVersion"],
+      "additionalProperties": false
+    },
+    "Feature": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "displayName": { "type": "string" },
+        "uid": { "type": "string" },
+        "type": { "type": "string", "const": "feature" },
+        "gateway": { "type": "string" },
+        "schemaVersion": { "type": "string" },
+        "description": { "type": "string" },
+        "documentation": { "type": "string" },
+        "priority": { "type": "number" },
+        "categories": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Parameter" }
+        },
+        "defaultEndpoint": { "$ref": "#/definitions/ProxyEndpoint" },
+        "defaultTarget": { "$ref": "#/definitions/ProxyTarget" },
+        "endpoints": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProxyEndpoint" }
+        },
+        "targets": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProxyTarget" }
+        },
+        "policies": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Policy" }
+        },
+        "resources": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Resource" }
+        },
+        "tests": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Test" }
+        }
+      },
+      "required": ["type", "gateway", "schemaVersion"],
+      "additionalProperties": false
+    },
+    "Proxy": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "displayName": { "type": "string" },
+        "uid": { "type": "string" },
+        "type": { "type": "string", "const": "proxy" },
+        "gateway": { "type": "string" },
+        "schemaVersion": { "type": "string" },
+        "priority": { "type": "number" },
+        "categories": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "description": { "type": "string" },
+        "documentation": { "type": "string" },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Parameter" }
+        },
+        "endpoints": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProxyEndpoint" }
+        },
+        "targets": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProxyTarget" }
+        },
+        "policies": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Policy" }
+        },
+        "resources": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Resource" }
+        },
+        "tests": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Test" }
+        }
+      },
+      "required": ["name", "type", "gateway", "schemaVersion"],
+      "additionalProperties": false
+    }
+  }
+};
 
-    const DEFAULT_YAML = `# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee-templater.schema.json
+    const SCHEMA_GATEWAY_0_9 = {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee.schema.v4.json",
+  "title": "Apigee Templater YAML Schema",
+  "description": "JSON Schema validating Apigee Templater YAML specifications (Templates, Features, and Proxies)",
+  "oneOf": [
+    { "$ref": "#/definitions/Feature" },
+    { "$ref": "#/definitions/Proxy" },
+    { "$ref": "#/definitions/Template" }
+  ],
+  "definitions": {
+    "Step": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "condition": { "type": "string" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "Flow": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "mode": { "type": "string", "enum": ["Request", "Response", ""] },
+        "position": { "type": "string" },
+        "condition": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Step" }
+        }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "FaultRule": {
+      "allOf": [
+        { "$ref": "#/definitions/Flow" },
+        {
+          "type": "object",
+          "properties": {
+            "alwaysEnforce": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "Route": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "condition": { "type": "string" },
+        "target": { "type": "string" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "Endpoint": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "basePath": { "type": "string" },
+        "routes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Route" }
+        }
+      },
+      "required": ["name", "basePath"],
+      "additionalProperties": false
+    },
+    "ProxyEndpoint": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "basePath": { "type": "string" },
+        "routes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Route" }
+        },
+        "flows": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Flow" }
+        },
+        "postClientFlow": { "$ref": "#/definitions/Flow" },
+        "faultRules": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Flow" }
+        },
+        "defaultFaultRule": { "$ref": "#/definitions/FaultRule" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "Target": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "auth": { "type": "string" },
+        "scopes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "aud": { "type": "string" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "ProxyTarget": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "auth": { "type": "string" },
+        "scopes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "aud": { "type": "string" },
+        "flows": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Flow" }
+        },
+        "faultRules": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Flow" }
+        },
+        "defaultFaultRule": { "$ref": "#/definitions/FaultRule" },
+        "httpTargetConnection": { "type": ["object", "null"] },
+        "localTargetConnection": { "type": ["object", "null"] }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "Policy": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "content": { "type": "object" }
+      },
+      "required": ["name", "type"],
+      "additionalProperties": false
+    },
+    "Resource": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "content": { "type": "string" }
+      },
+      "required": ["name", "type", "content"],
+      "additionalProperties": false
+    },
+    "Parameter": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "displayName": { "type": "string" },
+        "description": { "type": "string" },
+        "maps": { "type": "object" },
+        "examples": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "default": { "type": "string" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "Test": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "url": { "type": "string" },
+        "path": { "type": "string" },
+        "method": { "type": "string" },
+        "headers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "request": { "type": "string" },
+        "queryParams": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "variables": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "assertions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "Template": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "const": "template" },
+        "priority": { "type": "number" },
+        "description": { "type": "string" },
+        "features": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Parameter" }
+        },
+        "endpoints": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Endpoint" }
+        },
+        "targets": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Target" }
+        },
+        "tests": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Test" }
+        }
+      },
+      "required": ["name", "type"],
+      "additionalProperties": false
+    },
+    "Feature": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "displayName": { "type": "string" },
+        "uid": { "type": "string" },
+        "type": { "type": "string", "const": "feature" },
+        "description": { "type": "string" },
+        "documentation": { "type": "string" },
+        "priority": { "type": "number" },
+        "categories": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Parameter" }
+        },
+        "defaultEndpoint": { "$ref": "#/definitions/ProxyEndpoint" },
+        "defaultTarget": { "$ref": "#/definitions/ProxyTarget" },
+        "endpoints": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProxyEndpoint" }
+        },
+        "targets": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProxyTarget" }
+        },
+        "policies": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Policy" }
+        },
+        "resources": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Resource" }
+        },
+        "tests": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Test" }
+        }
+      },
+      "required": ["name", "type"],
+      "additionalProperties": false
+    },
+    "Proxy": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "displayName": { "type": "string" },
+        "uid": { "type": "string" },
+        "type": { "type": "string", "const": "proxy" },
+        "priority": { "type": "number" },
+        "categories": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "description": { "type": "string" },
+        "documentation": { "type": "string" },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Parameter" }
+        },
+        "endpoints": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProxyEndpoint" }
+        },
+        "targets": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProxyTarget" }
+        },
+        "policies": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Policy" }
+        },
+        "resources": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Resource" }
+        },
+        "tests": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Test" }
+        }
+      },
+      "required": ["name", "type"],
+      "additionalProperties": false
+    }
+  }
+};
+
+    const DEFAULT_YAML = `# yaml-language-server: \$schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
 name: sample-proxy
 displayName: Sample Proxy
 type: proxy
@@ -1160,7 +1587,6 @@ policies:
 
     // Global State
     let codeMirrorEditor = null;
-    let ajvValidator = null;
     let currentYamlObj = {};
     let currentFileName = "sample-proxy.yaml";
     let isProgrammaticEdit = false;
@@ -1169,9 +1595,12 @@ policies:
     let currentEditingPolicyIndex = -1;
     let currentEditingStepCtx = null;
 
+    // Caches for compiled validators and fetched schemas
+    const validatorCache = new Map();
+    const fetchedSchemaCache = new Map();
+
     // Initialization
     window.addEventListener('DOMContentLoaded', () => {
-      initAjv();
       initCodeMirror();
       initDragAndDrop();
       initResizer();
@@ -1206,7 +1635,7 @@ policies:
         if (leftWidthPercent < 20) leftWidthPercent = 20;
         if (leftWidthPercent > 80) leftWidthPercent = 80;
 
-        leftPane.style.width = `${leftWidthPercent}%`;
+        leftPane.style.width = leftWidthPercent + '%';
         leftPane.style.flex = 'none';
 
         if (codeMirrorEditor) {
@@ -1225,18 +1654,6 @@ policies:
           }
         }
       });
-    }
-
-    function initAjv() {
-      try {
-        const ajvClass = window.ajv7 || window.Ajv;
-        if (ajvClass) {
-          const ajv = new ajvClass({ allErrors: true, verbose: true, strict: false });
-          ajvValidator = ajv.compile(EMBEDDED_SCHEMA);
-        }
-      } catch (e) {
-        console.error("AJV Init Error:", e);
-      }
     }
 
     function initCodeMirror() {
@@ -1282,40 +1699,83 @@ policies:
       processYamlChange(text);
     }
 
-    // Schema compilation cache
-    const validatorCache = new Map();
+    // Dynamic Schema Resolver: resolves schema according to yaml-language-server header tag
+    async function resolveSchema(schemaUrl) {
+      if (!schemaUrl) {
+        return { schema: SCHEMA_GATEWAY_1_0, source: 'default (1.0)' };
+      }
 
-    // Async schema resolver that parses $schema URL and validates against targeted sub-definition
+      if (fetchedSchemaCache.has(schemaUrl)) {
+        return fetchedSchemaCache.get(schemaUrl);
+      }
+
+      let fetched = null;
+      let sourceInfo = schemaUrl;
+
+      // 1. Try fetching schema from URL or relative path directly
+      try {
+        const res = await fetch(schemaUrl);
+        if (res.ok) {
+          fetched = await res.json();
+          sourceInfo = 'fetched from ' + schemaUrl;
+        }
+      } catch (err) {
+        // Network/CORS/file protocol fetch failed
+      }
+
+      // 2. If remote fetch failed, try relative path lookup for recognizable schema filenames
+      if (!fetched) {
+        const urlParts = schemaUrl.split('/');
+        const fileName = urlParts[urlParts.length - 1].split('?')[0];
+        if (fileName) {
+          const fallbackPaths = ['../schema/' + fileName, './schema/' + fileName, 'schema/' + fileName];
+          for (const p of fallbackPaths) {
+            try {
+              const res = await fetch(p);
+              if (res.ok) {
+                fetched = await res.json();
+                sourceInfo = 'fetched from ' + p;
+                break;
+              }
+            } catch (e) {}
+          }
+        }
+      }
+
+      // 3. Fallback to embedded schema versions based on schemaUrl name/version
+      if (!fetched) {
+        const lowerUrl = schemaUrl.toLowerCase();
+        if (lowerUrl.includes('0.9') || lowerUrl.includes('v4')) {
+          fetched = SCHEMA_GATEWAY_0_9;
+          sourceInfo = 'embedded 0.9 schema';
+        } else {
+          fetched = SCHEMA_GATEWAY_1_0;
+          sourceInfo = 'embedded 1.0 schema';
+        }
+      }
+
+      const result = { schema: fetched, source: sourceInfo };
+      fetchedSchemaCache.set(schemaUrl, result);
+      return result;
+    }
+
+    // Async schema resolver that compiles validator for targeted sub-definition
     async function getValidatorForYaml(schemaUrl, yamlObj) {
       const ajvClass = window.ajv7 || window.Ajv;
-      if (!ajvClass) return ajvValidator;
+      if (!ajvClass) return null;
 
       const typeMap = { feature: "Feature", proxy: "Proxy", template: "Template" };
       const objType = (yamlObj && yamlObj.type) ? String(yamlObj.type).toLowerCase() : "";
       const targetDefName = typeMap[objType];
-      const cacheKey = (schemaUrl || "embedded") + ":" + (targetDefName || "root");
+      const cacheKey = (schemaUrl || "default") + ":" + (targetDefName || "root");
 
       if (validatorCache.has(cacheKey)) {
-        return validatorCache.get(cacheKey);
+        return { validator: validatorCache.get(cacheKey), schemaUrl, targetDefName };
       }
 
-      let fetchedSchema = null;
-      if (schemaUrl) {
-        try {
-          let fetchPath = schemaUrl;
-          if (schemaUrl.includes('apigee-templater.schema.json')) {
-            fetchPath = '../schema/apigee-templater.schema.json';
-          }
-          const res = await fetch(fetchPath);
-          if (res.ok) {
-            fetchedSchema = await res.json();
-          }
-        } catch (e) {
-          console.warn("Could not fetch external $schema, using embedded schema", e);
-        }
-      }
+      const { schema: schemaToCompile, source } = await resolveSchema(schemaUrl);
+      if (!schemaToCompile) return null;
 
-      const schemaToCompile = fetchedSchema || EMBEDDED_SCHEMA;
       try {
         const ajv = new ajvClass({ allErrors: true, verbose: true, strict: false });
         let compiled = null;
@@ -1332,10 +1792,10 @@ policies:
         }
 
         validatorCache.set(cacheKey, compiled);
-        return compiled;
+        return { validator: compiled, schemaUrl, targetDefName, source };
       } catch (err) {
         console.error("Schema compile error:", err);
-        return ajvValidator;
+        return null;
       }
     }
 
@@ -1344,13 +1804,15 @@ policies:
       const issues = [];
 
       // Extract $schema directive tag from header comment
-      const headerMatch = text.match(/#\s*yaml-language-server:\s*\$schema=(\S+)/i) || text.match(/#\s*\$schema:\s*(\S+)/i);
-      const schemaUrl = headerMatch ? headerMatch[1] : null;
+      const headerMatch = text.match(/#\s*yaml-language-server:\s*\$schema=(\S+)/i) ||
+                          text.match(/#\s*\$schema:\s*(\S+)/i) ||
+                          text.match(/#\s*schema:\s*(\S+)/i);
+      const schemaUrl = headerMatch ? headerMatch[1].trim() : null;
 
       if (!schemaUrl) {
         issues.push({
           type: 'warning',
-          message: 'Missing $schema header tag (e.g. # yaml-language-server: $schema=...).'
+          message: 'Missing $schema header tag (e.g. # yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json).'
         });
       }
 
@@ -1360,28 +1822,30 @@ policies:
       } catch (err) {
         issues.push({
           type: 'error',
-          message: `YAML Syntax Error: ${err.message}`
+          message: 'YAML Syntax Error: ' + err.message
         });
-        updateDiagnosticsUI(false, issues);
+        updateDiagnosticsUI(false, issues, schemaUrl);
         return;
       }
 
-      // Dynamic Schema Validation via $schema directive
-      const validator = await getValidatorForYaml(schemaUrl, currentYamlObj);
-      if (validator) {
-        const valid = validator(currentYamlObj);
-        if (!valid && validator.errors) {
-          validator.errors.forEach(err => {
+      // Dynamic Schema Validation via header tag
+      const valResult = await getValidatorForYaml(schemaUrl, currentYamlObj);
+      if (valResult && valResult.validator) {
+        const valid = valResult.validator(currentYamlObj);
+        if (!valid && valResult.validator.errors) {
+          valResult.validator.errors.forEach(err => {
             const path = err.instancePath || '/';
             let detail = err.message;
             if (err.keyword === 'additionalProperties' && err.params && err.params.additionalProperty) {
-              detail = `unexpected property "${err.params.additionalProperty}"`;
+              detail = 'unexpected property "' + err.params.additionalProperty + '"';
             } else if (err.keyword === 'required' && err.params && err.params.missingProperty) {
-              detail = `missing required property "${err.params.missingProperty}"`;
+              detail = 'missing required property "' + err.params.missingProperty + '"';
+            } else if (err.keyword === 'enum' && err.params && err.params.allowedValues) {
+              detail = 'must be one of: ' + err.params.allowedValues.join(', ');
             }
             issues.push({
               type: 'error',
-              message: `Schema Error at ${path}: ${detail}`
+              message: 'Schema Error at ' + path + ': ' + detail
             });
           });
         }
@@ -1394,23 +1858,23 @@ policies:
           if (!definedPolicies.has(step.name)) {
             issues.push({
               type: 'warning',
-              message: `Step "${step.name}" in flow "${flowName}" references an undefined policy.`
+              message: 'Step "' + step.name + '" in flow "' + flowName + '" references an undefined policy.'
             });
           }
         });
       };
 
       const checkFlows = (flows, parentName) => {
-        (flows || []).forEach(f => checkSteps(f.steps, `${parentName} -> ${f.name}`));
+        (flows || []).forEach(f => checkSteps(f.steps, parentName + ' -> ' + f.name));
       };
 
       if (currentYamlObj.defaultEndpoint) checkFlows(currentYamlObj.defaultEndpoint.flows, 'defaultEndpoint');
-      (currentYamlObj.endpoints || []).forEach(ep => checkFlows(ep.flows, `Endpoint ${ep.name}`));
+      (currentYamlObj.endpoints || []).forEach(ep => checkFlows(ep.flows, 'Endpoint ' + ep.name));
       if (currentYamlObj.defaultTarget) checkFlows(currentYamlObj.defaultTarget.flows, 'defaultTarget');
-      (currentYamlObj.targets || []).forEach(tg => checkFlows(tg.flows, `Target ${tg.name}`));
+      (currentYamlObj.targets || []).forEach(tg => checkFlows(tg.flows, 'Target ' + tg.name));
 
       const errorCount = issues.filter(i => i.type === 'error').length;
-      updateDiagnosticsUI(errorCount === 0, issues);
+      updateDiagnosticsUI(errorCount === 0, issues, schemaUrl, valResult ? valResult.source : null);
 
       // Render Visual Diagram Pipeline
       renderVisualFlows(currentYamlObj);
@@ -1419,27 +1883,35 @@ policies:
     }
 
     // Diagnostics Drawer & Status Badge UI
-    function updateDiagnosticsUI(isValid, issues) {
+    function updateDiagnosticsUI(isValid, issues, schemaUrl, schemaSource) {
       const badge = document.getElementById('status-btn');
       const text = document.getElementById('status-text');
       const list = document.getElementById('validation-issues-list');
+      const panelTitle = document.getElementById('validation-panel-title');
 
       const errors = issues.filter(i => i.type === 'error');
 
       if (isValid && errors.length === 0) {
         badge.className = 'status-badge status-valid';
-        text.innerText = issues.length > 0 ? `${issues.length} Warnings` : 'Valid';
+        text.innerText = issues.length > 0 ? (issues.length + ' Warnings') : 'Valid';
       } else {
         badge.className = 'status-badge status-invalid';
-        text.innerText = `${errors.length} Errors`;
+        text.innerText = errors.length + ' Errors';
       }
+
+      let schemaNameDisplay = 'default (1.0)';
+      if (schemaUrl) {
+        const parts = schemaUrl.split('/');
+        schemaNameDisplay = parts[parts.length - 1] || schemaUrl;
+      }
+      panelTitle.innerHTML = 'Schema Diagnostics <span style="font-size: 0.75rem; font-weight: normal; color: var(--accent); margin-left: 8px;">(' + schemaNameDisplay + (schemaSource ? ' - ' + schemaSource : '') + ')</span>';
 
       list.innerHTML = '';
       issues.forEach(iss => {
         const div = document.createElement('div');
         const isErr = iss.type === 'error';
-        div.className = `issue-item ${isErr ? 'issue-error' : 'issue-warning'}`;
-        div.innerHTML = `<span>${isErr ? '❌' : '⚠️'}</span> <span>${iss.message}</span>`;
+        div.className = 'issue-item ' + (isErr ? 'issue-error' : 'issue-warning');
+        div.innerHTML = '<span>' + (isErr ? '❌' : '⚠️') + '</span> <span>' + iss.message + '</span>';
         div.onclick = () => jumpToIssueInText(iss.message);
         list.appendChild(div);
       });
@@ -1533,7 +2005,7 @@ policies:
 
         const sec = document.createElement('div');
         sec.className = 'flow-section';
-        sec.innerHTML = `<div class="section-title">${title}</div>`;
+        sec.innerHTML = '<div class="section-title">' + title + '</div>';
 
         const pipeline = document.createElement('div');
         pipeline.className = 'flow-pipeline';
@@ -1556,7 +2028,7 @@ policies:
           const steps = flow.steps || [];
 
           if (steps.length === 0) {
-            stepList.innerHTML = `<div style="color: var(--text-muted); font-size: 0.78rem; font-style: italic; text-align: center; padding: 8px;">No policy steps in this flow. Click "+ Add Step" to attach policies.</div>`;
+            stepList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.78rem; font-style: italic; text-align: center; padding: 8px;">No policy steps in this flow. Click "+ Add Step" to attach policies.</div>';
           } else {
             steps.forEach((step, sIdx) => {
               if (sIdx > 0) {
@@ -1601,10 +2073,10 @@ policies:
         container.appendChild(sec);
       };
 
-      if (obj.defaultEndpoint) createFlowSection(`Default Endpoint (${obj.defaultEndpoint.basePath || ''})`, obj.defaultEndpoint.flows, 'defaultEndpoint');
-      (obj.endpoints || []).forEach((ep, i) => createFlowSection(`Endpoint: ${ep.name} (${ep.basePath})`, ep.flows, `endpoint-${i}`));
-      if (obj.defaultTarget) createFlowSection(`Default Target (${obj.defaultTarget.url || ''})`, obj.defaultTarget.flows, 'defaultTarget');
-      (obj.targets || []).forEach((tg, i) => createFlowSection(`Target: ${tg.name}`, tg.flows, `target-${i}`));
+      if (obj.defaultEndpoint) createFlowSection('Default Endpoint (' + (obj.defaultEndpoint.basePath || '') + ')', obj.defaultEndpoint.flows, 'defaultEndpoint');
+      (obj.endpoints || []).forEach((ep, i) => createFlowSection('Endpoint: ' + ep.name + ' (' + ep.basePath + ')', ep.flows, 'endpoint-' + i));
+      if (obj.defaultTarget) createFlowSection('Default Target (' + (obj.defaultTarget.url || '') + ')', obj.defaultTarget.flows, 'defaultTarget');
+      (obj.targets || []).forEach((tg, i) => createFlowSection('Target: ' + tg.name, tg.flows, 'target-' + i));
     }
 
     // Render Policies
@@ -1635,7 +2107,7 @@ policies:
       container.innerHTML = '';
 
       if (!obj.resources || obj.resources.length === 0) {
-        container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem;">No external JS resources defined.</div>`;
+        container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem;">No external JS resources defined.</div>';
         return;
       }
 
@@ -1667,7 +2139,7 @@ policies:
       currentEditingPolicyIndex = index;
       const pol = currentYamlObj.policies[index];
 
-      document.getElementById('policy-modal-title').innerText = `Edit Policy: ${pol.name}`;
+      document.getElementById('policy-modal-title').innerText = 'Edit Policy: ' + pol.name;
       document.getElementById('modal-policy-name').value = pol.name;
       document.getElementById('modal-policy-type').value = pol.type;
 
@@ -1758,7 +2230,7 @@ policies:
       (currentYamlObj.policies || []).forEach(p => {
         const opt = document.createElement('option');
         opt.value = p.name;
-        opt.innerText = `${p.name} (${p.type})`;
+        opt.innerText = p.name + ' (' + p.type + ')';
         if (p.name === selectedVal) opt.selected = true;
         select.appendChild(opt);
       });
@@ -1812,7 +2284,7 @@ policies:
         closeStepModal();
         openEditPolicyModal(policyIndex);
       } else {
-        alert(`Policy "${selectedPolicyName}" not found in policies list.`);
+        alert('Policy "' + selectedPolicyName + '" not found in policies list.');
       }
     }
 
@@ -1820,7 +2292,7 @@ policies:
     function updateYamlFromObj() {
       let newYamlText = jsyaml.dump(currentYamlObj, { lineWidth: -1, noRefs: true });
       if (currentHeaderComments) {
-        newYamlText = currentHeaderComments + "\n" + newYamlText;
+        newYamlText = currentHeaderComments + '\n' + newYamlText;
       }
       setYamlContent(newYamlText);
     }
@@ -1869,6 +2341,59 @@ policies:
       reader.readAsText(file);
     }
 
+    // Paste YAML Handlers
+    async function pasteYaml() {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        try {
+          const text = await navigator.clipboard.readText();
+          if (text && text.trim()) {
+            loadYamlString(text);
+            return;
+          }
+        } catch (err) {
+          console.warn('Clipboard read access denied or unavailable, opening paste modal:', err);
+        }
+      }
+      openPasteModal();
+    }
+
+    function openPasteModal() {
+      document.getElementById('modal-paste-yaml').value = '';
+      document.getElementById('paste-modal').classList.add('open');
+      setTimeout(() => {
+        document.getElementById('modal-paste-yaml').focus();
+      }, 50);
+    }
+
+    function closePasteModal() {
+      document.getElementById('paste-modal').classList.remove('open');
+    }
+
+    function loadPastedYamlFromModal() {
+      const text = document.getElementById('modal-paste-yaml').value;
+      if (text && text.trim()) {
+        loadYamlString(text);
+        closePasteModal();
+      } else {
+        alert('Please paste some YAML content into the textarea.');
+      }
+    }
+
+    function loadYamlString(text) {
+      setYamlContent(text);
+      try {
+        const parsed = jsyaml.load(text);
+        if (parsed && parsed.name) {
+          currentFileName = parsed.name + '.yaml';
+        } else {
+          currentFileName = 'pasted.yaml';
+        }
+      } catch (e) {
+        currentFileName = 'pasted.yaml';
+      }
+      document.getElementById('current-filename').innerText = currentFileName;
+    }
+
     function copyYamlToClipboard() {
       navigator.clipboard.writeText(codeMirrorEditor.getValue());
       alert('YAML content copied to clipboard!');
@@ -1896,7 +2421,7 @@ policies:
           return;
         } catch (err) {
           if (err.name === 'AbortError') return; // User canceled
-          console.warn("SaveFilePicker failed, falling back to download link", err);
+          console.warn('SaveFilePicker failed, falling back to download link', err);
         }
       }
 

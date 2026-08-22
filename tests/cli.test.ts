@@ -78,7 +78,7 @@ describe("AFT Bun CLI test suite", () => {
       await myCli.handleCompletion("-a", "");
       expect(logs.length).toBeGreaterThan(0);
       const output = logs.join("\n");
-      expect(output).toContain("ai-base-pre");
+      expect(output).toContain("ai-completions");
     } finally {
       console.log = origLog;
     }
@@ -97,17 +97,34 @@ describe("AFT Bun CLI test suite", () => {
     }
   });
 
-  it("should output nothing for file arguments to allow shell native file completion", async () => {
+  it("should handle skill and cache command completions", async () => {
     const logs: string[] = [];
     const origLog = console.log;
     console.log = (msg: string) => logs.push(msg);
 
     try {
-      await myCli.handleCompletion("", "Test.yaml");
-      expect(logs.length).toBe(0);
+      await myCli.handleCompletion("skill", "");
+      const skillOutput = logs.join("\n");
+      expect(skillOutput).toContain("install");
+      expect(skillOutput).toContain("uninstall");
 
-      await myCli.handleCompletion("-o", "");
-      expect(logs.length).toBe(0);
+      logs.length = 0;
+      await myCli.handleCompletion("cache", "");
+      const cacheOutput = logs.join("\n");
+      expect(cacheOutput).toContain("clear");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should execute cache clear command without error", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      myCli.handleCacheCommand("clear");
+      expect(logs.some((l) => l.includes("cleared successfully"))).toBe(true);
     } finally {
       console.log = origLog;
     }

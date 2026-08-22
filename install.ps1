@@ -24,4 +24,9 @@ if ($UserPath -split ";" -notcontains $InstallDir) {
 }
 
 Write-Host "`nSuccessfully installed 'aft' to $ExePath" -ForegroundColor Green
-Write-Host "Run 'aft -h' to get started! (You may need to restart your terminal)" -ForegroundColor Green
+Write-Host "`nRecommended next steps:" -ForegroundColor Cyan
+Write-Host "  1. Enable shell auto-completion:" -ForegroundColor White
+Write-Host "     aft completion install" -ForegroundColor Yellow
+Write-Host "  2. Install AI coding assistant skill (Antigravity, Gemini CLI, Claude, Cursor):" -ForegroundColor White
+Write-Host "     aft skill install" -ForegroundColor Yellow
+Write-Host "`nRun 'aft -h' to get started! (You may need to restart your terminal)" -ForegroundColor Green
