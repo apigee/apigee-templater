@@ -14,11 +14,19 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ajv/8.12.0/ajv7.min.js"></script>
 
-  <!-- CodeMirror 5 (Lightweight, synchronous, rock-solid) -->
+  <!-- CodeMirror 5 Core, Modes & Addons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/yaml/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/javascript-hint.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/anyword-hint.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
 
   <style>
     :root {
@@ -67,8 +75,9 @@
     }
 
     .logo-badge {
-      background: linear-gradient(135deg, #0284c7, #a855f7);
-      color: white;
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border);
       font-weight: 700;
       font-size: 0.85rem;
       padding: 4px 8px;
@@ -255,14 +264,52 @@
       border-radius: 8px;
       margin-bottom: 20px;
       overflow: hidden;
+      transition: border-color 0.2s;
     }
 
     .section-title {
-      padding: 12px 16px;
+      padding: 10px 16px;
       background: var(--bg-card);
       font-weight: 600;
       font-size: 0.9rem;
       border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s;
+    }
+
+    .section-title:hover {
+      background: var(--bg-active);
+    }
+
+    .flow-section.collapsed .flow-pipeline,
+    .flow-section.collapsed .flow-section-meta {
+      display: none;
+    }
+
+    .flow-section.collapsed .section-title {
+      border-bottom: none;
+    }
+
+    .collapse-chevron {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      min-height: 16px;
+      flex-shrink: 0;
+      transition: transform 0.2s ease;
+      color: var(--text-muted);
+    }
+
+    .flow-section.collapsed .collapse-chevron,
+    .pipeline-lane.collapsed .collapse-chevron {
+      transform: rotate(-90deg);
     }
 
     .flow-pipeline {
@@ -277,6 +324,11 @@
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 12px;
+      transition: padding 0.2s;
+    }
+
+    .pipeline-lane.collapsed {
+      padding-bottom: 12px;
     }
 
     .lane-header {
@@ -290,6 +342,21 @@
       background: var(--bg-card);
       padding: 6px 12px;
       border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+    }
+
+    .lane-header:hover {
+      background: var(--bg-active);
+    }
+
+    .pipeline-lane.collapsed .lane-header {
+      margin-bottom: 0;
+    }
+
+    .pipeline-lane.collapsed .step-list {
+      display: none;
     }
 
     .flow-direction-badge {
@@ -333,30 +400,69 @@
       border: 1px solid var(--border);
       border-left: 4px solid var(--accent);
       border-radius: 6px;
-      padding: 10px 14px;
       font-size: 0.85rem;
       display: flex;
-      flex-direction: column;
-      gap: 4px;
-      cursor: grab;
+      flex-direction: row;
+      align-items: stretch;
+      cursor: pointer;
       position: relative;
       transition: all 0.2s;
       width: 100%;
+      overflow: hidden;
     }
 
     .step-card:hover {
       border-color: var(--accent);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transform: translateY(-1px);
     }
 
-    .step-card:active {
+    .step-drag-handle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      min-width: 34px;
+      background: rgba(15, 23, 42, 0.5);
+      border-right: 1px solid var(--border);
+      cursor: grab;
+      color: var(--text-muted);
+      transition: background 0.2s, color 0.2s;
+      user-select: none;
+    }
+
+    .step-drag-handle:hover {
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.15);
+    }
+
+    .step-drag-handle:active {
       cursor: grabbing;
     }
 
+    .step-card-body {
+      flex: 1;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
     .step-card.dragging-card {
-      opacity: 0.3;
+      opacity: 0.35;
       border-style: dashed;
       background: var(--bg-card);
+    }
+
+    .step-card.drag-over-top {
+      border-top: 3px solid var(--accent) !important;
+      box-shadow: 0 -4px 12px var(--accent-glow);
+    }
+
+    .step-card.drag-over-bottom {
+      border-bottom: 3px solid var(--accent) !important;
+      box-shadow: 0 4px 12px var(--accent-glow);
     }
 
     .step-card-header {
@@ -391,28 +497,25 @@
     .step-name {
       font-weight: 600;
       font-family: var(--font-code);
-      cursor: pointer;
     }
 
     .step-type {
       font-size: 0.7rem;
       color: var(--text-muted);
       text-transform: uppercase;
-      cursor: pointer;
     }
 
     .step-condition {
       font-size: 0.72rem;
       font-family: var(--font-code);
       background: var(--bg-primary);
-      padding: 2px 6px;
+      padding: 3px 8px;
       border-radius: 4px;
       color: var(--warning);
-      max-width: 220px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      cursor: pointer;
+      width: 100%;
+      box-sizing: border-box;
+      word-break: break-word;
+      line-height: 1.3;
     }
 
     .policy-grid {
@@ -427,15 +530,79 @@
       border-radius: 8px;
       padding: 12px;
       cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
-    .policy-card:hover { border-color: var(--accent); }
+    .policy-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .policy-card.unused {
+      opacity: 0.6;
+      border-style: dashed;
+      background: rgba(30, 41, 59, 0.4);
+    }
+
+    .policy-card.unused:hover {
+      opacity: 0.95;
+      border-color: var(--accent);
+    }
 
     .policy-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
+      gap: 6px;
+    }
+
+    .policy-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .policy-ref-badge {
+      font-size: 0.68rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .policy-ref-badge.ref-active {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .policy-ref-badge.ref-unused {
+      background: rgba(148, 163, 184, 0.12);
+      color: var(--text-muted);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .btn-card-action {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 2px 5px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .btn-card-action:hover {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.3);
     }
 
     .policy-type-badge {
@@ -445,6 +612,7 @@
       padding: 2px 6px;
       border-radius: 4px;
       font-weight: 600;
+      white-space: nowrap;
     }
 
     /* Diagnostics Drawer */
@@ -635,9 +803,35 @@
       width: 100%;
     }
 
-    .form-control:focus {
-      outline: none;
-      border-color: var(--accent);
+    /* CodeMirror Modal Customization & Hints */
+    .modal .CodeMirror {
+      height: 100% !important;
+      min-height: 140px;
+      font-family: var(--font-code);
+      font-size: 0.88rem;
+    }
+
+    .CodeMirror-hints {
+      background: #1e293b !important;
+      border: 1px solid #475569 !important;
+      border-radius: 6px !important;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
+      font-family: var(--font-code) !important;
+      font-size: 0.82rem !important;
+      padding: 4px !important;
+      z-index: 10000 !important;
+    }
+
+    .CodeMirror-hint {
+      color: #f8fafc !important;
+      border-radius: 4px !important;
+      padding: 4px 8px !important;
+    }
+
+    .CodeMirror-hint-active {
+      background: #38bdf8 !important;
+      color: #0f172a !important;
+      font-weight: 600 !important;
     }
   </style>
 </head>
@@ -645,25 +839,24 @@
 
   <header>
     <div class="brand">
-      <div class="logo-badge">APIGEE</div>
-      <div class="title">Templater Proxy & Feature Editor</div>
+      <div class="logo-badge">Aft</div>
+      <div class="title">Templater Editor</div>
       <span class="file-tag" id="current-filename">sample-proxy.yaml</span>
     </div>
     <div class="controls">
       <button class="btn" onclick="document.getElementById('file-input').click()">
-        📁 Open File
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        Open File
       </button>
       <input type="file" id="file-input" accept=".yaml,.yml" style="display: none;" onchange="handleFileSelect(event)" />
-      
-      <button class="btn" onclick="pasteYaml()">
-        📋 Paste YAML
-      </button>
 
       <button class="btn" onclick="copyYamlToClipboard()">
-        📄 Copy YAML
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        Copy YAML
       </button>
       <button class="btn btn-primary" onclick="downloadYaml()">
-        💾 Save File
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+        Save File
       </button>
 
       <div id="status-btn" class="status-badge status-valid" onclick="toggleValidationPanel()">
@@ -685,6 +878,13 @@
       </div>
 
       <div class="pane-content" id="visual-tab-flows">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 16px; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <h3 style="font-size: 0.9rem; color: var(--text-muted); margin: 0;">Flows Pipeline</h3>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn" onclick="openAddEndpointModal()">+ Add Endpoint</button>
+            <button class="btn" onclick="openAddTargetModal()">+ Add Target</button>
+          </div>
+        </div>
         <div id="flows-builder"></div>
       </div>
 
@@ -697,6 +897,10 @@
       </div>
 
       <div class="pane-content" id="visual-tab-resources" style="display: none;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 16px; align-items: center;">
+          <h3 style="font-size: 0.9rem; color: var(--text-muted);">Defined Resources</h3>
+          <button class="btn" onclick="openAddResourceModal()">+ Add Resource</button>
+        </div>
         <div id="resources-container"></div>
       </div>
     </div>
@@ -708,7 +912,14 @@
     <div class="pane pane-editor">
       <div class="pane-header">
         <span>YAML Source Definition</span>
-        <span style="font-size: 0.75rem; color: var(--text-muted);">Live Sync</span>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <button class="btn" style="padding: 2px 8px; font-size: 0.75rem; text-transform: none; display: flex; align-items: center; gap: 4px;" onclick="jumpYamlToTop()" title="Jump to Top of YAML">
+            ▲ Top
+          </button>
+          <button class="btn" style="padding: 2px 8px; font-size: 0.75rem; text-transform: none; display: flex; align-items: center; gap: 4px;" onclick="jumpYamlToBottom()" title="Jump to Bottom of YAML">
+            ▼ Bottom
+          </button>
+        </div>
       </div>
       <div style="flex: 1; height: calc(100% - 40px);">
         <textarea id="codemirror-yaml-textarea"></textarea>
@@ -731,26 +942,29 @@
     </div>
   </div>
 
-  <!-- Paste YAML Modal -->
-  <div class="modal-overlay" id="paste-modal">
-    <div class="modal" style="max-width: 900px; height: 80vh;">
+  <!-- Endpoint / Target Snippet Modal -->
+  <div class="modal-overlay" id="snippet-modal">
+    <div class="modal" style="max-width: 1200px; width: 90vw; height: 84vh;">
       <div class="modal-header">
-        <h3>Paste YAML Definition</h3>
-        <button class="btn" onclick="closePasteModal()">✕</button>
+        <h3 id="snippet-modal-title">Edit Configuration (YAML)</h3>
+        <button class="btn" onclick="closeSnippetModal()">✕</button>
       </div>
-      <div class="modal-body">
-        <div class="form-group flex-fill">
-          <label>Paste your Feature, Template, or Proxy YAML below:</label>
-          <textarea id="modal-paste-yaml" class="form-control" style="font-family: var(--font-code); font-size: 0.85rem;" placeholder="# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json&#10;gateway: apigee&#10;schemaVersion: 1.0.0&#10;name: my-proxy&#10;displayName: My Proxy&#10;type: proxy&#10;..."></textarea>
+      <div class="modal-body" style="height: 100%; display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden;">
+        <div class="form-group flex-fill" style="flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-shrink: 0;">
+            <label id="snippet-modal-label">Configuration Snippet (YAML)</label>
+            <span class="policy-type-badge" style="font-size: 0.72rem;">YAML</span>
+          </div>
+          <div style="flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+            <textarea id="modal-snippet-yaml"></textarea>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
-        <div style="font-size: 0.8rem; color: var(--text-muted);">
-          Tip: Supports full Proxy, Template, and Feature YAML definitions.
-        </div>
+        <div></div>
         <div style="display: flex; gap: 10px;">
-          <button class="btn" onclick="closePasteModal()">Cancel</button>
-          <button class="btn btn-primary" onclick="loadPastedYamlFromModal()">Load YAML</button>
+          <button class="btn" onclick="closeSnippetModal()">Cancel</button>
+          <button class="btn btn-primary" id="snippet-modal-save-btn" onclick="saveSnippetFromModal()">Save</button>
         </div>
       </div>
     </div>
@@ -758,13 +972,13 @@
 
   <!-- Policy Edit Modal -->
   <div class="modal-overlay" id="policy-modal">
-    <div class="modal">
+    <div class="modal" style="max-width: 1300px; width: 92vw; height: 86vh;">
       <div class="modal-header">
         <h3 id="policy-modal-title">Edit Policy</h3>
         <button class="btn" onclick="closePolicyModal()">✕</button>
       </div>
-      <div class="modal-body">
-        <div class="form-row-2">
+      <div class="modal-body" style="height: 100%; display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden;">
+        <div class="form-row-2" style="flex-shrink: 0;">
           <div class="form-group">
             <label>Policy Name</label>
             <input type="text" id="modal-policy-name" class="form-control" />
@@ -787,14 +1001,55 @@
           </div>
         </div>
 
-        <div id="modal-js-code-section" style="display: none;" class="form-group flex-fill">
-          <label>Embedded JS Source Code (Apigee ES5)</label>
-          <textarea id="modal-js-source" class="form-control"></textarea>
+        <!-- Policy Modal Tab Navigation -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+          <div class="tabs" style="display: inline-flex;">
+            <div id="policy-tab-btn-yaml" class="tab active" onclick="switchPolicyModalTab('yaml')">
+              Policy Config (YAML)
+            </div>
+            <div id="policy-tab-btn-source" class="tab" style="display: none;" onclick="switchPolicyModalTab('source')">
+              Source: JS <span id="policy-tab-badge-source" style="display: none; width: 6px; height: 6px; border-radius: 50%; background: #4ade80; margin-left: 6px; vertical-align: middle;"></span>
+            </div>
+            <div id="policy-tab-btn-include" class="tab" style="display: none;" onclick="switchPolicyModalTab('include')">
+              IncludeURL: JS <span id="policy-tab-badge-include" style="display: none; width: 6px; height: 6px; border-radius: 50%; background: #38bdf8; margin-left: 6px; vertical-align: middle;"></span>
+            </div>
+          </div>
+          <span id="modal-policy-type-badge" class="policy-type-badge" style="font-size: 0.72rem;">YAML</span>
         </div>
 
-        <div class="form-group flex-fill">
-          <label>Policy Config (YAML)</label>
-          <textarea id="modal-policy-yaml" class="form-control"></textarea>
+        <!-- Tab Panes Container -->
+        <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
+          <!-- Tab 1: YAML -->
+          <div id="policy-tab-pane-yaml" style="display: flex; flex-direction: column; flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+            <textarea id="modal-policy-yaml"></textarea>
+          </div>
+
+          <!-- Tab 2: JS Source -->
+          <div id="policy-tab-pane-source" style="display: none; flex-direction: column; flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+            <div style="padding: 6px 12px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+              <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">Inline Script (Source:)</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted);">Apigee ES5 • Autocomplete (<kbd>Ctrl+Space</kbd>)</span>
+            </div>
+            <div style="flex: 1; min-height: 0; overflow: hidden;">
+              <textarea id="modal-policy-js-source"></textarea>
+            </div>
+          </div>
+
+          <!-- Tab 3: JS IncludeURL Resource -->
+          <div id="policy-tab-pane-include" style="display: none; flex-direction: column; flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+            <div style="padding: 6px 12px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main); margin-bottom: 0;">Include Resource:</label>
+                <select id="modal-policy-js-include-select" class="form-control" style="padding: 2px 8px; font-size: 0.76rem; height: 26px; width: auto; min-width: 180px;" onchange="handlePolicyJsIncludeSelectChange()">
+                  <option value="">-- No Include --</option>
+                </select>
+              </div>
+              <span id="modal-policy-js-include-label" style="font-size: 0.72rem; color: var(--accent); font-family: var(--font-code);"></span>
+            </div>
+            <div style="flex: 1; min-height: 0; overflow: hidden;">
+              <textarea id="modal-policy-js-include"></textarea>
+            </div>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -807,25 +1062,145 @@
     </div>
   </div>
 
+  <!-- Resource Edit Modal -->
+  <div class="modal-overlay" id="resource-modal">
+    <div class="modal" style="max-width: 1300px; width: 92vw; height: 86vh;">
+      <div class="modal-header">
+        <h3 id="resource-modal-title">Edit Resource</h3>
+        <button class="btn" onclick="closeResourceModal()">✕</button>
+      </div>
+      <div class="modal-body" style="height: 100%; display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden;">
+        <div class="form-row-2" style="flex-shrink: 0;">
+          <div class="form-group">
+            <label>Resource Name</label>
+            <input type="text" id="modal-resource-name" class="form-control" placeholder="e.g. error-handler.js, openapi.yaml" oninput="handleResourceNameChange()" />
+          </div>
+          <div class="form-group">
+            <label>Resource Type</label>
+            <select id="modal-resource-type" class="form-control" onchange="handleResourceTypeChange()">
+              <option value="javascript">javascript (JSC Script)</option>
+              <option value="jsc">jsc (JavaScript Script)</option>
+              <option value="openapi">openapi (OpenAPI Spec)</option>
+              <option value="oas">oas (OpenAPI Spec)</option>
+              <option value="graphql">graphql (GraphQL Schema)</option>
+              <option value="wsdl">wsdl (WSDL XML)</option>
+              <option value="xsd">xsd (XSD Schema)</option>
+              <option value="properties">properties (Config Properties)</option>
+              <option value="java">java (Java Archive)</option>
+              <option value="node">node (Node.js)</option>
+              <option value="py">py (Python)</option>
+              <option value="text">text (Plain Text)</option>
+              <option value="other">other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group flex-fill" style="flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-shrink: 0;">
+            <label id="modal-resource-editor-label">Resource Content</label>
+            <span id="modal-resource-syntax-badge" class="policy-type-badge" style="font-size: 0.72rem;">javascript</span>
+          </div>
+          <div style="flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+            <textarea id="modal-resource-content"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div></div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn" onclick="closeResourceModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveResourceFromModal()">Save Resource</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Step Edit Modal -->
   <div class="modal-overlay" id="step-modal">
-    <div class="modal">
+    <div class="modal" style="max-width: 1300px; width: 92vw; height: 86vh;">
       <div class="modal-header">
         <h3>Edit Step in Flow</h3>
         <button class="btn" onclick="closeStepModal()">✕</button>
       </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Target Policy Name</label>
-          <select id="modal-step-name" class="form-control"></select>
+      <div class="modal-body" style="height: 100%; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; gap: 16px; align-items: flex-start; flex-shrink: 0;">
+          <div class="form-group" style="flex-shrink: 0;">
+            <label>Target Policy Name</label>
+            <select id="modal-step-name" class="form-control" style="width: auto; min-width: 200px;" onchange="handleStepModalPolicyChange()"></select>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label>Execution Condition</label>
+            <input type="text" id="modal-step-condition" class="form-control" placeholder="e.g. request.header.x-api-key != null" />
+          </div>
         </div>
-        <div class="form-group flex-fill">
-          <label>Execution Condition (Apigee Expression)</label>
-          <textarea id="modal-step-condition" class="form-control" placeholder="e.g. request.header.x-api-key != null"></textarea>
+
+        <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 10px 14px; font-size: 0.8rem; color: var(--warning); display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          <span><strong>Notice:</strong> Changing this policy definition will update the underlying policy and impact all references.</span>
+        </div>
+
+        <!-- Step Modal Tab Navigation -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+          <div class="tabs" style="display: inline-flex;">
+            <div id="step-tab-btn-yaml" class="tab active" onclick="switchStepModalTab('yaml')">
+              Policy Config (YAML)
+            </div>
+            <div id="step-tab-btn-source" class="tab" style="display: none;" onclick="switchStepModalTab('source')">
+              Source: JS <span id="step-tab-badge-source" style="display: none; width: 6px; height: 6px; border-radius: 50%; background: #4ade80; margin-left: 6px; vertical-align: middle;"></span>
+            </div>
+            <div id="step-tab-btn-include" class="tab" style="display: none;" onclick="switchStepModalTab('include')">
+              IncludeURL: JS <span id="step-tab-badge-include" style="display: none; width: 6px; height: 6px; border-radius: 50%; background: #38bdf8; margin-left: 6px; vertical-align: middle;"></span>
+            </div>
+          </div>
+          <span id="modal-step-policy-type-badge" class="policy-type-badge" style="font-size: 0.72rem;"></span>
+        </div>
+
+        <!-- Tab Panes Container -->
+        <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
+          <!-- Tab 1: YAML -->
+          <div id="step-tab-pane-yaml" style="display: flex; flex-direction: column; flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+            <textarea id="modal-step-policy-yaml"></textarea>
+          </div>
+
+          <!-- Tab 2: JS Source -->
+          <div id="step-tab-pane-source" style="display: none; flex-direction: column; flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+            <div style="padding: 6px 12px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+              <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">Inline Script (Source:)</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted);">Apigee ES5 • Autocomplete (<kbd>Ctrl+Space</kbd>)</span>
+            </div>
+            <div style="flex: 1; min-height: 0; overflow: hidden;">
+              <textarea id="modal-step-js-source"></textarea>
+            </div>
+          </div>
+
+          <!-- Tab 3: JS IncludeURL Resource -->
+          <div id="step-tab-pane-include" style="display: none; flex-direction: column; flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+            <div style="padding: 6px 12px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main); margin-bottom: 0;">Include Resource:</label>
+                <select id="modal-step-js-include-select" class="form-control" style="padding: 2px 8px; font-size: 0.76rem; height: 26px; width: auto; min-width: 180px;" onchange="handleStepJsIncludeSelectChange()">
+                  <option value="">-- No Include --</option>
+                </select>
+              </div>
+              <span id="modal-step-js-include-label" style="font-size: 0.72rem; color: var(--accent); font-family: var(--font-code);"></span>
+            </div>
+            <div style="flex: 1; min-height: 0; overflow: hidden;">
+              <textarea id="modal-step-js-include"></textarea>
+            </div>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn" style="border-color: var(--accent); color: var(--accent);" onclick="editPolicyFromStepModal()">⚙️ Edit Policy Config</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" onclick="openPolicyFromStepModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            Open Policy
+          </button>
+          <button class="btn" onclick="copyAsNewPolicyFromStepModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy as New Policy
+          </button>
+        </div>
         <div style="display: flex; gap: 10px;">
           <button class="btn" onclick="closeStepModal()">Cancel</button>
           <button class="btn btn-primary" onclick="saveStepFromModal()">Save Step</button>
@@ -1593,7 +1968,9 @@ policies:
     let validationDebounceTimer = null;
     let currentHeaderComments = "";
     let currentEditingPolicyIndex = -1;
+    let currentEditingResourceIndex = -1;
     let currentEditingStepCtx = null;
+    let resourceCodeMirror = null;
 
     // Caches for compiled validators and fetched schemas
     const validatorCache = new Map();
@@ -1604,10 +1981,54 @@ policies:
       initCodeMirror();
       initDragAndDrop();
       initResizer();
+      initGlobalModals();
 
       // Load initial default YAML cleanly
       setYamlContent(DEFAULT_YAML);
     });
+
+    function initGlobalModals() {
+      // Escape key closes open dialog forms and drawers
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' || e.keyCode === 27) {
+          const stepModal = document.getElementById('step-modal');
+          const policyModal = document.getElementById('policy-modal');
+          const resourceModal = document.getElementById('resource-modal');
+          const snippetModal = document.getElementById('snippet-modal');
+          const valPanel = document.getElementById('validation-panel');
+
+          let closed = false;
+          if (stepModal && stepModal.classList.contains('open')) {
+            closeStepModal();
+            closed = true;
+          }
+          if (policyModal && policyModal.classList.contains('open')) {
+            closePolicyModal();
+            closed = true;
+          }
+          if (resourceModal && resourceModal.classList.contains('open')) {
+            closeResourceModal();
+            closed = true;
+          }
+          if (snippetModal && snippetModal.classList.contains('open')) {
+            closeSnippetModal();
+            closed = true;
+          }
+          if (!closed && valPanel && valPanel.classList.contains('open')) {
+            toggleValidationPanel();
+          }
+        }
+      });
+
+      // Clicking backdrop overlay closes modal
+      document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('mousedown', (e) => {
+          if (e.target === overlay) {
+            overlay.classList.remove('open');
+          }
+        });
+      });
+    }
 
     // Panel Resizing Logic
     function initResizer() {
@@ -1656,17 +2077,452 @@ policies:
       });
     }
 
-    function initCodeMirror() {
-      const textarea = document.getElementById('codemirror-yaml-textarea');
-      codeMirrorEditor = CodeMirror.fromTextArea(textarea, {
+    let stepPolicyCodeMirror = null;
+    let stepJsSourceCodeMirror = null;
+    let stepJsIncludeCodeMirror = null;
+    let modalPolicyCodeMirror = null;
+    let modalPolicyJsSourceCodeMirror = null;
+    let modalPolicyJsIncludeCodeMirror = null;
+    let snippetCodeMirror = null;
+    let currentSnippetSaveHandler = null;
+    let isSyncingStepEditors = false;
+    let currentStepModalTab = 'yaml';
+    let isSyncingPolicyEditors = false;
+    let currentPolicyModalTab = 'yaml';
+
+    function switchStepModalTab(tabName) {
+      currentStepModalTab = tabName;
+      const tabYaml = document.getElementById('step-tab-btn-yaml');
+      const tabSource = document.getElementById('step-tab-btn-source');
+      const tabInclude = document.getElementById('step-tab-btn-include');
+
+      const paneYaml = document.getElementById('step-tab-pane-yaml');
+      const paneSource = document.getElementById('step-tab-pane-source');
+      const paneInclude = document.getElementById('step-tab-pane-include');
+
+      if (tabYaml) tabYaml.classList.toggle('active', tabName === 'yaml');
+      if (tabSource) tabSource.classList.toggle('active', tabName === 'source');
+      if (tabInclude) tabInclude.classList.toggle('active', tabName === 'include');
+
+      if (paneYaml) paneYaml.style.display = tabName === 'yaml' ? 'flex' : 'none';
+      if (paneSource) paneSource.style.display = tabName === 'source' ? 'flex' : 'none';
+      if (paneInclude) paneInclude.style.display = tabName === 'include' ? 'flex' : 'none';
+
+      setTimeout(() => {
+        if (tabName === 'yaml' && stepPolicyCodeMirror) stepPolicyCodeMirror.refresh();
+        if (tabName === 'source' && stepJsSourceCodeMirror) stepJsSourceCodeMirror.refresh();
+        if (tabName === 'include' && stepJsIncludeCodeMirror) stepJsIncludeCodeMirror.refresh();
+      }, 20);
+    }
+
+    function switchPolicyModalTab(tabName) {
+      currentPolicyModalTab = tabName;
+      const tabYaml = document.getElementById('policy-tab-btn-yaml');
+      const tabSource = document.getElementById('policy-tab-btn-source');
+      const tabInclude = document.getElementById('policy-tab-btn-include');
+
+      const paneYaml = document.getElementById('policy-tab-pane-yaml');
+      const paneSource = document.getElementById('policy-tab-pane-source');
+      const paneInclude = document.getElementById('policy-tab-pane-include');
+
+      if (tabYaml) tabYaml.classList.toggle('active', tabName === 'yaml');
+      if (tabSource) tabSource.classList.toggle('active', tabName === 'source');
+      if (tabInclude) tabInclude.classList.toggle('active', tabName === 'include');
+
+      if (paneYaml) paneYaml.style.display = tabName === 'yaml' ? 'flex' : 'none';
+      if (paneSource) paneSource.style.display = tabName === 'source' ? 'flex' : 'none';
+      if (paneInclude) paneInclude.style.display = tabName === 'include' ? 'flex' : 'none';
+
+      setTimeout(() => {
+        if (tabName === 'yaml' && modalPolicyCodeMirror) modalPolicyCodeMirror.refresh();
+        if (tabName === 'source' && modalPolicyJsSourceCodeMirror) modalPolicyJsSourceCodeMirror.refresh();
+        if (tabName === 'include' && modalPolicyJsIncludeCodeMirror) modalPolicyJsIncludeCodeMirror.refresh();
+      }, 20);
+    }
+
+    function updatePolicyJsBadges(hasSource, hasInclude) {
+      const badgeSrc = document.getElementById('policy-tab-badge-source');
+      const badgeInc = document.getElementById('policy-tab-badge-include');
+      if (badgeSrc) badgeSrc.style.display = hasSource ? 'inline-block' : 'none';
+      if (badgeInc) badgeInc.style.display = hasInclude ? 'inline-block' : 'none';
+    }
+
+    function getPolicySource(content) {
+      if (!content) return '';
+      // Check Javascript / javascript container node first
+      const jsNode = content.Javascript || content.javascript;
+      if (jsNode && typeof jsNode === 'object') {
+        if (typeof jsNode.Source === 'string') return jsNode.Source;
+        if (typeof jsNode.source === 'string') return jsNode.source;
+      }
+      // Check top-level content
+      if (typeof content.Source === 'string') return content.Source;
+      if (typeof content.source === 'string') return content.source;
+      return '';
+    }
+
+    function getPolicyIncludeUrl(content) {
+      if (!content) return '';
+      // Check Javascript / javascript container node first
+      const jsNode = content.Javascript || content.javascript;
+      if (jsNode && typeof jsNode === 'object') {
+        if (typeof jsNode.IncludeURL === 'string') return jsNode.IncludeURL;
+        if (typeof jsNode.includeURL === 'string') return jsNode.includeURL;
+        if (typeof jsNode.includeUrl === 'string') return jsNode.includeUrl;
+        if (typeof jsNode.IncludeUrl === 'string') return jsNode.IncludeUrl;
+        if (typeof jsNode.ResourceURL === 'string') return jsNode.ResourceURL;
+        if (typeof jsNode.resourceURL === 'string') return jsNode.resourceURL;
+        if (typeof jsNode.resourceUrl === 'string') return jsNode.resourceUrl;
+      }
+      // Check top-level content
+      if (typeof content.IncludeURL === 'string') return content.IncludeURL;
+      if (typeof content.includeURL === 'string') return content.includeURL;
+      if (typeof content.includeUrl === 'string') return content.includeUrl;
+      if (typeof content.IncludeUrl === 'string') return content.IncludeUrl;
+      if (typeof content.ResourceURL === 'string') return content.ResourceURL;
+      if (typeof content.resourceURL === 'string') return content.resourceURL;
+      if (typeof content.resourceUrl === 'string') return content.resourceUrl;
+      return '';
+    }
+
+    function setPolicySource(content, newSource) {
+      if (!content) content = {};
+      const hasJsNode = content.Javascript && typeof content.Javascript === 'object';
+      const hasLowerJsNode = content.javascript && typeof content.javascript === 'object';
+
+      if (!newSource || !newSource.trim()) {
+        if (hasJsNode) {
+          delete content.Javascript.Source;
+          delete content.Javascript.source;
+        }
+        if (hasLowerJsNode) {
+          delete content.javascript.Source;
+          delete content.javascript.source;
+        }
+        delete content.Source;
+        delete content.source;
+        return content;
+      }
+
+      if (hasJsNode) {
+        if (content.Javascript.source !== undefined) {
+          content.Javascript.source = newSource;
+        } else {
+          content.Javascript.Source = newSource;
+        }
+      } else if (hasLowerJsNode) {
+        if (content.javascript.Source !== undefined) {
+          content.javascript.Source = newSource;
+        } else {
+          content.javascript.source = newSource;
+        }
+      } else if (content.source !== undefined) {
+        content.source = newSource;
+      } else if (content.Source !== undefined) {
+        content.Source = newSource;
+      } else {
+        // Default to Javascript: { Source: ... } node
+        content.Javascript = content.Javascript || {};
+        content.Javascript.Source = newSource;
+      }
+      return content;
+    }
+
+    function setPolicyIncludeUrl(content, newIncludeUrl) {
+      if (!content) content = {};
+      const hasJsNode = content.Javascript && typeof content.Javascript === 'object';
+      const hasLowerJsNode = content.javascript && typeof content.javascript === 'object';
+
+      if (!newIncludeUrl) {
+        if (hasJsNode) {
+          delete content.Javascript.IncludeURL;
+          delete content.Javascript.includeURL;
+          delete content.Javascript.includeUrl;
+          delete content.Javascript.IncludeUrl;
+          delete content.Javascript.ResourceURL;
+          delete content.Javascript.resourceURL;
+        }
+        if (hasLowerJsNode) {
+          delete content.javascript.IncludeURL;
+          delete content.javascript.includeURL;
+          delete content.javascript.includeUrl;
+          delete content.javascript.IncludeUrl;
+          delete content.javascript.ResourceURL;
+          delete content.javascript.resourceURL;
+        }
+        delete content.IncludeURL;
+        delete content.includeURL;
+        delete content.includeUrl;
+        delete content.IncludeUrl;
+        delete content.ResourceURL;
+        delete content.resourceURL;
+        return content;
+      }
+
+      if (hasJsNode) {
+        if (content.Javascript.includeUrl !== undefined) {
+          content.Javascript.includeUrl = newIncludeUrl;
+        } else if (content.Javascript.includeURL !== undefined) {
+          content.Javascript.includeURL = newIncludeUrl;
+        } else if (content.Javascript.ResourceURL !== undefined) {
+          content.Javascript.ResourceURL = newIncludeUrl;
+        } else {
+          content.Javascript.IncludeURL = newIncludeUrl;
+        }
+      } else if (hasLowerJsNode) {
+        if (content.javascript.IncludeURL !== undefined) {
+          content.javascript.IncludeURL = newIncludeUrl;
+        } else if (content.javascript.includeURL !== undefined) {
+          content.javascript.includeURL = newIncludeUrl;
+        } else if (content.javascript.ResourceURL !== undefined) {
+          content.javascript.ResourceURL = newIncludeUrl;
+        } else {
+          content.javascript.includeUrl = newIncludeUrl;
+        }
+      } else if (content.includeUrl !== undefined) {
+        content.includeUrl = newIncludeUrl;
+      } else if (content.includeURL !== undefined) {
+        content.includeURL = newIncludeUrl;
+      } else if (content.ResourceURL !== undefined) {
+        content.ResourceURL = newIncludeUrl;
+      } else if (content.IncludeURL !== undefined) {
+        content.IncludeURL = newIncludeUrl;
+      } else {
+        // Default to Javascript: { IncludeURL: ... } node
+        content.Javascript = content.Javascript || {};
+        content.Javascript.IncludeURL = newIncludeUrl;
+      }
+      return content;
+    }
+
+    function findResourceByIncludeUrl(includeUrl) {
+      if (!includeUrl || !currentYamlObj || !currentYamlObj.resources) return null;
+      const clean = includeUrl.replace(/^jsc:\/\//, '').trim();
+      return currentYamlObj.resources.find(r => r.name === clean || r.name === includeUrl || ('jsc://' + r.name) === includeUrl);
+    }
+
+    function updateStepJsBadges(hasSource, includeUrl) {
+      const badgeSource = document.getElementById('step-tab-badge-source');
+      const badgeInclude = document.getElementById('step-tab-badge-include');
+      if (badgeSource) badgeSource.style.display = hasSource ? 'inline-block' : 'none';
+      if (badgeInclude) badgeInclude.style.display = includeUrl ? 'inline-block' : 'none';
+    }
+
+    const APIGEE_ES5_KEYWORDS = [
+      // Apigee context API
+      'context.getVariable',
+      'context.setVariable',
+      'context.removeVariable',
+      'context.proxyRequest',
+      'context.proxyResponse',
+      'context.targetRequest',
+      'context.targetResponse',
+      'context.flow',
+      'context.session',
+      'context.errorMessage',
+
+      // Apigee request / response objects
+      'request.content',
+      'request.content.asJSON',
+      'request.content.asXML',
+      'request.headers',
+      'request.queryParams',
+      'request.verb',
+      'request.url',
+      'request.path',
+      'response.content',
+      'response.content.asJSON',
+      'response.content.asXML',
+      'response.headers',
+      'response.status.code',
+      'response.status.message',
+
+      // Apigee global utilities
+      'print',
+      'httpClient.get',
+      'httpClient.send',
+      'Request',
+      'crypto.sha256',
+      'crypto.sha512',
+      'crypto.md5',
+      'crypto.dateFormat',
+
+      // Common Apigee flow variables
+      'request.header.authorization',
+      'request.header.content-type',
+      'request.header.accept',
+      'proxy.pathsuffix',
+      'proxy.basepath',
+      'flow.error.code',
+      'flow.error.message',
+      'flow.error.status',
+      'system.timestamp',
+      'system.time.year',
+      'system.time.month',
+      'system.time.day',
+      'environment.name',
+      'organization.name',
+      'apiproxy.name',
+      'apiproxy.revision',
+
+      // Standard ES5 Keywords, Globals & Built-ins
+      'var', 'function', 'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue', 'default',
+      'try', 'catch', 'finally', 'throw', 'typeof', 'instanceof', 'new', 'this', 'null', 'undefined', 'true', 'false',
+      'JSON.stringify', 'JSON.parse', 'parseInt', 'parseFloat', 'isNaN', 'isFinite',
+      'encodeURI', 'decodeURI', 'encodeURIComponent', 'decodeURIComponent',
+      'Object.keys', 'Object.create', 'Object.defineProperty', 'Object.freeze', 'Object.prototype.hasOwnProperty',
+      'Array.isArray', 'Array.prototype.forEach', 'Array.prototype.map', 'Array.prototype.filter', 'Array.prototype.reduce',
+      'Array.prototype.indexOf', 'Array.prototype.lastIndexOf', 'Array.prototype.every', 'Array.prototype.some',
+      'Array.prototype.slice', 'Array.prototype.splice', 'Array.prototype.concat', 'Array.prototype.join',
+      'Array.prototype.push', 'Array.prototype.pop', 'Array.prototype.shift', 'Array.prototype.unshift',
+      'String.prototype.charAt', 'String.prototype.charCodeAt', 'String.prototype.indexOf', 'String.prototype.lastIndexOf',
+      'String.prototype.match', 'String.prototype.replace', 'String.prototype.search', 'String.prototype.slice',
+      'String.prototype.split', 'String.prototype.substr', 'String.prototype.substring', 'String.prototype.toLowerCase',
+      'String.prototype.toUpperCase', 'String.prototype.trim',
+      'Math.abs', 'Math.ceil', 'Math.floor', 'Math.round', 'Math.max', 'Math.min', 'Math.random', 'Math.pow', 'Math.sqrt',
+      'Date.now', 'Date.parse'
+    ];
+
+    if (window.CodeMirror) {
+      CodeMirror.registerHelper('hint', 'javascript', function(editor) {
+        const cur = editor.getCursor();
+        const token = editor.getTokenAt(cur);
+        const line = editor.getLine(cur.line);
+
+        let start = token.start;
+        let end = token.end;
+        let word = token.string;
+
+        let from = { line: cur.line, ch: start };
+        let to = { line: cur.line, ch: end };
+
+        const lineBefore = line.slice(0, cur.ch);
+        const match = lineBefore.match(/[\w\.$]+$/);
+        let fullPrefix = word;
+        if (match) {
+          fullPrefix = match[0];
+          from.ch = cur.ch - fullPrefix.length;
+          to.ch = cur.ch;
+        }
+
+        const list = APIGEE_ES5_KEYWORDS.filter(k => 
+          k.toLowerCase().startsWith(fullPrefix.toLowerCase()) || 
+          (fullPrefix.length >= 2 && k.toLowerCase().includes(fullPrefix.toLowerCase()))
+        );
+
+        return {
+          list: list,
+          from: from,
+          to: to
+        };
+      });
+    }
+
+    function createYamlCodeMirror(textareaId) {
+      const el = document.getElementById(textareaId);
+      if (!el) return null;
+      return CodeMirror.fromTextArea(el, {
         mode: 'yaml',
         theme: 'dracula',
         lineNumbers: true,
-        lineWrapping: true
+        lineWrapping: true,
+        autoCloseBrackets: true,
+        matchBrackets: true,
+        tabSize: 2,
+        indentUnit: 2,
+        extraKeys: {
+          "Tab": function(cm) {
+            if (cm.somethingSelected()) {
+              cm.indentSelection("add");
+            } else {
+              cm.replaceSelection("  ", "end");
+            }
+          },
+          "Shift-Tab": function(cm) {
+            cm.indentSelection("subtract");
+          },
+          "Ctrl-Space": "autocomplete"
+        }
+      });
+    }
+
+    function createJsCodeMirror(textareaId) {
+      const el = document.getElementById(textareaId);
+      if (!el) return null;
+      const cm = CodeMirror.fromTextArea(el, {
+        mode: 'javascript',
+        theme: 'dracula',
+        lineNumbers: true,
+        lineWrapping: true,
+        autoCloseBrackets: true,
+        matchBrackets: true,
+        tabSize: 2,
+        indentUnit: 2,
+        extraKeys: {
+          "Tab": function(cm) {
+            if (cm.somethingSelected()) {
+              cm.indentSelection("add");
+            } else {
+              cm.replaceSelection("  ", "end");
+            }
+          },
+          "Shift-Tab": function(cm) {
+            cm.indentSelection("subtract");
+          },
+          "Ctrl-Space": "autocomplete"
+        }
       });
 
+      cm.on('inputRead', function(editor, event) {
+        if (event.text[0] && /^[\w\.]$/.test(event.text[0])) {
+          editor.showHint({ completeSingle: false });
+        }
+      });
+
+      return cm;
+    }
+
+    function setCodeMirrorValuePreservingCursor(cm, newValue) {
+      if (!cm) return;
+      if (cm.getValue() === newValue) return;
+      const cursor = cm.getCursor();
+      const scrollInfo = cm.getScrollInfo();
+      cm.setValue(newValue);
+      const lineCount = cm.lineCount();
+      const targetLine = Math.min(cursor.line, Math.max(0, lineCount - 1));
+      const lineLength = cm.getLine(targetLine) ? cm.getLine(targetLine).length : 0;
+      const targetCh = Math.min(cursor.ch, lineLength);
+      cm.setCursor({ line: targetLine, ch: targetCh });
+      cm.scrollTo(scrollInfo.left, scrollInfo.top);
+    }
+
+    function jumpYamlToTop() {
+      if (!codeMirrorEditor) return;
+      codeMirrorEditor.setCursor({ line: 0, ch: 0 });
+      codeMirrorEditor.scrollTo(0, 0);
+      codeMirrorEditor.focus();
+    }
+
+    function jumpYamlToBottom() {
+      if (!codeMirrorEditor) return;
+      const lastLine = Math.max(0, codeMirrorEditor.lineCount() - 1);
+      const lastLineLength = codeMirrorEditor.getLine(lastLine)?.length || 0;
+      codeMirrorEditor.setCursor({ line: lastLine, ch: lastLineLength });
+      const scrollInfo = codeMirrorEditor.getScrollInfo();
+      codeMirrorEditor.scrollTo(0, scrollInfo.height);
+      codeMirrorEditor.focus();
+    }
+
+    function initCodeMirror() {
+      codeMirrorEditor = createYamlCodeMirror('codemirror-yaml-textarea');
+
       // Synchronous live input change listener with 300ms debounce to allow typing
-      codeMirrorEditor.on('change', () => {
+      codeMirrorEditor.on('change', (cm, changeObj) => {
+        if (changeObj && (changeObj.origin === 'paste' || changeObj.origin === 'setValue')) {
+          currentFileName = '';
+          updateFileNameDisplay();
+          isInitialDocumentLoad = true;
+        }
         if (!isProgrammaticEdit) {
           clearTimeout(validationDebounceTimer);
           validationDebounceTimer = setTimeout(() => {
@@ -1674,12 +2530,169 @@ policies:
           }, 300);
         }
       });
+
+      codeMirrorEditor.on('paste', () => {
+        currentFileName = '';
+        updateFileNameDisplay();
+        isInitialDocumentLoad = true;
+      });
+
+      // Initialize modal CodeMirror instances
+      stepPolicyCodeMirror = createYamlCodeMirror('modal-step-policy-yaml');
+      stepJsSourceCodeMirror = createJsCodeMirror('modal-step-js-source');
+      stepJsIncludeCodeMirror = createJsCodeMirror('modal-step-js-include');
+
+      modalPolicyCodeMirror = createYamlCodeMirror('modal-policy-yaml');
+      modalPolicyJsSourceCodeMirror = createJsCodeMirror('modal-policy-js-source');
+      modalPolicyJsIncludeCodeMirror = createJsCodeMirror('modal-policy-js-include');
+      resourceCodeMirror = createJsCodeMirror('modal-resource-content');
+      snippetCodeMirror = createYamlCodeMirror('modal-snippet-yaml');
+
+      // Live sync from stepJsSourceCodeMirror -> stepPolicyCodeMirror
+      if (stepJsSourceCodeMirror) {
+        stepJsSourceCodeMirror.on('change', () => {
+          if (isSyncingStepEditors || !stepPolicyCodeMirror) return;
+          if (currentStepModalTab !== 'source' && !stepJsSourceCodeMirror.hasFocus()) return;
+          try {
+            const currentYamlText = stepPolicyCodeMirror.getValue();
+            let parsed = jsyaml.load(currentYamlText) || {};
+            const newSource = stepJsSourceCodeMirror.getValue();
+            parsed = setPolicySource(parsed, newSource);
+
+            isSyncingStepEditors = true;
+            setCodeMirrorValuePreservingCursor(stepPolicyCodeMirror, jsyaml.dump(parsed));
+            updateStepJsBadges(!!newSource.trim(), getPolicyIncludeUrl(parsed));
+            isSyncingStepEditors = false;
+          } catch (e) {}
+        });
+      }
+
+      // Live sync from stepJsIncludeCodeMirror -> currentYamlObj.resources
+      if (stepJsIncludeCodeMirror) {
+        stepJsIncludeCodeMirror.on('change', () => {
+          if (isSyncingStepEditors) return;
+          const selVal = document.getElementById('modal-step-js-include-select')?.value;
+          if (!selVal) return;
+          const newCode = stepJsIncludeCodeMirror.getValue();
+          currentYamlObj.resources = currentYamlObj.resources || [];
+          let res = findResourceByIncludeUrl(selVal);
+          if (!res) {
+            const cleanName = selVal.replace(/^jsc:\/\//, '');
+            res = { name: cleanName, type: 'javascript', content: '' };
+            currentYamlObj.resources.push(res);
+          }
+          res.content = newCode;
+        });
+      }
+
+      // Live sync from stepPolicyCodeMirror -> stepJsSourceCodeMirror / stepJsIncludeCodeMirror
+      if (stepPolicyCodeMirror) {
+        stepPolicyCodeMirror.on('change', () => {
+          if (isSyncingStepEditors) return;
+          try {
+            const text = stepPolicyCodeMirror.getValue();
+            const parsed = jsyaml.load(text) || {};
+            const src = getPolicySource(parsed);
+            const inc = getPolicyIncludeUrl(parsed);
+
+            isSyncingStepEditors = true;
+            if (stepJsSourceCodeMirror && stepJsSourceCodeMirror.getValue() !== src) {
+              setCodeMirrorValuePreservingCursor(stepJsSourceCodeMirror, src);
+            }
+            if (inc) {
+              const sel = document.getElementById('modal-step-js-include-select');
+              if (sel) {
+                let matchOption = Array.from(sel.options).find(o => o.value === inc || o.value === inc.replace(/^jsc:\/\//, '') || ('jsc://' + o.value) === inc);
+                if (matchOption) {
+                  sel.value = matchOption.value;
+                }
+              }
+              const res = findResourceByIncludeUrl(inc);
+              if (stepJsIncludeCodeMirror && res && stepJsIncludeCodeMirror.getValue() !== (res.content || '')) {
+                setCodeMirrorValuePreservingCursor(stepJsIncludeCodeMirror, res.content || '');
+              }
+            }
+            updateStepJsBadges(!!src.trim(), inc);
+            isSyncingStepEditors = false;
+          } catch (e) {}
+        });
+      }
+
+      // Live sync from modalPolicyJsSourceCodeMirror -> modalPolicyCodeMirror
+      if (modalPolicyJsSourceCodeMirror) {
+        modalPolicyJsSourceCodeMirror.on('change', () => {
+          if (isSyncingPolicyEditors || !modalPolicyCodeMirror) return;
+          if (currentPolicyModalTab !== 'source' && !modalPolicyJsSourceCodeMirror.hasFocus()) return;
+          try {
+            const currentYamlText = modalPolicyCodeMirror.getValue();
+            let parsed = jsyaml.load(currentYamlText) || {};
+            const newSource = modalPolicyJsSourceCodeMirror.getValue();
+            parsed = setPolicySource(parsed, newSource);
+
+            isSyncingPolicyEditors = true;
+            setCodeMirrorValuePreservingCursor(modalPolicyCodeMirror, jsyaml.dump(parsed));
+            updatePolicyJsBadges(!!newSource.trim(), getPolicyIncludeUrl(parsed));
+            isSyncingPolicyEditors = false;
+          } catch (e) {}
+        });
+      }
+
+      // Live sync from modalPolicyJsIncludeCodeMirror -> currentYamlObj.resources
+      if (modalPolicyJsIncludeCodeMirror) {
+        modalPolicyJsIncludeCodeMirror.on('change', () => {
+          if (isSyncingPolicyEditors) return;
+          const selVal = document.getElementById('modal-policy-js-include-select')?.value;
+          if (!selVal) return;
+          const newCode = modalPolicyJsIncludeCodeMirror.getValue();
+          currentYamlObj.resources = currentYamlObj.resources || [];
+          let res = findResourceByIncludeUrl(selVal);
+          if (!res) {
+            const cleanName = selVal.replace(/^jsc:\/\//, '');
+            res = { name: cleanName, type: 'javascript', content: '' };
+            currentYamlObj.resources.push(res);
+          }
+          res.content = newCode;
+        });
+      }
+
+      // Live sync from modalPolicyCodeMirror -> modalPolicyJsSourceCodeMirror / modalPolicyJsIncludeCodeMirror
+      if (modalPolicyCodeMirror) {
+        modalPolicyCodeMirror.on('change', () => {
+          if (isSyncingPolicyEditors) return;
+          try {
+            const text = modalPolicyCodeMirror.getValue();
+            const parsed = jsyaml.load(text) || {};
+            const src = getPolicySource(parsed);
+            const inc = getPolicyIncludeUrl(parsed);
+
+            isSyncingPolicyEditors = true;
+            if (modalPolicyJsSourceCodeMirror && modalPolicyJsSourceCodeMirror.getValue() !== src) {
+              setCodeMirrorValuePreservingCursor(modalPolicyJsSourceCodeMirror, src);
+            }
+            if (inc) {
+              const sel = document.getElementById('modal-policy-js-include-select');
+              if (sel) {
+                let matchOption = Array.from(sel.options).find(o => o.value === inc || o.value === inc.replace(/^jsc:\/\//, '') || ('jsc://' + o.value) === inc);
+                if (matchOption) {
+                  sel.value = matchOption.value;
+                }
+              }
+              const res = findResourceByIncludeUrl(inc);
+              if (modalPolicyJsIncludeCodeMirror && res && modalPolicyJsIncludeCodeMirror.getValue() !== (res.content || '')) {
+                setCodeMirrorValuePreservingCursor(modalPolicyJsIncludeCodeMirror, res.content || '');
+              }
+            }
+            updatePolicyJsBadges(!!src.trim(), inc);
+            isSyncingPolicyEditors = false;
+          } catch (e) {}
+        });
+      }
     }
 
     // Direct, Unconditional Set of YAML Text Content
     function setYamlContent(text) {
       isProgrammaticEdit = true;
-      codeMirrorEditor.setValue(text);
+      setCodeMirrorValuePreservingCursor(codeMirrorEditor, text);
       isProgrammaticEdit = false;
 
       // Extract raw comment header lines (e.g. # yaml-language-server...)
@@ -1876,6 +2889,16 @@ policies:
       const errorCount = issues.filter(i => i.type === 'error').length;
       updateDiagnosticsUI(errorCount === 0, issues, schemaUrl, valResult ? valResult.source : null);
 
+      // Initialize default collapse state on initial document load, paste, or document identity switch
+      const docName = (currentYamlObj && currentYamlObj.name) ? currentYamlObj.name : null;
+      if (isInitialDocumentLoad || (docName && lastLoadedDocName && docName !== lastLoadedDocName)) {
+        initDefaultSectionCollapse(currentYamlObj);
+        isInitialDocumentLoad = false;
+        lastLoadedDocName = docName;
+      } else if (!lastLoadedDocName && docName) {
+        lastLoadedDocName = docName;
+      }
+
       // Render Visual Diagram Pipeline
       renderVisualFlows(currentYamlObj);
       renderPoliciesGrid(currentYamlObj);
@@ -1934,41 +2957,221 @@ policies:
       document.getElementById('validation-panel').classList.toggle('open');
     }
 
+    // Collapsed visual sections & flows state sets
+    const collapsedSections = new Set();
+    const collapsedFlows = new Set();
+    let isInitialDocumentLoad = true;
+    let lastLoadedDocName = null;
+
+    function initDefaultSectionCollapse(obj) {
+      collapsedSections.clear();
+      if (!obj) return;
+
+      // Keep only first endpoint uncollapsed, collapse subsequent endpoints
+      let endpointCount = 0;
+      if (obj.defaultEndpoint) {
+        endpointCount++;
+      }
+      (obj.endpoints || []).forEach((ep, i) => {
+        if (endpointCount > 0) {
+          collapsedSections.add('section-endpoint-' + i);
+        }
+        endpointCount++;
+      });
+
+      // Keep only first target uncollapsed, collapse subsequent targets
+      let targetCount = 0;
+      if (obj.defaultTarget) {
+        targetCount++;
+      }
+      (obj.targets || []).forEach((tg, i) => {
+        if (targetCount > 0) {
+          collapsedSections.add('section-target-' + i);
+        }
+        targetCount++;
+      });
+    }
+
+    function toggleSectionCollapse(secId) {
+      if (collapsedSections.has(secId)) {
+        collapsedSections.delete(secId);
+      } else {
+        collapsedSections.add(secId);
+      }
+      const el = document.getElementById(secId);
+      if (el) {
+        el.classList.toggle('collapsed', collapsedSections.has(secId));
+      }
+    }
+
+    function toggleFlowCollapse(flowId) {
+      if (collapsedFlows.has(flowId)) {
+        collapsedFlows.delete(flowId);
+      } else {
+        collapsedFlows.add(flowId);
+      }
+      const el = document.getElementById(flowId);
+      if (el) {
+        el.classList.toggle('collapsed', collapsedFlows.has(flowId));
+      }
+    }
+
     // Step Reordering & Drag/Drop Handlers
     let draggedStepInfo = null;
+    let isDraggingStep = false;
 
     function handleStepDragStart(e, ctxType, flowIndex, stepIndex) {
+      isDraggingStep = true;
       draggedStepInfo = { ctxType, flowIndex, stepIndex };
       e.dataTransfer.effectAllowed = 'move';
-      e.target.classList.add('dragging-card');
+      e.dataTransfer.setData('text/plain', JSON.stringify(draggedStepInfo));
+      setTimeout(() => {
+        if (e.target && e.target.classList) {
+          e.target.classList.add('dragging-card');
+        }
+      }, 0);
     }
 
-    function handleStepDragOver(e) {
+    function handleStepDragOver(e, card, targetStepIndex) {
       e.preventDefault();
+      e.stopPropagation();
       e.dataTransfer.dropEffect = 'move';
-    }
 
-    function handleStepDrop(e, ctxType, flowIndex, targetStepIndex) {
-      e.preventDefault();
       if (!draggedStepInfo) return;
 
-      if (draggedStepInfo.ctxType === ctxType && draggedStepInfo.flowIndex === flowIndex) {
+      const rect = card.getBoundingClientRect();
+      const relY = e.clientY - rect.top;
+      const isTop = relY < rect.height / 2;
+
+      document.querySelectorAll('.step-card').forEach(c => {
+        if (c !== card) {
+          c.classList.remove('drag-over-top', 'drag-over-bottom');
+        }
+      });
+
+      if (isTop) {
+        card.classList.add('drag-over-top');
+        card.classList.remove('drag-over-bottom');
+      } else {
+        card.classList.add('drag-over-bottom');
+        card.classList.remove('drag-over-top');
+      }
+    }
+
+    function handleStepDragLeave(e, card) {
+      if (!card.contains(e.relatedTarget)) {
+        card.classList.remove('drag-over-top', 'drag-over-bottom');
+      }
+    }
+
+    function handleStepDrop(e, ctxType, flowIndex, targetStepIndex, card) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      document.querySelectorAll('.step-card').forEach(c => {
+        c.classList.remove('dragging-card', 'drag-over-top', 'drag-over-bottom');
+      });
+
+      if (!draggedStepInfo) return;
+
+      const fromCtx = draggedStepInfo.ctxType;
+      const fromFlow = draggedStepInfo.flowIndex;
+      const fromIdx = draggedStepInfo.stepIndex;
+
+      let position = 'before';
+      if (card) {
+        const rect = card.getBoundingClientRect();
+        const relY = e.clientY - rect.top;
+        position = relY < rect.height / 2 ? 'before' : 'after';
+      }
+
+      if (fromCtx === ctxType && fromFlow === flowIndex) {
         const flows = getFlowsByCtxType(ctxType);
         if (flows && flows[flowIndex] && flows[flowIndex].steps) {
           const steps = flows[flowIndex].steps;
-          const [movedStep] = steps.splice(draggedStepInfo.stepIndex, 1);
-          steps.splice(targetStepIndex, 0, movedStep);
-          updateYamlFromObj();
+          let targetIndex = position === 'before' ? targetStepIndex : targetStepIndex + 1;
+          if (fromIdx < targetIndex) {
+            targetIndex--;
+          }
+          if (targetIndex >= 0 && targetIndex <= steps.length && targetIndex !== fromIdx) {
+            const [movedStep] = steps.splice(fromIdx, 1);
+            steps.splice(targetIndex, 0, movedStep);
+            updateYamlFromObj();
+          }
+        }
+      } else {
+        const sourceFlows = getFlowsByCtxType(fromCtx);
+        const targetFlows = getFlowsByCtxType(ctxType);
+        if (sourceFlows && sourceFlows[fromFlow] && targetFlows && targetFlows[flowIndex]) {
+          const sourceSteps = sourceFlows[fromFlow].steps || [];
+          const targetSteps = targetFlows[flowIndex].steps || (targetFlows[flowIndex].steps = []);
+          let targetIndex = position === 'before' ? targetStepIndex : targetStepIndex + 1;
+          if (targetIndex > targetSteps.length) targetIndex = targetSteps.length;
+
+          if (fromIdx >= 0 && fromIdx < sourceSteps.length) {
+            const [movedStep] = sourceSteps.splice(fromIdx, 1);
+            targetSteps.splice(targetIndex, 0, movedStep);
+            updateYamlFromObj();
+          }
         }
       }
+
       draggedStepInfo = null;
+      setTimeout(() => {
+        isDraggingStep = false;
+      }, 50);
+    }
+
+    function handleStepDropOnList(e, ctxType, flowIndex) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      document.querySelectorAll('.step-card').forEach(c => {
+        c.classList.remove('dragging-card', 'drag-over-top', 'drag-over-bottom');
+      });
+
+      if (!draggedStepInfo) return;
+
+      const fromCtx = draggedStepInfo.ctxType;
+      const fromFlow = draggedStepInfo.flowIndex;
+      const fromIdx = draggedStepInfo.stepIndex;
+
+      const sourceFlows = getFlowsByCtxType(fromCtx);
+      const targetFlows = getFlowsByCtxType(ctxType);
+
+      if (sourceFlows && sourceFlows[fromFlow] && targetFlows && targetFlows[flowIndex]) {
+        const sourceSteps = sourceFlows[fromFlow].steps || [];
+        const targetSteps = targetFlows[flowIndex].steps || (targetFlows[flowIndex].steps = []);
+
+        if (fromCtx === ctxType && fromFlow === flowIndex) {
+          if (sourceSteps.length > 0 && fromIdx !== sourceSteps.length - 1) {
+            const [movedStep] = sourceSteps.splice(fromIdx, 1);
+            sourceSteps.push(movedStep);
+            updateYamlFromObj();
+          }
+        } else {
+          if (fromIdx >= 0 && fromIdx < sourceSteps.length) {
+            const [movedStep] = sourceSteps.splice(fromIdx, 1);
+            targetSteps.push(movedStep);
+            updateYamlFromObj();
+          }
+        }
+      }
+
+      draggedStepInfo = null;
+      setTimeout(() => {
+        isDraggingStep = false;
+      }, 50);
     }
 
     function handleStepDragEnd(e) {
-      if (e.target && e.target.classList) {
-        e.target.classList.remove('dragging-card');
-      }
+      document.querySelectorAll('.step-card').forEach(c => {
+        c.classList.remove('dragging-card', 'drag-over-top', 'drag-over-bottom');
+      });
       draggedStepInfo = null;
+      setTimeout(() => {
+        isDraggingStep = false;
+      }, 50);
     }
 
     function moveStepInFlow(ctxType, flowIndex, stepIndex, direction) {
@@ -1995,88 +3198,590 @@ policies:
       updateYamlFromObj();
     }
 
+    function handleQuickAddFlow(ctxType, val) {
+      if (!val) return;
+      if (val === 'CUSTOM') {
+        const name = prompt('Enter custom flow name (e.g. ConditionalFlow):', 'MyFlow');
+        if (!name || !name.trim()) return;
+        const mode = confirm('Should this flow run on Request? (Click OK for Request, Cancel for Response)') ? 'Request' : 'Response';
+        addFlowToSection(ctxType, name.trim(), mode);
+        return;
+      }
+      const parts = val.split(':');
+      addFlowToSection(ctxType, parts[0], parts[1]);
+    }
+
+    function addFlowToSection(ctxType, flowName, flowMode) {
+      const flows = getFlowsByCtxType(ctxType);
+      flows.push({
+        name: flowName,
+        mode: flowMode,
+        steps: []
+      });
+      updateYamlFromObj();
+    }
+
+    function removeFlowFromSection(ctxType, flowIndex) {
+      const flows = getFlowsByCtxType(ctxType);
+      if (!flows || !flows[flowIndex]) return;
+      const flow = flows[flowIndex];
+      const stepCount = (flow.steps || []).length;
+      if (stepCount > 0) {
+        if (!confirm(`Are you sure you want to remove flow "${flow.name} (${flow.mode || 'Request/Response'})" with ${stepCount} step(s)?`)) {
+          return;
+        }
+      }
+      flows.splice(flowIndex, 1);
+      updateYamlFromObj();
+    }
+
+    // Snippet Modal Handlers (Endpoints & Targets YAML editor)
+    function openSnippetModal(title, yamlText, onSave) {
+      document.getElementById('snippet-modal-title').innerText = title;
+      currentSnippetSaveHandler = onSave;
+      if (snippetCodeMirror) {
+        snippetCodeMirror.setValue(yamlText || '');
+      }
+      document.getElementById('snippet-modal').classList.add('open');
+      setTimeout(() => {
+        if (snippetCodeMirror) snippetCodeMirror.refresh();
+      }, 30);
+    }
+
+    function closeSnippetModal() {
+      document.getElementById('snippet-modal').classList.remove('open');
+      currentSnippetSaveHandler = null;
+    }
+
+    function saveSnippetFromModal() {
+      if (!currentSnippetSaveHandler || !snippetCodeMirror) return;
+      const yamlText = snippetCodeMirror.getValue();
+      let parsed = null;
+      try {
+        parsed = jsyaml.load(yamlText);
+        if (!parsed || typeof parsed !== 'object') {
+          alert('Invalid YAML configuration. Expected a YAML object.');
+          return;
+        }
+      } catch (err) {
+        alert('YAML Parsing Error: ' + err.message);
+        return;
+      }
+      const success = currentSnippetSaveHandler(parsed);
+      if (success !== false) {
+        closeSnippetModal();
+        updateYamlFromObj();
+      }
+    }
+
+    // Endpoint CRUD
+    function openAddEndpointModal() {
+      const defaultSnippet = {
+        name: 'custom-endpoint',
+        basePath: '/v1/custom',
+        routes: [
+          {
+            name: 'default',
+            target: 'default'
+          }
+        ],
+        flows: [
+          {
+            name: 'PreFlow',
+            mode: 'Request',
+            steps: []
+          }
+        ]
+      };
+
+      openSnippetModal('Add Endpoint (YAML)', jsyaml.dump(defaultSnippet, { lineWidth: -1 }), (parsed) => {
+        if (!parsed.name) {
+          alert('Endpoint must have a "name" property.');
+          return false;
+        }
+        if (!currentYamlObj.endpoints) currentYamlObj.endpoints = [];
+        currentYamlObj.endpoints.push(parsed);
+        return true;
+      });
+    }
+
+    function openEditEndpointModal(ctxType) {
+      let targetObj = null;
+      let label = '';
+      if (ctxType === 'defaultEndpoint') {
+        targetObj = currentYamlObj.defaultEndpoint;
+        label = 'Default Endpoint';
+      } else if (ctxType.startsWith('endpoint-')) {
+        const idx = parseInt(ctxType.split('-')[1]);
+        targetObj = currentYamlObj.endpoints ? currentYamlObj.endpoints[idx] : null;
+        label = targetObj ? `Endpoint: ${targetObj.name}` : 'Endpoint';
+      }
+
+      if (!targetObj) return;
+
+      const yamlText = jsyaml.dump(targetObj, { lineWidth: -1 });
+      openSnippetModal(`Edit ${label} (YAML)`, yamlText, (parsed) => {
+        if (ctxType === 'defaultEndpoint') {
+          currentYamlObj.defaultEndpoint = parsed;
+        } else if (ctxType.startsWith('endpoint-')) {
+          const idx = parseInt(ctxType.split('-')[1]);
+          currentYamlObj.endpoints[idx] = parsed;
+        }
+        return true;
+      });
+    }
+
+    function deleteEndpoint(ctxType) {
+      if (ctxType === 'defaultEndpoint') {
+        if (confirm('Are you sure you want to delete defaultEndpoint?')) {
+          delete currentYamlObj.defaultEndpoint;
+          updateYamlFromObj();
+        }
+      } else if (ctxType.startsWith('endpoint-')) {
+        const idx = parseInt(ctxType.split('-')[1]);
+        const ep = currentYamlObj.endpoints ? currentYamlObj.endpoints[idx] : null;
+        const name = ep ? ep.name : `Endpoint ${idx}`;
+        if (confirm(`Are you sure you want to delete endpoint "${name}"?`)) {
+          currentYamlObj.endpoints.splice(idx, 1);
+          updateYamlFromObj();
+        }
+      }
+    }
+
+    // Target CRUD
+    function openAddTargetModal() {
+      const defaultSnippet = {
+        name: 'custom-target',
+        url: 'https://api.example.com',
+        flows: []
+      };
+
+      openSnippetModal('Add Target (YAML)', jsyaml.dump(defaultSnippet, { lineWidth: -1 }), (parsed) => {
+        if (!parsed.name) {
+          alert('Target must have a "name" property.');
+          return false;
+        }
+        if (!currentYamlObj.targets) currentYamlObj.targets = [];
+        currentYamlObj.targets.push(parsed);
+        return true;
+      });
+    }
+
+    function openEditTargetModal(ctxType) {
+      let targetObj = null;
+      let label = '';
+      if (ctxType === 'defaultTarget') {
+        targetObj = currentYamlObj.defaultTarget;
+        label = 'Default Target';
+      } else if (ctxType.startsWith('target-')) {
+        const idx = parseInt(ctxType.split('-')[1]);
+        targetObj = currentYamlObj.targets ? currentYamlObj.targets[idx] : null;
+        label = targetObj ? `Target: ${targetObj.name}` : 'Target';
+      }
+
+      if (!targetObj) return;
+
+      const yamlText = jsyaml.dump(targetObj, { lineWidth: -1 });
+      openSnippetModal(`Edit ${label} (YAML)`, yamlText, (parsed) => {
+        if (ctxType === 'defaultTarget') {
+          currentYamlObj.defaultTarget = parsed;
+        } else if (ctxType.startsWith('target-')) {
+          const idx = parseInt(ctxType.split('-')[1]);
+          currentYamlObj.targets[idx] = parsed;
+        }
+        return true;
+      });
+    }
+
+    function deleteTarget(ctxType) {
+      if (ctxType === 'defaultTarget') {
+        if (confirm('Are you sure you want to delete defaultTarget?')) {
+          delete currentYamlObj.defaultTarget;
+          updateYamlFromObj();
+        }
+      } else if (ctxType.startsWith('target-')) {
+        const idx = parseInt(ctxType.split('-')[1]);
+        const tg = currentYamlObj.targets ? currentYamlObj.targets[idx] : null;
+        const name = tg ? tg.name : `Target ${idx}`;
+        if (confirm(`Are you sure you want to delete target "${name}"?`)) {
+          currentYamlObj.targets.splice(idx, 1);
+          updateYamlFromObj();
+        }
+      }
+    }
+
+    function deleteSnippet(ctxType) {
+      if (ctxType.startsWith('endpoint') || ctxType === 'defaultEndpoint') {
+        deleteEndpoint(ctxType);
+      } else if (ctxType.startsWith('target') || ctxType === 'defaultTarget') {
+        deleteTarget(ctxType);
+      }
+    }
+
+    function openEditSnippetModal(ctxType) {
+      if (ctxType.startsWith('endpoint') || ctxType === 'defaultEndpoint') {
+        openEditEndpointModal(ctxType);
+      } else if (ctxType.startsWith('target') || ctxType === 'defaultTarget') {
+        openEditTargetModal(ctxType);
+      }
+    }
+
     // Render Visual Pipeline
     function renderVisualFlows(obj) {
       const container = document.getElementById('flows-builder');
       container.innerHTML = '';
 
-      const createFlowSection = (title, flows, ctxType) => {
-        if (!flows || flows.length === 0) return;
+      const standardFlows = [
+        { name: 'PreFlow', mode: 'Request', label: 'PreFlow (Request)' },
+        { name: 'PreFlow', mode: 'Response', label: 'PreFlow (Response)' },
+        { name: 'PostFlow', mode: 'Request', label: 'PostFlow (Request)' },
+        { name: 'PostFlow', mode: 'Response', label: 'PostFlow (Response)' },
+        { name: 'EventFlow', mode: 'Response', label: 'EventFlow (Response)' }
+      ];
+
+      const createFlowSection = (title, flows, ctxType, meta) => {
+        flows = flows || [];
+        const secId = 'section-' + ctxType;
+        const isSecCollapsed = collapsedSections.has(secId);
+        const isTarget = ctxType.includes('target') || ctxType.includes('Target');
+
+        const unconfiguredFlows = standardFlows.filter(sf => 
+          !flows.some(f => f.name.toLowerCase() === sf.name.toLowerCase() && (f.mode || 'Request').toLowerCase() === sf.mode.toLowerCase())
+        );
 
         const sec = document.createElement('div');
-        sec.className = 'flow-section';
-        sec.innerHTML = '<div class="section-title">' + title + '</div>';
+        sec.id = secId;
+        sec.className = 'flow-section' + (isSecCollapsed ? ' collapsed' : '');
+        
+        let selectOptionsHtml = '<option value="">+ Add Flow...</option>';
+        if (unconfiguredFlows.length > 0) {
+          unconfiguredFlows.forEach(sf => {
+            selectOptionsHtml += `<option value="${sf.name}:${sf.mode}">+ ${sf.label}</option>`;
+          });
+        }
+        selectOptionsHtml += '<option value="CUSTOM">+ Custom Flow...</option>';
+
+        let metaBarHtml = '';
+        if (!isTarget && meta) {
+          let routesHtml = '';
+          if (meta.routes && meta.routes.length > 0) {
+            routesHtml = meta.routes.map(r => {
+              const cond = r.condition ? ` <span style="opacity: 0.75;" title="${escapeHtml(r.condition)}">[cond]</span>` : '';
+              return `<span style="background: var(--bg-primary); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; font-family: var(--font-code); color: var(--text-main); font-size: 0.72rem;">${escapeHtml(r.name || 'route')} ➔ <strong>${escapeHtml(r.target || 'None')}</strong>${cond}</span>`;
+            }).join(' ');
+          } else {
+            routesHtml = '<span style="font-style: italic; color: var(--text-muted); font-size: 0.72rem;">No routes (Direct response)</span>';
+          }
+
+          metaBarHtml = `
+            <div class="flow-section-meta" style="padding: 6px 14px; background: rgba(15, 23, 42, 0.4); border-bottom: 1px solid var(--border); font-size: 0.75rem; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 14px; align-items: center;">
+              <span><strong>Base Path:</strong> <code style="color: var(--accent);">${escapeHtml(meta.basePath || '/')}</code></span>
+              <span style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;"><strong>Routes:</strong> ${routesHtml}</span>
+            </div>
+          `;
+        }
+
+        sec.innerHTML = `
+          <div class="section-title" onclick="toggleSectionCollapse('${secId}')">
+            <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; margin-right: 8px;">
+              <svg class="collapse-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              <div style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;">${title}</div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;" onclick="event.stopPropagation()">
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">${flows.length} Flow${flows.length === 1 ? '' : 's'}</span>
+              <select class="form-control" style="padding: 2px 8px; font-size: 0.72rem; height: 26px; width: auto; background: var(--bg-card); color: var(--text-main); border-color: var(--border);" onchange="handleQuickAddFlow('${ctxType}', this.value); this.value='';">
+                ${selectOptionsHtml}
+              </select>
+              <button class="btn" style="padding: 2px 8px; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px;" title="Edit ${isTarget ? 'Target' : 'Endpoint'} YAML" onclick="openEditSnippetModal('${ctxType}')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                Edit YAML
+              </button>
+              <button class="step-btn step-btn-delete" style="font-size: 0.82rem;" title="Delete ${isTarget ? 'Target' : 'Endpoint'}" onclick="deleteSnippet('${ctxType}')">✕</button>
+            </div>
+          </div>
+          ${metaBarHtml}
+        `;
 
         const pipeline = document.createElement('div');
         pipeline.className = 'flow-pipeline';
 
-        flows.forEach((flow, fIdx) => {
-          const lane = document.createElement('div');
-          lane.className = 'pipeline-lane';
-          lane.innerHTML = `
-            <div class="lane-header">
-              <span>Flow: <strong>${flow.name}</strong> (${flow.mode || 'Request/Response'})</span>
-              <div style="display: flex; gap: 10px; align-items: center;">
-                <span class="flow-direction-badge">⬇ Sequence: Top to Bottom</span>
-                <button class="btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="addStepToFlow('${ctxType}', ${fIdx})">+ Add Step</button>
+        if (flows.length === 0) {
+          pipeline.innerHTML = `
+            <div style="padding: 16px; background: rgba(30, 41, 59, 0.4); border: 1px dashed var(--border); border-radius: 8px; text-align: center; color: var(--text-muted); font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 4px 0;">
+              <span>No flows configured for this section. Enable a standard flow:</span>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;">
+                <button class="btn" style="font-size: 0.75rem; padding: 3px 10px;" onclick="addFlowToSection('${ctxType}', 'PreFlow', 'Request')">+ PreFlow (Request)</button>
+                <button class="btn" style="font-size: 0.75rem; padding: 3px 10px;" onclick="addFlowToSection('${ctxType}', 'PreFlow', 'Response')">+ PreFlow (Response)</button>
+                <button class="btn" style="font-size: 0.75rem; padding: 3px 10px;" onclick="addFlowToSection('${ctxType}', 'PostFlow', 'Request')">+ PostFlow (Request)</button>
+                <button class="btn" style="font-size: 0.75rem; padding: 3px 10px;" onclick="addFlowToSection('${ctxType}', 'PostFlow', 'Response')">+ PostFlow (Response)</button>
+                <button class="btn" style="font-size: 0.75rem; padding: 3px 10px;" onclick="addFlowToSection('${ctxType}', 'EventFlow', 'Response')">+ EventFlow (Response)</button>
               </div>
             </div>
-            <div class="step-list"></div>
           `;
+        } else {
+          flows.forEach((flow, fIdx) => {
+            const flowId = 'flow-' + ctxType + '-' + fIdx;
+            const isFlowCollapsed = collapsedFlows.has(flowId);
 
-          const stepList = lane.querySelector('.step-list');
-          const steps = flow.steps || [];
-
-          if (steps.length === 0) {
-            stepList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.78rem; font-style: italic; text-align: center; padding: 8px;">No policy steps in this flow. Click "+ Add Step" to attach policies.</div>';
-          } else {
-            steps.forEach((step, sIdx) => {
-              if (sIdx > 0) {
-                const arrow = document.createElement('div');
-                arrow.className = 'flow-arrow';
-                arrow.innerHTML = '⬇';
-                arrow.title = 'Execution flows top to bottom';
-                stepList.appendChild(arrow);
-              }
-
-              const policyDef = (obj.policies || []).find(p => p.name === step.name);
-              const pType = policyDef ? policyDef.type : 'Unknown';
-
-              const card = document.createElement('div');
-              card.className = 'step-card';
-              card.draggable = true;
-
-              card.ondragstart = (e) => handleStepDragStart(e, ctxType, fIdx, sIdx);
-              card.ondragover = (e) => handleStepDragOver(e);
-              card.ondrop = (e) => handleStepDrop(e, ctxType, fIdx, sIdx);
-              card.ondragend = (e) => handleStepDragEnd(e);
-
-              card.innerHTML = `
-                <div class="step-card-header">
-                  <span class="step-name" onclick="openEditStepModal('${ctxType}', ${fIdx}, ${sIdx})">≡ ${step.name}</span>
-                  <div class="step-controls">
-                    <button class="step-btn step-btn-delete" title="Remove Step" onclick="event.stopPropagation(); removeStepFromFlow('${ctxType}', ${fIdx}, ${sIdx})">✕</button>
-                  </div>
+            const lane = document.createElement('div');
+            lane.id = flowId;
+            lane.className = 'pipeline-lane' + (isFlowCollapsed ? ' collapsed' : '');
+            lane.innerHTML = `
+              <div class="lane-header" onclick="toggleFlowCollapse('${flowId}')">
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden;">
+                  <svg class="collapse-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Flow: <strong>${escapeHtml(flow.name)}</strong> (${escapeHtml(flow.mode || 'Request/Response')})</span>
                 </div>
-                <div class="step-type" onclick="openEditStepModal('${ctxType}', ${fIdx}, ${sIdx})">${pType}</div>
-                ${step.condition ? `<div class="step-condition" title="${step.condition}" onclick="openEditStepModal('${ctxType}', ${fIdx}, ${sIdx})">Cond: ${step.condition}</div>` : ''}
-              `;
+                <div style="display: flex; gap: 8px; align-items: center;" onclick="event.stopPropagation()">
+                  <span class="flow-direction-badge">⬇ Sequence: Top to Bottom</span>
+                  <button class="btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="addStepToFlow('${ctxType}', ${fIdx})">+ Add Step</button>
+                  <button class="step-btn step-btn-delete" title="Remove Flow" style="font-size: 0.82rem;" onclick="removeFlowFromSection('${ctxType}', ${fIdx})">✕</button>
+                </div>
+              </div>
+              <div class="step-list"></div>
+            `;
 
-              stepList.appendChild(card);
-            });
-          }
+            const stepList = lane.querySelector('.step-list');
+            stepList.ondragover = (e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+            };
+            stepList.ondrop = (e) => {
+              if (e.target.closest('.step-card')) return;
+              handleStepDropOnList(e, ctxType, fIdx);
+            };
 
-          pipeline.appendChild(lane);
-        });
+            const steps = flow.steps || [];
+
+            if (steps.length === 0) {
+              stepList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.78rem; font-style: italic; text-align: center; padding: 8px;">No policy steps in this flow. Click "+ Add Step" to attach policies.</div>';
+            } else {
+              steps.forEach((step, sIdx) => {
+                if (sIdx > 0) {
+                  const arrow = document.createElement('div');
+                  arrow.className = 'flow-arrow';
+                  arrow.innerHTML = '⬇';
+                  arrow.title = 'Execution flows top to bottom';
+                  stepList.appendChild(arrow);
+                }
+
+                const policyDef = (obj.policies || []).find(p => p.name === step.name);
+                const pType = policyDef ? policyDef.type : 'Unknown';
+
+                const card = document.createElement('div');
+                card.className = 'step-card';
+                card.draggable = true;
+
+                card.ondragstart = (e) => handleStepDragStart(e, ctxType, fIdx, sIdx);
+                card.ondragover = (e) => handleStepDragOver(e, card, sIdx);
+                card.ondragleave = (e) => handleStepDragLeave(e, card);
+                card.ondrop = (e) => handleStepDrop(e, ctxType, fIdx, sIdx, card);
+                card.ondragend = (e) => handleStepDragEnd(e);
+                card.onclick = () => {
+                  if (isDraggingStep) return;
+                  openEditStepModal(ctxType, fIdx, sIdx);
+                };
+
+                card.innerHTML = `
+                  <div class="step-drag-handle" title="Drag to reorder step">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="9" cy="5" r="1.5" fill="currentColor"></circle>
+                      <circle cx="9" cy="12" r="1.5" fill="currentColor"></circle>
+                      <circle cx="9" cy="19" r="1.5" fill="currentColor"></circle>
+                      <circle cx="15" cy="5" r="1.5" fill="currentColor"></circle>
+                      <circle cx="15" cy="12" r="1.5" fill="currentColor"></circle>
+                      <circle cx="15" cy="19" r="1.5" fill="currentColor"></circle>
+                    </svg>
+                  </div>
+                  <div class="step-card-body">
+                    <div class="step-card-header">
+                      <span class="step-name">${escapeHtml(step.name)}</span>
+                      <div class="step-controls">
+                        <button class="step-btn step-btn-delete" title="Remove Step" onclick="event.stopPropagation(); removeStepFromFlow('${ctxType}', ${fIdx}, ${sIdx})">✕</button>
+                      </div>
+                    </div>
+                    <div class="step-type">${escapeHtml(pType)}</div>
+                    ${step.condition ? `<div class="step-condition" title="${escapeHtml(step.condition)}">${escapeHtml(step.condition)}</div>` : ''}
+                  </div>
+                `;
+
+                stepList.appendChild(card);
+              });
+            }
+
+            pipeline.appendChild(lane);
+          });
+        }
 
         sec.appendChild(pipeline);
         container.appendChild(sec);
       };
 
-      if (obj.defaultEndpoint) createFlowSection('Default Endpoint (' + (obj.defaultEndpoint.basePath || '') + ')', obj.defaultEndpoint.flows, 'defaultEndpoint');
-      (obj.endpoints || []).forEach((ep, i) => createFlowSection('Endpoint: ' + ep.name + ' (' + ep.basePath + ')', ep.flows, 'endpoint-' + i));
-      if (obj.defaultTarget) createFlowSection('Default Target (' + (obj.defaultTarget.url || '') + ')', obj.defaultTarget.flows, 'defaultTarget');
-      (obj.targets || []).forEach((tg, i) => createFlowSection('Target: ' + tg.name, tg.flows, 'target-' + i));
+      // Endpoints rendering
+      const hasEndpoints = !!(obj.defaultEndpoint || (obj.endpoints && obj.endpoints.length > 0));
+      if (obj.defaultEndpoint) {
+        const basePathStr = obj.defaultEndpoint.basePath ? ` <span style="font-weight: normal; color: var(--text-muted); font-size: 0.8rem;">(${escapeHtml(obj.defaultEndpoint.basePath)})</span>` : '';
+        const title = `Default Endpoint: <strong>${escapeHtml(obj.defaultEndpoint.name || 'default')}</strong>${basePathStr}`;
+        createFlowSection(title, obj.defaultEndpoint.flows, 'defaultEndpoint', {
+          basePath: obj.defaultEndpoint.basePath,
+          routes: obj.defaultEndpoint.routes
+        });
+      }
+      (obj.endpoints || []).forEach((ep, i) => {
+        const basePathStr = ep.basePath ? ` <span style="font-weight: normal; color: var(--text-muted); font-size: 0.8rem;">(${escapeHtml(ep.basePath)})</span>` : '';
+        const title = `Endpoint: <strong>${escapeHtml(ep.name || ('Endpoint ' + (i + 1)))}</strong>${basePathStr}`;
+        createFlowSection(title, ep.flows, 'endpoint-' + i, {
+          basePath: ep.basePath,
+          routes: ep.routes
+        });
+      });
+      if (!hasEndpoints) {
+        const emptyEp = document.createElement('div');
+        emptyEp.style.cssText = 'padding: 14px; background: rgba(30, 41, 59, 0.3); border: 1px dashed var(--border); border-radius: 8px; text-align: center; color: var(--text-muted); font-size: 0.82rem; margin-bottom: 14px;';
+        emptyEp.innerHTML = `No Endpoints configured. <button class="btn" style="margin-left: 8px; padding: 2px 8px; font-size: 0.75rem;" onclick="openAddEndpointModal()">+ Add Endpoint</button>`;
+        container.appendChild(emptyEp);
+      }
+
+      // Targets rendering
+      const hasTargets = !!(obj.defaultTarget || (obj.targets && obj.targets.length > 0));
+      if (obj.defaultTarget) {
+        const targetUrl = obj.defaultTarget.url ? ` <span style="font-weight: normal; color: var(--text-muted); font-size: 0.8rem;">(${escapeHtml(obj.defaultTarget.url)})</span>` : '';
+        const title = `Default Target: <strong>${escapeHtml(obj.defaultTarget.name || 'default')}</strong>${targetUrl}`;
+        createFlowSection(title, obj.defaultTarget.flows, 'defaultTarget', {
+          url: obj.defaultTarget.url
+        });
+      }
+      (obj.targets || []).forEach((tg, i) => {
+        const targetUrl = tg.url ? ` <span style="font-weight: normal; color: var(--text-muted); font-size: 0.8rem;">(${escapeHtml(tg.url)})</span>` : '';
+        const title = `Target: <strong>${escapeHtml(tg.name || ('Target ' + (i + 1)))}</strong>${targetUrl}`;
+        createFlowSection(title, tg.flows, 'target-' + i, {
+          url: tg.url
+        });
+      });
+      if (!hasTargets) {
+        const emptyTg = document.createElement('div');
+        emptyTg.style.cssText = 'padding: 14px; background: rgba(30, 41, 59, 0.3); border: 1px dashed var(--border); border-radius: 8px; text-align: center; color: var(--text-muted); font-size: 0.82rem; margin-bottom: 14px;';
+        emptyTg.innerHTML = `No Targets configured (No-Target / Direct Response). <button class="btn" style="margin-left: 8px; padding: 2px 8px; font-size: 0.75rem;" onclick="openAddTargetModal()">+ Add Target</button>`;
+        container.appendChild(emptyTg);
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Helper: calculate where a policy is referenced in all flows
+    function getPolicyUsage(obj, policyName) {
+      if (!policyName || !obj) return { count: 0, locations: [] };
+      let count = 0;
+      const locations = [];
+
+      const checkSteps = (steps, flowLabel) => {
+        (steps || []).forEach((step, sIdx) => {
+          if (step.name === policyName) {
+            count++;
+            locations.push({ flowLabel, stepIndex: sIdx });
+          }
+        });
+      };
+
+      const checkFlows = (flows, parentLabel) => {
+        (flows || []).forEach(f => checkSteps(f.steps, `${parentLabel} -> ${f.name}`));
+      };
+
+      if (obj.defaultEndpoint) checkFlows(obj.defaultEndpoint.flows, 'Default Endpoint');
+      (obj.endpoints || []).forEach(ep => checkFlows(ep.flows, `Endpoint (${ep.name})`));
+      if (obj.defaultTarget) checkFlows(obj.defaultTarget.flows, 'Default Target');
+      (obj.targets || []).forEach(tg => checkFlows(tg.flows, `Target (${tg.name})`));
+
+      return { count, locations };
+    }
+
+    // Delete Policy: immediately if unused, or prompt to remove all steps if used
+    function deletePolicy(policyName) {
+      if (!policyName) return;
+      const usage = getPolicyUsage(currentYamlObj, policyName);
+      if (usage.count === 0) {
+        if (confirm(`Are you sure you want to delete unused policy "${policyName}"?`)) {
+          currentYamlObj.policies = (currentYamlObj.policies || []).filter(p => p.name !== policyName);
+          updateYamlFromObj();
+        }
+      } else {
+        const locText = usage.locations.map(l => ` • ${l.flowLabel}`).join('\n');
+        const msg = `Policy "${policyName}" is referenced in ${usage.count} step(s):\n${locText}\n\nDo you want to remove all referencing steps and delete this policy?`;
+        if (confirm(msg)) {
+          const removeStepsFromFlows = (flows) => {
+            (flows || []).forEach(f => {
+              if (f.steps) {
+                f.steps = f.steps.filter(s => s.name !== policyName);
+              }
+            });
+          };
+          if (currentYamlObj.defaultEndpoint) removeStepsFromFlows(currentYamlObj.defaultEndpoint.flows);
+          (currentYamlObj.endpoints || []).forEach(ep => removeStepsFromFlows(ep.flows));
+          if (currentYamlObj.defaultTarget) removeStepsFromFlows(currentYamlObj.defaultTarget.flows);
+          (currentYamlObj.targets || []).forEach(tg => removeStepsFromFlows(tg.flows));
+
+          currentYamlObj.policies = (currentYamlObj.policies || []).filter(p => p.name !== policyName);
+          updateYamlFromObj();
+        }
+      }
+    }
+
+    // Helper: calculate where a resource is referenced across policies
+    function getResourceUsage(obj, resourceName) {
+      if (!resourceName || !obj) return { count: 0, policies: [] };
+      const cleanName = resourceName.replace(/^(jsc|oas):\/\//, '');
+      const referencingPolicies = [];
+
+      (obj.policies || []).forEach(pol => {
+        let isUsed = false;
+        const inc = getPolicyIncludeUrl(pol.content);
+        if (inc) {
+          const cleanInc = inc.replace(/^(jsc|oas):\/\//, '');
+          if (cleanInc === cleanName || inc === resourceName) {
+            isUsed = true;
+          }
+        }
+        const contentStr = JSON.stringify(pol.content || {});
+        if (contentStr.includes(resourceName) || (cleanName && contentStr.includes(cleanName))) {
+          isUsed = true;
+        }
+        if (isUsed && !referencingPolicies.includes(pol.name)) {
+          referencingPolicies.push(pol.name);
+        }
+      });
+
+      return { count: referencingPolicies.length, policies: referencingPolicies };
+    }
+
+    // Delete Resource: immediately if unused, or confirm if used
+    function deleteResource(resourceName) {
+      if (!resourceName) return;
+      const usage = getResourceUsage(currentYamlObj, resourceName);
+      if (usage.count === 0) {
+        if (confirm(`Are you sure you want to delete unused resource "${resourceName}"?`)) {
+          currentYamlObj.resources = (currentYamlObj.resources || []).filter(r => r.name !== resourceName);
+          updateYamlFromObj();
+        }
+      } else {
+        const msg = `Resource "${resourceName}" is referenced by ${usage.count} policy/policies (${usage.policies.join(', ')}).\n\nDelete this resource anyway?`;
+        if (confirm(msg)) {
+          currentYamlObj.resources = (currentYamlObj.resources || []).filter(r => r.name !== resourceName);
+          updateYamlFromObj();
+        }
+      }
+    }
+
+    function getResourceMode(name, type) {
+      const ext = (name || '').split('.').pop().toLowerCase();
+      const t = (type || '').toLowerCase();
+      if (t === 'javascript' || ext === 'js') return 'javascript';
+      if (t === 'openapi' || ext === 'yaml' || ext === 'yml') return 'yaml';
+      if (ext === 'json') return { name: 'javascript', json: true };
+      if (t === 'wsdl' || t === 'xsd' || ext === 'xml' || ext === 'wsdl' || ext === 'xsd') return 'xml';
+      return null;
     }
 
     // Render Policies
@@ -2084,18 +3789,41 @@ policies:
       const container = document.getElementById('policies-container');
       container.innerHTML = '';
 
-      (obj.policies || []).forEach((pol, idx) => {
+      const policies = obj.policies || [];
+      if (policies.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; grid-column: 1 / -1; padding: 20px; text-align: center;">No policies defined yet. Click "+ Add Policy" above to create one.</div>';
+        return;
+      }
+
+      policies.forEach((pol, idx) => {
+        const usage = getPolicyUsage(obj, pol.name);
+        const isUsed = usage.count > 0;
         const card = document.createElement('div');
-        card.className = 'policy-card';
+        card.className = `policy-card ${isUsed ? '' : 'unused'}`;
         card.innerHTML = `
-          <div class="policy-header">
-            <span class="step-name">${pol.name}</span>
-            <span class="policy-type-badge">${pol.type}</span>
+          <div class="policy-card-top-row" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div class="step-name" style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); word-break: break-word; line-height: 1.35;">${escapeHtml(pol.name)}</div>
+            <button class="btn-card-action btn-delete-policy" title="Delete Policy" style="flex-shrink: 0; margin-top: 1px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            </button>
           </div>
-          <div style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-code);">
+          <div class="policy-badges" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span class="policy-type-badge">${escapeHtml(pol.type || 'Policy')}</span>
+            <span class="policy-ref-badge ${isUsed ? 'ref-active' : 'ref-unused'}" title="${isUsed ? `Referenced in ${usage.count} step(s)` : 'Not referenced in any flows'}">
+              ${isUsed ? `${usage.count} ref${usage.count === 1 ? '' : 's'}` : 'Unused'}
+            </span>
+          </div>
+          <div style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px;">
             ${pol.content ? Object.keys(pol.content).join(', ') : 'No content'}
           </div>
         `;
+        const delBtn = card.querySelector('.btn-delete-policy');
+        if (delBtn) {
+          delBtn.onclick = (e) => {
+            e.stopPropagation();
+            deletePolicy(pol.name);
+          };
+        }
         card.onclick = () => openEditPolicyModal(idx);
         container.appendChild(card);
       });
@@ -2106,23 +3834,50 @@ policies:
       const container = document.getElementById('resources-container');
       container.innerHTML = '';
 
-      if (!obj.resources || obj.resources.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem;">No external JS resources defined.</div>';
+      const resources = obj.resources || [];
+      if (resources.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; padding: 20px; text-align: center;">No external resources defined yet. Click "+ Add Resource" above to create one.</div>';
         return;
       }
 
-      obj.resources.forEach(res => {
+      const grid = document.createElement('div');
+      grid.className = 'policy-grid';
+
+      resources.forEach((res, idx) => {
+        const usage = getResourceUsage(obj, res.name);
+        const isUsed = usage.count > 0;
         const card = document.createElement('div');
-        card.className = 'flow-section';
-        card.style.padding = '12px';
+        card.className = `policy-card ${isUsed ? '' : 'unused'}`;
+
+        const previewText = (res.content || '').split('\n').slice(0, 3).join('\n').trim() || '(Empty resource)';
+
         card.innerHTML = `
-          <div style="font-weight: 600; font-family: var(--font-code); color: var(--accent); margin-bottom: 8px;">
-            Resource: ${res.name} (${res.type})
+          <div class="policy-card-top-row" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div class="step-name" style="font-size: 0.9rem; font-weight: 600; color: var(--accent); word-break: break-word; line-height: 1.35;">${escapeHtml(res.name)}</div>
+            <button class="btn-card-action btn-delete-resource" title="Delete Resource" style="flex-shrink: 0; margin-top: 1px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            </button>
           </div>
-          <pre style="background: var(--bg-primary); padding: 10px; border-radius: 6px; font-family: var(--font-code); font-size: 0.8rem; overflow-x: auto;">${res.content}</pre>
+          <div class="policy-badges" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span class="policy-type-badge">${escapeHtml(res.type || 'file')}</span>
+            <span class="policy-ref-badge ${isUsed ? 'ref-active' : 'ref-unused'}" title="${isUsed ? `Referenced by: ${usage.policies.join(', ')}` : 'Not referenced by any policies'}">
+              ${isUsed ? `${usage.count} ref${usage.count === 1 ? '' : 's'}` : 'Unused'}
+            </span>
+          </div>
+          <pre style="background: var(--bg-primary); padding: 8px; border-radius: 4px; font-family: var(--font-code); font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; max-height: 60px; overflow: hidden; text-overflow: ellipsis; white-space: pre-wrap;">${escapeHtml(previewText)}</pre>
         `;
-        container.appendChild(card);
+        const delBtn = card.querySelector('.btn-delete-resource');
+        if (delBtn) {
+          delBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteResource(res.name);
+          };
+        }
+        card.onclick = () => openEditResourceModal(idx);
+        grid.appendChild(card);
       });
+
+      container.appendChild(grid);
     }
 
     function switchVisualTab(tabName) {
@@ -2134,7 +3889,230 @@ policies:
       document.getElementById('visual-tab-resources').style.display = tabName === 'resources' ? 'block' : 'none';
     }
 
+    // Modal Resource Editor
+    function openAddResourceModal() {
+      currentEditingResourceIndex = -1;
+      document.getElementById('resource-modal-title').innerText = 'Add New Resource';
+      document.getElementById('modal-resource-name').value = 'resource.js';
+      document.getElementById('modal-resource-type').value = 'javascript';
+      if (resourceCodeMirror) {
+        resourceCodeMirror.setValue('');
+        resourceCodeMirror.setOption('mode', 'javascript');
+      }
+      updateResourceEditorBadge();
+      document.getElementById('resource-modal').classList.add('open');
+      setTimeout(() => {
+        if (resourceCodeMirror) resourceCodeMirror.refresh();
+      }, 30);
+    }
+
+    function openEditResourceModal(index) {
+      currentEditingResourceIndex = index;
+      const res = (currentYamlObj.resources || [])[index];
+      if (!res) return;
+
+      document.getElementById('resource-modal-title').innerText = 'Edit Resource: ' + res.name;
+      document.getElementById('modal-resource-name').value = res.name || '';
+      
+      const typeSelect = document.getElementById('modal-resource-type');
+      const rawType = (res.type || '').trim();
+      let matched = false;
+      for (let i = 0; i < typeSelect.options.length; i++) {
+        if (typeSelect.options[i].value.toLowerCase() === rawType.toLowerCase()) {
+          typeSelect.selectedIndex = i;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        if (rawType) {
+          const opt = document.createElement('option');
+          opt.value = rawType;
+          opt.textContent = `${rawType} (${rawType})`;
+          typeSelect.appendChild(opt);
+          typeSelect.value = rawType;
+        } else {
+          typeSelect.value = 'javascript';
+        }
+      }
+      
+      const mode = getResourceMode(res.name, res.type);
+      if (resourceCodeMirror) {
+        resourceCodeMirror.setValue(res.content || '');
+        resourceCodeMirror.setOption('mode', mode);
+      }
+      updateResourceEditorBadge();
+      document.getElementById('resource-modal').classList.add('open');
+      setTimeout(() => {
+        if (resourceCodeMirror) resourceCodeMirror.refresh();
+      }, 30);
+    }
+
+    function closeResourceModal() {
+      document.getElementById('resource-modal').classList.remove('open');
+    }
+
+    function handleResourceTypeChange() {
+      const name = document.getElementById('modal-resource-name').value;
+      const type = document.getElementById('modal-resource-type').value;
+      const mode = getResourceMode(name, type);
+      if (resourceCodeMirror) {
+        resourceCodeMirror.setOption('mode', mode);
+      }
+      updateResourceEditorBadge();
+    }
+
+    function handleResourceNameChange() {
+      const name = document.getElementById('modal-resource-name').value;
+      const ext = (name || '').split('.').pop().toLowerCase();
+      const typeSelect = document.getElementById('modal-resource-type');
+      if (ext === 'js' && typeSelect.value !== 'javascript') {
+        typeSelect.value = 'javascript';
+      } else if ((ext === 'yaml' || ext === 'yml') && typeSelect.value !== 'openapi') {
+        typeSelect.value = 'openapi';
+      } else if (ext === 'wsdl' && typeSelect.value !== 'wsdl') {
+        typeSelect.value = 'wsdl';
+      } else if (ext === 'xsd' && typeSelect.value !== 'xsd') {
+        typeSelect.value = 'xsd';
+      } else if (ext === 'properties' && typeSelect.value !== 'properties') {
+        typeSelect.value = 'properties';
+      }
+      handleResourceTypeChange();
+    }
+
+    function updateResourceEditorBadge() {
+      const name = document.getElementById('modal-resource-name').value;
+      const type = document.getElementById('modal-resource-type').value;
+      const badge = document.getElementById('modal-resource-syntax-badge');
+      const mode = getResourceMode(name, type);
+      const modeName = typeof mode === 'object' ? 'JSON' : (!mode ? 'Plain Text' : mode.toUpperCase());
+      if (badge) {
+        badge.innerText = modeName;
+      }
+    }
+
+    function saveResourceFromModal() {
+      const name = document.getElementById('modal-resource-name').value.trim();
+      const type = document.getElementById('modal-resource-type').value;
+      const content = resourceCodeMirror ? resourceCodeMirror.getValue() : '';
+
+      if (!name) {
+        alert('Resource name is required.');
+        return;
+      }
+
+      currentYamlObj.resources = currentYamlObj.resources || [];
+      if (currentEditingResourceIndex >= 0) {
+        currentYamlObj.resources[currentEditingResourceIndex] = { name, type, content };
+      } else {
+        if (currentYamlObj.resources.some(r => r.name === name)) {
+          alert(`A resource with name "${name}" already exists.`);
+          return;
+        }
+        currentYamlObj.resources.push({ name, type, content });
+      }
+
+      updateYamlFromObj();
+      closeResourceModal();
+    }
+
     // Modal Policy Editor
+    function updatePolicyModalTabsForType(type, content) {
+      const typeBadge = document.getElementById('modal-policy-type-badge');
+      const tabSource = document.getElementById('policy-tab-btn-source');
+      const tabInclude = document.getElementById('policy-tab-btn-include');
+      const includeSelect = document.getElementById('modal-policy-js-include-select');
+      const includeLabel = document.getElementById('modal-policy-js-include-label');
+
+      if (typeBadge) typeBadge.innerText = type || '';
+      const isJs = type && type.toLowerCase() === 'javascript';
+
+      if (isJs) {
+        if (tabSource) tabSource.style.display = 'inline-flex';
+        if (tabInclude) tabInclude.style.display = 'inline-flex';
+
+        const sourceText = getPolicySource(content);
+        const includeUrl = getPolicyIncludeUrl(content);
+
+        if (modalPolicyJsSourceCodeMirror) modalPolicyJsSourceCodeMirror.setValue(sourceText || '');
+
+        // Populate include resource dropdown
+        if (includeSelect) {
+          includeSelect.innerHTML = '<option value="">-- No Include --</option>';
+          const resources = currentYamlObj.resources || [];
+          let matched = false;
+
+          resources.forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.name;
+            opt.innerText = 'jsc://' + r.name.replace(/^jsc:\/\//, '');
+            if (includeUrl && (includeUrl === r.name || includeUrl === 'jsc://' + r.name || includeUrl.replace(/^jsc:\/\//, '') === r.name.replace(/^jsc:\/\//, ''))) {
+              opt.selected = true;
+              matched = true;
+            }
+            includeSelect.appendChild(opt);
+          });
+
+          if (includeUrl && !matched) {
+            const customOpt = document.createElement('option');
+            customOpt.value = includeUrl;
+            customOpt.innerText = includeUrl;
+            customOpt.selected = true;
+            includeSelect.appendChild(customOpt);
+          }
+        }
+
+        if (includeLabel) {
+          includeLabel.innerText = includeUrl ? includeUrl : '';
+        }
+
+        // Load resource code into include editor
+        const res = findResourceByIncludeUrl(includeUrl);
+        if (modalPolicyJsIncludeCodeMirror) {
+          modalPolicyJsIncludeCodeMirror.setValue(res ? (res.content || '') : '');
+        }
+
+        updatePolicyJsBadges(!!sourceText.trim(), includeUrl);
+      } else {
+        if (tabSource) tabSource.style.display = 'none';
+        if (tabInclude) tabInclude.style.display = 'none';
+        if (modalPolicyJsSourceCodeMirror) modalPolicyJsSourceCodeMirror.setValue('');
+        if (modalPolicyJsIncludeCodeMirror) modalPolicyJsIncludeCodeMirror.setValue('');
+        if (currentPolicyModalTab !== 'yaml') {
+          switchPolicyModalTab('yaml');
+        }
+      }
+    }
+
+    function handlePolicyJsIncludeSelectChange() {
+      const select = document.getElementById('modal-policy-js-include-select');
+      const includeLabel = document.getElementById('modal-policy-js-include-label');
+      if (!select || !modalPolicyCodeMirror) return;
+
+      const val = select.value;
+      const formattedUrl = val ? (val.startsWith('jsc://') ? val : 'jsc://' + val) : '';
+
+      if (includeLabel) {
+        includeLabel.innerText = formattedUrl;
+      }
+
+      // Load resource content into include editor
+      const res = findResourceByIncludeUrl(val);
+      isSyncingPolicyEditors = true;
+      if (modalPolicyJsIncludeCodeMirror) {
+        modalPolicyJsIncludeCodeMirror.setValue(res ? (res.content || '') : '');
+      }
+
+      try {
+        let parsed = jsyaml.load(modalPolicyCodeMirror.getValue()) || {};
+        parsed = setPolicyIncludeUrl(parsed, formattedUrl);
+
+        setCodeMirrorValuePreservingCursor(modalPolicyCodeMirror, jsyaml.dump(parsed));
+        updatePolicyJsBadges(!!getPolicySource(parsed).trim(), formattedUrl);
+      } catch (e) {}
+      isSyncingPolicyEditors = false;
+    }
+
     function openEditPolicyModal(index) {
       currentEditingPolicyIndex = index;
       const pol = currentYamlObj.policies[index];
@@ -2143,15 +4121,16 @@ policies:
       document.getElementById('modal-policy-name').value = pol.name;
       document.getElementById('modal-policy-type').value = pol.type;
 
-      if (pol.type === 'Javascript' && pol.content && pol.content.javascript && pol.content.javascript.source) {
-        document.getElementById('modal-js-code-section').style.display = 'flex';
-        document.getElementById('modal-js-source').value = pol.content.javascript.source;
-      } else {
-        document.getElementById('modal-js-code-section').style.display = 'none';
-      }
+      switchPolicyModalTab('yaml');
+      isSyncingPolicyEditors = true;
+      if (modalPolicyCodeMirror) modalPolicyCodeMirror.setValue(jsyaml.dump(pol.content || {}));
+      updatePolicyModalTabsForType(pol.type, pol.content || {});
+      isSyncingPolicyEditors = false;
 
-      document.getElementById('modal-policy-yaml').value = jsyaml.dump(pol.content || {});
       document.getElementById('policy-modal').classList.add('open');
+      setTimeout(() => {
+        if (modalPolicyCodeMirror) modalPolicyCodeMirror.refresh();
+      }, 30);
     }
 
     function openAddPolicyModal() {
@@ -2159,32 +4138,54 @@ policies:
       document.getElementById('policy-modal-title').innerText = 'Add New Policy';
       document.getElementById('modal-policy-name').value = 'AM-NewPolicy';
       document.getElementById('modal-policy-type').value = 'AssignMessage';
-      document.getElementById('modal-js-code-section').style.display = 'none';
-      document.getElementById('modal-policy-yaml').value = 'assignMessage:\n  assignVariable:\n    name: var_name\n    value: var_val';
+      
+      const defaultContent = {
+        assignMessage: {
+          assignVariable: {
+            name: 'var_name',
+            value: 'var_val'
+          }
+        }
+      };
+
+      switchPolicyModalTab('yaml');
+      isSyncingPolicyEditors = true;
+      if (modalPolicyCodeMirror) modalPolicyCodeMirror.setValue(jsyaml.dump(defaultContent));
+      updatePolicyModalTabsForType('AssignMessage', defaultContent);
+      isSyncingPolicyEditors = false;
 
       document.getElementById('policy-modal').classList.add('open');
+      setTimeout(() => {
+        if (modalPolicyCodeMirror) modalPolicyCodeMirror.refresh();
+      }, 30);
     }
 
     function handlePolicyTypeChange() {
       const type = document.getElementById('modal-policy-type').value;
-      document.getElementById('modal-js-code-section').style.display = type === 'Javascript' ? 'flex' : 'none';
+      let parsed = {};
+      try {
+        parsed = jsyaml.load(modalPolicyCodeMirror.getValue()) || {};
+      } catch (e) {}
+      isSyncingPolicyEditors = true;
+      updatePolicyModalTabsForType(type, parsed);
+      isSyncingPolicyEditors = false;
     }
 
     function savePolicyFromModal() {
       const name = document.getElementById('modal-policy-name').value.trim();
       const type = document.getElementById('modal-policy-type').value;
-      let content = {};
-
-      try {
-        content = jsyaml.load(document.getElementById('modal-policy-yaml').value) || {};
-      } catch (e) {
-        alert('Invalid YAML in Policy Config');
+      if (!name) {
+        alert('Policy Name is required.');
         return;
       }
+      let content = {};
 
-      if (type === 'Javascript') {
-        if (!content.javascript) content.javascript = {};
-        content.javascript.source = document.getElementById('modal-js-source').value;
+      const yamlVal = modalPolicyCodeMirror ? modalPolicyCodeMirror.getValue() : '';
+      try {
+        content = jsyaml.load(yamlVal) || {};
+      } catch (e) {
+        alert('Invalid YAML in Policy Config: ' + e.message);
+        return;
       }
 
       if (!currentYamlObj.policies) currentYamlObj.policies = [];
@@ -2205,6 +4206,125 @@ policies:
     }
 
     // Modal Step Editor
+    function loadStepPolicyYaml(policyName) {
+      const pol = (currentYamlObj.policies || []).find(p => p.name === policyName);
+      const typeBadge = document.getElementById('modal-step-policy-type-badge');
+      const tabSource = document.getElementById('step-tab-btn-source');
+      const tabInclude = document.getElementById('step-tab-btn-include');
+      const includeSelect = document.getElementById('modal-step-js-include-select');
+      const includeLabel = document.getElementById('modal-step-js-include-label');
+
+      if (pol) {
+        if (typeBadge) typeBadge.innerText = pol.type;
+        const isJs = pol.type && pol.type.toLowerCase() === 'javascript';
+
+        isSyncingStepEditors = true;
+        const yamlText = jsyaml.dump(pol.content || {});
+        if (stepPolicyCodeMirror) stepPolicyCodeMirror.setValue(yamlText);
+
+        if (isJs) {
+          if (tabSource) tabSource.style.display = 'inline-flex';
+          if (tabInclude) tabInclude.style.display = 'inline-flex';
+
+          const sourceText = getPolicySource(pol.content);
+          const includeUrl = getPolicyIncludeUrl(pol.content);
+
+          if (stepJsSourceCodeMirror) stepJsSourceCodeMirror.setValue(sourceText || '');
+
+          // Populate include resource dropdown
+          if (includeSelect) {
+            includeSelect.innerHTML = '<option value="">-- No Include --</option>';
+            const resources = currentYamlObj.resources || [];
+            let matched = false;
+
+            resources.forEach(r => {
+              const opt = document.createElement('option');
+              opt.value = r.name;
+              opt.innerText = 'jsc://' + r.name.replace(/^jsc:\/\//, '');
+              if (includeUrl && (includeUrl === r.name || includeUrl === 'jsc://' + r.name || includeUrl.replace(/^jsc:\/\//, '') === r.name.replace(/^jsc:\/\//, ''))) {
+                opt.selected = true;
+                matched = true;
+              }
+              includeSelect.appendChild(opt);
+            });
+
+            if (includeUrl && !matched) {
+              const customOpt = document.createElement('option');
+              customOpt.value = includeUrl;
+              customOpt.innerText = includeUrl;
+              customOpt.selected = true;
+              includeSelect.appendChild(customOpt);
+            }
+          }
+
+          if (includeLabel) {
+            includeLabel.innerText = includeUrl ? includeUrl : '';
+          }
+
+          // Load resource code into include editor
+          const res = findResourceByIncludeUrl(includeUrl);
+          if (stepJsIncludeCodeMirror) {
+            stepJsIncludeCodeMirror.setValue(res ? (res.content || '') : '');
+          }
+
+          updateStepJsBadges(!!sourceText.trim(), includeUrl);
+        } else {
+          if (tabSource) tabSource.style.display = 'none';
+          if (tabInclude) tabInclude.style.display = 'none';
+          if (stepJsSourceCodeMirror) stepJsSourceCodeMirror.setValue('');
+          if (stepJsIncludeCodeMirror) stepJsIncludeCodeMirror.setValue('');
+          if (currentStepModalTab !== 'yaml') {
+            switchStepModalTab('yaml');
+          }
+        }
+        isSyncingStepEditors = false;
+      } else {
+        if (typeBadge) typeBadge.innerText = '';
+        if (stepPolicyCodeMirror) stepPolicyCodeMirror.setValue('');
+        if (tabSource) tabSource.style.display = 'none';
+        if (tabInclude) tabInclude.style.display = 'none';
+        if (currentStepModalTab !== 'yaml') {
+          switchStepModalTab('yaml');
+        }
+      }
+
+      switchStepModalTab(currentStepModalTab);
+    }
+
+    function handleStepJsIncludeSelectChange() {
+      const select = document.getElementById('modal-step-js-include-select');
+      const includeLabel = document.getElementById('modal-step-js-include-label');
+      if (!select || !stepPolicyCodeMirror) return;
+
+      const val = select.value;
+      const formattedUrl = val ? (val.startsWith('jsc://') ? val : 'jsc://' + val) : '';
+
+      if (includeLabel) {
+        includeLabel.innerText = formattedUrl;
+      }
+
+      // Load resource content into include editor
+      const res = findResourceByIncludeUrl(val);
+      isSyncingStepEditors = true;
+      if (stepJsIncludeCodeMirror) {
+        stepJsIncludeCodeMirror.setValue(res ? (res.content || '') : '');
+      }
+
+      try {
+        let parsed = jsyaml.load(stepPolicyCodeMirror.getValue()) || {};
+        parsed = setPolicyIncludeUrl(parsed, formattedUrl);
+
+        setCodeMirrorValuePreservingCursor(stepPolicyCodeMirror, jsyaml.dump(parsed));
+        updateStepJsBadges(!!getPolicySource(parsed).trim(), formattedUrl);
+      } catch (e) {}
+      isSyncingStepEditors = false;
+    }
+
+    function handleStepModalPolicyChange() {
+      const selectedPolicyName = document.getElementById('modal-step-name').value;
+      loadStepPolicyYaml(selectedPolicyName);
+    }
+
     function openEditStepModal(ctxType, flowIndex, stepIndex) {
       currentEditingStepCtx = { ctxType, flowIndex, stepIndex };
       const flows = getFlowsByCtxType(ctxType);
@@ -2212,16 +4332,90 @@ policies:
 
       populatePolicyDropdown('modal-step-name', step.name);
       document.getElementById('modal-step-condition').value = step.condition || '';
+      switchStepModalTab('yaml');
+      loadStepPolicyYaml(step.name);
 
       document.getElementById('step-modal').classList.add('open');
+      setTimeout(() => {
+        if (stepPolicyCodeMirror) stepPolicyCodeMirror.refresh();
+      }, 30);
     }
 
     function addStepToFlow(ctxType, flowIndex) {
       currentEditingStepCtx = { ctxType, flowIndex, stepIndex: -1 };
       populatePolicyDropdown('modal-step-name');
       document.getElementById('modal-step-condition').value = '';
+      const firstPolicyName = document.getElementById('modal-step-name').value;
+      switchStepModalTab('yaml');
+      loadStepPolicyYaml(firstPolicyName);
 
       document.getElementById('step-modal').classList.add('open');
+      setTimeout(() => {
+        if (stepPolicyCodeMirror) stepPolicyCodeMirror.refresh();
+      }, 30);
+    }
+
+    function openPolicyFromStepModal() {
+      const selectedPolicyName = document.getElementById('modal-step-name').value;
+      if (!selectedPolicyName) return;
+
+      const policyIndex = (currentYamlObj.policies || []).findIndex(p => p.name === selectedPolicyName);
+      if (policyIndex >= 0) {
+        closeStepModal();
+        openEditPolicyModal(policyIndex);
+      } else {
+        alert('Policy "' + selectedPolicyName + '" not found in policies list.');
+      }
+    }
+
+    function copyAsNewPolicyFromStepModal() {
+      const selectedPolicyName = document.getElementById('modal-step-name').value;
+      const pol = (currentYamlObj.policies || []).find(p => p.name === selectedPolicyName);
+      if (!pol) return;
+
+      let suggestedName = pol.name + '-copy';
+      let counter = 1;
+      while ((currentYamlObj.policies || []).some(p => p.name === suggestedName)) {
+        counter++;
+        suggestedName = `${pol.name}-copy${counter}`;
+      }
+
+      const newName = prompt('Enter a name for the new policy:', suggestedName);
+      if (!newName || !newName.trim()) return;
+      const finalName = newName.trim();
+
+      if ((currentYamlObj.policies || []).some(p => p.name === finalName)) {
+        alert('A policy with name "' + finalName + '" already exists.');
+        return;
+      }
+
+      let parsedContent = {};
+      const yamlVal = stepPolicyCodeMirror ? stepPolicyCodeMirror.getValue() : document.getElementById('modal-step-policy-yaml').value;
+      try {
+        parsedContent = jsyaml.load(yamlVal) || {};
+      } catch (e) {
+        parsedContent = JSON.parse(JSON.stringify(pol.content || {}));
+      }
+
+      if (pol.type && pol.type.toLowerCase() === 'javascript') {
+        if (stepJsSourceCodeMirror) {
+          parsedContent = setPolicySource(parsedContent, stepJsSourceCodeMirror.getValue());
+        }
+      }
+
+      const newPolicy = {
+        name: finalName,
+        type: pol.type,
+        content: parsedContent
+      };
+
+      if (!currentYamlObj.policies) currentYamlObj.policies = [];
+      currentYamlObj.policies.push(newPolicy);
+
+      // Refresh dropdown and select the newly created policy
+      populatePolicyDropdown('modal-step-name', finalName);
+      loadStepPolicyYaml(finalName);
+      updateYamlFromObj();
     }
 
     function populatePolicyDropdown(elementId, selectedVal) {
@@ -2237,15 +4431,30 @@ policies:
     }
 
     function getFlowsByCtxType(ctxType) {
-      if (ctxType === 'defaultEndpoint') return currentYamlObj.defaultEndpoint.flows;
-      if (ctxType === 'defaultTarget') return currentYamlObj.defaultTarget.flows;
+      if (!currentYamlObj) return [];
+      if (ctxType === 'defaultEndpoint') {
+        if (!currentYamlObj.defaultEndpoint) currentYamlObj.defaultEndpoint = { name: 'default', basePath: '/', flows: [] };
+        if (!currentYamlObj.defaultEndpoint.flows) currentYamlObj.defaultEndpoint.flows = [];
+        return currentYamlObj.defaultEndpoint.flows;
+      }
+      if (ctxType === 'defaultTarget') {
+        if (!currentYamlObj.defaultTarget) currentYamlObj.defaultTarget = { name: 'default', url: '', flows: [] };
+        if (!currentYamlObj.defaultTarget.flows) currentYamlObj.defaultTarget.flows = [];
+        return currentYamlObj.defaultTarget.flows;
+      }
       if (ctxType.startsWith('endpoint-')) {
         const idx = parseInt(ctxType.split('-')[1]);
-        return currentYamlObj.endpoints[idx].flows;
+        if (currentYamlObj.endpoints && currentYamlObj.endpoints[idx]) {
+          if (!currentYamlObj.endpoints[idx].flows) currentYamlObj.endpoints[idx].flows = [];
+          return currentYamlObj.endpoints[idx].flows;
+        }
       }
       if (ctxType.startsWith('target-')) {
         const idx = parseInt(ctxType.split('-')[1]);
-        return currentYamlObj.targets[idx].flows;
+        if (currentYamlObj.targets && currentYamlObj.targets[idx]) {
+          if (!currentYamlObj.targets[idx].flows) currentYamlObj.targets[idx].flows = [];
+          return currentYamlObj.targets[idx].flows;
+        }
       }
       return [];
     }
@@ -2255,6 +4464,40 @@ policies:
       const flows = getFlowsByCtxType(ctxType);
       const name = document.getElementById('modal-step-name').value;
       const condition = document.getElementById('modal-step-condition').value.trim();
+
+      // Update Policy YAML and JS content if modified
+      const yamlText = stepPolicyCodeMirror ? stepPolicyCodeMirror.getValue() : document.getElementById('modal-step-policy-yaml').value;
+      if (yamlText && name) {
+        const policyIndex = (currentYamlObj.policies || []).findIndex(p => p.name === name);
+        if (policyIndex >= 0) {
+          try {
+            let parsedContent = jsyaml.load(yamlText) || {};
+            const polType = currentYamlObj.policies[policyIndex].type;
+            if (polType && polType.toLowerCase() === 'javascript') {
+              // Ensure Source is synced
+              if (stepJsSourceCodeMirror) {
+                const srcVal = stepJsSourceCodeMirror.getValue();
+                parsedContent = setPolicySource(parsedContent, srcVal);
+              }
+              // Ensure Include resource content is synced
+              const incSelect = document.getElementById('modal-step-js-include-select');
+              if (incSelect && incSelect.value && stepJsIncludeCodeMirror) {
+                const incContent = stepJsIncludeCodeMirror.getValue();
+                let res = findResourceByIncludeUrl(incSelect.value);
+                if (!res) {
+                  res = { name: incSelect.value.replace(/^jsc:\/\//, ''), type: 'javascript', content: '' };
+                  currentYamlObj.resources = currentYamlObj.resources || [];
+                  currentYamlObj.resources.push(res);
+                }
+                res.content = incContent;
+              }
+            }
+            currentYamlObj.policies[policyIndex].content = parsedContent;
+          } catch (e) {
+            alert('Warning: Policy YAML is invalid. Step condition was saved, but policy YAML could not be updated.');
+          }
+        }
+      }
 
       const newStep = { name };
       if (condition) newStep.condition = condition;
@@ -2275,19 +4518,6 @@ policies:
       document.getElementById('step-modal').classList.remove('open');
     }
 
-    function editPolicyFromStepModal() {
-      const selectedPolicyName = document.getElementById('modal-step-name').value;
-      if (!selectedPolicyName) return;
-
-      const policyIndex = (currentYamlObj.policies || []).findIndex(p => p.name === selectedPolicyName);
-      if (policyIndex >= 0) {
-        closeStepModal();
-        openEditPolicyModal(policyIndex);
-      } else {
-        alert('Policy "' + selectedPolicyName + '" not found in policies list.');
-      }
-    }
-
     // Sync Object changes back to CodeMirror
     function updateYamlFromObj() {
       let newYamlText = jsyaml.dump(currentYamlObj, { lineWidth: -1, noRefs: true });
@@ -2302,8 +4532,8 @@ policies:
       const dropZone = document.getElementById('drop-zone');
 
       window.addEventListener('dragover', (e) => {
-        // Only trigger drop zone overlay when dragging actual desktop files
-        if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+        // Only trigger drop zone overlay when dragging actual desktop files from outside
+        if (!draggedStepInfo && e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
           e.preventDefault();
           dropZone.classList.add('active');
         }
@@ -2330,68 +4560,29 @@ policies:
       }
     }
 
+    function updateFileNameDisplay() {
+      const tag = document.getElementById('current-filename');
+      if (tag) {
+        if (currentFileName) {
+          tag.innerText = currentFileName;
+          tag.style.display = '';
+        } else {
+          tag.innerText = '';
+          tag.style.display = 'none';
+        }
+      }
+    }
+
     function loadFile(file) {
       currentFileName = file.name;
-      document.getElementById('current-filename').innerText = currentFileName;
+      updateFileNameDisplay();
 
       const reader = new FileReader();
       reader.onload = (e) => {
+        isInitialDocumentLoad = true;
         setYamlContent(e.target.result);
       };
       reader.readAsText(file);
-    }
-
-    // Paste YAML Handlers
-    async function pasteYaml() {
-      if (navigator.clipboard && navigator.clipboard.readText) {
-        try {
-          const text = await navigator.clipboard.readText();
-          if (text && text.trim()) {
-            loadYamlString(text);
-            return;
-          }
-        } catch (err) {
-          console.warn('Clipboard read access denied or unavailable, opening paste modal:', err);
-        }
-      }
-      openPasteModal();
-    }
-
-    function openPasteModal() {
-      document.getElementById('modal-paste-yaml').value = '';
-      document.getElementById('paste-modal').classList.add('open');
-      setTimeout(() => {
-        document.getElementById('modal-paste-yaml').focus();
-      }, 50);
-    }
-
-    function closePasteModal() {
-      document.getElementById('paste-modal').classList.remove('open');
-    }
-
-    function loadPastedYamlFromModal() {
-      const text = document.getElementById('modal-paste-yaml').value;
-      if (text && text.trim()) {
-        loadYamlString(text);
-        closePasteModal();
-      } else {
-        alert('Please paste some YAML content into the textarea.');
-      }
-    }
-
-    function loadYamlString(text) {
-      setYamlContent(text);
-      try {
-        const parsed = jsyaml.load(text);
-        if (parsed && parsed.name) {
-          currentFileName = parsed.name + '.yaml';
-        } else {
-          currentFileName = 'pasted.yaml';
-        }
-      } catch (e) {
-        currentFileName = 'pasted.yaml';
-      }
-      document.getElementById('current-filename').innerText = currentFileName;
     }
 
     function copyYamlToClipboard() {
@@ -2401,12 +4592,13 @@ policies:
 
     async function downloadYaml() {
       const yamlText = codeMirrorEditor.getValue();
+      const defaultName = currentYamlObj?.name ? `${currentYamlObj.name}.yaml` : 'sample-proxy.yaml';
 
       // Native File System Access API (opens native OS 'Save As...' dialog)
       if ('showSaveFilePicker' in window) {
         try {
           const handle = await window.showSaveFilePicker({
-            suggestedName: currentFileName || 'sample-proxy.yaml',
+            suggestedName: currentFileName || defaultName,
             types: [{
               description: 'YAML Files',
               accept: { 'text/yaml': ['.yaml', '.yml'] }
@@ -2417,7 +4609,7 @@ policies:
           await writable.close();
 
           currentFileName = handle.name;
-          document.getElementById('current-filename').innerText = currentFileName;
+          updateFileNameDisplay();
           return;
         } catch (err) {
           if (err.name === 'AbortError') return; // User canceled
@@ -2429,7 +4621,7 @@ policies:
       const blob = new Blob([yamlText], { type: 'text/yaml' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = currentFileName || 'sample-proxy.yaml';
+      a.download = currentFileName || defaultName;
       a.click();
     }
   </script>

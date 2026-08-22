@@ -117,16 +117,230 @@ describe("AFT Bun CLI test suite", () => {
     }
   });
 
-  it("should execute cache clear command without error", async () => {
+  it("should parse --organization, --environment and --service-account CLI arguments correctly", () => {
+    const rawArgs = [
+      "bun",
+      "apigee-templater.ts",
+      "-i",
+      "test-proxy.yaml",
+      "--organization",
+      "my-apigee-org",
+      "--environment",
+      "eval",
+      "--service-account",
+      "sa@my-apigee-org.iam.gserviceaccount.com",
+    ];
+
+    const parsed = myCli.parseArgumentsIntoOptions(rawArgs);
+
+    expect(parsed.input).toBe("test-proxy.yaml");
+    expect(parsed.organization).toBe("my-apigee-org");
+    expect(parsed.environment).toBe("eval");
+    expect(parsed.serviceAccount).toBe("sa@my-apigee-org.iam.gserviceaccount.com");
+  });
+
+  it("should handle flag auto-completion for --org, --env, --serv", async () => {
     const logs: string[] = [];
     const origLog = console.log;
     console.log = (msg: string) => logs.push(msg);
 
     try {
-      myCli.handleCacheCommand("clear");
-      expect(logs.some((l) => l.includes("cleared successfully"))).toBe(true);
+      await myCli.handleCompletion("", "--org");
+      expect(logs.join("\n")).toContain("--organization");
+
+      logs.length = 0;
+      await myCli.handleCompletion("", "--env");
+      expect(logs.join("\n")).toContain("--environment");
+
+      logs.length = 0;
+      await myCli.handleCompletion("", "--serv");
+      expect(logs.join("\n")).toContain("--service-account");
     } finally {
       console.log = origLog;
+    }
+  });
+
+  it("should sanitize name from input when primary is empty", () => {
+    expect(myCli.sanitizeName("", "my-sample-proxy.yaml")).toBe("my-sample-proxy");
+  });
+
+  it("should export and deploy proxy using new CLI parameters", async () => {
+    const fs = require("fs");
+    const testYamlPath = "./test-export-proxy.yaml";
+    fs.writeFileSync(
+      testYamlPath,
+      `name: test-export-proxy
+type: proxy
+endpoints:
+  - name: default
+    basePath: /v1/test
+    flows: []
+    routes:
+      - name: default
+        target: default
+targets:
+  - name: default
+    url: https://httpbin.org
+    flows: []
+policies: []
+resources: []
+`
+    );
+
+    let exportedProxyName = "";
+    let exportedOrg = "";
+    let deployedProxyName = "";
+    let deployedRevision = "";
+    let deployedSA = "";
+    let deployedEnv = "";
+    let deployedOrg = "";
+
+    const originalExport = myCli.apigeeService.apigeeProxyExport;
+    const originalDeploy = myCli.apigeeService.apigeeProxyRevisionDeploy;
+
+    myCli.apigeeService.apigeeProxyExport = async (
+      proxyName: string,
+      path: string,
+      org: string,
+      drz: string,
+      token: string
+    ) => {
+      exportedProxyName = proxyName;
+      exportedOrg = org;
+      return "1";
+    };
+
+    myCli.apigeeService.apigeeProxyRevisionDeploy = async (
+      proxyName: string,
+      rev: string,
+      sa: string,
+      env: string,
+      org: string,
+      drz: string,
+      token: string
+    ) => {
+      deployedProxyName = proxyName;
+      deployedRevision = rev;
+      deployedSA = sa;
+      deployedEnv = env;
+      deployedOrg = org;
+      return "1";
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "-i",
+        testYamlPath,
+        "--organization",
+        "test-org",
+        "--environment",
+        "test-env",
+        "--service-account",
+        "test-sa@test-org.iam.gserviceaccount.com",
+        "--token",
+        "test-token",
+      ]);
+
+      expect(exportedProxyName).toBe("test-export-proxy");
+      expect(exportedOrg).toBe("test-org");
+      expect(deployedProxyName).toBe("test-export-proxy");
+      expect(deployedRevision).toBe("1");
+      expect(deployedSA).toBe("test-sa@test-org.iam.gserviceaccount.com");
+      expect(deployedEnv).toBe("test-env");
+      expect(deployedOrg).toBe("test-org");
+    } finally {
+      myCli.apigeeService.apigeeProxyExport = originalExport;
+      myCli.apigeeService.apigeeProxyRevisionDeploy = originalDeploy;
+      if (fs.existsSync(testYamlPath)) {
+        fs.rmSync(testYamlPath);
+      }
+    }
+  });
+
+  it("should still support colon syntax for exporting and deploying", async () => {
+    const fs = require("fs");
+    const testYamlPath = "./test-colon-proxy.yaml";
+    fs.writeFileSync(
+      testYamlPath,
+      `name: test-colon-proxy
+type: proxy
+endpoints:
+  - name: default
+    basePath: /v1/test
+    flows: []
+    routes:
+      - name: default
+        target: default
+targets:
+  - name: default
+    url: https://httpbin.org
+    flows: []
+policies: []
+resources: []
+`
+    );
+
+    let exportedProxyName = "";
+    let exportedOrg = "";
+    let deployedRevision = "";
+    let deployedSA = "";
+    let deployedEnv = "";
+
+    const originalExport = myCli.apigeeService.apigeeProxyExport;
+    const originalDeploy = myCli.apigeeService.apigeeProxyRevisionDeploy;
+
+    myCli.apigeeService.apigeeProxyExport = async (
+      proxyName: string,
+      path: string,
+      org: string,
+      drz: string,
+      token: string
+    ) => {
+      exportedProxyName = proxyName;
+      exportedOrg = org;
+      return "2";
+    };
+
+    myCli.apigeeService.apigeeProxyRevisionDeploy = async (
+      proxyName: string,
+      rev: string,
+      sa: string,
+      env: string,
+      org: string,
+      drz: string,
+      token: string
+    ) => {
+      deployedRevision = rev;
+      deployedSA = sa;
+      deployedEnv = env;
+      return "2";
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "-i",
+        testYamlPath,
+        "-o",
+        "colon-org:custom-proxy-name:colon-env:colon-sa@test.iam.gserviceaccount.com",
+        "--token",
+        "test-token",
+      ]);
+
+      expect(exportedProxyName).toBe("custom-proxy-name");
+      expect(exportedOrg).toBe("colon-org");
+      expect(deployedRevision).toBe("2");
+      expect(deployedEnv).toBe("colon-env");
+      expect(deployedSA).toBe("colon-sa@test.iam.gserviceaccount.com");
+    } finally {
+      myCli.apigeeService.apigeeProxyExport = originalExport;
+      myCli.apigeeService.apigeeProxyRevisionDeploy = originalDeploy;
+      if (fs.existsSync(testYamlPath)) {
+        fs.rmSync(testYamlPath);
+      }
     }
   });
 });

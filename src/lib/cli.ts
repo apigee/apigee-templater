@@ -64,6 +64,9 @@ export class cli {
         "--basePath": String,
         "--targetUrl": String,
         "--output": String,
+        "--organization": String,
+        "--environment": String,
+        "--service-account": String,
         "--format": String,
         "--applyFeature": String,
         "--removeFeature": String,
@@ -97,7 +100,7 @@ export class cli {
 
     if ((args["--applyFeature"] || args["--removeFeature"]) && args["_"] && args["_"][0]) {
       args["--input"] = args["_"][0];
-    } else if (args["_"] && args["_"][0] && args["--output"]) {
+    } else if (args["_"] && args["_"][0] && (args["--output"] || args["--organization"])) {
       args["--input"] = args["_"][0];
     } else if (args["_"] && args["_"][0]) {
       args["--output"] =
@@ -113,6 +116,9 @@ export class cli {
       basePath: args["--basePath"] || "",
       targetUrl: args["--targetUrl"] || "",
       output: args["--output"] || "",
+      organization: args["--organization"] || "",
+      environment: args["--environment"] || "",
+      serviceAccount: args["--service-account"] || "",
       format: args["--format"] || "",
       applyFeature: args["--applyFeature"] || "",
       removeFeature: args["--removeFeature"] || "",
@@ -129,7 +135,12 @@ export class cli {
   async promptForMissingOptions(options: cliArgs): Promise<cliArgs> {
     const questions: any[] = [];
 
-    if (options.output.includes(":")) {
+    if (
+      options.output.includes(":") ||
+      options.organization ||
+      options.environment ||
+      options.serviceAccount
+    ) {
       options.format = "proxy";
     }
 
@@ -149,7 +160,7 @@ export class cli {
       }
 
       // interactive mode
-      if (!options.name && !options.input && !options.output) {
+      if (!options.name && !options.input && !options.output && !options.organization) {
         questions.push({
           type: "input",
           name: "name",
@@ -206,6 +217,9 @@ export class cli {
 
   sanitizeName(primary: string, secondary: string): string {
     let result = "";
+    if (!primary && secondary) {
+      return this.sanitizeName(secondary, "");
+    }
     if (primary.includes(":")) {
       let pieces = primary.split(":");
       if (pieces.length > 1 && pieces[1]) result = pieces[1];
@@ -480,6 +494,9 @@ export class cli {
           "--basePath",
           "--targetUrl",
           "--output",
+          "--organization",
+          "--environment",
+          "--service-account",
           "--format",
           "--applyFeature",
           "--removeFeature",
@@ -782,9 +799,15 @@ export class cli {
         process.chdir(startDir);
         if (!options.output) options.output = options.input;
 
-        if (options.output.includes(":") && !inputParameters["PROJECT_ID"]) {
-          let pieces = options.output.split(":");
-          if (pieces.length >= 1 && pieces[0]) inputParameters["PROJECT_ID"] = pieces[0];
+        const targetOrg =
+          options.organization ||
+          (options.output && options.output.includes(":")
+            ? options.output.split(":")[0]
+            : options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)
+              ? options.output
+              : "");
+        if (targetOrg && !inputParameters["PROJECT_ID"]) {
+          inputParameters["PROJECT_ID"] = targetOrg;
         }
 
         let relativePath = options.applyFeature;
@@ -900,10 +923,19 @@ export class cli {
           console.log(`  ${chalk.red.bold("✖ Error: Could not write proxy zip.")}`);
           return;
         }
-      } else if (options.output && options.format == "proxy") {
-        if (options.output.includes(":") && !inputParameters["PROJECT_ID"]) {
-          let pieces = options.output.split(":");
-          if (pieces.length >= 1 && pieces[0]) inputParameters["PROJECT_ID"] = pieces[0];
+      } else if (
+        (options.output || options.organization) &&
+        (options.format == "proxy" || options.organization || options.output.includes(":"))
+      ) {
+        const targetOrg =
+          options.organization ||
+          (options.output && options.output.includes(":")
+            ? options.output.split(":")[0]
+            : options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)
+              ? options.output
+              : "");
+        if (targetOrg && !inputParameters["PROJECT_ID"]) {
+          inputParameters["PROJECT_ID"] = targetOrg;
         }
 
         if (template) {
@@ -919,9 +951,13 @@ export class cli {
         process.chdir(startDir);
         if (proxy) {
           if (options.name) proxy.name = options.name;
-          if (options.output.toLowerCase().endsWith(".json")) {
+          if (options.output && options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(proxy, null, 2));
-          } else if (options.output.toLowerCase().endsWith(".yaml")) {
+          } else if (
+            options.output &&
+            (options.output.toLowerCase().endsWith(".yaml") ||
+              options.output.toLowerCase().endsWith(".yml"))
+          ) {
             fs.writeFileSync(
               options.output,
               YAML.stringify(proxy, {
@@ -929,10 +965,21 @@ export class cli {
                 blockQuote: "literal",
               }),
             );
-          } else if (options.output.includes(":")) {
+          } else if (
+            (options.output && options.output.includes(":")) ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
             let outputPath = await this.converter.proxyToApigeeZip(proxy);
             if (!options.name) options.name = proxy.name;
-            let pieces = options.output.split(":");
+            let pieces =
+              options.output && options.output.includes(":") ? options.output.split(":") : [];
+            let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
+            if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+              org = options.output;
+            }
+            let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
+            let sa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
             let lastRevision = "";
 
             if (!options.token) {
@@ -941,26 +988,23 @@ export class cli {
             }
 
             try {
-              if (pieces && pieces.length > 1 && pieces[0]) {
+              if (org) {
                 lastRevision = await this.apigeeService.apigeeProxyExport(
                   options.name,
                   outputPath,
-                  pieces[0],
+                  org,
                   options.drz,
                   "Bearer " + options.token,
                 );
                 if (!lastRevision) throw new Error("Proxy could not be exported.");
               }
-              if (pieces && pieces.length > 2 && pieces[0] && pieces[2] && lastRevision) {
-                let serviceAccount = "";
-                let environment = pieces[2];
-                if (pieces.length === 4 && pieces[3]) serviceAccount = pieces[3];
+              if (org && env && lastRevision) {
                 let deployResult = await this.apigeeService.apigeeProxyRevisionDeploy(
                   options.name,
                   lastRevision,
-                  serviceAccount,
-                  environment,
-                  pieces[0],
+                  sa,
+                  env,
+                  org,
                   options.drz,
                   "Bearer " + options.token,
                 );
@@ -974,10 +1018,29 @@ export class cli {
             fs.rmSync(outputPath);
           }
 
+          let displayDestination = options.output;
+          let pieces =
+            options.output && options.output.includes(":") ? options.output.split(":") : [];
+          let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
+          if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+            org = options.output;
+          }
+          let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
+          let sa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+          if (
+            !displayDestination ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
+            displayDestination = [org, options.name || proxy.name, env, sa]
+              .filter(Boolean)
+              .join(":");
+          }
+
           this.printOverviewCard(
             `Proxy ${proxy.name}`,
             this.converter.proxyToStringArray(proxy),
-            options.output
+            displayDestination || options.output
           );
         } else {
           console.log(`  ${chalk.red.bold("✖ Error: Could not create proxy.")}`);
@@ -1100,6 +1163,9 @@ class cliArgs {
   basePath = "";
   targetUrl = "";
   output = "";
+  organization = "";
+  environment = "";
+  serviceAccount = "";
   format = "";
   applyFeature = "";
   removeFeature = "";
@@ -1123,7 +1189,19 @@ const helpCommands = [
   },
   {
     name: "--output, -o",
-    description: "An optional file output name and type (e.g. AI-Template-v1.yaml).",
+    description: "An optional file output name and type (e.g. AI-Template-v1.yaml) or Apigee org (ORG:PROXY:ENV:SA).",
+  },
+  {
+    name: "--organization",
+    description: "Apigee organization name to export or deploy to.",
+  },
+  {
+    name: "--environment",
+    description: "Apigee environment name to deploy the proxy revision to.",
+  },
+  {
+    name: "--service-account",
+    description: "Google Cloud service account email for proxy deployment.",
   },
   {
     name: "--format, -f",
