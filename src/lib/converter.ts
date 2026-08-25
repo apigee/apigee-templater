@@ -158,7 +158,7 @@ export class ApigeeConverter {
         proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"] &&
         proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"].length
       ) {
-        for (let faultXml of proxyJson["ProxyEndpoint"]["FaultRules"]) {
+        for (let faultXml of proxyJson["ProxyEndpoint"]["FaultRules"]["FaultRule"]) {
           let faultRule = this.flowXmlNodeToJson(faultXml["_attributes"]["name"], "", faultXml);
           if (faultXml["Condition"]) faultRule.condition = faultXml["Condition"]["_text"];
           if (faultRule && newEndpoint.faultRules) {
@@ -285,6 +285,39 @@ export class ApigeeConverter {
       // event flow
       let eventFlow = this.flowXmlToJson("EventFlow", "Response", targetJson["TargetEndpoint"]);
       if (eventFlow) newTarget.flows.push(eventFlow);
+      // fault rules
+      if (
+        targetJson["TargetEndpoint"]["FaultRules"] &&
+        targetJson["TargetEndpoint"]["FaultRules"]["FaultRule"] &&
+        targetJson["TargetEndpoint"]["FaultRules"]["FaultRule"].length
+      ) {
+        for (let faultXml of targetJson["TargetEndpoint"]["FaultRules"]["FaultRule"]) {
+          let faultRule = this.flowXmlNodeToJson(faultXml["_attributes"]["name"], "", faultXml);
+          if (faultXml["Condition"]) faultRule.condition = faultXml["Condition"]["_text"];
+          if (faultRule && newTarget.faultRules) {
+            newTarget.faultRules.push(faultRule);
+          } else if (faultRule) {
+            newTarget.faultRules = [faultRule];
+          }
+        }
+      } else if (
+        targetJson["TargetEndpoint"]["FaultRules"] &&
+        targetJson["TargetEndpoint"]["FaultRules"]["FaultRule"]
+      ) {
+        let faultRule = this.flowXmlNodeToJson(
+          targetJson["TargetEndpoint"]["FaultRules"]["FaultRule"]["_attributes"]["name"],
+          "",
+          targetJson["TargetEndpoint"]["FaultRules"]["FaultRule"],
+        );
+        if (targetJson["TargetEndpoint"]["FaultRules"]["FaultRule"]["Condition"])
+          faultRule.condition =
+            targetJson["TargetEndpoint"]["FaultRules"]["FaultRule"]["Condition"]["_text"];
+        if (faultRule && newTarget.faultRules) {
+          newTarget.faultRules.push(faultRule);
+        } else if (faultRule) {
+          newTarget.faultRules = [faultRule];
+        }
+      }
       // default fault rule
       if (targetJson["TargetEndpoint"]["DefaultFaultRule"]) {
         newTarget.defaultFaultRule = this.flowXmlNodeToJson(
@@ -503,7 +536,7 @@ export class ApigeeConverter {
       fs.mkdirSync(tempFilePath, { recursive: true });
 
       // endpoints
-      for (let endpoint of input.endpoints) {
+      for (let endpoint of input.endpoints || []) {
         let endpointXml: any = {
           ProxyEndpoint: {
             _attributes: {
@@ -511,7 +544,7 @@ export class ApigeeConverter {
             },
             HTTPProxyConnection: {
               BasePath: {
-                _text: endpoint["basePath"],
+                _text: endpoint["basePath"] ?? "/" + (input.name || "default").toLowerCase().replaceAll(" ", "-"),
               },
             },
           },
@@ -534,7 +567,7 @@ export class ApigeeConverter {
         };
 
         let conditionalFlows: Flow[] = [];
-        for (let flow of endpoint.flows) {
+        for (let flow of endpoint.flows || []) {
           if (!flow.condition && flow.mode && (flow.name == "PreFlow" || flow.name == "PostFlow")) {
             if (!endpointXml["ProxyEndpoint"][flow.name]) {
               endpointXml["ProxyEndpoint"][flow.name] = {
@@ -590,7 +623,7 @@ export class ApigeeConverter {
         }
 
         // routes
-        if (endpoint["routes"].length > 1) {
+        if (endpoint["routes"] && endpoint["routes"].length > 1) {
           endpointXml["ProxyEndpoint"]["RouteRule"] = [];
           for (let route of endpoint["routes"]) {
             let newRouteRule: any = {
@@ -630,7 +663,7 @@ export class ApigeeConverter {
 
         // fault rules
         if (endpoint.faultRules && endpoint.faultRules.length > 1) {
-          endpointXml["ProxyEndpoint"]["FaultRules"] = [];
+          endpointXml["ProxyEndpoint"]["FaultRules"] = { FaultRule: [] };
           for (let faultRule of endpoint.faultRules) {
             let newFaultRule = this.flowJsonToXml(faultRule);
             newFaultRule["_attributes"] = {
@@ -641,7 +674,7 @@ export class ApigeeConverter {
                 _text: faultRule.condition,
               };
 
-            endpointXml["ProxyEndpoint"]["FaultRules"].push(newFaultRule);
+            endpointXml["ProxyEndpoint"]["FaultRules"]["FaultRule"].push(newFaultRule);
           }
         } else if (
           endpoint.faultRules &&
@@ -692,7 +725,7 @@ export class ApigeeConverter {
       }
 
       // targets
-      for (let target of input.targets) {
+      for (let target of input.targets || []) {
         let targetXml: any = {
           TargetEndpoint: {
             _attributes: {
@@ -750,7 +783,7 @@ export class ApigeeConverter {
           Response: {},
         };
 
-        for (let flow of target.flows) {
+        for (let flow of target.flows || []) {
           if (!flow.condition && flow.mode) {
             if (!targetXml["TargetEndpoint"][flow.name] && flow.name == "EventFlow") {
               targetXml["TargetEndpoint"]["EventFlow"] = {
@@ -762,6 +795,38 @@ export class ApigeeConverter {
               };
             }
             targetXml["TargetEndpoint"][flow.name][flow.mode] = this.flowJsonToXml(flow);
+          }
+        }
+
+        // fault rules
+        if (target.faultRules && target.faultRules.length > 1) {
+          targetXml["TargetEndpoint"]["FaultRules"] = { FaultRule: [] };
+          for (let faultRule of target.faultRules) {
+            let newFaultRule = this.flowJsonToXml(faultRule);
+            newFaultRule["_attributes"] = {
+              name: faultRule.name,
+            };
+            if (faultRule.condition)
+              newFaultRule["Condition"] = {
+                _text: faultRule.condition,
+              };
+            targetXml["TargetEndpoint"]["FaultRules"]["FaultRule"].push(newFaultRule);
+          }
+        } else if (
+          target.faultRules &&
+          target.faultRules.length == 1 &&
+          target.faultRules[0]
+        ) {
+          targetXml["TargetEndpoint"]["FaultRules"] = {
+            FaultRule: this.flowJsonToXml(target.faultRules[0]),
+          };
+          targetXml["TargetEndpoint"]["FaultRules"]["FaultRule"]["_attributes"] = {
+            name: target.faultRules[0].name,
+          };
+          if (target.faultRules[0].condition) {
+            targetXml["TargetEndpoint"]["FaultRules"]["FaultRule"]["Condition"] = {
+              _text: target.faultRules[0].condition,
+            };
           }
         }
 
@@ -793,7 +858,7 @@ export class ApigeeConverter {
       }
 
       // policies
-      for (let policy of input["policies"]) {
+      for (let policy of input["policies"] || []) {
         fs.mkdirSync(tempFilePath + "/apiproxy/policies", { recursive: true });
         let policyJson = policy["content"];
         // clean-structure
@@ -811,7 +876,7 @@ export class ApigeeConverter {
       }
 
       // resources
-      for (let resource of input["resources"]) {
+      for (let resource of input["resources"] || []) {
         fs.mkdirSync(tempFilePath + "/apiproxy/resources/" + resource["type"], {
           recursive: true,
         });
@@ -1086,11 +1151,8 @@ export class ApigeeConverter {
     template.features.push(featurePath);
 
     // add parameters with feature name and uid if available
-    for (let parameter of tempFeature.parameters) {
+    for (let parameter of tempFeature.parameters || []) {
       // set default if one was passed in
-      if (parameters[parameter.name])
-        parameter.default = parameters[parameter.name] ?? parameter.default;
-
       if (parameters[parameter.name])
         parameter.default = parameters[parameter.name] ?? parameter.default;
 
@@ -1133,7 +1195,7 @@ export class ApigeeConverter {
         }
       }
 
-      for (let parameter of removeFeature.parameters) {
+      for (let parameter of removeFeature.parameters || []) {
         let index = template.parameters.findIndex((x) => x.name === parameter.name);
         if (index != -1) template.parameters.splice(index, 1);
       }
@@ -1150,11 +1212,11 @@ export class ApigeeConverter {
     let proxy: Proxy = new Proxy();
     proxy.name = template.name;
     proxy.description = template.description;
-    proxy.parameters = template.parameters;
+    proxy.parameters = template.parameters || [];
     if (template.priority) proxy.priority = template.priority;
     if (template.tests) proxy.tests = template.tests;
 
-    if (template.endpoints.length > 0 && features.length == 0) {
+    if ((template.endpoints || []).length > 0 && (features || []).length == 0) {
       // this is an empty template, so at least add a default enpoint
       let name = template.endpoints[0]?.basePath
         ? template.endpoints[0]?.basePath.replaceAll("/", "")
@@ -1170,11 +1232,11 @@ export class ApigeeConverter {
         flows: [],
       });
 
-      if (template.targets.length > 0 && template.targets[0]) {
+      if ((template.targets || []).length > 0 && template.targets[0]) {
         if (
           proxy.endpoints.length > 0 &&
           proxy.endpoints[0] &&
-          proxy.endpoints[0].routes.length > 0 &&
+          (proxy.endpoints[0].routes || []).length > 0 &&
           proxy.endpoints[0].routes[0]
         )
           proxy.endpoints[0].routes[0].target = name;
@@ -1203,22 +1265,22 @@ export class ApigeeConverter {
     this.proxyUpdateParameters(proxy, parameters);
 
     // sort features by priority
-    features.sort((a, b) => {
+    (features || []).sort((a, b) => {
       let aPrio = a.priority ?? 100;
       let bPrio = b.priority ?? 100;
       return aPrio - bPrio;
     });
 
     // first apply features with targets & endpoints
-    for (let feature of features) {
-      if (feature.endpoints.length > 0 || feature.targets.length > 0) {
+    for (let feature of features || []) {
+      if ((feature.endpoints || []).length > 0 || (feature.targets || []).length > 0) {
         proxy = this.proxyApplyFeature(proxy, feature, parameters);
       }
     }
 
     // now apply features with just policies
-    for (let feature of features) {
-      if (feature.endpoints.length === 0 && feature.targets.length === 0) {
+    for (let feature of features || []) {
+      if ((feature.endpoints || []).length === 0 && (feature.targets || []).length === 0) {
         proxy = this.proxyApplyFeature(proxy, feature, parameters);
       }
     }
@@ -1227,9 +1289,9 @@ export class ApigeeConverter {
   }
 
   public templateUpdateParameters(template: Template, parameters: { [key: string]: string } = {}) {
-    for (let proxyParameter of template.parameters) {
+    for (let proxyParameter of template.parameters || []) {
       for (let key of Object.keys(parameters)) {
-        if (proxyParameter.default.toString().includes("{" + key + "}") && parameters[key]) {
+        if (proxyParameter.default && proxyParameter.default.toString().includes("{" + key + "}") && parameters[key]) {
           proxyParameter.default = proxyParameter.default.replaceAll(
             "{" + key + "}",
             parameters[key],
@@ -1300,7 +1362,7 @@ export class ApigeeConverter {
 
     let defaultEndpoint: ProxyEndpoint | undefined = undefined;
 
-    if (newFeature.endpoints.length === 0 || newFeature.defaultEndpoint) {
+    if ((newFeature.endpoints || []).length === 0 || newFeature.defaultEndpoint) {
       if (!newFeature.defaultEndpoint) {
         defaultEndpoint = new ProxyEndpoint();
         defaultEndpoint.name = "default";
@@ -1308,29 +1370,36 @@ export class ApigeeConverter {
         defaultEndpoint.routes.push({
           name: "default",
         });
-      } else defaultEndpoint = newFeature.defaultEndpoint;
+      } else {
+        defaultEndpoint = newFeature.defaultEndpoint;
+        if (!defaultEndpoint.flows) defaultEndpoint.flows = [];
+        if (!defaultEndpoint.basePath)
+          defaultEndpoint.basePath = "/" + newProxy.name.toLowerCase().replaceAll(" ", "-");
+        if (!defaultEndpoint.routes || defaultEndpoint.routes.length === 0) {
+          defaultEndpoint.routes = [
+            {
+              name: defaultEndpoint.name || "default",
+              target: newFeature.defaultTarget?.name || "default",
+            },
+          ];
+        }
+      }
 
       if (defaultEndpoint) newProxy.endpoints.push(defaultEndpoint);
     }
 
     if (newFeature.defaultTarget) {
+      if (!newFeature.defaultTarget.flows) newFeature.defaultTarget.flows = [];
       newProxy.targets.push(newFeature.defaultTarget);
-    } else if (newFeature.targets.length === 0) {
+    } else if ((newFeature.targets || []).length === 0) {
       // no default target for now, Apigee automatically returns request
       // for no-target proxies, which is nice.
-      //
-      // let defaultTarget = new ProxyTarget();
-      // defaultTarget.name = "default";
-      // defaultTarget.url = "https://httpbin.org";
-      // newProxy.targets.push(defaultTarget);
-      // if (defaultEndpoint && defaultEndpoint.routes[0])
-      //   defaultEndpoint.routes[0].target = "default";
     }
 
-    newProxy.endpoints = newProxy.endpoints.concat(newFeature.endpoints);
-    newProxy.targets = newProxy.targets.concat(newFeature.targets);
-    newProxy.policies = newFeature.policies;
-    newProxy.resources = newFeature.resources;
+    newProxy.endpoints = (newProxy.endpoints || []).concat(newFeature.endpoints || []);
+    newProxy.targets = (newProxy.targets || []).concat(newFeature.targets || []);
+    newProxy.policies = newFeature.policies || [];
+    newProxy.resources = newFeature.resources || [];
 
     return newProxy;
   }
@@ -1360,7 +1429,7 @@ export class ApigeeConverter {
       if (originalFeature.defaultEndpoint)
         this.featureMergeEndpoints(applyFeature, originalFeature.defaultEndpoint);
 
-      for (let endpoint of originalFeature.endpoints) {
+      for (let endpoint of originalFeature.endpoints || []) {
         this.featureMergeEndpoints(applyFeature, endpoint);
       }
     }
@@ -1369,13 +1438,14 @@ export class ApigeeConverter {
     if (applyFeature.defaultTarget) {
       if (originalFeature.defaultTarget)
         this.featureMergeTargets(applyFeature, originalFeature.defaultTarget);
-      for (let target of originalFeature.targets) {
+      for (let target of originalFeature.targets || []) {
         this.featureMergeTargets(applyFeature, target);
       }
     }
 
     // merge policies
     if (applyFeature.policies && applyFeature.policies.length > 0) {
+      if (!originalFeature.policies) originalFeature.policies = [];
       for (let policy of applyFeature.policies) {
         let policyIndex = originalFeature.policies.findIndex((x) => x.name === policy.name);
         if (policyIndex === -1) {
@@ -1389,6 +1459,7 @@ export class ApigeeConverter {
 
     // merge resources
     if (applyFeature.resources && applyFeature.resources.length > 0) {
+      if (!originalFeature.resources) originalFeature.resources = [];
       for (let resource of applyFeature.resources) {
         let resourceIndex = originalFeature.resources.findIndex((x) => x.name === resource.name);
         if (resourceIndex === -1) {
@@ -1405,46 +1476,61 @@ export class ApigeeConverter {
 
   public featureMergeEndpoints(applyFeature: Feature, endpoint: ProxyEndpoint) {
     if (applyFeature.defaultEndpoint) {
-      for (let featureFlow of applyFeature.defaultEndpoint.flows) {
-        let foundFlow = false;
-        for (let proxyFlow of endpoint.flows) {
-          if (
-            proxyFlow.name == featureFlow.name &&
-            proxyFlow.mode == featureFlow.mode &&
-            proxyFlow.condition == featureFlow.condition
-          ) {
-            foundFlow = true;
-            let topStepArray: Step[] = [];
-            for (let step of featureFlow.steps) {
-              let stepIndex = proxyFlow.steps.findIndex((x) => x.name === step.name);
-              if (stepIndex === -1) {
-                if (featureFlow.position && featureFlow.position == "top") topStepArray.push(step);
-                else proxyFlow.steps.push(step);
-              } else {
-                // console.log(
-                //   `Overwriting step name ${step.name} found in proxy flow ${proxyFlow.name}.\n`,
-                // );
-                proxyFlow.steps[stepIndex] = step;
+      if (applyFeature.defaultEndpoint.flows) {
+        if (!endpoint.flows) endpoint.flows = [];
+        for (let featureFlow of applyFeature.defaultEndpoint.flows) {
+          let foundFlow = false;
+          for (let proxyFlow of endpoint.flows) {
+            if (
+              proxyFlow.name == featureFlow.name &&
+              proxyFlow.mode == featureFlow.mode &&
+              proxyFlow.condition == featureFlow.condition
+            ) {
+              foundFlow = true;
+              let topStepArray: Step[] = [];
+              for (let step of featureFlow.steps || []) {
+                let stepIndex = proxyFlow.steps.findIndex((x) => x.name === step.name);
+                if (stepIndex === -1) {
+                  if (featureFlow.position && featureFlow.position == "top") topStepArray.push(step);
+                  else proxyFlow.steps.push(step);
+                } else {
+                  // console.log(
+                  //   `Overwriting step name ${step.name} found in proxy flow ${proxyFlow.name}.\n`,
+                  // );
+                  proxyFlow.steps[stepIndex] = step;
+                }
               }
-            }
 
-            // now unshift top steps, if needed..
-            if (topStepArray.length > 0) proxyFlow.steps.unshift(...topStepArray);
-            break;
+              // now unshift top steps, if needed..
+              if (topStepArray.length > 0) proxyFlow.steps.unshift(...topStepArray);
+              break;
+            }
+          }
+
+          if (!foundFlow) {
+            let newFlow = new Flow(featureFlow.name, featureFlow.mode, featureFlow.condition);
+            newFlow.steps = newFlow.steps.concat(featureFlow.steps || []);
+            endpoint.flows.push(newFlow);
           }
         }
+      }
 
-        if (!foundFlow) {
-          let newFlow = new Flow(featureFlow.name, featureFlow.mode, featureFlow.condition);
-          newFlow.steps = newFlow.steps.concat(featureFlow.steps);
-          endpoint.flows.push(newFlow);
+      if (applyFeature.defaultEndpoint.faultRules) {
+        if (!endpoint.faultRules) endpoint.faultRules = [];
+        for (let fr of applyFeature.defaultEndpoint.faultRules) {
+          let existingFr = endpoint.faultRules.find((x) => x.name === fr.name);
+          if (existingFr) {
+            existingFr.steps = (existingFr.steps || []).concat(fr.steps || []);
+          } else {
+            endpoint.faultRules.push(JSON.parse(JSON.stringify(fr)));
+          }
         }
       }
 
       if (applyFeature.defaultEndpoint.defaultFaultRule) {
         if (endpoint.defaultFaultRule) {
-          endpoint.defaultFaultRule.steps = endpoint.defaultFaultRule.steps.concat(
-            applyFeature.defaultEndpoint.defaultFaultRule.steps,
+          endpoint.defaultFaultRule.steps = (endpoint.defaultFaultRule.steps || []).concat(
+            applyFeature.defaultEndpoint.defaultFaultRule.steps || [],
           );
         } else endpoint.defaultFaultRule = applyFeature.defaultEndpoint.defaultFaultRule;
       }
@@ -1453,58 +1539,61 @@ export class ApigeeConverter {
 
   public featureMergeTargets(applyFeature: Feature, target: ProxyTarget) {
     if (applyFeature.defaultTarget) {
-      // if (applyFeature.defaultTarget.auth) {
-      //   // apply configured auth to targets
-      //   target.auth = applyFeature.defaultTarget.auth;
-      //   target.scopes = applyFeature.defaultTarget.scopes ?? [];
-      //   if (target.httpTargetConnection) {
-      //     target.httpTargetConnection.authentication =
-      //       applyFeature.defaultTarget.httpTargetConnection.authentication;
-      //     target.httpTargetConnection.properties =
-      //       applyFeature.defaultTarget.httpTargetConnection.properties;
-      //   }
-      // }
-
-      for (let featureFlow of applyFeature.defaultTarget.flows) {
-        let foundFlow = false;
-        for (let targetFlow of target.flows) {
-          if (
-            targetFlow.name == featureFlow.name &&
-            targetFlow.mode == featureFlow.mode &&
-            targetFlow.condition == featureFlow.condition
-          ) {
-            foundFlow = true;
-            let topStepArray: Step[] = [];
-            for (let step of featureFlow.steps) {
-              let stepIndex = targetFlow.steps.findIndex((x) => x.name === step.name);
-              if (stepIndex === -1) {
-                if (featureFlow.position && featureFlow.position == "top") topStepArray.push(step);
-                else targetFlow.steps.push(step);
-              } else {
-                // console.log(
-                //   `Overwriting step name ${step.name} found in target flow ${targetFlow.name}.\n`,
-                // );
-                targetFlow.steps[stepIndex] = step;
+      if (applyFeature.defaultTarget.flows) {
+        if (!target.flows) target.flows = [];
+        for (let featureFlow of applyFeature.defaultTarget.flows) {
+          let foundFlow = false;
+          for (let targetFlow of target.flows) {
+            if (
+              targetFlow.name == featureFlow.name &&
+              targetFlow.mode == featureFlow.mode &&
+              targetFlow.condition == featureFlow.condition
+            ) {
+              foundFlow = true;
+              let topStepArray: Step[] = [];
+              for (let step of featureFlow.steps || []) {
+                let stepIndex = targetFlow.steps.findIndex((x) => x.name === step.name);
+                if (stepIndex === -1) {
+                  if (featureFlow.position && featureFlow.position == "top") topStepArray.push(step);
+                  else targetFlow.steps.push(step);
+                } else {
+                  // console.log(
+                  //   `Overwriting step name ${step.name} found in target flow ${targetFlow.name}.\n`,
+                  // );
+                  targetFlow.steps[stepIndex] = step;
+                }
               }
-            }
 
-            // now unshift top steps, if needed..
-            if (topStepArray.length > 0) targetFlow.steps.unshift(...topStepArray);
-            break;
+              // now unshift top steps, if needed..
+              if (topStepArray.length > 0) targetFlow.steps.unshift(...topStepArray);
+              break;
+            }
+          }
+
+          if (!foundFlow) {
+            let newFlow = new Flow(featureFlow.name, featureFlow.mode, featureFlow.condition);
+            newFlow.steps = newFlow.steps.concat(featureFlow.steps || []);
+            target.flows.push(newFlow);
           }
         }
+      }
 
-        if (!foundFlow) {
-          let newFlow = new Flow(featureFlow.name, featureFlow.mode, featureFlow.condition);
-          newFlow.steps = newFlow.steps.concat(featureFlow.steps);
-          target.flows.push(newFlow);
+      if (applyFeature.defaultTarget.faultRules) {
+        if (!target.faultRules) target.faultRules = [];
+        for (let fr of applyFeature.defaultTarget.faultRules) {
+          let existingFr = target.faultRules.find((x) => x.name === fr.name);
+          if (existingFr) {
+            existingFr.steps = (existingFr.steps || []).concat(fr.steps || []);
+          } else {
+            target.faultRules.push(JSON.parse(JSON.stringify(fr)));
+          }
         }
       }
 
       if (applyFeature.defaultTarget.defaultFaultRule) {
         if (target.defaultFaultRule) {
-          target.defaultFaultRule.steps = target.defaultFaultRule.steps.concat(
-            applyFeature.defaultTarget.defaultFaultRule.steps,
+          target.defaultFaultRule.steps = (target.defaultFaultRule.steps || []).concat(
+            applyFeature.defaultTarget.defaultFaultRule.steps || [],
           );
         } else target.defaultFaultRule = applyFeature.defaultTarget.defaultFaultRule;
       }
@@ -1512,33 +1601,57 @@ export class ApigeeConverter {
   }
 
   public featureRemoveFeature(originalFeature: Feature, feature: Feature) {
-    for (let policy of feature.policies) {
-      if (originalFeature.defaultEndpoint)
-        this.featureRemovePolicy(policy, originalFeature.defaultEndpoint.flows);
-      for (let endpoint of originalFeature.endpoints) {
-        this.featureRemovePolicy(policy, endpoint.flows);
+    for (let policy of feature.policies || []) {
+      if (originalFeature.defaultEndpoint) {
+        if (originalFeature.defaultEndpoint.flows)
+          this.featureRemovePolicy(policy, originalFeature.defaultEndpoint.flows);
+        if (originalFeature.defaultEndpoint.faultRules)
+          this.featureRemovePolicy(policy, originalFeature.defaultEndpoint.faultRules);
+        if (originalFeature.defaultEndpoint.defaultFaultRule && originalFeature.defaultEndpoint.defaultFaultRule.steps)
+          this.featureRemovePolicy(policy, [originalFeature.defaultEndpoint.defaultFaultRule as any]);
       }
-      if (originalFeature.defaultTarget)
-        this.featureRemovePolicy(policy, originalFeature.defaultTarget.flows);
-      for (let target of originalFeature.targets) {
-        this.featureRemovePolicy(policy, target.flows);
+      for (let endpoint of originalFeature.endpoints || []) {
+        if (endpoint.flows) this.featureRemovePolicy(policy, endpoint.flows);
+        if (endpoint.faultRules) this.featureRemovePolicy(policy, endpoint.faultRules);
+        if (endpoint.defaultFaultRule && endpoint.defaultFaultRule.steps)
+          this.featureRemovePolicy(policy, [endpoint.defaultFaultRule as any]);
+      }
+      if (originalFeature.defaultTarget) {
+        if (originalFeature.defaultTarget.flows)
+          this.featureRemovePolicy(policy, originalFeature.defaultTarget.flows);
+        if (originalFeature.defaultTarget.faultRules)
+          this.featureRemovePolicy(policy, originalFeature.defaultTarget.faultRules);
+        if (originalFeature.defaultTarget.defaultFaultRule && originalFeature.defaultTarget.defaultFaultRule.steps)
+          this.featureRemovePolicy(policy, [originalFeature.defaultTarget.defaultFaultRule as any]);
+      }
+      for (let target of originalFeature.targets || []) {
+        if (target.flows) this.featureRemovePolicy(policy, target.flows);
+        if (target.faultRules) this.featureRemovePolicy(policy, target.faultRules);
+        if (target.defaultFaultRule && target.defaultFaultRule.steps)
+          this.featureRemovePolicy(policy, [target.defaultFaultRule as any]);
       }
 
-      let policyIndex = originalFeature.policies.findIndex((x) => policy.name === x.name);
-      if (policyIndex != -1) originalFeature.policies.splice(policyIndex, 1);
+      if (originalFeature.policies) {
+        let policyIndex = originalFeature.policies.findIndex((x) => policy.name === x.name);
+        if (policyIndex != -1) originalFeature.policies.splice(policyIndex, 1);
+      }
     }
 
-    for (let resource of feature.resources) {
-      let resourceIndex = originalFeature.resources.findIndex((x) => resource.name === x.name);
-      if (resourceIndex != -1) originalFeature.resources.splice(resourceIndex, 1);
+    for (let resource of feature.resources || []) {
+      if (originalFeature.resources) {
+        let resourceIndex = originalFeature.resources.findIndex((x) => resource.name === x.name);
+        if (resourceIndex != -1) originalFeature.resources.splice(resourceIndex, 1);
+      }
     }
   }
 
-  public featureRemovePolicy(policy: Policy, flows: Flow[]) {
-    for (let flow of flows) {
-      let policyIndex = flow.steps.findIndex((x) => policy.name === x.name);
-      if (policyIndex != -1) {
-        flow.steps.splice(policyIndex, 1);
+  public featureRemovePolicy(policy: Policy, flows: Flow[] | FaultRule[]) {
+    for (let flow of (flows || []) as Flow[]) {
+      if (flow.steps) {
+        let policyIndex = flow.steps.findIndex((x) => policy.name === x.name);
+        if (policyIndex != -1) {
+          flow.steps.splice(policyIndex, 1);
+        }
       }
     }
   }
@@ -1552,11 +1665,11 @@ export class ApigeeConverter {
     let proxyParametersString = JSON.stringify(proxyParameters);
 
     // replace parameter values
-    for (let i = 0; i < feature.parameters.length; i++) {
+    for (let i = 0; i < (feature.parameters || []).length; i++) {
       let tempFeature = JSON.parse(featureString) as Feature;
       let tempProxyParameters = JSON.parse(proxyParametersString) as Parameter[];
 
-      let parameter = tempFeature.parameters[i];
+      let parameter = (tempFeature.parameters || [])[i];
       if (parameter) {
         let paramValue = parameter.default;
         let proxyParam = tempProxyParameters.find((x) => x.name === parameter.name);
@@ -1617,9 +1730,9 @@ export class ApigeeConverter {
   }
 
   public featureUpdateParameters(feature: Feature, parameters: { [key: string]: string } = {}) {
-    for (let featureParameter of feature.parameters) {
+    for (let featureParameter of feature.parameters || []) {
       for (let key of Object.keys(parameters)) {
-        if (featureParameter.default.toString().includes("{" + key + "}") && parameters[key]) {
+        if (featureParameter.default && featureParameter.default.toString().includes("{" + key + "}") && parameters[key]) {
           featureParameter.default = featureParameter.default.replaceAll(
             "{" + key + "}",
             parameters[key],
@@ -1662,12 +1775,12 @@ export class ApigeeConverter {
       result.push(`Endpoints: none`);
     }
 
-    if (feature.defaultEndpoint && feature.defaultEndpoint.flows.length > 0) {
+    if (feature.defaultEndpoint && feature.defaultEndpoint.flows && feature.defaultEndpoint.flows.length > 0) {
       result.push(`Endpoint flows:`);
       for (let flow of feature.defaultEndpoint.flows) {
         if (flow.condition) result.push(`- ${flow.name} - ${flow.mode} - ${flow.condition}`);
         else result.push(`- ${flow.name} - ${flow.mode}`);
-        for (let step of flow.steps) {
+        for (let step of flow.steps || []) {
           if (step.condition) result.push(`  - ${step.name} - ${step.condition}`);
           else result.push(`  - ${step.name}`);
         }
@@ -1685,12 +1798,12 @@ export class ApigeeConverter {
       result.push(`Targets: none`);
     }
 
-    if (feature.defaultTarget && feature.defaultTarget.flows.length > 0) {
+    if (feature.defaultTarget && feature.defaultTarget.flows && feature.defaultTarget.flows.length > 0) {
       result.push(`Target flows:`);
       for (let flow of feature.defaultTarget.flows) {
         if (flow.condition) result.push(`- ${flow.name} - ${flow.mode} - ${flow.condition}`);
         else result.push(`- ${flow.name} - ${flow.mode}`);
-        for (let step of flow.steps) {
+        for (let step of flow.steps || []) {
           if (step.condition) result.push(`- ${step.name} - ${step.condition}`);
           else result.push(`- ${step.name}`);
         }
@@ -1731,25 +1844,25 @@ export class ApigeeConverter {
     parameters: { [key: string]: string } = {},
   ): Proxy {
     // replace parameters from runtime
-    let applyFeature = this.featureReplaceParameters(feature, proxy.parameters, parameters);
+    let applyFeature = this.featureReplaceParameters(feature, proxy.parameters || [], parameters);
 
     // merge endpoint flows
     if (applyFeature.defaultEndpoint) {
-      for (let endpoint of proxy.endpoints) {
+      for (let endpoint of proxy.endpoints || []) {
         this.featureMergeEndpoints(applyFeature, endpoint);
       }
     }
 
     // merge target flows
     if (applyFeature.defaultTarget) {
-      for (let target of proxy.targets) {
+      for (let target of proxy.targets || []) {
         this.featureMergeTargets(applyFeature, target);
       }
     }
 
     // if feature has endpoints
     if (applyFeature.endpoints && applyFeature.endpoints.length > 0) {
-      // first set name with id
+      if (!proxy.endpoints) proxy.endpoints = [];
       for (let tempEndpoint of applyFeature.endpoints) {
         let endpointIndex = proxy.endpoints.findIndex((x) => x.name === tempEndpoint.name);
         if (endpointIndex === -1) {
@@ -1763,6 +1876,7 @@ export class ApigeeConverter {
 
     // if feature has targets
     if (applyFeature.targets && applyFeature.targets.length > 0) {
+      if (!proxy.targets) proxy.targets = [];
       for (let tempTarget of applyFeature.targets) {
         let targetIndex = proxy.targets.findIndex((x) => x.name === tempTarget.name);
         if (targetIndex === -1) {
@@ -1776,6 +1890,7 @@ export class ApigeeConverter {
 
     // merge policies
     if (applyFeature.policies && applyFeature.policies.length > 0) {
+      if (!proxy.policies) proxy.policies = [];
       for (let policy of applyFeature.policies) {
         let policyIndex = proxy.policies.findIndex((x) => x.name === policy.name);
         if (policyIndex === -1) {
@@ -1789,6 +1904,7 @@ export class ApigeeConverter {
 
     // merge resources
     if (applyFeature.resources && applyFeature.resources.length > 0) {
+      if (!proxy.resources) proxy.resources = [];
       for (let resource of applyFeature.resources) {
         let resourceIndex = proxy.resources.findIndex((x) => x.name === resource.name);
         if (resourceIndex === -1) {
@@ -1805,41 +1921,71 @@ export class ApigeeConverter {
 
   public proxyRemoveFeature(proxy: Proxy, feature: Feature): Proxy {
     // remove parameters
-    for (let parameter of feature.parameters) {
-      let index = proxy.parameters.findIndex(
-        (x) => x.name == parameter.name && x.default == parameter.default,
-      );
-      if (index != -1) proxy.parameters.splice(index, 1);
+    for (let parameter of feature.parameters || []) {
+      if (proxy.parameters) {
+        let index = proxy.parameters.findIndex(
+          (x) => x.name == parameter.name && x.default == parameter.default,
+        );
+        if (index != -1) proxy.parameters.splice(index, 1);
+      }
     }
 
     // remove default endpoint flow steps
     if (feature.defaultEndpoint) {
-      for (let featureFlow of feature.defaultEndpoint.flows) {
-        for (let endpoint of proxy.endpoints) {
-          for (let proxyFlow of endpoint.flows) {
-            if (
-              proxyFlow.name == featureFlow.name &&
-              proxyFlow.mode == featureFlow.mode &&
-              proxyFlow.condition == featureFlow.condition
-            ) {
-              for (let step of featureFlow.steps) {
-                let index = proxyFlow.steps.findIndex(
-                  (x) => x.name === feature.uid + "-" + step.name && x.condition === step.condition,
-                );
-                if (index != -1) proxyFlow.steps.splice(index, 1);
+      if (feature.defaultEndpoint.flows) {
+        for (let featureFlow of feature.defaultEndpoint.flows) {
+          for (let endpoint of proxy.endpoints || []) {
+            for (let proxyFlow of endpoint.flows || []) {
+              if (
+                proxyFlow.name == featureFlow.name &&
+                proxyFlow.mode == featureFlow.mode &&
+                proxyFlow.condition == featureFlow.condition
+              ) {
+                for (let step of featureFlow.steps || []) {
+                  let index = proxyFlow.steps.findIndex(
+                    (x) => x.name === feature.uid + "-" + step.name && x.condition === step.condition,
+                  );
+                  if (index != -1) proxyFlow.steps.splice(index, 1);
+                }
+                break;
               }
-              break;
             }
           }
         }
       }
 
-      if (feature.defaultEndpoint.defaultFaultRule) {
-        for (let endpoint of proxy.endpoints) {
+      if (feature.defaultEndpoint.faultRules) {
+        for (let featureFr of feature.defaultEndpoint.faultRules) {
+          for (let endpoint of proxy.endpoints || []) {
+            for (let fr of endpoint.faultRules || []) {
+              if (
+                fr.name === featureFr.name ||
+                fr.name === (feature.uid ? feature.uid + "-" + featureFr.name : featureFr.name)
+              ) {
+                for (let step of featureFr.steps || []) {
+                  let index = (fr.steps || []).findIndex(
+                    (x) =>
+                      (x.name === step.name ||
+                        x.name === (feature.uid ? feature.uid + "-" + step.name : step.name)) &&
+                      x.condition === step.condition,
+                  );
+                  if (index != -1) fr.steps.splice(index, 1);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (feature.defaultEndpoint.defaultFaultRule && feature.defaultEndpoint.defaultFaultRule.steps) {
+        for (let endpoint of proxy.endpoints || []) {
           for (let step of feature.defaultEndpoint.defaultFaultRule.steps) {
-            if (endpoint.defaultFaultRule) {
+            if (endpoint.defaultFaultRule && endpoint.defaultFaultRule.steps) {
               let index = endpoint.defaultFaultRule.steps.findIndex(
-                (x) => x.name === feature.uid + "-" + step.name && x.condition === step.condition,
+                (x) =>
+                  (x.name === step.name ||
+                    x.name === (feature.uid ? feature.uid + "-" + step.name : step.name)) &&
+                  x.condition === step.condition,
               );
               if (index != -1) endpoint.defaultFaultRule.steps.splice(index, 1);
             }
@@ -1850,32 +1996,60 @@ export class ApigeeConverter {
 
     // remove default target flow steps
     if (feature.defaultTarget) {
-      for (let featureFlow of feature.defaultTarget.flows) {
-        for (let target of proxy.targets) {
-          for (let targetFlow of target.flows) {
-            if (
-              targetFlow.name == featureFlow.name &&
-              targetFlow.mode == featureFlow.mode &&
-              targetFlow.condition == featureFlow.condition
-            ) {
-              for (let step of featureFlow.steps) {
-                let index = targetFlow.steps.findIndex(
-                  (x) => x.name === feature.uid + "-" + step.name && x.condition === step.condition,
-                );
-                if (index != -1) targetFlow.steps.splice(index, 1);
+      if (feature.defaultTarget.flows) {
+        for (let featureFlow of feature.defaultTarget.flows) {
+          for (let target of proxy.targets || []) {
+            for (let targetFlow of target.flows || []) {
+              if (
+                targetFlow.name == featureFlow.name &&
+                targetFlow.mode == featureFlow.mode &&
+                targetFlow.condition == featureFlow.condition
+              ) {
+                for (let step of featureFlow.steps || []) {
+                  let index = targetFlow.steps.findIndex(
+                    (x) => x.name === feature.uid + "-" + step.name && x.condition === step.condition,
+                  );
+                  if (index != -1) targetFlow.steps.splice(index, 1);
+                }
+                break;
               }
-              break;
             }
           }
         }
       }
 
-      if (feature.defaultTarget.defaultFaultRule) {
-        for (let target of proxy.targets) {
+      if (feature.defaultTarget.faultRules) {
+        for (let featureFr of feature.defaultTarget.faultRules) {
+          for (let target of proxy.targets || []) {
+            for (let fr of target.faultRules || []) {
+              if (
+                fr.name === featureFr.name ||
+                fr.name === (feature.uid ? feature.uid + "-" + featureFr.name : featureFr.name)
+              ) {
+                for (let step of featureFr.steps || []) {
+                  let index = (fr.steps || []).findIndex(
+                    (x) =>
+                      (x.name === step.name ||
+                        x.name === (feature.uid ? feature.uid + "-" + step.name : step.name)) &&
+                      x.condition === step.condition,
+                  );
+                  if (index != -1) fr.steps.splice(index, 1);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (feature.defaultTarget.defaultFaultRule && feature.defaultTarget.defaultFaultRule.steps) {
+        for (let target of proxy.targets || []) {
           for (let step of feature.defaultTarget.defaultFaultRule.steps) {
-            if (target.defaultFaultRule) {
+            if (target.defaultFaultRule && target.defaultFaultRule.steps) {
               let index = target.defaultFaultRule.steps.findIndex(
-                (x) => x.name === feature.uid + "-" + step.name && x.condition === step.condition,
+                (x) =>
+                  (x.name === step.name ||
+                    x.name === (feature.uid ? feature.uid + "-" + step.name : step.name)) &&
+                  x.condition === step.condition,
               );
               if (index != -1) target.defaultFaultRule.steps.splice(index, 1);
             }
@@ -1889,7 +2063,7 @@ export class ApigeeConverter {
       for (let endpoint of feature.endpoints) {
         // endpoint with uid, if available
         if (feature.uid) endpoint.name = feature.uid + "-" + endpoint.name;
-        let index = proxy.endpoints.findIndex((x) => x.name === endpoint.name);
+        let index = (proxy.endpoints || []).findIndex((x) => x.name === endpoint.name);
         if (index != -1) proxy.endpoints.splice(index, 1);
       }
     }
@@ -1899,7 +2073,7 @@ export class ApigeeConverter {
       for (let target of feature.targets) {
         // target with uid, if available
         if (feature.uid) target.name = feature.uid + "-" + target.name;
-        let index = proxy.targets.findIndex((x) => x.name === target.name);
+        let index = (proxy.targets || []).findIndex((x) => x.name === target.name);
         if (index != -1) proxy.targets.splice(index, 1);
       }
     }
@@ -1908,7 +2082,7 @@ export class ApigeeConverter {
     if (feature.policies && feature.policies.length > 0) {
       for (let policy of feature.policies) {
         if (feature.uid) policy.name = feature.uid + "-" + policy.name;
-        let policyIndex = proxy.policies.findIndex((x) => x.name === policy.name);
+        let policyIndex = (proxy.policies || []).findIndex((x) => x.name === policy.name);
         if (policyIndex != -1) {
           proxy.policies.splice(policyIndex, 1);
         }
@@ -1919,7 +2093,7 @@ export class ApigeeConverter {
     if (feature.resources && feature.resources.length > 0) {
       for (let resource of feature.resources) {
         if (feature.uid) resource.name = feature.uid + "-" + resource.name;
-        let resourceIndex = proxy.resources.findIndex((x) => x.name === resource.name);
+        let resourceIndex = (proxy.resources || []).findIndex((x) => x.name === resource.name);
         if (resourceIndex != -1) {
           proxy.resources.splice(resourceIndex, 1);
         }
@@ -1934,16 +2108,16 @@ export class ApigeeConverter {
 
     template.name = proxy.name;
     template.description = proxy.description;
-    template.parameters = proxy.parameters;
+    template.parameters = proxy.parameters || [];
 
-    for (let proxyEndpoint of proxy.endpoints) {
+    for (let proxyEndpoint of proxy.endpoints || []) {
       let templateEndpoint = new Endpoint();
       templateEndpoint.name = proxyEndpoint.name;
       templateEndpoint.basePath = proxyEndpoint.basePath;
       templateEndpoint.routes = proxyEndpoint.routes;
       template.endpoints.push(templateEndpoint);
     }
-    for (let proxyTarget of proxy.targets) {
+    for (let proxyTarget of proxy.targets || []) {
       let templateTarget = new Target();
       templateTarget.name = proxyTarget.name;
       templateTarget.url = proxyTarget.url;
@@ -1957,7 +2131,7 @@ export class ApigeeConverter {
     newFeature.name = proxy.name;
     newFeature.description = proxy.description;
     newFeature.documentation = proxy.documentation ?? "";
-    newFeature.parameters = proxy.parameters;
+    newFeature.parameters = proxy.parameters || [];
     newFeature.gateway = "apigee";
     newFeature.schemaVersion = "1.0.0";
     if (proxy.uid) newFeature.uid = proxy.uid;
@@ -1966,27 +2140,28 @@ export class ApigeeConverter {
     if (proxy.displayName) newFeature.displayName = proxy.displayName;
     if (proxy.categories) newFeature.categories = proxy.categories;
 
-    let defaultEndpoint = proxy.endpoints.find((x) => x.name == "default");
-    let defaultTarget = proxy.targets.find((x) => x.name == "default");
+    let defaultEndpoint = (proxy.endpoints || []).find((x) => x.name == "default");
+    let defaultTarget = (proxy.targets || []).find((x) => x.name == "default");
 
     if (defaultEndpoint) newFeature.defaultEndpoint = defaultEndpoint;
     if (defaultTarget) newFeature.defaultTarget = defaultTarget;
 
-    for (let endpoint of proxy.endpoints)
+    for (let endpoint of proxy.endpoints || [])
       if (endpoint.name != "default") newFeature.endpoints.push(endpoint);
 
-    for (let target of proxy.targets) if (target.name != "default") newFeature.targets.push(target);
+    for (let target of proxy.targets || [])
+      if (target.name != "default") newFeature.targets.push(target);
 
-    newFeature.policies = proxy.policies;
-    newFeature.resources = proxy.resources;
+    newFeature.policies = proxy.policies || [];
+    newFeature.resources = proxy.resources || [];
 
     return newFeature;
   }
 
   public proxyUpdateParameters(proxy: Proxy, parameters: { [key: string]: string } = {}) {
-    for (let proxyParameter of proxy.parameters) {
+    for (let proxyParameter of proxy.parameters || []) {
       for (let key of Object.keys(parameters)) {
-        if (proxyParameter.default.toString().includes("{" + key + "}") && parameters[key]) {
+        if (proxyParameter.default && proxyParameter.default.toString().includes("{" + key + "}") && parameters[key]) {
           proxyParameter.default = proxyParameter.default.replaceAll(
             "{" + key + "}",
             parameters[key],

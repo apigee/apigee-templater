@@ -45,4 +45,55 @@ describe("Apigee JSON Schema validation", () => {
     const valid = validate(invalidYaml);
     expect(valid).toBe(false);
   });
+
+  it("should validate sample proxy with _text against gateway.schema.1.0.json", () => {
+    const schema1Path = join(__dirname, "../schema/gateway.schema.1.0.json");
+    const schema1Json = JSON.parse(readFileSync(schema1Path, "utf-8"));
+    const validate1 = ajv.compile(schema1Json);
+
+    const sampleProxyYaml = `
+gateway: apigee
+schemaVersion: 1.0.0
+name: sample-proxy
+displayName: Sample Proxy
+type: proxy
+description: Simple proxy to mocktarget.apigee.net
+endpoints:
+  - name: default
+    basePath: /sample
+    routes:
+      - name: default
+        target: default
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: AM-SetResponseHeader
+targets:
+  - name: default
+    url: https://mocktarget.apigee.net
+policies:
+  - name: AM-SetResponseHeader
+    type: AssignMessage
+    content:
+      AssignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetResponseHeader
+        DisplayName: AM-SetResponseHeader
+        Set:
+          Headers:
+            Header:
+              metadata:
+                name: x-hello
+              _text: Hello world!
+`;
+    const yamlData = parseYaml.parse(sampleProxyYaml);
+    const valid = validate1(yamlData);
+    if (!valid) {
+      console.error("Validation errors for sample proxy 1.0:", validate1.errors);
+    }
+    expect(valid).toBe(true);
+  });
 });

@@ -359,6 +359,97 @@
       display: none;
     }
 
+    .pipeline-lane.lane-fault-rule {
+      border-color: rgba(245, 158, 11, 0.4);
+      background: rgba(245, 158, 11, 0.02);
+    }
+
+    .pipeline-lane.lane-default-fault-rule {
+      border-color: rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.02);
+    }
+
+    .lane-fault-rule .lane-header {
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+
+    .lane-default-fault-rule .lane-header {
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.25);
+    }
+
+    .faultrule-badge {
+      font-size: 0.72rem;
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .default-faultrule-badge {
+      font-size: 0.72rem;
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .flow-condition-badge {
+      font-size: 0.72rem;
+      background: rgba(15, 23, 42, 0.6);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 2px 7px;
+      border-radius: 4px;
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .flow-condition-badge code {
+      color: var(--accent);
+      font-family: var(--font-code);
+    }
+
+    .always-enforce-toggle {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      user-select: none;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .always-enforce-toggle:hover {
+      border-color: #f87171;
+      color: var(--text-main);
+    }
+
+    .always-enforce-toggle input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: #ef4444;
+    }
+
     .flow-direction-badge {
       font-size: 0.72rem;
       background: rgba(56, 189, 248, 0.12);
@@ -1288,11 +1379,43 @@
     </div>
   </div>
 
+  <!-- Fault Rule / Default Fault Rule Modal -->
+  <div class="modal-overlay" id="fault-rule-modal">
+    <div class="modal" style="max-width: 600px; width: 90vw;">
+      <div class="modal-header">
+        <h3 id="fault-rule-modal-title">Configure Fault Rule</h3>
+        <button class="btn" onclick="closeFaultRuleModal()">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label id="modal-fault-rule-name-label">Rule Name</label>
+          <input type="text" id="modal-fault-rule-name" class="form-control" placeholder="e.g. InvalidApiKeyRule" />
+        </div>
+        <div class="form-group" id="modal-fault-rule-condition-group">
+          <label>Condition <span style="font-weight: normal; color: var(--text-muted); font-size: 0.75rem;">(Apigee condition expression)</span></label>
+          <input type="text" id="modal-fault-rule-condition" class="form-control" placeholder="e.g. fault.name = &quot;InvalidApiKey&quot;" />
+          <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Executed when the error condition evaluates to true.</span>
+        </div>
+        <div class="form-group" id="modal-fault-rule-always-enforce-group" style="display: none;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+            <input type="checkbox" id="modal-fault-rule-always-enforce" style="accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer;" />
+            <span style="font-weight: 600; color: var(--text-main);">Always Enforce</span>
+          </label>
+          <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">If true, this DefaultFaultRule is executed even if a previous FaultRule was executed.</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeFaultRuleModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveFaultRuleFromModal()">Save</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // Embedded standard schemas for offline and fallback support
     const SCHEMA_GATEWAY_1_0 = {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee.schema.v5.json",
+  "$id": "https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json",
   "title": "Apigee Templater YAML Schema",
   "description": "JSON Schema validating Apigee Templater YAML specifications (Templates, Features, and Proxies)",
   "oneOf": [
@@ -1455,11 +1578,12 @@
           },
           "additionalProperties": true
         },
-        "DisplayName": { "type": "string" },
+        "_text": { "type": "string" },
+        "DisplayName": { "type": ["string", "object"] },
         "Properties": { "type": "object" },
-        "Source": { "type": "string" },
-        "IncludeURL": { "type": "string" },
-        "ResourceURL": { "type": "string" },
+        "Source": { "type": ["string", "object"] },
+        "IncludeURL": { "type": ["string", "object"] },
+        "ResourceURL": { "type": ["string", "object"] },
         "AssignTo": { "type": ["object", "string"] },
         "IgnoreUnresolvedVariables": { "type": ["string", "boolean"] },
         "AssignVariable": { "type": ["array", "object"] },
@@ -1471,9 +1595,9 @@
         "Put": { "type": ["array", "object"] },
         "Delete": { "type": ["array", "object"] },
         "Key": { "type": "object" },
-        "Scope": { "type": "string" },
+        "Scope": { "type": ["string", "object"] },
         "ExclusiveCache": { "type": ["string", "boolean"] },
-        "ExpiryTimeInSecs": { "type": ["string", "number"] },
+        "ExpiryTimeInSecs": { "type": ["string", "number", "object"] },
         "Capture": { "type": ["array", "object"] },
         "Collect": { "type": ["array", "object"] },
         "FaultRules": {
@@ -2032,11 +2156,18 @@ policies:
   - name: AM-SetResponseHeader
     type: AssignMessage
     content:
-      assignMessage:
-        displayName: AM-SetResponseHeader
-        setHeader:
-          - name: X-Hello
-            value: Hello world!
+      AssignMessage:
+        metadata:
+          continueOnError: "false"
+          enabled: "true"
+          name: AM-SetResponseHeader
+        DisplayName: AM-SetResponseHeader
+        Set:
+          Headers:
+            Header:
+              metadata:
+                name: x-hello
+              _text: Hello world!
 `;
 
     // Global State
@@ -2049,6 +2180,7 @@ policies:
     let currentEditingPolicyIndex = -1;
     let currentEditingResourceIndex = -1;
     let currentEditingStepCtx = null;
+    let currentEditingFaultRuleCtx = null;
     let resourceCodeMirror = null;
 
     // Caches for compiled validators and fetched schemas
@@ -2960,14 +3092,19 @@ policies:
         });
       };
 
-      const checkFlows = (flows, parentName) => {
-        (flows || []).forEach(f => checkSteps(f.steps, parentName + ' -> ' + f.name));
+      const checkEndpointOrTarget = (item, parentName) => {
+        if (!item) return;
+        (item.flows || []).forEach(f => checkSteps(f.steps, parentName + ' -> Flow ' + (f.name || 'unnamed')));
+        (item.faultRules || []).forEach(fr => checkSteps(fr.steps, parentName + ' -> FaultRule ' + (fr.name || 'unnamed')));
+        if (item.defaultFaultRule) {
+          checkSteps(item.defaultFaultRule.steps, parentName + ' -> DefaultFaultRule ' + (item.defaultFaultRule.name || 'default'));
+        }
       };
 
-      if (currentYamlObj.defaultEndpoint) checkFlows(currentYamlObj.defaultEndpoint.flows, 'defaultEndpoint');
-      (currentYamlObj.endpoints || []).forEach(ep => checkFlows(ep.flows, 'Endpoint ' + ep.name));
-      if (currentYamlObj.defaultTarget) checkFlows(currentYamlObj.defaultTarget.flows, 'defaultTarget');
-      (currentYamlObj.targets || []).forEach(tg => checkFlows(tg.flows, 'Target ' + tg.name));
+      if (currentYamlObj.defaultEndpoint) checkEndpointOrTarget(currentYamlObj.defaultEndpoint, 'defaultEndpoint');
+      (currentYamlObj.endpoints || []).forEach(ep => checkEndpointOrTarget(ep, 'Endpoint ' + (ep.name || 'unnamed')));
+      if (currentYamlObj.defaultTarget) checkEndpointOrTarget(currentYamlObj.defaultTarget, 'defaultTarget');
+      (currentYamlObj.targets || []).forEach(tg => checkEndpointOrTarget(tg, 'Target ' + (tg.name || 'unnamed')));
 
       const errorCount = issues.filter(i => i.type === 'error').length;
       updateDiagnosticsUI(errorCount === 0, issues, schemaUrl, valResult ? valResult.source : null);
@@ -3099,13 +3236,61 @@ policies:
       }
     }
 
+    // Endpoint/Target and Flow/FaultRule Accessors
+    function getEndpointOrTarget(ctxType) {
+      if (!currentYamlObj) return null;
+      const isFeature = String(currentYamlObj.type || '').toLowerCase() === 'feature';
+      if (ctxType === 'defaultEndpoint') {
+        if (!currentYamlObj.defaultEndpoint) currentYamlObj.defaultEndpoint = isFeature ? { name: 'default', flows: [] } : { name: 'default', basePath: '/', flows: [] };
+        return currentYamlObj.defaultEndpoint;
+      }
+      if (ctxType === 'defaultTarget') {
+        if (!currentYamlObj.defaultTarget) currentYamlObj.defaultTarget = isFeature ? { name: 'default', flows: [] } : { name: 'default', url: '', flows: [] };
+        return currentYamlObj.defaultTarget;
+      }
+      if (ctxType.startsWith('endpoint-')) {
+        const idx = parseInt(ctxType.split('-')[1]);
+        if (!currentYamlObj.endpoints) currentYamlObj.endpoints = [];
+        return currentYamlObj.endpoints[idx] || null;
+      }
+      if (ctxType.startsWith('target-')) {
+        const idx = parseInt(ctxType.split('-')[1]);
+        if (!currentYamlObj.targets) currentYamlObj.targets = [];
+        return currentYamlObj.targets[idx] || null;
+      }
+      return null;
+    }
+
+    function getFlowOrRule(ctxType, flowKind = 'flow', flowIndex = 0) {
+      const ep = getEndpointOrTarget(ctxType);
+      if (!ep) return null;
+      if (flowKind === 'defaultFaultRule') {
+        if (!ep.defaultFaultRule) {
+          ep.defaultFaultRule = { name: 'default-fault-rule', alwaysEnforce: false, steps: [] };
+        }
+        if (!ep.defaultFaultRule.steps) ep.defaultFaultRule.steps = [];
+        return ep.defaultFaultRule;
+      }
+      if (flowKind === 'faultRule') {
+        if (!ep.faultRules) ep.faultRules = [];
+        const rule = ep.faultRules[flowIndex];
+        if (rule && !rule.steps) rule.steps = [];
+        return rule || null;
+      }
+      // default: standard flow
+      if (!ep.flows) ep.flows = [];
+      const flow = ep.flows[flowIndex];
+      if (flow && !flow.steps) flow.steps = [];
+      return flow || null;
+    }
+
     // Step Reordering & Drag/Drop Handlers
     let draggedStepInfo = null;
     let isDraggingStep = false;
 
-    function handleStepDragStart(e, ctxType, flowIndex, stepIndex) {
+    function handleStepDragStart(e, ctxType, flowKind, flowIndex, stepIndex) {
       isDraggingStep = true;
-      draggedStepInfo = { ctxType, flowIndex, stepIndex };
+      draggedStepInfo = { ctxType, flowKind: flowKind || 'flow', flowIndex: flowIndex || 0, stepIndex };
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', JSON.stringify(draggedStepInfo));
       setTimeout(() => {
@@ -3147,7 +3332,7 @@ policies:
       }
     }
 
-    function handleStepDrop(e, ctxType, flowIndex, targetStepIndex, card) {
+    function handleStepDrop(e, ctxType, flowKind, flowIndex, targetStepIndex, card) {
       e.preventDefault();
       e.stopPropagation();
 
@@ -3158,8 +3343,12 @@ policies:
       if (!draggedStepInfo) return;
 
       const fromCtx = draggedStepInfo.ctxType;
-      const fromFlow = draggedStepInfo.flowIndex;
+      const fromKind = draggedStepInfo.flowKind || 'flow';
+      const fromFlow = draggedStepInfo.flowIndex || 0;
       const fromIdx = draggedStepInfo.stepIndex;
+
+      const toKind = flowKind || 'flow';
+      const toFlow = flowIndex || 0;
 
       let position = 'before';
       if (card) {
@@ -3168,10 +3357,10 @@ policies:
         position = relY < rect.height / 2 ? 'before' : 'after';
       }
 
-      if (fromCtx === ctxType && fromFlow === flowIndex) {
-        const flows = getFlowsByCtxType(ctxType);
-        if (flows && flows[flowIndex] && flows[flowIndex].steps) {
-          const steps = flows[flowIndex].steps;
+      if (fromCtx === ctxType && fromKind === toKind && fromFlow === toFlow) {
+        const targetContainer = getFlowOrRule(ctxType, toKind, toFlow);
+        if (targetContainer && targetContainer.steps) {
+          const steps = targetContainer.steps;
           let targetIndex = position === 'before' ? targetStepIndex : targetStepIndex + 1;
           if (fromIdx < targetIndex) {
             targetIndex--;
@@ -3183,11 +3372,11 @@ policies:
           }
         }
       } else {
-        const sourceFlows = getFlowsByCtxType(fromCtx);
-        const targetFlows = getFlowsByCtxType(ctxType);
-        if (sourceFlows && sourceFlows[fromFlow] && targetFlows && targetFlows[flowIndex]) {
-          const sourceSteps = sourceFlows[fromFlow].steps || [];
-          const targetSteps = targetFlows[flowIndex].steps || (targetFlows[flowIndex].steps = []);
+        const sourceContainer = getFlowOrRule(fromCtx, fromKind, fromFlow);
+        const targetContainer = getFlowOrRule(ctxType, toKind, toFlow);
+        if (sourceContainer && targetContainer) {
+          const sourceSteps = sourceContainer.steps || [];
+          const targetSteps = targetContainer.steps || (targetContainer.steps = []);
           let targetIndex = position === 'before' ? targetStepIndex : targetStepIndex + 1;
           if (targetIndex > targetSteps.length) targetIndex = targetSteps.length;
 
@@ -3205,7 +3394,7 @@ policies:
       }, 50);
     }
 
-    function handleStepDropOnList(e, ctxType, flowIndex) {
+    function handleStepDropOnList(e, ctxType, flowKind, flowIndex) {
       e.preventDefault();
       e.stopPropagation();
 
@@ -3216,17 +3405,21 @@ policies:
       if (!draggedStepInfo) return;
 
       const fromCtx = draggedStepInfo.ctxType;
-      const fromFlow = draggedStepInfo.flowIndex;
+      const fromKind = draggedStepInfo.flowKind || 'flow';
+      const fromFlow = draggedStepInfo.flowIndex || 0;
       const fromIdx = draggedStepInfo.stepIndex;
 
-      const sourceFlows = getFlowsByCtxType(fromCtx);
-      const targetFlows = getFlowsByCtxType(ctxType);
+      const toKind = flowKind || 'flow';
+      const toFlow = flowIndex || 0;
 
-      if (sourceFlows && sourceFlows[fromFlow] && targetFlows && targetFlows[flowIndex]) {
-        const sourceSteps = sourceFlows[fromFlow].steps || [];
-        const targetSteps = targetFlows[flowIndex].steps || (targetFlows[flowIndex].steps = []);
+      const sourceContainer = getFlowOrRule(fromCtx, fromKind, fromFlow);
+      const targetContainer = getFlowOrRule(ctxType, toKind, toFlow);
 
-        if (fromCtx === ctxType && fromFlow === flowIndex) {
+      if (sourceContainer && targetContainer) {
+        const sourceSteps = sourceContainer.steps || [];
+        const targetSteps = targetContainer.steps || (targetContainer.steps = []);
+
+        if (fromCtx === ctxType && fromKind === toKind && fromFlow === toFlow) {
           if (sourceSteps.length > 0 && fromIdx !== sourceSteps.length - 1) {
             const [movedStep] = sourceSteps.splice(fromIdx, 1);
             sourceSteps.push(movedStep);
@@ -3257,11 +3450,11 @@ policies:
       }, 50);
     }
 
-    function moveStepInFlow(ctxType, flowIndex, stepIndex, direction) {
-      const flows = getFlowsByCtxType(ctxType);
-      if (!flows || !flows[flowIndex] || !flows[flowIndex].steps) return;
+    function moveStepInFlow(ctxType, flowKind, flowIndex, stepIndex, direction) {
+      const container = getFlowOrRule(ctxType, flowKind, flowIndex);
+      if (!container || !container.steps) return;
 
-      const steps = flows[flowIndex].steps;
+      const steps = container.steps;
       const targetIndex = stepIndex + direction;
 
       if (targetIndex < 0 || targetIndex >= steps.length) return;
@@ -3273,16 +3466,24 @@ policies:
       updateYamlFromObj();
     }
 
-    function removeStepFromFlow(ctxType, flowIndex, stepIndex) {
-      const flows = getFlowsByCtxType(ctxType);
-      if (!flows || !flows[flowIndex] || !flows[flowIndex].steps) return;
+    function removeStepFromFlow(ctxType, flowKind, flowIndex, stepIndex) {
+      const container = getFlowOrRule(ctxType, flowKind, flowIndex);
+      if (!container || !container.steps) return;
 
-      flows[flowIndex].steps.splice(stepIndex, 1);
+      container.steps.splice(stepIndex, 1);
       updateYamlFromObj();
     }
 
     function handleQuickAddFlow(ctxType, val) {
       if (!val) return;
+      if (val === 'ADD_DEFAULT_FAULT_RULE') {
+        addDefaultFaultRuleToSection(ctxType);
+        return;
+      }
+      if (val === 'ADD_FAULT_RULE') {
+        openAddFaultRuleModal(ctxType);
+        return;
+      }
       if (val === 'CUSTOM') {
         const name = prompt('Enter custom flow name (e.g. ConditionalFlow):', 'MyFlow');
         if (!name || !name.trim()) return;
@@ -3315,6 +3516,168 @@ policies:
         }
       }
       flows.splice(flowIndex, 1);
+      updateYamlFromObj();
+    }
+
+    // FaultRule & DefaultFaultRule UI Handlers
+    function openAddFaultRuleModal(ctxType) {
+      currentEditingFaultRuleCtx = { ctxType, ruleKind: 'faultRule', ruleIndex: -1, isNew: true };
+      document.getElementById('fault-rule-modal-title').innerText = 'Add Fault Rule';
+      document.getElementById('modal-fault-rule-name-label').innerText = 'Fault Rule Name';
+      const ep = getEndpointOrTarget(ctxType);
+      const nextIdx = ((ep && ep.faultRules) || []).length + 1;
+      document.getElementById('modal-fault-rule-name').value = 'Fault-Rule-' + nextIdx;
+      document.getElementById('modal-fault-rule-condition').value = '';
+      document.getElementById('modal-fault-rule-condition-group').style.display = 'block';
+      document.getElementById('modal-fault-rule-always-enforce-group').style.display = 'none';
+      document.getElementById('fault-rule-modal').classList.add('open');
+    }
+
+    function openEditFaultRuleModal(ctxType, frIdx) {
+      const ep = getEndpointOrTarget(ctxType);
+      if (!ep || !ep.faultRules || !ep.faultRules[frIdx]) return;
+      const rule = ep.faultRules[frIdx];
+      currentEditingFaultRuleCtx = { ctxType, ruleKind: 'faultRule', ruleIndex: frIdx, isNew: false };
+      document.getElementById('fault-rule-modal-title').innerText = 'Edit Fault Rule';
+      document.getElementById('modal-fault-rule-name-label').innerText = 'Fault Rule Name';
+      document.getElementById('modal-fault-rule-name').value = rule.name || '';
+      document.getElementById('modal-fault-rule-condition').value = rule.condition || '';
+      document.getElementById('modal-fault-rule-condition-group').style.display = 'block';
+      document.getElementById('modal-fault-rule-always-enforce-group').style.display = 'none';
+      document.getElementById('fault-rule-modal').classList.add('open');
+    }
+
+    function openAddDefaultFaultRuleModal(ctxType) {
+      currentEditingFaultRuleCtx = { ctxType, ruleKind: 'defaultFaultRule', ruleIndex: 0, isNew: true };
+      document.getElementById('fault-rule-modal-title').innerText = 'Configure Default Fault Rule';
+      document.getElementById('modal-fault-rule-name-label').innerText = 'Default Fault Rule Name';
+      document.getElementById('modal-fault-rule-name').value = 'default-fault-rule';
+      document.getElementById('modal-fault-rule-always-enforce').checked = false;
+      document.getElementById('modal-fault-rule-condition-group').style.display = 'none';
+      document.getElementById('modal-fault-rule-always-enforce-group').style.display = 'block';
+      document.getElementById('fault-rule-modal').classList.add('open');
+    }
+
+    function openEditDefaultFaultRuleModal(ctxType) {
+      const ep = getEndpointOrTarget(ctxType);
+      const dfr = ep ? ep.defaultFaultRule : null;
+      currentEditingFaultRuleCtx = { ctxType, ruleKind: 'defaultFaultRule', ruleIndex: 0, isNew: false };
+      document.getElementById('fault-rule-modal-title').innerText = 'Edit Default Fault Rule';
+      document.getElementById('modal-fault-rule-name-label').innerText = 'Default Fault Rule Name';
+      document.getElementById('modal-fault-rule-name').value = (dfr && dfr.name) ? dfr.name : 'default-fault-rule';
+      document.getElementById('modal-fault-rule-always-enforce').checked = !!(dfr && dfr.alwaysEnforce);
+      document.getElementById('modal-fault-rule-condition-group').style.display = 'none';
+      document.getElementById('modal-fault-rule-always-enforce-group').style.display = 'block';
+      document.getElementById('fault-rule-modal').classList.add('open');
+    }
+
+    function closeFaultRuleModal() {
+      document.getElementById('fault-rule-modal').classList.remove('open');
+      currentEditingFaultRuleCtx = null;
+    }
+
+    function saveFaultRuleFromModal() {
+      if (!currentEditingFaultRuleCtx) return;
+      const { ctxType, ruleKind, ruleIndex, isNew } = currentEditingFaultRuleCtx;
+      const ep = getEndpointOrTarget(ctxType);
+      if (!ep) return;
+
+      const name = document.getElementById('modal-fault-rule-name').value.trim();
+      if (!name) {
+        alert('Rule name cannot be empty.');
+        return;
+      }
+
+      if (ruleKind === 'defaultFaultRule') {
+        const alwaysEnforce = document.getElementById('modal-fault-rule-always-enforce').checked;
+        if (isNew || !ep.defaultFaultRule) {
+          ep.defaultFaultRule = {
+            name,
+            ...(alwaysEnforce ? { alwaysEnforce: true } : {}),
+            steps: (ep.defaultFaultRule ? ep.defaultFaultRule.steps : [])
+          };
+        } else {
+          ep.defaultFaultRule.name = name;
+          if (alwaysEnforce) {
+            ep.defaultFaultRule.alwaysEnforce = true;
+          } else {
+            delete ep.defaultFaultRule.alwaysEnforce;
+          }
+        }
+      } else if (ruleKind === 'faultRule') {
+        const condition = document.getElementById('modal-fault-rule-condition').value.trim();
+        if (isNew) {
+          if (!ep.faultRules) ep.faultRules = [];
+          const newRule = { name, steps: [] };
+          if (condition) newRule.condition = condition;
+          ep.faultRules.push(newRule);
+        } else {
+          const rule = ep.faultRules[ruleIndex];
+          if (rule) {
+            rule.name = name;
+            if (condition) rule.condition = condition;
+            else delete rule.condition;
+          }
+        }
+      }
+
+      updateYamlFromObj();
+      closeFaultRuleModal();
+    }
+
+    function removeDefaultFaultRuleFromSection(ctxType) {
+      const ep = getEndpointOrTarget(ctxType);
+      if (!ep || !ep.defaultFaultRule) return;
+      const stepCount = (ep.defaultFaultRule.steps || []).length;
+      if (stepCount > 0) {
+        if (!confirm(`Are you sure you want to remove defaultFaultRule with ${stepCount} step(s)?`)) {
+          return;
+        }
+      }
+      delete ep.defaultFaultRule;
+      updateYamlFromObj();
+    }
+
+    function removeFaultRuleFromSection(ctxType, frIdx) {
+      const ep = getEndpointOrTarget(ctxType);
+      if (!ep || !ep.faultRules || !ep.faultRules[frIdx]) return;
+      const rule = ep.faultRules[frIdx];
+      const stepCount = (rule.steps || []).length;
+      if (stepCount > 0) {
+        if (!confirm(`Are you sure you want to remove FaultRule "${rule.name}" with ${stepCount} step(s)?`)) {
+          return;
+        }
+      }
+      ep.faultRules.splice(frIdx, 1);
+      if (ep.faultRules.length === 0) {
+        delete ep.faultRules;
+      }
+      updateYamlFromObj();
+    }
+
+    function toggleAlwaysEnforce(ctxType, val) {
+      const ep = getEndpointOrTarget(ctxType);
+      if (!ep || !ep.defaultFaultRule) return;
+      if (val) {
+        ep.defaultFaultRule.alwaysEnforce = true;
+      } else {
+        delete ep.defaultFaultRule.alwaysEnforce;
+      }
+      updateYamlFromObj();
+    }
+
+    function addDefaultFaultRuleToSection(ctxType) {
+      const ep = getEndpointOrTarget(ctxType);
+      if (!ep) return;
+      if (ep.defaultFaultRule) {
+        alert('DefaultFaultRule is already defined for this endpoint/target.');
+        return;
+      }
+      ep.defaultFaultRule = {
+        name: 'default-fault-rule',
+        alwaysEnforce: false,
+        steps: []
+      };
       updateYamlFromObj();
     }
 
@@ -3622,8 +3985,12 @@ policies:
         { name: 'EventFlow', mode: 'Response', label: 'EventFlow (Response)' }
       ];
 
-      const createFlowSection = (title, flows, ctxType, meta) => {
-        flows = flows || [];
+      const createFlowSection = (title, ep, ctxType, meta) => {
+        ep = ep || {};
+        const flows = ep.flows || [];
+        const faultRules = ep.faultRules || [];
+        const defaultFaultRule = ep.defaultFaultRule;
+
         const secId = 'section-' + ctxType;
         const isSecCollapsed = collapsedSections.has(secId);
         const isTarget = ctxType.includes('target') || ctxType.includes('Target');
@@ -3636,13 +4003,17 @@ policies:
         sec.id = secId;
         sec.className = 'flow-section' + (isSecCollapsed ? ' collapsed' : '');
         
-        let selectOptionsHtml = '<option value="">+ Add Flow...</option>';
+        let selectOptionsHtml = '<option value="">+ Add Flow / FaultRule...</option>';
         if (unconfiguredFlows.length > 0) {
           unconfiguredFlows.forEach(sf => {
             selectOptionsHtml += `<option value="${sf.name}:${sf.mode}">+ ${sf.label}</option>`;
           });
         }
         selectOptionsHtml += '<option value="CUSTOM">+ Custom Flow...</option>';
+        if (!defaultFaultRule) {
+          selectOptionsHtml += '<option value="ADD_DEFAULT_FAULT_RULE">+ Default FaultRule</option>';
+        }
+        selectOptionsHtml += '<option value="ADD_FAULT_RULE">+ FaultRule (Conditional)...</option>';
 
         let metaBarHtml = '';
         if (!isTarget && meta && (meta.basePath !== undefined || (meta.routes && meta.routes.length > 0))) {
@@ -3664,6 +4035,13 @@ policies:
           `;
         }
 
+        const totalFlows = flows.length;
+        const totalFaults = faultRules.length + (defaultFaultRule ? 1 : 0);
+        let countLabel = `${totalFlows} Flow${totalFlows === 1 ? '' : 's'}`;
+        if (totalFaults > 0) {
+          countLabel += `, ${totalFaults} FaultRule${totalFaults === 1 ? '' : 's'}`;
+        }
+
         sec.innerHTML = `
           <div class="section-title" onclick="toggleSectionCollapse('${secId}')">
             <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; margin-right: 8px;">
@@ -3671,7 +4049,7 @@ policies:
               <div style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;">${title}</div>
             </div>
             <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;" onclick="event.stopPropagation()">
-              <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">${flows.length} Flow${flows.length === 1 ? '' : 's'}</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">${countLabel}</span>
               <select class="form-control" style="padding: 2px 8px; font-size: 0.72rem; height: 26px; width: auto; background: var(--bg-card); color: var(--text-main); border-color: var(--border);" onchange="handleQuickAddFlow('${ctxType}', this.value); this.value='';">
                 ${selectOptionsHtml}
               </select>
@@ -3688,20 +4066,93 @@ policies:
         const pipeline = document.createElement('div');
         pipeline.className = 'flow-pipeline';
 
-        if (flows.length === 0) {
+        const hasAnyContent = flows.length > 0 || faultRules.length > 0 || !!defaultFaultRule;
+
+        if (!hasAnyContent) {
           pipeline.innerHTML = `
             <div style="padding: 16px; background: rgba(30, 41, 59, 0.4); border: 1px dashed var(--border); border-radius: 8px; text-align: center; color: var(--text-muted); font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 4px 0;">
-              <span>No flows configured for this section. Enable a standard flow:</span>
+              <span>No flows or fault rules configured for this section. Quick add:</span>
               <div style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;">
                 <button class="btn" style="font-size: 0.75rem; padding: 3px 10px;" onclick="addFlowToSection('${ctxType}', 'PreFlow', 'Request')">+ PreFlow (Request)</button>
                 <button class="btn" style="font-size: 0.75rem; padding: 3px 10px;" onclick="addFlowToSection('${ctxType}', 'PreFlow', 'Response')">+ PreFlow (Response)</button>
                 <button class="btn" style="font-size: 0.75rem; padding: 3px 10px;" onclick="addFlowToSection('${ctxType}', 'PostFlow', 'Request')">+ PostFlow (Request)</button>
                 <button class="btn" style="font-size: 0.75rem; padding: 3px 10px;" onclick="addFlowToSection('${ctxType}', 'PostFlow', 'Response')">+ PostFlow (Response)</button>
                 <button class="btn" style="font-size: 0.75rem; padding: 3px 10px;" onclick="addFlowToSection('${ctxType}', 'EventFlow', 'Response')">+ EventFlow (Response)</button>
+                <button class="btn" style="font-size: 0.75rem; padding: 3px 10px; border-color: rgba(239, 68, 68, 0.4);" onclick="addDefaultFaultRuleToSection('${ctxType}')">+ Default FaultRule</button>
+                <button class="btn" style="font-size: 0.75rem; padding: 3px 10px; border-color: rgba(245, 158, 11, 0.4);" onclick="openAddFaultRuleModal('${ctxType}')">+ FaultRule (Conditional)</button>
               </div>
             </div>
           `;
         } else {
+          const renderStepList = (steps, flowKind, flowIdx, containerEl) => {
+            containerEl.ondragover = (e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+            };
+            containerEl.ondrop = (e) => {
+              if (e.target.closest('.step-card')) return;
+              handleStepDropOnList(e, ctxType, flowKind, flowIdx);
+            };
+
+            if (!steps || steps.length === 0) {
+              containerEl.innerHTML = '<div style="color: var(--text-muted); font-size: 0.78rem; font-style: italic; text-align: center; padding: 8px;">No policy steps in this container. Click "+ Add Step" to attach policies.</div>';
+              return;
+            }
+
+            steps.forEach((step, sIdx) => {
+              if (sIdx > 0) {
+                const arrow = document.createElement('div');
+                arrow.className = 'flow-arrow';
+                arrow.innerHTML = '⬇';
+                arrow.title = 'Execution flows top to bottom';
+                containerEl.appendChild(arrow);
+              }
+
+              const policyDef = (obj.policies || []).find(p => p.name === step.name);
+              const pType = policyDef ? policyDef.type : 'Unknown';
+
+              const card = document.createElement('div');
+              card.className = 'step-card';
+              card.draggable = true;
+
+              card.ondragstart = (e) => handleStepDragStart(e, ctxType, flowKind, flowIdx, sIdx);
+              card.ondragover = (e) => handleStepDragOver(e, card, sIdx);
+              card.ondragleave = (e) => handleStepDragLeave(e, card);
+              card.ondrop = (e) => handleStepDrop(e, ctxType, flowKind, flowIdx, sIdx, card);
+              card.ondragend = (e) => handleStepDragEnd(e);
+              card.onclick = () => {
+                if (isDraggingStep) return;
+                openEditStepModal(ctxType, flowKind, flowIdx, sIdx);
+              };
+
+              card.innerHTML = `
+                <div class="step-drag-handle" title="Drag to reorder step">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="5" r="1.5" fill="currentColor"></circle>
+                    <circle cx="9" cy="12" r="1.5" fill="currentColor"></circle>
+                    <circle cx="9" cy="19" r="1.5" fill="currentColor"></circle>
+                    <circle cx="15" cy="5" r="1.5" fill="currentColor"></circle>
+                    <circle cx="15" cy="12" r="1.5" fill="currentColor"></circle>
+                    <circle cx="15" cy="19" r="1.5" fill="currentColor"></circle>
+                  </svg>
+                </div>
+                <div class="step-card-body">
+                  <div class="step-card-header">
+                    <span class="step-name">${escapeHtml(step.name)}</span>
+                    <div class="step-controls">
+                      <button class="step-btn step-btn-delete" title="Remove Step" onclick="event.stopPropagation(); removeStepFromFlow('${ctxType}', '${flowKind}', ${flowIdx}, ${sIdx})">✕</button>
+                    </div>
+                  </div>
+                  <div class="step-type">${escapeHtml(pType)}</div>
+                  ${step.condition ? `<div class="step-condition" title="${escapeHtml(step.condition)}">${escapeHtml(step.condition)}</div>` : ''}
+                </div>
+              `;
+
+              containerEl.appendChild(card);
+            });
+          };
+
+          // Standard Flows
           flows.forEach((flow, fIdx) => {
             const flowId = 'flow-' + ctxType + '-' + fIdx;
             const isFlowCollapsed = collapsedFlows.has(flowId);
@@ -3717,83 +4168,85 @@ policies:
                 </div>
                 <div style="display: flex; gap: 8px; align-items: center;" onclick="event.stopPropagation()">
                   <span class="flow-direction-badge">⬇ Sequence: Top to Bottom</span>
-                  <button class="btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="addStepToFlow('${ctxType}', ${fIdx})">+ Add Step</button>
+                  <button class="btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="addStepToFlow('${ctxType}', 'flow', ${fIdx})">+ Add Step</button>
                   <button class="step-btn step-btn-delete" title="Remove Flow" style="font-size: 0.82rem;" onclick="removeFlowFromSection('${ctxType}', ${fIdx})">✕</button>
                 </div>
               </div>
               <div class="step-list"></div>
             `;
 
-            const stepList = lane.querySelector('.step-list');
-            stepList.ondragover = (e) => {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'move';
-            };
-            stepList.ondrop = (e) => {
-              if (e.target.closest('.step-card')) return;
-              handleStepDropOnList(e, ctxType, fIdx);
-            };
-
-            const steps = flow.steps || [];
-
-            if (steps.length === 0) {
-              stepList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.78rem; font-style: italic; text-align: center; padding: 8px;">No policy steps in this flow. Click "+ Add Step" to attach policies.</div>';
-            } else {
-              steps.forEach((step, sIdx) => {
-                if (sIdx > 0) {
-                  const arrow = document.createElement('div');
-                  arrow.className = 'flow-arrow';
-                  arrow.innerHTML = '⬇';
-                  arrow.title = 'Execution flows top to bottom';
-                  stepList.appendChild(arrow);
-                }
-
-                const policyDef = (obj.policies || []).find(p => p.name === step.name);
-                const pType = policyDef ? policyDef.type : 'Unknown';
-
-                const card = document.createElement('div');
-                card.className = 'step-card';
-                card.draggable = true;
-
-                card.ondragstart = (e) => handleStepDragStart(e, ctxType, fIdx, sIdx);
-                card.ondragover = (e) => handleStepDragOver(e, card, sIdx);
-                card.ondragleave = (e) => handleStepDragLeave(e, card);
-                card.ondrop = (e) => handleStepDrop(e, ctxType, fIdx, sIdx, card);
-                card.ondragend = (e) => handleStepDragEnd(e);
-                card.onclick = () => {
-                  if (isDraggingStep) return;
-                  openEditStepModal(ctxType, fIdx, sIdx);
-                };
-
-                card.innerHTML = `
-                  <div class="step-drag-handle" title="Drag to reorder step">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="9" cy="5" r="1.5" fill="currentColor"></circle>
-                      <circle cx="9" cy="12" r="1.5" fill="currentColor"></circle>
-                      <circle cx="9" cy="19" r="1.5" fill="currentColor"></circle>
-                      <circle cx="15" cy="5" r="1.5" fill="currentColor"></circle>
-                      <circle cx="15" cy="12" r="1.5" fill="currentColor"></circle>
-                      <circle cx="15" cy="19" r="1.5" fill="currentColor"></circle>
-                    </svg>
-                  </div>
-                  <div class="step-card-body">
-                    <div class="step-card-header">
-                      <span class="step-name">${escapeHtml(step.name)}</span>
-                      <div class="step-controls">
-                        <button class="step-btn step-btn-delete" title="Remove Step" onclick="event.stopPropagation(); removeStepFromFlow('${ctxType}', ${fIdx}, ${sIdx})">✕</button>
-                      </div>
-                    </div>
-                    <div class="step-type">${escapeHtml(pType)}</div>
-                    ${step.condition ? `<div class="step-condition" title="${escapeHtml(step.condition)}">${escapeHtml(step.condition)}</div>` : ''}
-                  </div>
-                `;
-
-                stepList.appendChild(card);
-              });
-            }
-
+            renderStepList(flow.steps || [], 'flow', fIdx, lane.querySelector('.step-list'));
             pipeline.appendChild(lane);
           });
+
+          // Conditional FaultRules
+          faultRules.forEach((fr, frIdx) => {
+            const flowId = 'faultrule-' + ctxType + '-' + frIdx;
+            const isFlowCollapsed = collapsedFlows.has(flowId);
+
+            const lane = document.createElement('div');
+            lane.id = flowId;
+            lane.className = 'pipeline-lane lane-fault-rule' + (isFlowCollapsed ? ' collapsed' : '');
+            
+            const condHtml = fr.condition 
+              ? `<span class="flow-condition-badge" title="${escapeHtml(fr.condition)}">if: <code>${escapeHtml(fr.condition)}</code></span>` 
+              : `<span style="font-size:0.72rem; color:var(--text-muted); font-style:italic;">(No condition)</span>`;
+
+            lane.innerHTML = `
+              <div class="lane-header" onclick="toggleFlowCollapse('${flowId}')">
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; flex: 1;">
+                  <svg class="collapse-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  <span class="faultrule-badge">⚡ FaultRule</span>
+                  <span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(fr.name || ('FaultRule ' + (frIdx + 1)))}</span>
+                  ${condHtml}
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;" onclick="event.stopPropagation()">
+                  <span class="flow-direction-badge">⬇ Sequence</span>
+                  <button class="btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="openEditFaultRuleModal('${ctxType}', ${frIdx})">Edit Rule</button>
+                  <button class="btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="addStepToFlow('${ctxType}', 'faultRule', ${frIdx})">+ Add Step</button>
+                  <button class="step-btn step-btn-delete" title="Remove Fault Rule" style="font-size: 0.82rem;" onclick="removeFaultRuleFromSection('${ctxType}', ${frIdx})">✕</button>
+                </div>
+              </div>
+              <div class="step-list"></div>
+            `;
+
+            renderStepList(fr.steps || [], 'faultRule', frIdx, lane.querySelector('.step-list'));
+            pipeline.appendChild(lane);
+          });
+
+          // Default FaultRule
+          if (defaultFaultRule) {
+            const flowId = 'defaultfaultrule-' + ctxType;
+            const isFlowCollapsed = collapsedFlows.has(flowId);
+
+            const lane = document.createElement('div');
+            lane.id = flowId;
+            lane.className = 'pipeline-lane lane-default-fault-rule' + (isFlowCollapsed ? ' collapsed' : '');
+
+            lane.innerHTML = `
+              <div class="lane-header" onclick="toggleFlowCollapse('${flowId}')">
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; flex: 1;">
+                  <svg class="collapse-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  <span class="default-faultrule-badge">🛡️ DefaultFaultRule</span>
+                  <span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(defaultFaultRule.name || 'default-fault-rule')}</span>
+                  <label class="always-enforce-toggle" onclick="event.stopPropagation()">
+                    <input type="checkbox" ${defaultFaultRule.alwaysEnforce ? 'checked' : ''} onchange="toggleAlwaysEnforce('${ctxType}', this.checked)">
+                    Always Enforce
+                  </label>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;" onclick="event.stopPropagation()">
+                  <span class="flow-direction-badge">⬇ Sequence</span>
+                  <button class="btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="openEditDefaultFaultRuleModal('${ctxType}')">Edit Rule</button>
+                  <button class="btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="addStepToFlow('${ctxType}', 'defaultFaultRule', 0)">+ Add Step</button>
+                  <button class="step-btn step-btn-delete" title="Remove Default Fault Rule" style="font-size: 0.82rem;" onclick="removeDefaultFaultRuleFromSection('${ctxType}')">✕</button>
+                </div>
+              </div>
+              <div class="step-list"></div>
+            `;
+
+            renderStepList(defaultFaultRule.steps || [], 'defaultFaultRule', 0, lane.querySelector('.step-list'));
+            pipeline.appendChild(lane);
+          }
         }
 
         sec.appendChild(pipeline);
@@ -3805,7 +4258,7 @@ policies:
       if (obj.defaultEndpoint) {
         const basePathStr = obj.defaultEndpoint.basePath ? ` <span style="font-weight: normal; color: var(--text-muted); font-size: 0.8rem;">(${escapeHtml(obj.defaultEndpoint.basePath)})</span>` : '';
         const title = `Default Endpoint: <strong>${escapeHtml(obj.defaultEndpoint.name || 'default')}</strong>${basePathStr}`;
-        createFlowSection(title, obj.defaultEndpoint.flows, 'defaultEndpoint', {
+        createFlowSection(title, obj.defaultEndpoint, 'defaultEndpoint', {
           basePath: obj.defaultEndpoint.basePath,
           routes: obj.defaultEndpoint.routes
         });
@@ -3813,7 +4266,7 @@ policies:
       (obj.endpoints || []).forEach((ep, i) => {
         const basePathStr = ep.basePath ? ` <span style="font-weight: normal; color: var(--text-muted); font-size: 0.8rem;">(${escapeHtml(ep.basePath)})</span>` : '';
         const title = `Endpoint: <strong>${escapeHtml(ep.name || ('Endpoint ' + (i + 1)))}</strong>${basePathStr}`;
-        createFlowSection(title, ep.flows, 'endpoint-' + i, {
+        createFlowSection(title, ep, 'endpoint-' + i, {
           basePath: ep.basePath,
           routes: ep.routes
         });
@@ -3834,14 +4287,14 @@ policies:
       if (obj.defaultTarget) {
         const targetUrl = obj.defaultTarget.url ? ` <span style="font-weight: normal; color: var(--text-muted); font-size: 0.8rem;">(${escapeHtml(obj.defaultTarget.url)})</span>` : '';
         const title = `Default Target: <strong>${escapeHtml(obj.defaultTarget.name || 'default')}</strong>${targetUrl}`;
-        createFlowSection(title, obj.defaultTarget.flows, 'defaultTarget', {
+        createFlowSection(title, obj.defaultTarget, 'defaultTarget', {
           url: obj.defaultTarget.url
         });
       }
       (obj.targets || []).forEach((tg, i) => {
         const targetUrl = tg.url ? ` <span style="font-weight: normal; color: var(--text-muted); font-size: 0.8rem;">(${escapeHtml(tg.url)})</span>` : '';
         const title = `Target: <strong>${escapeHtml(tg.name || ('Target ' + (i + 1)))}</strong>${targetUrl}`;
-        createFlowSection(title, tg.flows, 'target-' + i, {
+        createFlowSection(title, tg, 'target-' + i, {
           url: tg.url
         });
       });
@@ -3862,7 +4315,7 @@ policies:
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // Helper: calculate where a policy is referenced in all flows
+    // Helper: calculate where a policy is referenced in all flows and fault rules
     function getPolicyUsage(obj, policyName) {
       if (!policyName || !obj) return { count: 0, locations: [] };
       let count = 0;
@@ -3877,14 +4330,19 @@ policies:
         });
       };
 
-      const checkFlows = (flows, parentLabel) => {
-        (flows || []).forEach(f => checkSteps(f.steps, `${parentLabel} -> ${f.name}`));
+      const checkEndpointOrTargetUsage = (item, parentLabel) => {
+        if (!item) return;
+        (item.flows || []).forEach(f => checkSteps(f.steps, `${parentLabel} -> Flow (${f.name || 'unnamed'})`));
+        (item.faultRules || []).forEach(fr => checkSteps(fr.steps, `${parentLabel} -> FaultRule (${fr.name || 'unnamed'})`));
+        if (item.defaultFaultRule) {
+          checkSteps(item.defaultFaultRule.steps, `${parentLabel} -> DefaultFaultRule (${item.defaultFaultRule.name || 'default'})`);
+        }
       };
 
-      if (obj.defaultEndpoint) checkFlows(obj.defaultEndpoint.flows, 'Default Endpoint');
-      (obj.endpoints || []).forEach(ep => checkFlows(ep.flows, `Endpoint (${ep.name})`));
-      if (obj.defaultTarget) checkFlows(obj.defaultTarget.flows, 'Default Target');
-      (obj.targets || []).forEach(tg => checkFlows(tg.flows, `Target (${tg.name})`));
+      if (obj.defaultEndpoint) checkEndpointOrTargetUsage(obj.defaultEndpoint, 'Default Endpoint');
+      (obj.endpoints || []).forEach(ep => checkEndpointOrTargetUsage(ep, `Endpoint (${ep.name || 'unnamed'})`));
+      if (obj.defaultTarget) checkEndpointOrTargetUsage(obj.defaultTarget, 'Default Target');
+      (obj.targets || []).forEach(tg => checkEndpointOrTargetUsage(tg, `Target (${tg.name || 'unnamed'})`));
 
       return { count, locations };
     }
@@ -3902,17 +4360,23 @@ policies:
         const locText = usage.locations.map(l => ` • ${l.flowLabel}`).join('\n');
         const msg = `Policy "${policyName}" is referenced in ${usage.count} step(s):\n${locText}\n\nDo you want to remove all referencing steps and delete this policy?`;
         if (confirm(msg)) {
-          const removeStepsFromFlows = (flows) => {
-            (flows || []).forEach(f => {
-              if (f.steps) {
-                f.steps = f.steps.filter(s => s.name !== policyName);
-              }
+          const removeStepsFromContainers = (item) => {
+            if (!item) return;
+            (item.flows || []).forEach(f => {
+              if (f.steps) f.steps = f.steps.filter(s => s.name !== policyName);
             });
+            (item.faultRules || []).forEach(fr => {
+              if (fr.steps) fr.steps = fr.steps.filter(s => s.name !== policyName);
+            });
+            if (item.defaultFaultRule && item.defaultFaultRule.steps) {
+              item.defaultFaultRule.steps = item.defaultFaultRule.steps.filter(s => s.name !== policyName);
+            }
           };
-          if (currentYamlObj.defaultEndpoint) removeStepsFromFlows(currentYamlObj.defaultEndpoint.flows);
-          (currentYamlObj.endpoints || []).forEach(ep => removeStepsFromFlows(ep.flows));
-          if (currentYamlObj.defaultTarget) removeStepsFromFlows(currentYamlObj.defaultTarget.flows);
-          (currentYamlObj.targets || []).forEach(tg => removeStepsFromFlows(tg.flows));
+
+          if (currentYamlObj.defaultEndpoint) removeStepsFromContainers(currentYamlObj.defaultEndpoint);
+          (currentYamlObj.endpoints || []).forEach(ep => removeStepsFromContainers(ep));
+          if (currentYamlObj.defaultTarget) removeStepsFromContainers(currentYamlObj.defaultTarget);
+          (currentYamlObj.targets || []).forEach(tg => removeStepsFromContainers(tg));
 
           currentYamlObj.policies = (currentYamlObj.policies || []).filter(p => p.name !== policyName);
           updateYamlFromObj();
@@ -4516,10 +4980,11 @@ policies:
       loadStepPolicyYaml(selectedPolicyName);
     }
 
-    function openEditStepModal(ctxType, flowIndex, stepIndex) {
-      currentEditingStepCtx = { ctxType, flowIndex, stepIndex };
-      const flows = getFlowsByCtxType(ctxType);
-      const step = flows[flowIndex].steps[stepIndex];
+    function openEditStepModal(ctxType, flowKind = 'flow', flowIndex = 0, stepIndex = 0) {
+      currentEditingStepCtx = { ctxType, flowKind, flowIndex, stepIndex };
+      const container = getFlowOrRule(ctxType, flowKind, flowIndex);
+      const step = (container && container.steps) ? container.steps[stepIndex] : null;
+      if (!step) return;
 
       populatePolicyDropdown('modal-step-name', step.name);
       document.getElementById('modal-step-condition').value = step.condition || '';
@@ -4532,8 +4997,8 @@ policies:
       }, 30);
     }
 
-    function addStepToFlow(ctxType, flowIndex) {
-      currentEditingStepCtx = { ctxType, flowIndex, stepIndex: -1 };
+    function addStepToFlow(ctxType, flowKind = 'flow', flowIndex = 0) {
+      currentEditingStepCtx = { ctxType, flowKind, flowIndex, stepIndex: -1 };
       populatePolicyDropdown('modal-step-name');
       document.getElementById('modal-step-condition').value = '';
       const firstPolicyName = document.getElementById('modal-step-name').value;
@@ -4622,38 +5087,16 @@ policies:
     }
 
     function getFlowsByCtxType(ctxType) {
-      if (!currentYamlObj) return [];
-      const isFeature = String(currentYamlObj.type || '').toLowerCase() === 'feature';
-      if (ctxType === 'defaultEndpoint') {
-        if (!currentYamlObj.defaultEndpoint) currentYamlObj.defaultEndpoint = isFeature ? { name: 'default', flows: [] } : { name: 'default', basePath: '/', flows: [] };
-        if (!currentYamlObj.defaultEndpoint.flows) currentYamlObj.defaultEndpoint.flows = [];
-        return currentYamlObj.defaultEndpoint.flows;
-      }
-      if (ctxType === 'defaultTarget') {
-        if (!currentYamlObj.defaultTarget) currentYamlObj.defaultTarget = isFeature ? { name: 'default', flows: [] } : { name: 'default', url: '', flows: [] };
-        if (!currentYamlObj.defaultTarget.flows) currentYamlObj.defaultTarget.flows = [];
-        return currentYamlObj.defaultTarget.flows;
-      }
-      if (ctxType.startsWith('endpoint-')) {
-        const idx = parseInt(ctxType.split('-')[1]);
-        if (currentYamlObj.endpoints && currentYamlObj.endpoints[idx]) {
-          if (!currentYamlObj.endpoints[idx].flows) currentYamlObj.endpoints[idx].flows = [];
-          return currentYamlObj.endpoints[idx].flows;
-        }
-      }
-      if (ctxType.startsWith('target-')) {
-        const idx = parseInt(ctxType.split('-')[1]);
-        if (currentYamlObj.targets && currentYamlObj.targets[idx]) {
-          if (!currentYamlObj.targets[idx].flows) currentYamlObj.targets[idx].flows = [];
-          return currentYamlObj.targets[idx].flows;
-        }
-      }
-      return [];
+      const ep = getEndpointOrTarget(ctxType);
+      if (!ep) return [];
+      if (!ep.flows) ep.flows = [];
+      return ep.flows;
     }
 
     function saveStepFromModal() {
-      const { ctxType, flowIndex, stepIndex } = currentEditingStepCtx;
-      const flows = getFlowsByCtxType(ctxType);
+      const { ctxType, flowKind, flowIndex, stepIndex } = currentEditingStepCtx;
+      const container = getFlowOrRule(ctxType, flowKind || 'flow', flowIndex || 0);
+      if (!container) return;
       const name = document.getElementById('modal-step-name').value;
       const condition = document.getElementById('modal-step-condition').value.trim();
 
@@ -4694,12 +5137,12 @@ policies:
       const newStep = { name };
       if (condition) newStep.condition = condition;
 
-      if (!flows[flowIndex].steps) flows[flowIndex].steps = [];
+      if (!container.steps) container.steps = [];
 
       if (stepIndex >= 0) {
-        flows[flowIndex].steps[stepIndex] = newStep;
+        container.steps[stepIndex] = newStep;
       } else {
-        flows[flowIndex].steps.push(newStep);
+        container.steps.push(newStep);
       }
 
       updateYamlFromObj();
