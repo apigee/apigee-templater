@@ -283,5 +283,66 @@ describe("featureApplyFeature parameter merging", () => {
     expect(removed.endpoints[0].faultRules?.[0].steps).toHaveLength(1);
     expect(removed.endpoints[0].faultRules?.[0].steps[0].name).toBe("AM-BaseError");
   });
+
+  it("should merge defaultFaultRule in target configuration to multiple targets without duplicate steps", () => {
+    const converter = new ApigeeConverter();
+
+    const proxy = new Proxy();
+    proxy.name = "multi-target-proxy";
+    proxy.endpoints = [
+      {
+        name: "default",
+        basePath: "/multi",
+        routes: [{ name: "default", target: "target1" }],
+        flows: [],
+      },
+    ];
+    proxy.targets = [
+      { name: "target1", url: "https://target1.example.com", flows: [] },
+      { name: "target2", url: "https://target2.example.com", flows: [] },
+      { name: "target3", url: "https://target3.example.com", flows: [] },
+      { name: "target4", url: "https://target4.example.com", flows: [] },
+    ];
+
+    const feature: Feature = {
+      name: "target-fault-feature",
+      uid: "fault-feat",
+      type: "feature",
+      description: "Feature with defaultFaultRule on defaultTarget",
+      defaultTarget: {
+        name: "default",
+        defaultFaultRule: {
+          name: "default",
+          alwaysEnforce: true,
+          steps: [
+            { name: "AM-TargetFault-1" },
+            { name: "AM-TargetFault-2" },
+          ],
+        },
+      },
+      policies: [
+        { name: "AM-TargetFault-1", type: "AssignMessage", content: {} },
+        { name: "AM-TargetFault-2", type: "AssignMessage", content: {} },
+      ],
+    };
+
+    const applied = converter.proxyApplyFeature(proxy, feature);
+
+    expect(applied.targets).toHaveLength(4);
+    for (let i = 0; i < 4; i++) {
+      expect(applied.targets[i].defaultFaultRule).toBeDefined();
+      expect(applied.targets[i].defaultFaultRule?.steps).toHaveLength(2);
+      expect(applied.targets[i].defaultFaultRule?.steps?.[0].name).toBe("AM-TargetFault-1");
+      expect(applied.targets[i].defaultFaultRule?.steps?.[1].name).toBe("AM-TargetFault-2");
+    }
+
+    // Ensure target objects have independent defaultFaultRule copies (not shared reference)
+    applied.targets[0].defaultFaultRule!.steps!.push({ name: "AM-Target0-Custom" });
+    expect(applied.targets[0].defaultFaultRule?.steps).toHaveLength(3);
+    expect(applied.targets[1].defaultFaultRule?.steps).toHaveLength(2);
+    expect(applied.targets[2].defaultFaultRule?.steps).toHaveLength(2);
+    expect(applied.targets[3].defaultFaultRule?.steps).toHaveLength(2);
+  });
 });
+
 

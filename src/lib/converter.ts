@@ -1520,7 +1520,15 @@ export class ApigeeConverter {
         for (let fr of applyFeature.defaultEndpoint.faultRules) {
           let existingFr = endpoint.faultRules.find((x) => x.name === fr.name);
           if (existingFr) {
-            existingFr.steps = (existingFr.steps || []).concat(fr.steps || []);
+            if (!existingFr.steps) existingFr.steps = [];
+            for (let step of fr.steps || []) {
+              let stepIndex = existingFr.steps.findIndex((x) => x.name === step.name);
+              if (stepIndex === -1) {
+                existingFr.steps.push(JSON.parse(JSON.stringify(step)));
+              } else {
+                existingFr.steps[stepIndex] = JSON.parse(JSON.stringify(step));
+              }
+            }
           } else {
             endpoint.faultRules.push(JSON.parse(JSON.stringify(fr)));
           }
@@ -1529,10 +1537,20 @@ export class ApigeeConverter {
 
       if (applyFeature.defaultEndpoint.defaultFaultRule) {
         if (endpoint.defaultFaultRule) {
-          endpoint.defaultFaultRule.steps = (endpoint.defaultFaultRule.steps || []).concat(
-            applyFeature.defaultEndpoint.defaultFaultRule.steps || [],
+          if (!endpoint.defaultFaultRule.steps) endpoint.defaultFaultRule.steps = [];
+          for (let step of applyFeature.defaultEndpoint.defaultFaultRule.steps || []) {
+            let stepIndex = endpoint.defaultFaultRule.steps.findIndex((x) => x.name === step.name);
+            if (stepIndex === -1) {
+              endpoint.defaultFaultRule.steps.push(JSON.parse(JSON.stringify(step)));
+            } else {
+              endpoint.defaultFaultRule.steps[stepIndex] = JSON.parse(JSON.stringify(step));
+            }
+          }
+        } else {
+          endpoint.defaultFaultRule = JSON.parse(
+            JSON.stringify(applyFeature.defaultEndpoint.defaultFaultRule),
           );
-        } else endpoint.defaultFaultRule = applyFeature.defaultEndpoint.defaultFaultRule;
+        }
       }
     }
   }
@@ -1583,7 +1601,15 @@ export class ApigeeConverter {
         for (let fr of applyFeature.defaultTarget.faultRules) {
           let existingFr = target.faultRules.find((x) => x.name === fr.name);
           if (existingFr) {
-            existingFr.steps = (existingFr.steps || []).concat(fr.steps || []);
+            if (!existingFr.steps) existingFr.steps = [];
+            for (let step of fr.steps || []) {
+              let stepIndex = existingFr.steps.findIndex((x) => x.name === step.name);
+              if (stepIndex === -1) {
+                existingFr.steps.push(JSON.parse(JSON.stringify(step)));
+              } else {
+                existingFr.steps[stepIndex] = JSON.parse(JSON.stringify(step));
+              }
+            }
           } else {
             target.faultRules.push(JSON.parse(JSON.stringify(fr)));
           }
@@ -1592,10 +1618,20 @@ export class ApigeeConverter {
 
       if (applyFeature.defaultTarget.defaultFaultRule) {
         if (target.defaultFaultRule) {
-          target.defaultFaultRule.steps = (target.defaultFaultRule.steps || []).concat(
-            applyFeature.defaultTarget.defaultFaultRule.steps || [],
+          if (!target.defaultFaultRule.steps) target.defaultFaultRule.steps = [];
+          for (let step of applyFeature.defaultTarget.defaultFaultRule.steps || []) {
+            let stepIndex = target.defaultFaultRule.steps.findIndex((x) => x.name === step.name);
+            if (stepIndex === -1) {
+              target.defaultFaultRule.steps.push(JSON.parse(JSON.stringify(step)));
+            } else {
+              target.defaultFaultRule.steps[stepIndex] = JSON.parse(JSON.stringify(step));
+            }
+          }
+        } else {
+          target.defaultFaultRule = JSON.parse(
+            JSON.stringify(applyFeature.defaultTarget.defaultFaultRule),
           );
-        } else target.defaultFaultRule = applyFeature.defaultTarget.defaultFaultRule;
+        }
       }
     }
   }
