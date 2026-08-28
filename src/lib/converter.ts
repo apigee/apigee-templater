@@ -1515,6 +1515,25 @@ export class ApigeeConverter {
         }
       }
 
+      if (applyFeature.defaultEndpoint.routes) {
+        if (!endpoint.routes) endpoint.routes = [];
+        for (let route of applyFeature.defaultEndpoint.routes) {
+          let existingRouteIndex = endpoint.routes.findIndex((x) => x.name === route.name);
+          if (existingRouteIndex === -1) {
+            let defaultRouteIndex = endpoint.routes.findIndex(
+              (r) => !r.condition && (r.name === "default" || !r.condition),
+            );
+            if (route.condition && defaultRouteIndex !== -1) {
+              endpoint.routes.splice(defaultRouteIndex, 0, JSON.parse(JSON.stringify(route)));
+            } else {
+              endpoint.routes.push(JSON.parse(JSON.stringify(route)));
+            }
+          } else {
+            endpoint.routes[existingRouteIndex] = JSON.parse(JSON.stringify(route));
+          }
+        }
+      }
+
       if (applyFeature.defaultEndpoint.faultRules) {
         if (!endpoint.faultRules) endpoint.faultRules = [];
         for (let fr of applyFeature.defaultEndpoint.faultRules) {
@@ -1677,6 +1696,27 @@ export class ApigeeConverter {
       if (originalFeature.resources) {
         let resourceIndex = originalFeature.resources.findIndex((x) => resource.name === x.name);
         if (resourceIndex != -1) originalFeature.resources.splice(resourceIndex, 1);
+      }
+    }
+
+    if (feature.defaultEndpoint && feature.defaultEndpoint.routes) {
+      for (let route of feature.defaultEndpoint.routes) {
+        if (originalFeature.defaultEndpoint && originalFeature.defaultEndpoint.routes) {
+          let index = originalFeature.defaultEndpoint.routes.findIndex(
+            (x) =>
+              x.name === route.name ||
+              x.name === (feature.uid ? feature.uid + "-" + route.name : route.name),
+          );
+          if (index != -1) originalFeature.defaultEndpoint.routes.splice(index, 1);
+        }
+        for (let endpoint of originalFeature.endpoints || []) {
+          let index = (endpoint.routes || []).findIndex(
+            (x) =>
+              x.name === route.name ||
+              x.name === (feature.uid ? feature.uid + "-" + route.name : route.name),
+          );
+          if (index != -1) endpoint.routes.splice(index, 1);
+        }
       }
     }
   }
@@ -2009,6 +2049,19 @@ export class ApigeeConverter {
                 }
               }
             }
+          }
+        }
+      }
+
+      if (feature.defaultEndpoint.routes) {
+        for (let featureRoute of feature.defaultEndpoint.routes) {
+          for (let endpoint of proxy.endpoints || []) {
+            let index = (endpoint.routes || []).findIndex(
+              (x) =>
+                x.name === featureRoute.name ||
+                x.name === (feature.uid ? feature.uid + "-" + featureRoute.name : featureRoute.name),
+            );
+            if (index != -1) endpoint.routes.splice(index, 1);
           }
         }
       }

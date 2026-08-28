@@ -343,6 +343,103 @@ describe("featureApplyFeature parameter merging", () => {
     expect(applied.targets[2].defaultFaultRule?.steps).toHaveLength(2);
     expect(applied.targets[3].defaultFaultRule?.steps).toHaveLength(2);
   });
+
+  it("should merge defaultEndpoint routeRules when applying a feature to a proxy", () => {
+    const converter = new ApigeeConverter();
+
+    const baseProxy = new Proxy();
+    baseProxy.name = "routing-proxy";
+    baseProxy.endpoints = [
+      {
+        name: "default",
+        basePath: "/routing",
+        routes: [
+          { name: "default", target: "default-target" }
+        ],
+        flows: [],
+      }
+    ];
+    baseProxy.targets = [
+      { name: "default-target", url: "https://default.example.com", flows: [] },
+      { name: "custom-target", url: "https://custom.example.com", flows: [] },
+    ];
+
+    const feature: Feature = {
+      name: "custom-routing-feature",
+      uid: "routing-feat",
+      type: "feature",
+      description: "Feature adding conditional route rule",
+      defaultEndpoint: {
+        name: "default",
+        routes: [
+          {
+            name: "custom-route",
+            condition: 'request.header.x-target = "custom"',
+            target: "custom-target"
+          }
+        ]
+      }
+    };
+
+    const applied = converter.proxyApplyFeature(baseProxy, feature);
+
+    expect(applied.endpoints[0].routes).toHaveLength(2);
+    // Conditional route should be placed before the unconditional default route
+    expect(applied.endpoints[0].routes[0].name).toBe("custom-route");
+    expect(applied.endpoints[0].routes[0].condition).toBe('request.header.x-target = "custom"');
+    expect(applied.endpoints[0].routes[0].target).toBe("custom-target");
+    expect(applied.endpoints[0].routes[1].name).toBe("default");
+
+    // Test feature removal
+    const removed = converter.proxyRemoveFeature(applied, feature);
+    expect(removed.endpoints[0].routes).toHaveLength(1);
+    expect(removed.endpoints[0].routes[0].name).toBe("default");
+  });
+
+  it("should overwrite existing route by name and merge routes in featureApplyFeature", () => {
+    const converter = new ApigeeConverter();
+
+    const originalFeature: Feature = {
+      name: "base-feature",
+      type: "feature",
+      description: "Base feature",
+      defaultEndpoint: {
+        name: "default",
+        routes: [
+          { name: "route1", condition: 'request.verb = "GET"', target: "target-old" },
+          { name: "default", target: "default-target" }
+        ]
+      }
+    };
+
+    const applyFeature: Feature = {
+      name: "override-feature",
+      type: "feature",
+      description: "Override feature",
+      defaultEndpoint: {
+        name: "default",
+        routes: [
+          { name: "route1", condition: 'request.verb = "GET"', target: "target-new" },
+          { name: "route2", condition: 'request.verb = "POST"', target: "target-post" }
+        ]
+      }
+    };
+
+    const merged = converter.featureApplyFeature(originalFeature, applyFeature);
+
+    expect(merged.defaultEndpoint?.routes).toHaveLength(3);
+    expect(merged.defaultEndpoint?.routes[0].name).toBe("route1");
+    expect(merged.defaultEndpoint?.routes[0].target).toBe("target-new");
+    expect(merged.defaultEndpoint?.routes[1].name).toBe("route2");
+    expect(merged.defaultEndpoint?.routes[1].target).toBe("target-post");
+    expect(merged.defaultEndpoint?.routes[2].name).toBe("default");
+
+    // Test feature removal
+    converter.featureRemoveFeature(merged, applyFeature);
+    expect(merged.defaultEndpoint?.routes).toHaveLength(1);
+    expect(merged.defaultEndpoint?.routes[0].name).toBe("default");
+    expect(merged.defaultEndpoint?.routes.find((r) => r.name === "route2")).toBeUndefined();
+  });
 });
 
 
