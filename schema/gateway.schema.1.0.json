@@ -23,7 +23,6 @@
       "properties": {
         "name": { "type": "string" },
         "mode": { "type": "string", "enum": ["Request", "Response", ""] },
-        "position": { "type": "string" },
         "condition": { "type": "string" },
         "steps": {
           "type": "array",
