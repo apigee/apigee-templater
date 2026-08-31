@@ -1243,10 +1243,7 @@ export class ApigeeConverter {
         proxy.targets.push({
           name: name,
           url: template.targets[0].url ?? "",
-          flows: [],
-          httpTargetConnection: {
-            url: template.targets[0].url ?? "",
-          },
+          flows: []
         });
       }
     }

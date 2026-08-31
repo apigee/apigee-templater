@@ -272,7 +272,7 @@ policies:
           ignoreUnresolvedVariables: "false"
         response: authResponse
         httpTargetConnection:
-          url: https://auth.internal.company.com/validate
+          URL: https://auth.internal.company.com/validate
 ```
 
 ## 6. IDE JSON Schema Validation
