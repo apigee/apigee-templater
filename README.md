@@ -274,7 +274,6 @@ These Apigee variable names are commonly used in features, making extension and 
 * **ai.provider** - The provider of the model.
 * **ai.protocol** - The API protocol format of the calls (either google, openai, anthropic, or other)
 * **ai.requestType** - The type of AI request being made, either **streaming** or **non-streaming**.
-* **ai.apiType** - The API type of the AI request, currently eitehr **googlecloud** for Model Garden requests, or **oai** for the standard messaging format.
 * **ai.requestPrompt** - The user's request prompt to the AI model.
 * **ai.requestTokenCount** - The request token count to the AI model.
 * **ai.responseTokenCount** - The response token count data from the AI model.
