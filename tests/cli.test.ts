@@ -344,5 +344,81 @@ resources: []
       }
     }
   });
+
+  it("should export product using CLI flags --organization and --environment", async () => {
+    let exportedProduct: any;
+    let exportedOrg = "";
+
+    const originalProductExport = myCli.apigeeService.apigeeProductExport;
+    myCli.apigeeService.apigeeProductExport = async (
+      prod: any,
+      org: string,
+      drz: string,
+      token: string
+    ) => {
+      exportedProduct = prod;
+      exportedOrg = org;
+      return true;
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "-i",
+        "tests/data/product-02-gemini-ai.yaml",
+        "--organization",
+        "aigateway-lab8",
+        "--environment",
+        "dev",
+        "--token",
+        "test-token",
+      ]);
+
+      expect(exportedOrg).toBe("aigateway-lab8");
+      expect(exportedProduct).toBeDefined();
+      expect(exportedProduct.name).toBe("product-02-gemini-ai");
+      expect(exportedProduct.environments).toContain("dev");
+    } finally {
+      myCli.apigeeService.apigeeProductExport = originalProductExport;
+    }
+  });
+
+  it("should export user using CLI flag --organization", async () => {
+    let exportedUser: any;
+    let exportedOrg = "";
+
+    const originalUserExport = myCli.apigeeService.apigeeUserExport;
+    myCli.apigeeService.apigeeUserExport = async (
+      usr: any,
+      org: string,
+      drz: string,
+      token: string
+    ) => {
+      exportedUser = usr;
+      exportedOrg = org;
+      return true;
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "-i",
+        "tests/data/user-01-developer.yaml",
+        "--organization",
+        "aigateway-lab8",
+        "--token",
+        "test-token",
+      ]);
+
+      expect(exportedOrg).toBe("aigateway-lab8");
+      expect(exportedUser).toBeDefined();
+      expect(exportedUser.email).toBe("john.doe@example.com");
+    } finally {
+      myCli.apigeeService.apigeeUserExport = originalUserExport;
+    }
+  });
 });
+
 

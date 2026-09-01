@@ -444,7 +444,43 @@ users:
 
 ---
 
-## 8. IDE JSON Schema Validation
+## 8. SharedFlows & Features Integration
+
+Apigee Templater provides direct bi-directional mapping between **Features** and **Apigee SharedFlows**.
+
+### A. Concept & Mapping
+- A Feature's `defaultEndpoint.flows` (steps and conditions), `defaultEndpoint.faultRules`, `policies`, and `resources` map directly to `sharedflowbundle/sharedflows/default.xml`, `sharedflowbundle/policies/`, and `sharedflowbundle/resources/`.
+- SharedFlows do not contain routing or target endpoints; target definitions are omitted during conversion.
+- Original feature metadata (displayName, description, parameters, priority) is preserved in `sharedflowbundle/resources/jsc/metadata.js` during export, and restored when importing back to a Feature.
+
+### B. CLI SharedFlow Commands
+- **Export Feature to SharedFlow ZIP Bundle:**
+  ```bash
+  aft -i cors-feature.yaml -f sharedflow -o cors-sharedflow.zip
+  ```
+- **Export Feature to SharedFlow Folder (`.dir`):**
+  ```bash
+  aft -i cors-feature.yaml -f sharedflow -o ./cors-bundle.dir
+  ```
+- **Deploy Feature directly as SharedFlow to Apigee X:**
+  ```bash
+  aft -i cors-feature.yaml -f sharedflow -o my-org:cors-security-sf:eval:sa@my-org.iam.gserviceaccount.com
+  # Or with flags:
+  aft -i cors-feature.yaml -f sf --organization my-org --environment eval
+  ```
+- **Import SharedFlow from Apigee X to Feature YAML:**
+  ```bash
+  aft -i my-org:cors-security-sf -f sharedflow -o cors-feature.yaml
+  ```
+- **Import local SharedFlow ZIP/Directory to Feature YAML:**
+  ```bash
+  aft -i cors-sharedflow.zip -f feature -o cors-feature.yaml
+  aft -i ./cors-bundle/ -f feature -o cors-feature.yaml
+  ```
+
+---
+
+## 9. IDE JSON Schema Validation
 Apigee Templater includes a JSON Schema at `schema/gateway.schema.1.0.json`.
 
 To enable autocomplete and error checking in **VS Code** or **Zed**:
@@ -459,9 +495,41 @@ type: user
 
 ---
 
-## 9. Checklist & Best Practices
+---
+
+## 10. Remote Repository Resolution & Multi-Type Precedence
+
+`aft` automatically resolves templates, features, products, and users from local paths and GitHub repositories without requiring manual downloads or full URLs.
+
+### A. Repository Configuration
+- Default Repository: `https://github.com/gcp-samples/apigee-templates-repository`
+- Environment Variables:
+  - `AFT_REPOSITORY`: Override base repository URL.
+  - `AFT_TEMPLATES_REPOSITORY`: Custom templates path or repository URL.
+  - `AFT_FEATURES_REPOSITORY`: Custom features path or repository URL.
+  - `AFT_PRODUCTS_REPOSITORY`: Custom products path or repository URL.
+  - `AFT_USERS_REPOSITORY`: Custom users path or repository URL.
+
+### B. Type Resolution Precedence
+When an input name is specified without a fixed format or type (e.g. `aft auth-oauth21-server --organization my-org`), `aft` evaluates resources in this order:
+1. **Templates** (`templates/`)
+2. **Features** (`features/`)
+3. **Products** (`products/`)
+4. **Users** (`users/`)
+
+### C. Name Matching & Variants
+- Lookups automatically check variations: `name`, `name.yaml`, `name.yml`, category prefixes (`category--feature-name`), single hyphens, and double hyphens.
+- Fast direct raw downloads bypass GitHub API rate limiting.
+
+---
+
+## 11. Checklist & Best Practices
 - [ ] Check if `setValue` is used instead of `value` for all KVM `put` operations.
 - [ ] Ensure `response.content` assignments occur in `mode: Response` flows (`PostFlow` or target response flows).
 - [ ] Attach `EventFlow` on target responses when processing streaming / SSE data.
 - [ ] Include required `resources` if JavaScript policies use `includeUrl` (e.g. `jsc://ai-functions.js`).
+- [ ] Use `-f sharedflow` or `-f sf` when exporting Features as Apigee SharedFlow bundles or deploying SharedFlows to Apigee X.
+- [ ] When fetching from repositories, reference names directly without needing full URLs or file extensions (e.g. `aft auth-oauth21-server --organization my-org`).
+
+
 

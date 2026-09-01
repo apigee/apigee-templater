@@ -20,6 +20,7 @@ import path from "path";
 import inquirer from "inquirer";
 import chalk from "chalk";
 import * as YAML from "yaml";
+import yauzl from "yauzl";
 import { ApigeeConverter } from "./converter.js";
 import { Proxy, Feature, Template, Product, Products, User, Users } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
@@ -136,10 +137,11 @@ export class cli {
     const questions: any[] = [];
 
     if (
-      options.output.includes(":") ||
-      options.organization ||
-      options.environment ||
-      options.serviceAccount
+      !options.format &&
+      (options.output.includes(":") ||
+        options.organization ||
+        options.environment ||
+        options.serviceAccount)
     ) {
       options.format = "proxy";
     }
@@ -448,7 +450,7 @@ export class cli {
       }
 
       if (["-f", "--format"].includes(prevWord)) {
-        const formats = ["proxy", "template", "feature", "product", "user"].filter(
+        const formats = ["proxy", "template", "feature", "product", "user", "sharedflow", "sf"].filter(
           (fmt) => !currentWord || fmt.startsWith(currentWord)
         );
         if (formats.length > 0) console.log(formats.join("\n"));
@@ -766,6 +768,20 @@ export class cli {
           if (apigeeUserData) {
             user = apigeeUserData;
           }
+        } else if (options.format == "sharedflow" || options.format == "sf") {
+          let sharedFlowPath = await this.apigeeService.apigeeSharedFlowGet(
+            pieces[1],
+            pieces[0],
+            options.drz,
+            "Bearer " + options.token,
+          );
+          if (sharedFlowPath) {
+            feature = await this.converter.apigeeSharedFlowZipToFeature(
+              options.name || pieces[1],
+              sharedFlowPath,
+            );
+            fs.rmSync(sharedFlowPath);
+          }
         } else {
           let apigeePath = await this.apigeeService.apigeeProxyGet(
             pieces[1],
@@ -791,8 +807,8 @@ export class cli {
             );
 
             if (sharedFlowPath) {
-              proxy = await this.converter.apigeeSharedFlowZipToProxy(
-                options.name,
+              feature = await this.converter.apigeeSharedFlowZipToFeature(
+                options.name || pieces[1],
                 sharedFlowPath,
               );
               fs.rmSync(sharedFlowPath);
@@ -841,10 +857,27 @@ export class cli {
         else if (file && file["type"] === "product") product = file as Product;
         else if (file && file["type"] === "user") user = file as User;
       } else {
-        template = await this.apigeeService.templateGet(options.input);
-        if (!template) feature = await this.apigeeService.featureGet(options.input);
-        if (!template && !feature) product = await this.apigeeService.productGet(options.input);
-        if (!template && !feature && !product) user = await this.apigeeService.userGet(options.input);
+        if (options.format == "template") {
+          template = await this.apigeeService.templateGet(options.input);
+        } else if (
+          options.format == "feature" ||
+          options.format == "sharedflow" ||
+          options.format == "sf"
+        ) {
+          feature = await this.apigeeService.featureGet(options.input);
+        } else if (options.format == "product") {
+          product = await this.apigeeService.productGet(options.input);
+        } else if (options.format == "user") {
+          user = await this.apigeeService.userGet(options.input);
+        } else {
+          let resolved = await this.apigeeService.repositoryGet(options.input);
+          if (resolved) {
+            if (resolved.type === "template") template = resolved.data as Template;
+            else if (resolved.type === "feature") feature = resolved.data as Feature;
+            else if (resolved.type === "product") product = resolved.data as Product;
+            else if (resolved.type === "user") user = resolved.data as User;
+          }
+        }
       }
     }
 
@@ -1001,12 +1034,188 @@ export class cli {
       }
 
       // WRITE OUTPUT
-      if (
+      if (product || (options.output && options.format == "product")) {
+        process.chdir(startDir);
+        if (product) {
+          if (options.name) product.name = options.name;
+          this.converter.productUpdateParameters(product, inputParameters);
+
+          let pieces =
+            options.output && options.output.includes(":") ? options.output.split(":") : [];
+          let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
+          if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+            org = options.output;
+          }
+          let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
+
+          if (options.output && options.output.toLowerCase().endsWith(".json")) {
+            fs.writeFileSync(options.output, JSON.stringify(product, null, 2));
+          } else if (
+            options.output &&
+            (options.output.toLowerCase().endsWith(".yaml") ||
+              options.output.toLowerCase().endsWith(".yml"))
+          ) {
+            fs.writeFileSync(
+              options.output,
+              YAML.stringify(product, {
+                aliasDuplicateObjects: false,
+                blockQuote: "literal",
+              }),
+            );
+          } else if (
+            (options.output && options.output.includes(":")) ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
+            if (!options.token) {
+              let token = await auth.getAccessToken();
+              if (token) options.token = token;
+            }
+            if (env && product.environments && !product.environments.includes(env)) {
+              product.environments.push(env);
+            } else if (env && !product.environments) {
+              product.environments = [env];
+            }
+            if (org) {
+              let exportResult = await this.apigeeService.apigeeProductExport(
+                product,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+              if (!exportResult) throw new Error("Product could not be exported.");
+            }
+          }
+
+          let displayDestination = options.output;
+          if (
+            !displayDestination ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
+            displayDestination = [org, options.name || product.name, env]
+              .filter(Boolean)
+              .join(":");
+          }
+
+          this.printOverviewCard(
+            `Product ${product.name}`,
+            this.converter.productToStringArray(product),
+            displayDestination || options.output,
+          );
+        }
+      } else if (user || (options.output && options.format == "user")) {
+        process.chdir(startDir);
+        if (user) {
+          if (options.name) user.name = options.name;
+          this.converter.userUpdateParameters(user, inputParameters);
+
+          let pieces =
+            options.output && options.output.includes(":") ? options.output.split(":") : [];
+          let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
+          if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+            org = options.output;
+          }
+
+          if (options.output && options.output.toLowerCase().endsWith(".json")) {
+            fs.writeFileSync(options.output, JSON.stringify(user, null, 2));
+          } else if (
+            options.output &&
+            (options.output.toLowerCase().endsWith(".yaml") ||
+              options.output.toLowerCase().endsWith(".yml"))
+          ) {
+            fs.writeFileSync(
+              options.output,
+              YAML.stringify(user, {
+                aliasDuplicateObjects: false,
+                blockQuote: "literal",
+              }),
+            );
+          } else if (
+            (options.output && options.output.includes(":")) ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
+            if (!options.token) {
+              let token = await auth.getAccessToken();
+              if (token) options.token = token;
+            }
+            if (org) {
+              let exportResult = await this.apigeeService.apigeeUserExport(
+                user,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+              if (!exportResult) throw new Error("User could not be exported.");
+            }
+          }
+
+          let displayDestination = options.output;
+          if (
+            !displayDestination ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
+            displayDestination = [org, options.name || user.name || user.email]
+              .filter(Boolean)
+              .join(":");
+          }
+
+          this.printOverviewCard(
+            `User ${user.name || user.email}`,
+            this.converter.userToStringArray(user),
+            displayDestination || options.output,
+          );
+        }
+      } else if (
         options.output &&
         (options.output.toLowerCase().endsWith(".zip") ||
           options.output.toLowerCase().endsWith(".dir"))
       ) {
         let outputPath: string = "";
+        let isSharedFlow = options.format == "sharedflow" || options.format == "sf";
+
+        if (isSharedFlow) {
+          if (proxy) feature = this.converter.proxyToFeature(proxy);
+          else if (template) {
+            let tempProxy = this.converter.templateToProxy(template, []);
+            feature = this.converter.proxyToFeature(tempProxy);
+          }
+          if (feature) {
+            if (options.name) feature.name = options.name;
+            process.chdir(startDir);
+            let removeDir = options.output.toLowerCase().endsWith(".dir") ? false : true;
+            outputPath = await this.converter.featureToSharedFlowZip(
+              feature,
+              removeDir,
+              inputParameters,
+            );
+            if (outputPath) {
+              if (options.output.toLowerCase().endsWith(".dir")) {
+                fs.rmSync(outputPath);
+                fs.cpSync(outputPath.replace(".zip", ""), options.output.replace(".dir", ""), {
+                  recursive: true,
+                });
+                fs.rmdirSync(outputPath.replace(".zip", ""), { recursive: true });
+              } else if (outputPath != options.output && outputPath != "./" + options.output) {
+                fs.copyFileSync(outputPath, options.output);
+                fs.rmSync(outputPath);
+              }
+
+              this.printOverviewCard(
+                `SharedFlow ${feature.name}`,
+                this.converter.featureToStringArray(feature),
+                options.output,
+              );
+              return;
+            } else {
+              console.log(`  ${chalk.red.bold("✖ Error: Could not write sharedflow zip.")}`);
+              return;
+            }
+          }
+        }
+
         if (template) {
           proxy = await this.apigeeService.templateObjectToProxy(
             template,
@@ -1047,8 +1256,90 @@ export class cli {
         }
       } else if (
         (options.output || options.organization) &&
-        (options.format == "proxy" || options.organization || options.output.includes(":"))
+        (options.format == "proxy" ||
+          options.format == "sharedflow" ||
+          options.format == "sf" ||
+          options.organization ||
+          options.output.includes(":"))
       ) {
+        let isSharedFlow = options.format == "sharedflow" || options.format == "sf";
+        if (isSharedFlow) {
+          if (proxy) feature = this.converter.proxyToFeature(proxy);
+          else if (template) {
+            let tempProxy = this.converter.templateToProxy(template, []);
+            feature = this.converter.proxyToFeature(tempProxy);
+          }
+          process.chdir(startDir);
+          if (feature) {
+            if (options.name) feature.name = options.name;
+            let pieces =
+              options.output && options.output.includes(":") ? options.output.split(":") : [];
+            let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
+            if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+              org = options.output;
+            }
+            let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
+            let sa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+            let lastRevision = "";
+
+            if (!options.token) {
+              let token = await auth.getAccessToken();
+              if (token) options.token = token;
+            }
+
+            try {
+              if (org) {
+                let sfZip = await this.converter.featureToSharedFlowZip(
+                  feature,
+                  true,
+                  inputParameters,
+                );
+                lastRevision = await this.apigeeService.apigeeSharedFlowExport(
+                  options.name || feature.name,
+                  sfZip,
+                  org,
+                  options.drz,
+                  "Bearer " + options.token,
+                );
+                if (fs.existsSync(sfZip)) fs.rmSync(sfZip);
+                if (!lastRevision) throw new Error("SharedFlow could not be exported.");
+              }
+              if (org && env && lastRevision) {
+                let deployResult = await this.apigeeService.apigeeSharedFlowRevisionDeploy(
+                  options.name || feature.name,
+                  lastRevision,
+                  sa,
+                  env,
+                  org,
+                  options.drz,
+                  "Bearer " + options.token,
+                );
+                if (!deployResult) throw new Error("SharedFlow could not be deployed.");
+              }
+
+              let displayDestination = "";
+              if (
+                (options.output && options.output.includes(":")) ||
+                options.organization ||
+                (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+              ) {
+                displayDestination = [org, options.name || feature.name, env, sa]
+                  .filter(Boolean)
+                  .join(":");
+              }
+
+              this.printOverviewCard(
+                `SharedFlow ${feature.name}`,
+                this.converter.featureToStringArray(feature),
+                displayDestination || options.output,
+              );
+            } catch (e: any) {
+              console.log(`  ${chalk.red.bold("✖ Error: " + (e?.message || e))}`);
+            }
+            return;
+          }
+        }
+
         const targetOrg =
           options.organization ||
           (options.output && options.output.includes(":")
@@ -1244,7 +1535,10 @@ export class cli {
             options.output,
           );
         }
-      } else if (options.output && options.format == "feature") {
+      } else if (
+        options.output &&
+        (options.format == "feature" || options.format == "sharedflow" || options.format == "sf")
+      ) {
         if (proxy) {
           if (options.removeFeature) {
             let testFeature = await this.apigeeService.featureGet(options.removeFeature);
@@ -1277,140 +1571,6 @@ export class cli {
             options.output,
           );
         }
-      } else if (product || (options.output && options.format == "product")) {
-        process.chdir(startDir);
-        if (product) {
-          if (options.name) product.name = options.name;
-          this.converter.productUpdateParameters(product, inputParameters);
-
-          let pieces =
-            options.output && options.output.includes(":") ? options.output.split(":") : [];
-          let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
-          if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
-            org = options.output;
-          }
-          let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
-
-          if (options.output && options.output.toLowerCase().endsWith(".json")) {
-            fs.writeFileSync(options.output, JSON.stringify(product, null, 2));
-          } else if (
-            options.output &&
-            (options.output.toLowerCase().endsWith(".yaml") ||
-              options.output.toLowerCase().endsWith(".yml"))
-          ) {
-            fs.writeFileSync(
-              options.output,
-              YAML.stringify(product, {
-                aliasDuplicateObjects: false,
-                blockQuote: "literal",
-              }),
-            );
-          } else if (
-            (options.output && options.output.includes(":")) ||
-            options.organization ||
-            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
-          ) {
-            if (!options.token) {
-              let token = await auth.getAccessToken();
-              if (token) options.token = token;
-            }
-            if (env && product.environments && !product.environments.includes(env)) {
-              product.environments.push(env);
-            } else if (env && !product.environments) {
-              product.environments = [env];
-            }
-            if (org) {
-              let exportResult = await this.apigeeService.apigeeProductExport(
-                product,
-                org,
-                options.drz,
-                "Bearer " + options.token,
-              );
-              if (!exportResult) throw new Error("Product could not be exported.");
-            }
-          }
-
-          let displayDestination = options.output;
-          if (
-            !displayDestination ||
-            options.organization ||
-            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
-          ) {
-            displayDestination = [org, options.name || product.name, env]
-              .filter(Boolean)
-              .join(":");
-          }
-
-          this.printOverviewCard(
-            `Product ${product.name}`,
-            this.converter.productToStringArray(product),
-            displayDestination || options.output,
-          );
-        }
-      } else if (user || (options.output && options.format == "user")) {
-        process.chdir(startDir);
-        if (user) {
-          if (options.name) user.name = options.name;
-          this.converter.userUpdateParameters(user, inputParameters);
-
-          let pieces =
-            options.output && options.output.includes(":") ? options.output.split(":") : [];
-          let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
-          if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
-            org = options.output;
-          }
-
-          if (options.output && options.output.toLowerCase().endsWith(".json")) {
-            fs.writeFileSync(options.output, JSON.stringify(user, null, 2));
-          } else if (
-            options.output &&
-            (options.output.toLowerCase().endsWith(".yaml") ||
-              options.output.toLowerCase().endsWith(".yml"))
-          ) {
-            fs.writeFileSync(
-              options.output,
-              YAML.stringify(user, {
-                aliasDuplicateObjects: false,
-                blockQuote: "literal",
-              }),
-            );
-          } else if (
-            (options.output && options.output.includes(":")) ||
-            options.organization ||
-            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
-          ) {
-            if (!options.token) {
-              let token = await auth.getAccessToken();
-              if (token) options.token = token;
-            }
-            if (org) {
-              let exportResult = await this.apigeeService.apigeeUserExport(
-                user,
-                org,
-                options.drz,
-                "Bearer " + options.token,
-              );
-              if (!exportResult) throw new Error("User could not be exported.");
-            }
-          }
-
-          let displayDestination = options.output;
-          if (
-            !displayDestination ||
-            options.organization ||
-            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
-          ) {
-            displayDestination = [org, options.name || user.name || user.email]
-              .filter(Boolean)
-              .join(":");
-          }
-
-          this.printOverviewCard(
-            `User ${user.name || user.email}`,
-            this.converter.userToStringArray(user),
-            displayDestination || options.output,
-          );
-        }
       }
     }
   }
@@ -1420,7 +1580,30 @@ export class cli {
       let input: any | undefined = undefined;
 
       if (inputPath.toLowerCase().endsWith(".zip")) {
-        input = await this.converter.apigeeZipToProxy(name, inputPath);
+        try {
+          let isSharedFlow = false;
+          await new Promise<void>((res) => {
+            yauzl.open(inputPath, { lazyEntries: true }, (err, zipfile) => {
+              if (err) return res();
+              zipfile.readEntry();
+              zipfile.on("entry", (entry) => {
+                if (entry.fileName.startsWith("sharedflowbundle/")) {
+                  isSharedFlow = true;
+                }
+                zipfile.readEntry();
+              });
+              zipfile.on("close", () => res());
+              zipfile.on("error", () => res());
+            });
+          });
+          if (isSharedFlow) {
+            input = await this.converter.apigeeSharedFlowZipToFeature(name, inputPath);
+          } else {
+            input = await this.converter.apigeeZipToProxy(name, inputPath);
+          }
+        } catch (e) {
+          input = await this.converter.apigeeZipToProxy(name, inputPath);
+        }
       } else if (
         inputPath.toLowerCase().endsWith(".yaml") ||
         inputPath.toLowerCase().endsWith(".yml")
@@ -1433,6 +1616,8 @@ export class cli {
       ) {
         let inputString = fs.readFileSync(inputPath, "utf8");
         if (inputString) input = JSON.parse(inputString);
+      } else if (fs.existsSync(inputPath + "/sharedflowbundle")) {
+        input = this.converter.apigeeSharedFlowFolderToFeature(name, inputPath);
       } else {
         input = this.converter.apigeeFolderToProxy(name, inputPath);
       }
@@ -1511,7 +1696,7 @@ const helpCommands = [
   },
   {
     name: "--format, -f",
-    description: "An optional format to convert input into: 'proxy', 'template' or 'feature'.",
+    description: "An optional format to convert input into: 'proxy', 'template', 'feature', 'product', 'user', or 'sharedflow'.",
   },
   {
     name: "--applyFeature, -a",

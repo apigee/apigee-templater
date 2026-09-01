@@ -20,22 +20,10 @@ apps:
     description: Automated assistant for developer channels
     status: approved
     products:
-      - gemini-ai-services
+      - product-02-gemini-ai
     credentials:
       - consumerKey: gemini-slack-key-1122
         consumerSecret: gemini-slack-sec-3344
-        status: approved
-        products:
-          - gemini-ai-services
-  - name: gemini-cli-tool
-    displayName: Gemini CLI Tool
-    description: Command-line client for internal AI gateway
-    status: approved
-    products:
-      - gemini-ai-services
-    credentials:
-      - consumerKey: gemini-cli-key-5566
-        consumerSecret: gemini-cli-sec-7788
         status: approved
         products:
           - gemini-ai-services

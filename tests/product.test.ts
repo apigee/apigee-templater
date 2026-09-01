@@ -96,7 +96,7 @@ describe("Product data type and operations", () => {
     expect(apigeeProduct.displayName).toBe("Gemini API Product");
     expect(apigeeProduct.approvalType).toBe("auto");
     expect(apigeeProduct.environments).toEqual(["test", "prod"]);
-    expect(apigeeProduct.proxies).toEqual(["gemini-proxy-v1"]);
+    expect(apigeeProduct.proxies).toBeUndefined();
     expect(apigeeProduct.quota).toBe("1000");
     expect(apigeeProduct.quotaInterval).toBe("1");
     expect(apigeeProduct.quotaTimeUnit).toBe("month");
@@ -115,11 +115,12 @@ describe("Product data type and operations", () => {
     // Check llmOperationGroup
     expect(apigeeProduct.llmOperationGroup).toBeDefined();
     expect(apigeeProduct.llmOperationGroup.operationConfigs.length).toBe(1);
-    expect(apigeeProduct.llmOperationGroup.operationConfigs[0].operations[0].model).toBe("gemini-1.5-pro");
+    expect(apigeeProduct.llmOperationGroup.operationConfigs[0].llmOperations[0].model).toBe("gemini-1.5-pro");
 
     // Check payloadOperationGroup
     expect(apigeeProduct.payloadOperationGroup).toBeDefined();
     expect(apigeeProduct.payloadOperationGroup.operationConfigs.length).toBe(1);
+    expect(apigeeProduct.payloadOperationGroup.operationConfigs[0].operations[0].operation).toBe("/upload");
 
     // Convert back from Apigee X API format
     const convertedBack = converter.apigeeProductToProduct(apigeeProduct);
@@ -132,6 +133,76 @@ describe("Product data type and operations", () => {
     expect(convertedBack.llmOperations?.length).toBe(1);
     expect(convertedBack.llmOperations?.[0].operations?.[0].model).toBe("gemini-1.5-pro");
     expect(convertedBack.payloadOperations?.length).toBe(1);
+  });
+
+  it("should place operation quotas at operationConfigs level and strip invalid inner properties", () => {
+    const aiStarterProduct: any = {
+      name: "ai-starter-product",
+      type: "product",
+      displayName: "AI Starter",
+      description: "Starter tier for MCP & LLM Model access.",
+      approvalType: "auto",
+      environments: ["dev"],
+      proxies: ["MCP-CustomerService"],
+      quota: "50000",
+      quotaInterval: "1",
+      quotaTimeUnit: "month",
+      llmOperations: [
+        {
+          apiSource: "REST-AI-Completions",
+          operations: [
+            {
+              name: "/v1/chat/completions",
+              model: "gemini-3.5-pro",
+              methods: ["POST"],
+              quota: {
+                limit: "10000",
+                interval: "1",
+                timeUnit: "minute",
+              },
+            },
+          ],
+        },
+      ],
+      payloadOperations: [
+        {
+          apiSource: "MCP-CustomerService",
+          operations: [
+            {
+              name: "/customers/mcp",
+              methods: ["POST"],
+            },
+          ],
+        },
+      ],
+    };
+
+    const apigeeProduct = converter.productToApigeeProduct(aiStarterProduct);
+
+    // Verify LLM Operation Group shape
+    const llmConfig = apigeeProduct.llmOperationGroup.operationConfigs[0];
+    expect(llmConfig.apiSource).toBe("REST-AI-Completions");
+    expect(llmConfig.llmTokenQuota).toEqual({
+      limit: "10000",
+      interval: "1",
+      timeUnit: "minute",
+    });
+    expect(llmConfig.quota).toBeUndefined();
+    expect(llmConfig.llmOperations.length).toBe(1);
+    expect(llmConfig.llmOperations[0].resource).toBe("/v1/chat/completions");
+    expect(llmConfig.llmOperations[0].methods).toEqual(["POST"]);
+    expect(llmConfig.llmOperations[0].model).toBe("gemini-3.5-pro");
+    // MUST NOT have quota or methods inside the wrong places
+    expect(llmConfig.llmOperations[0].quota).toBeUndefined();
+
+    // Verify Payload Operation Group shape
+    const payloadConfig = apigeeProduct.payloadOperationGroup.operationConfigs[0];
+    expect(payloadConfig.apiSource).toBe("MCP-CustomerService");
+    expect(payloadConfig.protocol).toBeUndefined();
+    expect(payloadConfig.operations.length).toBe(1);
+    expect(payloadConfig.operations[0].operation).toBe("/customers/mcp");
+    expect(payloadConfig.operations[0].methods).toBeUndefined();
+    expect(payloadConfig.operations[0].resource).toBeUndefined();
   });
 
   it("should update parameters in a Product", () => {

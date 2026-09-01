@@ -431,7 +431,7 @@ export class ApigeeConverter {
     return newProxy;
   }
 
-  public async apigeeSharedFlowZipToProxy(name: string, inputFilePath: string): Promise<Proxy> {
+  public async apigeeSharedFlowZipToFeature(name: string, inputFilePath: string): Promise<Feature> {
     return new Promise((resolve, reject) => {
       let tempOutputDir = this.tempPath + name;
       yauzl.open(inputFilePath, { lazyEntries: true }, (err, zipfile) => {
@@ -457,49 +457,139 @@ export class ApigeeConverter {
           }
         });
         zipfile.on("close", () => {
-          // proxies
-          let newProxy: Proxy = this.apigeeSharedFlowFolderToProxy(name, tempOutputDir);
+          let newFeature: Feature = this.apigeeSharedFlowFolderToFeature(name, tempOutputDir);
           fs.rmSync(tempOutputDir, { recursive: true });
-          resolve(newProxy);
+          resolve(newFeature);
         });
       });
     });
   }
 
-  public apigeeSharedFlowFolderToProxy(name: string, inputPath: string): Proxy {
-    let sharedFlows: string[] = fs.readdirSync(inputPath + "/sharedflowbundle/sharedflows");
-    let newProxy = new Proxy();
-    newProxy.name = name;
-    for (let flow of sharedFlows) {
-      let newEndpoint = new ProxyEndpoint();
-      let proxyPath = path.join(inputPath, "sharedflowbundle/sharedflows", flow);
-      let flowContents = fs.readFileSync(proxyPath, "utf8");
+  public apigeeSharedFlowFolderToFeature(name: string, inputPath: string): Feature {
+    let newFeature = new Feature();
+    newFeature.name = name;
+    newFeature.type = "feature";
+    newFeature.gateway = "apigee";
+    newFeature.schemaVersion = "1.0.0";
+    newFeature.defaultEndpoint = new ProxyEndpoint();
+    newFeature.defaultEndpoint.name = "default";
+    newFeature.defaultEndpoint.flows = [];
 
-      let sharedFlowJsonString = xmljs.xml2json(flowContents, {
-        compact: true,
-        spaces: 2,
-      });
-      let sharedFlowJson = JSON.parse(sharedFlowJsonString);
-
-      newEndpoint.name = sharedFlowJson["SharedFlow"]["_attributes"]["name"];
-
-      // flows
-      let sharedFlow = this.flowXmlToJson("PreFlow", "SharedFlow", {
-        PreFlow: sharedFlowJson,
-      });
-      if (sharedFlow && sharedFlow.steps.length > 0) {
-        // set to Request for now, make a parameter in the future...
-        sharedFlow.mode = "Request";
-        newEndpoint.flows.push(sharedFlow);
+    // Check for metadata.js
+    let metadataPath = path.join(inputPath, "sharedflowbundle/resources/jsc/metadata.js");
+    if (fs.existsSync(metadataPath)) {
+      try {
+        let metaContent = fs.readFileSync(metadataPath, "utf8");
+        let jsonStr = metaContent.replace(/^var metadata\s*=\s*/, "").replace(/;\s*$/, "");
+        let metadata = JSON.parse(jsonStr);
+        if (metadata.name) newFeature.name = metadata.name;
+        if (metadata.displayName) newFeature.displayName = metadata.displayName;
+        if (metadata.description) newFeature.description = metadata.description;
+        if (metadata.documentation) newFeature.documentation = metadata.documentation;
+        if (metadata.uid) newFeature.uid = metadata.uid;
+        if (metadata.priority) newFeature.priority = metadata.priority;
+        if (metadata.categories) newFeature.categories = metadata.categories;
+        if (metadata.parameters) newFeature.parameters = metadata.parameters;
+      } catch (e) {
+        // ignore parse error if metadata format differs
       }
+    }
 
-      // push endpoint
-      newProxy.endpoints.push(newEndpoint);
+    if (fs.existsSync(inputPath + "/sharedflowbundle/sharedflows")) {
+      let sharedFlows: string[] = fs.readdirSync(inputPath + "/sharedflowbundle/sharedflows");
+      for (let flow of sharedFlows) {
+        let proxyPath = path.join(inputPath, "sharedflowbundle/sharedflows", flow);
+        let flowContents = fs.readFileSync(proxyPath, "utf8");
 
-      // policies
-      let policies: string[] = [];
-      if (fs.existsSync(inputPath + "/sharedflowbundle/policies"))
-        policies = fs.readdirSync(inputPath + "/sharedflowbundle/policies");
+        let sharedFlowJsonString = xmljs.xml2json(flowContents, {
+          compact: true,
+          spaces: 2,
+        });
+        let sharedFlowJson = JSON.parse(sharedFlowJsonString);
+        let sfNode = sharedFlowJson["SharedFlow"];
+
+        if (sfNode) {
+          let flowObj = new Flow("PreFlow", "Request");
+
+          if (sfNode["Step"]) {
+            let steps = Array.isArray(sfNode["Step"]) ? sfNode["Step"] : [sfNode["Step"]];
+            for (let step of steps) {
+              let newStep = new Step();
+              newStep.name = step["Name"]?.["_text"] || (typeof step["Name"] === "string" ? step["Name"] : "");
+              if (step["Condition"]) {
+                newStep.condition =
+                  step["Condition"]?.["_text"] ||
+                  (typeof step["Condition"] === "string" ? step["Condition"] : "");
+              }
+              flowObj.steps.push(newStep);
+            }
+          }
+          if (flowObj.steps.length > 0) {
+            newFeature.defaultEndpoint.flows.push(flowObj);
+          }
+
+          // FaultRules
+          if (sfNode["FaultRules"] && sfNode["FaultRules"]["FaultRule"]) {
+            let frs = Array.isArray(sfNode["FaultRules"]["FaultRule"])
+              ? sfNode["FaultRules"]["FaultRule"]
+              : [sfNode["FaultRules"]["FaultRule"]];
+            if (!newFeature.defaultEndpoint.faultRules) newFeature.defaultEndpoint.faultRules = [];
+            for (let fr of frs) {
+              let frFlow = new Flow(fr["_attributes"]?.name || "fault", "Request");
+              if (fr["Condition"]) {
+                frFlow.condition =
+                  fr["Condition"]?.["_text"] ||
+                  (typeof fr["Condition"] === "string" ? fr["Condition"] : "");
+              }
+              if (fr["Step"]) {
+                let frSteps = Array.isArray(fr["Step"]) ? fr["Step"] : [fr["Step"]];
+                for (let step of frSteps) {
+                  let s = new Step();
+                  s.name =
+                    step["Name"]?.["_text"] || (typeof step["Name"] === "string" ? step["Name"] : "");
+                  if (step["Condition"]) {
+                    s.condition =
+                      step["Condition"]?.["_text"] ||
+                      (typeof step["Condition"] === "string" ? step["Condition"] : "");
+                  }
+                  frFlow.steps.push(s);
+                }
+              }
+              newFeature.defaultEndpoint.faultRules.push(frFlow);
+            }
+          }
+
+          // DefaultFaultRule
+          if (sfNode["DefaultFaultRule"]) {
+            let dfr = sfNode["DefaultFaultRule"];
+            let dfrFlow = new FaultRule(dfr["_attributes"]?.name || "default", "Request");
+            if (dfr["AlwaysEnforce"]) {
+              dfrFlow.alwaysEnforce =
+                (dfr["AlwaysEnforce"]?.["_text"] || dfr["AlwaysEnforce"]) === "true";
+            }
+            if (dfr["Step"]) {
+              let dfrSteps = Array.isArray(dfr["Step"]) ? dfr["Step"] : [dfr["Step"]];
+              for (let step of dfrSteps) {
+                let s = new Step();
+                s.name =
+                  step["Name"]?.["_text"] || (typeof step["Name"] === "string" ? step["Name"] : "");
+                if (step["Condition"]) {
+                  s.condition =
+                    step["Condition"]?.["_text"] ||
+                    (typeof step["Condition"] === "string" ? step["Condition"] : "");
+                }
+                dfrFlow.steps.push(s);
+              }
+            }
+            newFeature.defaultEndpoint.defaultFaultRule = dfrFlow;
+          }
+        }
+      }
+    }
+
+    // policies
+    if (fs.existsSync(inputPath + "/sharedflowbundle/policies")) {
+      let policies = fs.readdirSync(inputPath + "/sharedflowbundle/policies");
       for (let policy of policies) {
         let policyContents = fs.readFileSync(
           inputPath + "/sharedflowbundle/policies/" + policy,
@@ -512,37 +602,295 @@ export class ApigeeConverter {
         let policyJson = JSON.parse(policyJsonString);
         let newPolicy = new Policy();
         newPolicy.type = this.policyGetType(policyJson);
-        newPolicy.name = policyJson[newPolicy.type]["_attributes"]["name"];
+        newPolicy.name =
+          policyJson[newPolicy.type]?.["_attributes"]?.name || policy.replace(".xml", "");
         if (policyJson["_declaration"]) delete policyJson["_declaration"];
         if (policyJson["_comment"]) delete policyJson["_comment"];
-        // policyJson = this.cleanXmlJson(policyJson);
         newPolicy.content = policyJson;
-        newProxy.policies.push(newPolicy);
+        newFeature.policies.push(newPolicy);
       }
+    }
 
-      // resources
-      if (fs.existsSync(inputPath + "/sharedflowbundle/resources")) {
-        let resTypes: string[] = fs.readdirSync(inputPath + "/sharedflowbundle/resources");
-        for (let resType of resTypes) {
-          let resFiles: string[] = fs.readdirSync(
-            inputPath + "/sharedflowbundle/resources/" + resType,
+    // resources
+    if (fs.existsSync(inputPath + "/sharedflowbundle/resources")) {
+      let resTypes: string[] = fs.readdirSync(inputPath + "/sharedflowbundle/resources");
+      for (let resType of resTypes) {
+        let resFiles: string[] = fs.readdirSync(
+          inputPath + "/sharedflowbundle/resources/" + resType,
+        );
+
+        for (let resFile of resFiles) {
+          if (resType === "jsc" && resFile === "metadata.js") continue;
+          let newFile = new Resource();
+          newFile.name = resFile;
+          newFile.type = resType;
+          newFile.content = fs.readFileSync(
+            inputPath + "/sharedflowbundle/resources/" + resType + "/" + resFile,
+            "utf8",
           );
-
-          for (let resFile of resFiles) {
-            let newFile = new Resource();
-            newFile.name = resFile;
-            newFile.type = resType;
-            newFile.content = fs.readFileSync(
-              inputPath + "/sharedflowbundle/resources/" + resType + "/" + resFile,
-              "utf8",
-            );
-            newProxy.resources.push(newFile);
-          }
+          newFeature.resources.push(newFile);
         }
       }
     }
 
-    return newProxy;
+    return newFeature;
+  }
+
+  public async apigeeSharedFlowZipToProxy(name: string, inputFilePath: string): Promise<Proxy> {
+    let feature = await this.apigeeSharedFlowZipToFeature(name, inputFilePath);
+    return this.featureToProxy(feature);
+  }
+
+  public apigeeSharedFlowFolderToProxy(name: string, inputPath: string): Proxy {
+    let feature = this.apigeeSharedFlowFolderToFeature(name, inputPath);
+    return this.featureToProxy(feature);
+  }
+
+  public async featureToSharedFlowZip(
+    input: Feature,
+    removeDir: boolean = true,
+    inputParameters: { [key: string]: string } = {},
+  ): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      let feature: Feature = JSON.parse(JSON.stringify(input));
+      if (inputParameters && Object.keys(inputParameters).length > 0) {
+        this.featureUpdateParameters(feature, inputParameters);
+      }
+      var zipfile = new yazl.ZipFile();
+      let tempFilePath = this.tempPath + (feature.name || "sharedflow");
+      fs.mkdirSync(tempFilePath, { recursive: true });
+
+      // sharedflows directory
+      fs.mkdirSync(tempFilePath + "/sharedflowbundle/sharedflows", { recursive: true });
+
+      let sharedFlowXml: any = {
+        SharedFlow: {
+          _attributes: {
+            name: "default",
+          },
+        },
+      };
+
+      let steps: Step[] = [];
+      if (feature.defaultEndpoint && feature.defaultEndpoint.flows) {
+        for (let flow of feature.defaultEndpoint.flows) {
+          if (flow.steps && flow.steps.length > 0) {
+            for (let step of flow.steps) {
+              steps.push(step);
+            }
+          }
+        }
+      }
+      if (steps.length === 0 && feature.endpoints && feature.endpoints.length > 0) {
+        for (let ep of feature.endpoints) {
+          for (let flow of ep.flows || []) {
+            for (let step of flow.steps || []) {
+              steps.push(step);
+            }
+          }
+        }
+      }
+
+      if (steps.length === 1) {
+        sharedFlowXml["SharedFlow"]["Step"] = {
+          Name: { _text: steps[0].name },
+        };
+        if (steps[0].condition) {
+          sharedFlowXml["SharedFlow"]["Step"]["Condition"] = { _text: steps[0].condition };
+        }
+      } else if (steps.length > 1) {
+        sharedFlowXml["SharedFlow"]["Step"] = steps.map((s) => {
+          let stepNode: any = {
+            Name: { _text: s.name },
+          };
+          if (s.condition) {
+            stepNode["Condition"] = { _text: s.condition };
+          }
+          return stepNode;
+        });
+      }
+
+      // fault rules
+      let faultRules = feature.defaultEndpoint?.faultRules;
+      if (faultRules && faultRules.length === 1 && faultRules[0]) {
+        sharedFlowXml["SharedFlow"]["FaultRules"] = {
+          FaultRule: this.flowJsonToXml(faultRules[0]),
+        };
+        sharedFlowXml["SharedFlow"]["FaultRules"]["FaultRule"]["_attributes"] = {
+          name: faultRules[0].name,
+        };
+        if (faultRules[0].condition) {
+          sharedFlowXml["SharedFlow"]["FaultRules"]["FaultRule"]["Condition"] = {
+            _text: faultRules[0].condition,
+          };
+        }
+      } else if (faultRules && faultRules.length > 1) {
+        sharedFlowXml["SharedFlow"]["FaultRules"] = {
+          FaultRule: faultRules.map((fr) => {
+            let frNode: any = this.flowJsonToXml(fr);
+            if (!frNode["_attributes"]) frNode["_attributes"] = {};
+            frNode["_attributes"]["name"] = fr.name;
+            if (fr.condition) frNode["Condition"] = { _text: fr.condition };
+            return frNode;
+          }),
+        };
+      }
+
+      if (feature.defaultEndpoint?.defaultFaultRule) {
+        let dfr = feature.defaultEndpoint.defaultFaultRule;
+        let dfrNode: any = this.flowJsonToXml(dfr);
+        if (!dfrNode["_attributes"]) dfrNode["_attributes"] = {};
+        dfrNode["_attributes"]["name"] = dfr.name;
+        if (dfr.alwaysEnforce) dfrNode["AlwaysEnforce"] = { _text: "true" };
+        sharedFlowXml["SharedFlow"]["DefaultFaultRule"] = dfrNode;
+      }
+
+      let flowXmlString = xmljs.json2xml(JSON.stringify(sharedFlowXml), {
+        compact: true,
+        spaces: 2,
+      });
+      fs.writeFileSync(tempFilePath + "/sharedflowbundle/sharedflows/default.xml", flowXmlString);
+      zipfile.addFile(
+        tempFilePath + "/sharedflowbundle/sharedflows/default.xml",
+        "sharedflowbundle/sharedflows/default.xml",
+      );
+
+      // policies
+      for (let policy of feature.policies || []) {
+        fs.mkdirSync(tempFilePath + "/sharedflowbundle/policies", { recursive: true });
+        let policyJson = JSON.parse(JSON.stringify(policy["content"]));
+        policyJson = this.cleanJsonToXml(policyJson);
+        let policyContent = JSON.stringify(policyJson);
+        let xmlString = xmljs.json2xml(policyContent, {
+          compact: true,
+          spaces: 2,
+        });
+        fs.writeFileSync(
+          tempFilePath + "/sharedflowbundle/policies/" + policy["name"] + ".xml",
+          xmlString,
+        );
+        zipfile.addFile(
+          tempFilePath + "/sharedflowbundle/policies/" + policy["name"] + ".xml",
+          "sharedflowbundle/policies/" + policy["name"] + ".xml",
+        );
+      }
+
+      // resources
+      for (let resource of feature.resources || []) {
+        fs.mkdirSync(tempFilePath + "/sharedflowbundle/resources/" + resource["type"], {
+          recursive: true,
+        });
+        fs.writeFileSync(
+          tempFilePath +
+            "/sharedflowbundle/resources/" +
+            resource["type"] +
+            "/" +
+            resource["name"],
+          resource["content"],
+        );
+        zipfile.addFile(
+          tempFilePath +
+            "/sharedflowbundle/resources/" +
+            resource["type"] +
+            "/" +
+            resource["name"],
+          "sharedflowbundle/resources/" + resource["type"] + "/" + resource["name"],
+        );
+      }
+
+      // preserve documentation as resources
+      fs.mkdirSync(tempFilePath + "/sharedflowbundle/resources/jsc", {
+        recursive: true,
+      });
+      fs.writeFileSync(
+        tempFilePath + "/sharedflowbundle/resources/jsc/metadata.js",
+        `var metadata=${JSON.stringify(
+          {
+            name: feature["name"],
+            description: feature["description"],
+            documentation: feature["documentation"],
+            uid: feature["uid"] ?? "",
+            parameters: feature["parameters"],
+            priority: feature["priority"],
+            displayName: feature["displayName"],
+            categories: feature["categories"],
+          },
+          null,
+          2,
+        )};`,
+      );
+      zipfile.addFile(
+        tempFilePath + "/sharedflowbundle/resources/jsc/metadata.js",
+        "sharedflowbundle/resources/jsc/metadata.js",
+      );
+
+      // manifest
+      let bundleXml: any = {
+        SharedFlowBundle: {
+          _attributes: {
+            revision: "1",
+            name: feature.name,
+          },
+          DisplayName: {
+            _text: feature.displayName || feature.name,
+          },
+          Description: {
+            _text: feature.description || "",
+          },
+          SharedFlows: {
+            SharedFlow: {
+              _text: "default",
+            },
+          },
+        },
+      };
+      if (feature.policies && feature.policies.length > 0) {
+        bundleXml.SharedFlowBundle.Policies = {
+          Policy: feature.policies.map((p: any) => ({ _text: p.name })),
+        };
+      }
+      let resourceList: string[] = ["jsc://metadata.js"];
+      if (feature.resources && feature.resources.length > 0) {
+        for (let res of feature.resources) {
+          resourceList.push(`${res.type}://${res.name}`);
+        }
+      }
+      bundleXml.SharedFlowBundle.Resources = {
+        Resource: resourceList.map((r: string) => ({ _text: r })),
+      };
+
+      let xmlString = xmljs.json2xml(JSON.stringify(bundleXml), {
+        compact: true,
+        spaces: 2,
+      });
+      fs.writeFileSync(tempFilePath + "/sharedflowbundle/sharedflowbundle.xml", xmlString);
+      zipfile.addFile(
+        tempFilePath + "/sharedflowbundle/sharedflowbundle.xml",
+        "sharedflowbundle/sharedflowbundle.xml",
+      );
+
+      zipfile.outputStream
+        .pipe(fs.createWriteStream(tempFilePath + ".zip"))
+        .on("close", function () {
+          if (removeDir) fs.rmSync(tempFilePath, { recursive: true });
+          resolve(tempFilePath + ".zip");
+        });
+      zipfile.end();
+    });
+  }
+
+  public async featureToSharedFlowFolder(
+    input: Feature,
+    destinationPath: string,
+    inputParameters: { [key: string]: string } = {},
+  ): Promise<string> {
+    let zipPath = await this.featureToSharedFlowZip(input, false, inputParameters);
+    let tempDir = zipPath.replace(/\.zip$/, "");
+    fs.mkdirSync(destinationPath, { recursive: true });
+    fs.cpSync(tempDir, destinationPath, { recursive: true });
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    if (fs.existsSync(zipPath)) fs.rmSync(zipPath, { force: true });
+    return destinationPath;
   }
 
   public async proxyToApigeeZip(input: Proxy, removeDir: boolean = true): Promise<string> {
@@ -2523,10 +2871,23 @@ export class ApigeeConverter {
     if (product.approvalType) apigeeProduct.approvalType = product.approvalType;
     if (product.environments && product.environments.length > 0)
       apigeeProduct.environments = [...product.environments];
-    if (product.proxies && product.proxies.length > 0)
-      apigeeProduct.proxies = [...product.proxies];
-    if (product.apiResources && product.apiResources.length > 0)
-      apigeeProduct.apiResources = [...product.apiResources];
+
+    const hasOperationGroups =
+      (product.operations && product.operations.length > 0) ||
+      (product.llmOperations && product.llmOperations.length > 0) ||
+      ((product as any).llmoperations && (product as any).llmoperations.length > 0) ||
+      (product.payloadOperations && product.payloadOperations.length > 0) ||
+      ((product as any).payloadoperations && (product as any).payloadoperations.length > 0) ||
+      (product.graphqlOperations && product.graphqlOperations.length > 0) ||
+      (product.grpcOperations && product.grpcOperations.length > 0);
+
+    if (!hasOperationGroups) {
+      if (product.proxies && product.proxies.length > 0)
+        apigeeProduct.proxies = [...product.proxies];
+      if (product.apiResources && product.apiResources.length > 0)
+        apigeeProduct.apiResources = [...product.apiResources];
+    }
+
     if (product.quota) apigeeProduct.quota = String(product.quota);
     if (product.quotaInterval) apigeeProduct.quotaInterval = String(product.quotaInterval);
     if (product.quotaTimeUnit) apigeeProduct.quotaTimeUnit = product.quotaTimeUnit;
@@ -2556,17 +2917,18 @@ export class ApigeeConverter {
           apiSource: op.apiSource || product.proxies?.[0] || product.name,
         };
         if (op.operations && op.operations.length > 0) {
-          config.operations = op.operations.map((o: any) => ({
-            resource: o.name || o.resource || "/",
-            methods: o.methods || ["GET"],
-            ...(o.quota ? { quota: o.quota } : {}),
-            ...(o.attributes ? { attributes: o.attributes } : {}),
-          }));
+          config.operations = op.operations.map((o: any) => {
+            if (o.quota && !config.quota) config.quota = o.quota;
+            return {
+              resource: o.name || o.resource || "/",
+              methods: o.methods || ["GET"],
+            };
+          });
         } else if (op.resource || (op as any).name) {
           config.operations = [
             {
               resource: (op as any).name || op.resource,
-              methods: op.methods || ["GET"],
+              methods: o.methods || ["GET"],
             },
           ];
         }
@@ -2589,16 +2951,19 @@ export class ApigeeConverter {
         };
         const ops = op.operations || op.llmOperations;
         if (ops && ops.length > 0) {
-          config.operations = ops.map((o: any) => ({
-            resource: o.name || o.path || o.resource || "/",
-            methods: o.methods || ["POST"],
-            ...(o.model ? { model: o.model } : {}),
-            ...(o.models ? { models: o.models } : {}),
-            ...(o.quota ? { quota: o.quota } : {}),
-            ...(o.attributes ? { attributes: o.attributes } : {}),
-          }));
+          config.llmOperations = ops.map((o: any) => {
+            if (o.llmTokenQuota && !config.llmTokenQuota) config.llmTokenQuota = o.llmTokenQuota;
+            if (o.tokenQuota && !config.llmTokenQuota) config.llmTokenQuota = o.tokenQuota;
+            if (o.quota && !config.llmTokenQuota) config.llmTokenQuota = o.quota;
+            return {
+              resource: o.name || o.path || o.resource || "/",
+              methods: o.methods || ["POST"],
+              ...(o.model ? { model: o.model } : {}),
+              ...(o.models ? { models: o.models } : {}),
+            };
+          });
         } else if (op.path || (op as any).resource || (op as any).name) {
-          config.operations = [
+          config.llmOperations = [
             {
               resource: (op as any).name || (op as any).resource || op.path,
               methods: op.methods || ["POST"],
@@ -2609,7 +2974,8 @@ export class ApigeeConverter {
         }
         if (op.llmTokenQuota) config.llmTokenQuota = op.llmTokenQuota;
         else if (op.tokenQuota) config.llmTokenQuota = op.tokenQuota;
-        if (op.quota) config.quota = op.quota;
+        else if (op.quota && !config.llmTokenQuota) config.llmTokenQuota = op.quota;
+
         if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
         operationConfigs.push(config);
       }
@@ -2625,15 +2991,21 @@ export class ApigeeConverter {
       for (let op of payloadOps) {
         let config: any = {
           apiSource: op.apiSource || product.proxies?.[0] || product.name,
-          protocol: op.protocol || "MCP",
         };
-        if (op.operations && op.operations.length > 0) {
-          config.operations = op.operations.map((o: any) => ({
-            resource: o.name || o.resource || "/",
-            methods: o.methods || ["POST"],
-            ...(o.quota ? { quota: o.quota } : {}),
-            ...(o.attributes ? { attributes: o.attributes } : {}),
-          }));
+        const ops = op.operations || (op as any).payloadOperations;
+        if (ops && ops.length > 0) {
+          config.operations = ops.map((o: any) => {
+            if (o.quota && !config.quota) config.quota = o.quota;
+            return {
+              operation: o.operation || o.name || o.resource || "/",
+            };
+          });
+        } else if ((op as any).operation || (op as any).name || (op as any).resource) {
+          config.operations = [
+            {
+              operation: (op as any).operation || (op as any).name || (op as any).resource,
+            },
+          ];
         }
         if (op.quota) config.quota = op.quota;
         if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
@@ -2652,12 +3024,13 @@ export class ApigeeConverter {
           apiSource: op.apiSource || product.proxies?.[0] || product.name,
         };
         if (op.operations && op.operations.length > 0) {
-          config.operations = op.operations.map((o: any) => ({
-            operation: o.operation || o.name || "",
-            operationTypes: o.operationTypes || [],
-            ...(o.quota ? { quota: o.quota } : {}),
-            ...(o.attributes ? { attributes: o.attributes } : {}),
-          }));
+          config.operations = op.operations.map((o: any) => {
+            if (o.quota && !config.quota) config.quota = o.quota;
+            return {
+              operation: o.operation || o.name || "",
+              operationTypes: o.operationTypes || [],
+            };
+          });
         }
         if (op.quota) config.quota = op.quota;
         if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
@@ -2676,12 +3049,13 @@ export class ApigeeConverter {
           apiSource: op.apiSource || product.proxies?.[0] || product.name,
         };
         if (op.operations && op.operations.length > 0) {
-          config.operations = op.operations.map((o: any) => ({
-            service: o.service || o.name || "",
-            methods: o.methods || [],
-            ...(o.quota ? { quota: o.quota } : {}),
-            ...(o.attributes ? { attributes: o.attributes } : {}),
-          }));
+          config.operations = op.operations.map((o: any) => {
+            if (o.quota && !config.quota) config.quota = o.quota;
+            return {
+              service: o.service || o.name || "",
+              methods: o.methods || [],
+            };
+          });
         }
         if (op.quota) config.quota = op.quota;
         if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
@@ -2778,8 +3152,7 @@ export class ApigeeConverter {
         };
         if (config.operations && Array.isArray(config.operations)) {
           opConfig.operations = config.operations.map((o: any) => ({
-            name: o.resource || o.name || "",
-            methods: o.methods || [],
+            name: o.operation || o.name || o.resource || "",
             ...(o.quota ? { quota: o.quota } : {}),
             ...(o.attributes ? { attributes: o.attributes } : {}),
           }));
@@ -2829,6 +3202,19 @@ export class ApigeeConverter {
         if (config.quota) opConfig.quota = config.quota;
         if (config.attributes) opConfig.attributes = config.attributes;
         product.grpcOperations.push(opConfig);
+      }
+    }
+
+    // populate proxies from operation groups if empty
+    if (!product.proxies || product.proxies.length === 0) {
+      let proxySet = new Set<string>();
+      for (let op of product.operations || []) if (op.apiSource) proxySet.add(op.apiSource);
+      for (let op of product.llmOperations || []) if (op.apiSource) proxySet.add(op.apiSource);
+      for (let op of product.payloadOperations || []) if (op.apiSource) proxySet.add(op.apiSource);
+      for (let op of product.graphqlOperations || []) if (op.apiSource) proxySet.add(op.apiSource);
+      for (let op of product.grpcOperations || []) if (op.apiSource) proxySet.add(op.apiSource);
+      if (proxySet.size > 0) {
+        product.proxies = Array.from(proxySet);
       }
     }
 
