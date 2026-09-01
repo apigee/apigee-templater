@@ -20,21 +20,37 @@ import {
   Template,
   Parameter,
   FaultRule,
+  Product,
+  Products,
+  ProductOperationConfig,
+  ProductLlmOperationConfig,
+  ProductPayloadOperationConfig,
+  ProductAttribute,
+  User,
+  Users,
+  UserApp,
+  UserCredential,
+  UserAttribute,
 } from "./interfaces.js";
 
 export class ApigeeConverter {
   tempPath: string = "./data/temp/";
   templatesPath: string = "./data/templates/";
   featuresPath: string = "./data/features/";
+  productsPath: string = "./data/products/";
+  usersPath: string = "./data/users/";
   constructor(basePath: string = "", subDirs: boolean = true) {
     if (basePath && subDirs) {
       this.tempPath = basePath + "temp/";
       this.templatesPath = basePath + "templates/";
       this.featuresPath = basePath + "features/";
+      this.productsPath = basePath + "products/";
+      this.usersPath = basePath + "users/";
     } else {
       this.tempPath = basePath;
       this.templatesPath = basePath;
       this.featuresPath = basePath;
+      this.productsPath = basePath;
     }
   }
 
@@ -2464,4 +2480,629 @@ export class ApigeeConverter {
 
     return obj;
   }
+
+  public productCreate(
+    name: string,
+    description: string = "",
+    proxies: string[] = [],
+    environments: string[] = [],
+  ): Product {
+    let tempName = name.replaceAll(" ", "-");
+    let newProduct: Product = {
+      name: tempName,
+      displayName: name,
+      type: "product",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      description: description || "API Product for " + name,
+      approvalType: "auto",
+      attributes: [
+        {
+          name: "access",
+          value: "public",
+        },
+      ],
+      environments: environments.length > 0 ? environments : ["test"],
+      proxies: proxies.length > 0 ? proxies : [tempName],
+      quota: "1000",
+      quotaInterval: "1",
+      quotaTimeUnit: "minute",
+      scopes: [],
+      operations: [],
+    };
+    return newProduct;
+  }
+
+  public productToApigeeProduct(product: Product): any {
+    let apigeeProduct: any = {
+      name: product.name,
+    };
+
+    if (product.displayName) apigeeProduct.displayName = product.displayName;
+    if (product.description) apigeeProduct.description = product.description;
+    if (product.approvalType) apigeeProduct.approvalType = product.approvalType;
+    if (product.environments && product.environments.length > 0)
+      apigeeProduct.environments = [...product.environments];
+    if (product.proxies && product.proxies.length > 0)
+      apigeeProduct.proxies = [...product.proxies];
+    if (product.apiResources && product.apiResources.length > 0)
+      apigeeProduct.apiResources = [...product.apiResources];
+    if (product.quota) apigeeProduct.quota = String(product.quota);
+    if (product.quotaInterval) apigeeProduct.quotaInterval = String(product.quotaInterval);
+    if (product.quotaTimeUnit) apigeeProduct.quotaTimeUnit = product.quotaTimeUnit;
+    if (product.scopes && product.scopes.length > 0)
+      apigeeProduct.scopes = [...product.scopes];
+
+    // attributes
+    if (product.attributes) {
+      if (Array.isArray(product.attributes)) {
+        apigeeProduct.attributes = product.attributes.map((attr) => ({
+          name: attr.name,
+          value: attr.value,
+        }));
+      } else if (typeof product.attributes === "object") {
+        apigeeProduct.attributes = Object.keys(product.attributes).map((key) => ({
+          name: key,
+          value: (product.attributes as any)[key],
+        }));
+      }
+    }
+
+    // operations -> operationGroup
+    if (product.operations && product.operations.length > 0) {
+      let operationConfigs: any[] = [];
+      for (let op of product.operations) {
+        let config: any = {
+          apiSource: op.apiSource || product.proxies?.[0] || product.name,
+        };
+        if (op.operations && op.operations.length > 0) {
+          config.operations = op.operations.map((o: any) => ({
+            resource: o.name || o.resource || "/",
+            methods: o.methods || ["GET"],
+            ...(o.quota ? { quota: o.quota } : {}),
+            ...(o.attributes ? { attributes: o.attributes } : {}),
+          }));
+        } else if (op.resource || (op as any).name) {
+          config.operations = [
+            {
+              resource: (op as any).name || op.resource,
+              methods: op.methods || ["GET"],
+            },
+          ];
+        }
+        if (op.quota) config.quota = op.quota;
+        if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
+        operationConfigs.push(config);
+      }
+      apigeeProduct.operationGroup = {
+        operationConfigs: operationConfigs,
+      };
+    }
+
+    // llmOperations -> llmOperationGroup
+    const llmOps = product.llmOperations || (product as any).llmoperations;
+    if (llmOps && llmOps.length > 0) {
+      let operationConfigs: any[] = [];
+      for (let op of llmOps) {
+        let config: any = {
+          apiSource: op.apiSource || product.proxies?.[0] || product.name,
+        };
+        const ops = op.operations || op.llmOperations;
+        if (ops && ops.length > 0) {
+          config.operations = ops.map((o: any) => ({
+            resource: o.name || o.path || o.resource || "/",
+            methods: o.methods || ["POST"],
+            ...(o.model ? { model: o.model } : {}),
+            ...(o.models ? { models: o.models } : {}),
+            ...(o.quota ? { quota: o.quota } : {}),
+            ...(o.attributes ? { attributes: o.attributes } : {}),
+          }));
+        } else if (op.path || (op as any).resource || (op as any).name) {
+          config.operations = [
+            {
+              resource: (op as any).name || (op as any).resource || op.path,
+              methods: op.methods || ["POST"],
+              ...(op.model ? { model: op.model } : {}),
+              ...(op.models ? { models: op.models } : {}),
+            },
+          ];
+        }
+        if (op.llmTokenQuota) config.llmTokenQuota = op.llmTokenQuota;
+        else if (op.tokenQuota) config.llmTokenQuota = op.tokenQuota;
+        if (op.quota) config.quota = op.quota;
+        if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
+        operationConfigs.push(config);
+      }
+      apigeeProduct.llmOperationGroup = {
+        operationConfigs: operationConfigs,
+      };
+    }
+
+    // payloadOperations -> payloadOperationGroup
+    const payloadOps = product.payloadOperations || (product as any).payloadoperations;
+    if (payloadOps && payloadOps.length > 0) {
+      let operationConfigs: any[] = [];
+      for (let op of payloadOps) {
+        let config: any = {
+          apiSource: op.apiSource || product.proxies?.[0] || product.name,
+          protocol: op.protocol || "MCP",
+        };
+        if (op.operations && op.operations.length > 0) {
+          config.operations = op.operations.map((o: any) => ({
+            resource: o.name || o.resource || "/",
+            methods: o.methods || ["POST"],
+            ...(o.quota ? { quota: o.quota } : {}),
+            ...(o.attributes ? { attributes: o.attributes } : {}),
+          }));
+        }
+        if (op.quota) config.quota = op.quota;
+        if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
+        operationConfigs.push(config);
+      }
+      apigeeProduct.payloadOperationGroup = {
+        operationConfigs: operationConfigs,
+      };
+    }
+
+    // graphqlOperations -> graphqlOperationGroup
+    if (product.graphqlOperations && product.graphqlOperations.length > 0) {
+      let operationConfigs: any[] = [];
+      for (let op of product.graphqlOperations) {
+        let config: any = {
+          apiSource: op.apiSource || product.proxies?.[0] || product.name,
+        };
+        if (op.operations && op.operations.length > 0) {
+          config.operations = op.operations.map((o: any) => ({
+            operation: o.operation || o.name || "",
+            operationTypes: o.operationTypes || [],
+            ...(o.quota ? { quota: o.quota } : {}),
+            ...(o.attributes ? { attributes: o.attributes } : {}),
+          }));
+        }
+        if (op.quota) config.quota = op.quota;
+        if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
+        operationConfigs.push(config);
+      }
+      apigeeProduct.graphqlOperationGroup = {
+        operationConfigs: operationConfigs,
+      };
+    }
+
+    // grpcOperations -> grpcOperationGroup
+    if (product.grpcOperations && product.grpcOperations.length > 0) {
+      let operationConfigs: any[] = [];
+      for (let op of product.grpcOperations) {
+        let config: any = {
+          apiSource: op.apiSource || product.proxies?.[0] || product.name,
+        };
+        if (op.operations && op.operations.length > 0) {
+          config.operations = op.operations.map((o: any) => ({
+            service: o.service || o.name || "",
+            methods: o.methods || [],
+            ...(o.quota ? { quota: o.quota } : {}),
+            ...(o.attributes ? { attributes: o.attributes } : {}),
+          }));
+        }
+        if (op.quota) config.quota = op.quota;
+        if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
+        operationConfigs.push(config);
+      }
+      apigeeProduct.grpcOperationGroup = {
+        operationConfigs: operationConfigs,
+      };
+    }
+
+    return apigeeProduct;
+  }
+
+  public apigeeProductToProduct(apigeeProduct: any): Product {
+    let product = new Product();
+    product.name = apigeeProduct.name || "";
+    if (apigeeProduct.displayName) product.displayName = apigeeProduct.displayName;
+    if (apigeeProduct.description) product.description = apigeeProduct.description;
+    if (apigeeProduct.approvalType) product.approvalType = apigeeProduct.approvalType;
+    if (apigeeProduct.environments && Array.isArray(apigeeProduct.environments))
+      product.environments = apigeeProduct.environments;
+    if (apigeeProduct.proxies && Array.isArray(apigeeProduct.proxies))
+      product.proxies = apigeeProduct.proxies;
+    if (apigeeProduct.apiResources && Array.isArray(apigeeProduct.apiResources))
+      product.apiResources = apigeeProduct.apiResources;
+    if (apigeeProduct.quota) product.quota = String(apigeeProduct.quota);
+    if (apigeeProduct.quotaInterval) product.quotaInterval = String(apigeeProduct.quotaInterval);
+    if (apigeeProduct.quotaTimeUnit) product.quotaTimeUnit = apigeeProduct.quotaTimeUnit;
+    if (apigeeProduct.scopes && Array.isArray(apigeeProduct.scopes))
+      product.scopes = apigeeProduct.scopes;
+
+    if (apigeeProduct.attributes && Array.isArray(apigeeProduct.attributes)) {
+      product.attributes = apigeeProduct.attributes
+        .filter((a: any) => a && a.name)
+        .map((a: any) => ({
+          name: a.name,
+          value: a.value || "",
+        }));
+    }
+
+    // operationGroup -> operations
+    if (apigeeProduct.operationGroup && apigeeProduct.operationGroup.operationConfigs) {
+      product.operations = [];
+      for (let config of apigeeProduct.operationGroup.operationConfigs) {
+        let opConfig: ProductOperationConfig = {
+          apiSource: config.apiSource || "",
+        };
+        if (config.operations && Array.isArray(config.operations)) {
+          opConfig.operations = config.operations.map((o: any) => ({
+            name: o.resource || o.name || "",
+            methods: o.methods || [],
+            ...(o.quota ? { quota: o.quota } : {}),
+            ...(o.attributes ? { attributes: o.attributes } : {}),
+          }));
+        }
+        if (config.quota) opConfig.quota = config.quota;
+        if (config.attributes) opConfig.attributes = config.attributes;
+        product.operations.push(opConfig);
+      }
+    }
+
+    // llmOperationGroup -> llmOperations
+    if (apigeeProduct.llmOperationGroup && apigeeProduct.llmOperationGroup.operationConfigs) {
+      product.llmOperations = [];
+      for (let config of apigeeProduct.llmOperationGroup.operationConfigs) {
+        let opConfig: ProductLlmOperationConfig = {
+          apiSource: config.apiSource || "",
+        };
+        const rawOps = config.operations || config.llmOperations;
+        if (rawOps && Array.isArray(rawOps)) {
+          opConfig.operations = rawOps.map((o: any) => ({
+            name: o.resource || o.path || o.name || "",
+            methods: o.methods || [],
+            ...(o.model ? { model: o.model } : {}),
+            ...(o.models ? { models: o.models } : {}),
+            ...(o.quota ? { quota: o.quota } : {}),
+            ...(o.attributes ? { attributes: o.attributes } : {}),
+          }));
+        }
+        if (config.llmTokenQuota) opConfig.llmTokenQuota = config.llmTokenQuota;
+        if (config.quota) opConfig.quota = config.quota;
+        if (config.attributes) opConfig.attributes = config.attributes;
+        product.llmOperations.push(opConfig);
+      }
+    }
+
+    // payloadOperationGroup -> payloadOperations
+    if (apigeeProduct.payloadOperationGroup && apigeeProduct.payloadOperationGroup.operationConfigs) {
+      product.payloadOperations = [];
+      for (let config of apigeeProduct.payloadOperationGroup.operationConfigs) {
+        let opConfig: ProductPayloadOperationConfig = {
+          apiSource: config.apiSource || "",
+          protocol: config.protocol || "MCP",
+        };
+        if (config.operations && Array.isArray(config.operations)) {
+          opConfig.operations = config.operations.map((o: any) => ({
+            name: o.resource || o.name || "",
+            methods: o.methods || [],
+            ...(o.quota ? { quota: o.quota } : {}),
+            ...(o.attributes ? { attributes: o.attributes } : {}),
+          }));
+        }
+        if (config.quota) opConfig.quota = config.quota;
+        if (config.attributes) opConfig.attributes = config.attributes;
+        product.payloadOperations.push(opConfig);
+      }
+    }
+
+    // graphqlOperationGroup -> graphqlOperations
+    if (apigeeProduct.graphqlOperationGroup && apigeeProduct.graphqlOperationGroup.operationConfigs) {
+      product.graphqlOperations = [];
+      for (let config of apigeeProduct.graphqlOperationGroup.operationConfigs) {
+        let opConfig: ProductGraphqlOperationConfig = {
+          apiSource: config.apiSource || "",
+        };
+        if (config.operations && Array.isArray(config.operations)) {
+          opConfig.operations = config.operations.map((o: any) => ({
+            operation: o.operation || o.name || "",
+            operationTypes: o.operationTypes || [],
+            ...(o.quota ? { quota: o.quota } : {}),
+            ...(o.attributes ? { attributes: o.attributes } : {}),
+          }));
+        }
+        if (config.quota) opConfig.quota = config.quota;
+        if (config.attributes) opConfig.attributes = config.attributes;
+        product.graphqlOperations.push(opConfig);
+      }
+    }
+
+    // grpcOperationGroup -> grpcOperations
+    if (apigeeProduct.grpcOperationGroup && apigeeProduct.grpcOperationGroup.operationConfigs) {
+      product.grpcOperations = [];
+      for (let config of apigeeProduct.grpcOperationGroup.operationConfigs) {
+        let opConfig: ProductGrpcOperationConfig = {
+          apiSource: config.apiSource || "",
+        };
+        if (config.operations && Array.isArray(config.operations)) {
+          opConfig.operations = config.operations.map((o: any) => ({
+            service: o.service || o.name || "",
+            methods: o.methods || [],
+            ...(o.quota ? { quota: o.quota } : {}),
+            ...(o.attributes ? { attributes: o.attributes } : {}),
+          }));
+        }
+        if (config.quota) opConfig.quota = config.quota;
+        if (config.attributes) opConfig.attributes = config.attributes;
+        product.grpcOperations.push(opConfig);
+      }
+    }
+
+    return product;
+  }
+
+  public productUpdateParameters(product: Product, parameters: { [key: string]: string } = {}) {
+    const replaceStr = (str: string): string => {
+      let res = str;
+      for (let key of Object.keys(parameters)) {
+        const val = parameters[key]!;
+        res = res
+          .replaceAll("{" + key + "}", val)
+          .replaceAll("%" + key + "%", val)
+          .replaceAll("${" + key + "}", val);
+      }
+      return res;
+    };
+
+    if (product.name) product.name = replaceStr(product.name);
+    if (product.displayName) product.displayName = replaceStr(product.displayName);
+    if (product.description) product.description = replaceStr(product.description);
+    if (product.quota) product.quota = replaceStr(product.quota);
+    if (product.quotaInterval) product.quotaInterval = replaceStr(product.quotaInterval);
+    if (product.environments) {
+      product.environments = product.environments.map(replaceStr);
+    }
+    if (product.proxies) {
+      product.proxies = product.proxies.map(replaceStr);
+    }
+    if (product.apiResources) {
+      product.apiResources = product.apiResources.map(replaceStr);
+    }
+    if (product.attributes) {
+      for (let attr of product.attributes) {
+        if (attr.name) attr.name = replaceStr(attr.name);
+        if (attr.value) attr.value = replaceStr(attr.value);
+      }
+    }
+    if (product.operations) {
+      for (let op of product.operations) {
+        if (op.apiSource) op.apiSource = replaceStr(op.apiSource);
+        if (op.operations) {
+          for (let o of op.operations) {
+            if (o.name) o.name = replaceStr(o.name);
+            if (o.resource) o.resource = replaceStr(o.resource);
+          }
+        }
+      }
+    }
+  }
+
+  public productToStringArray(product: Product): string[] {
+    let result: string[] = [];
+    if (product.name) result.push(`Name: ${product.name}`);
+    if (product.displayName) result.push(`Display Name: ${product.displayName}`);
+    if (product.description) result.push(`Description: ${product.description}`);
+    if (product.approvalType) result.push(`Approval Type: ${product.approvalType}`);
+    if (product.environments && product.environments.length > 0)
+      result.push(`Environments: ${product.environments.join(", ")}`);
+    if (product.proxies && product.proxies.length > 0)
+      result.push(`Proxies: ${product.proxies.join(", ")}`);
+    if (product.quota)
+      result.push(`Quota: ${product.quota} per ${product.quotaInterval || 1} ${product.quotaTimeUnit || "minute"}`);
+    if (product.operations && product.operations.length > 0) {
+      result.push(`Operations: ${product.operations.length} configured`);
+    }
+    if (product.llmOperations && product.llmOperations.length > 0) {
+      result.push(`LLM Operations: ${product.llmOperations.length} configured`);
+    }
+    if (product.payloadOperations && product.payloadOperations.length > 0) {
+      result.push(`Payload Operations: ${product.payloadOperations.length} configured`);
+    }
+    return result;
+  }
+
+  public productToString(product: Product): string {
+    return this.productToStringArray(product).join("\n");
+  }
+
+  public userCreate(
+    name: string = "default-user",
+    email: string = "",
+    appName: string = "default-app",
+    products: string[] = [],
+  ): User {
+    let user = new User();
+    user.name = name;
+    user.email = email || `${name}@example.com`;
+    user.userName = name;
+    user.firstName = name.charAt(0).toUpperCase() + name.slice(1);
+    user.lastName = "User";
+    user.status = "active";
+    user.attributes = [{ name: "department", value: "engineering" }];
+
+    let app: UserApp = {
+      name: appName || `${name}-app`,
+      displayName: appName || `${name}-app`,
+      status: "approved",
+      products: products,
+      credentials: [
+        {
+          consumerKey: "",
+          consumerSecret: "",
+          status: "approved",
+          products: products,
+        },
+      ],
+    };
+    user.apps = [app];
+    return user;
+  }
+
+  public userToApigeeDeveloper(user: User): any {
+    const email = user.email || (user.name.includes("@") ? user.name : `${user.name}@example.com`);
+    return {
+      email: email,
+      userName: user.userName || user.name || email.split("@")[0],
+      firstName: user.firstName || user.displayName?.split(" ")[0] || user.name || "Developer",
+      lastName: user.lastName || user.displayName?.split(" ").slice(1).join(" ") || "User",
+      attributes: user.attributes || [],
+    };
+  }
+
+  public userToApigeeApps(user: User): any[] {
+    let apps: any[] = [];
+    for (let app of user.apps || []) {
+      let appPayload: any = {
+        name: app.name,
+        displayName: app.displayName || app.name,
+        description: app.description || "",
+        callbackUrl: app.callbackUrl || "",
+        status: app.status || "approved",
+        apiProducts: app.products || app.apiProducts || [],
+        scopes: app.scopes || [],
+        attributes: app.attributes || [],
+      };
+      if (app.keyExpiresIn) appPayload.keyExpiresIn = app.keyExpiresIn;
+      if (app.credentials || app.keys) {
+        appPayload.credentials = app.credentials || app.keys;
+      }
+      apps.push(appPayload);
+    }
+    return apps;
+  }
+
+  public apigeeToUser(developer: any, apps?: any[]): User {
+    let user = new User();
+    user.name = developer.userName || developer.email?.split("@")[0] || "";
+    user.email = developer.email || "";
+    user.firstName = developer.firstName || "";
+    user.lastName = developer.lastName || "";
+    user.userName = developer.userName || "";
+    if (developer.attributes && Array.isArray(developer.attributes)) {
+      user.attributes = developer.attributes
+        .filter((a: any) => a && a.name)
+        .map((a: any) => ({ name: a.name, value: a.value || "" }));
+    }
+
+    if (apps && Array.isArray(apps)) {
+      user.apps = [];
+      for (let app of apps) {
+        let userApp: UserApp = {
+          name: app.name || "",
+          displayName: app.displayName || app.name || "",
+          description: app.description || "",
+          callbackUrl: app.callbackUrl || "",
+          status: app.status || "approved",
+          products:
+            app.apiProducts ||
+            (app.credentials?.[0]?.apiProducts?.map((p: any) => p.apiproduct || p)) ||
+            [],
+          scopes: app.scopes || app.credentials?.[0]?.scopes || [],
+          attributes: app.attributes || [],
+          credentials: (app.credentials || []).map((c: any) => ({
+            consumerKey: c.consumerKey || "",
+            consumerSecret: c.consumerSecret || "",
+            status: c.status || "approved",
+            issuedAt: c.issuedAt ? String(c.issuedAt) : undefined,
+            expiresAt: c.expiresAt ? String(c.expiresAt) : undefined,
+            products: c.apiProducts?.map((p: any) => p.apiproduct || p) || [],
+            scopes: c.scopes || [],
+            attributes: c.attributes || [],
+          })),
+        };
+        user.apps.push(userApp);
+      }
+    }
+
+    return user;
+  }
+
+  public userUpdateParameters(user: User, parameters: { [key: string]: string } = {}) {
+    const replaceStr = (str: string): string => {
+      let res = str;
+      for (let key of Object.keys(parameters)) {
+        const val = parameters[key]!;
+        res = res
+          .replaceAll("{" + key + "}", val)
+          .replaceAll("%" + key + "%", val)
+          .replaceAll("${" + key + "}", val);
+      }
+      return res;
+    };
+
+    if (user.name) user.name = replaceStr(user.name);
+    if (user.displayName) user.displayName = replaceStr(user.displayName);
+    if (user.email) user.email = replaceStr(user.email);
+    if (user.firstName) user.firstName = replaceStr(user.firstName);
+    if (user.lastName) user.lastName = replaceStr(user.lastName);
+    if (user.userName) user.userName = replaceStr(user.userName);
+
+    if (user.attributes) {
+      for (let attr of user.attributes) {
+        if (attr.name) attr.name = replaceStr(attr.name);
+        if (attr.value) attr.value = replaceStr(attr.value);
+      }
+    }
+
+    if (user.apps) {
+      for (let app of user.apps) {
+        if (app.name) app.name = replaceStr(app.name);
+        if (app.displayName) app.displayName = replaceStr(app.displayName);
+        if (app.description) app.description = replaceStr(app.description);
+        if (app.callbackUrl) app.callbackUrl = replaceStr(app.callbackUrl);
+        if (app.products) app.products = app.products.map(replaceStr);
+        if (app.apiProducts) app.apiProducts = app.apiProducts.map(replaceStr);
+        if (app.scopes) app.scopes = app.scopes.map(replaceStr);
+        if (app.attributes) {
+          for (let attr of app.attributes) {
+            if (attr.name) attr.name = replaceStr(attr.name);
+            if (attr.value) attr.value = replaceStr(attr.value);
+          }
+        }
+        const creds = app.credentials || app.keys;
+        if (creds) {
+          for (let cred of creds) {
+            if (cred.consumerKey) cred.consumerKey = replaceStr(cred.consumerKey);
+            if (cred.consumerSecret) cred.consumerSecret = replaceStr(cred.consumerSecret);
+            if (cred.key) cred.key = replaceStr(cred.key);
+            if (cred.secret) cred.secret = replaceStr(cred.secret);
+            if (cred.products) cred.products = cred.products.map(replaceStr);
+            if (cred.apiProducts) cred.apiProducts = cred.apiProducts.map(replaceStr);
+            if (cred.scopes) cred.scopes = cred.scopes.map(replaceStr);
+          }
+        }
+      }
+    }
+  }
+
+  public userToStringArray(user: User): string[] {
+    let result: string[] = [];
+    if (user.name) result.push(`Name: ${user.name}`);
+    if (user.displayName) result.push(`Display Name: ${user.displayName}`);
+    if (user.email) result.push(`Email: ${user.email}`);
+    if (user.userName) result.push(`Username: ${user.userName}`);
+    if (user.firstName || user.lastName)
+      result.push(`Full Name: ${[user.firstName, user.lastName].filter(Boolean).join(" ")}`);
+    if (user.status) result.push(`Status: ${user.status}`);
+    if (user.attributes && user.attributes.length > 0) {
+      result.push(`Attributes: ${user.attributes.map((a) => `${a.name}=${a.value}`).join(", ")}`);
+    }
+    if (user.apps && user.apps.length > 0) {
+      result.push(`Apps: ${user.apps.length} configured`);
+      for (let app of user.apps) {
+        let prods = (app.products || app.apiProducts || []).join(", ") || "none";
+        result.push(`  - App: ${app.name} [Products: ${prods}]`);
+      }
+    }
+    return result;
+  }
+
+  public userToString(user: User): string {
+    return this.userToStringArray(user).join("\n");
+  }
 }
+

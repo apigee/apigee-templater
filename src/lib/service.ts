@@ -1,5 +1,5 @@
 import { ApigeeConverter } from "./converter.js";
-import { Template, Proxy, Feature, ApigeeConfig } from "./interfaces.js";
+import { Template, Proxy, Feature, Product, Products, User, Users, ApigeeConfig } from "./interfaces.js";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -11,9 +11,12 @@ export class ApigeeTemplaterService {
   templatesPath: string = "./data/templates/";
   featuresPath: string = "./data/features/";
   proxiesPath: string = "./data/proxies/";
+  productsPath: string = "./data/products/";
+  usersPath: string = "./data/users/";
   public apigeeProxyListCache: { [key: string]: string[] } = {};
   public templateListCache: string[] = [];
   public featureListCache: string[] = [];
+  public userListCache: string[] = [];
 
   private cacheTtlMs: number = 24 * 60 * 60 * 1000; // 1 day in milliseconds
 
@@ -23,6 +26,12 @@ export class ApigeeTemplaterService {
   featuresRepository = process.env.AFT_FEATURES_REPOSITORY
     ? process.env.AFT_FEATURES_REPOSITORY
     : "https://github.com/gcp-samples/apigee-templates-repository/tree/main/features";
+  productsRepository = process.env.AFT_PRODUCTS_REPOSITORY
+    ? process.env.AFT_PRODUCTS_REPOSITORY
+    : "https://github.com/gcp-samples/apigee-templates-repository/tree/main/products";
+  usersRepository = process.env.AFT_USERS_REPOSITORY
+    ? process.env.AFT_USERS_REPOSITORY
+    : "https://github.com/gcp-samples/apigee-templates-repository/tree/main/users";
 
   remoteGetBaseUrl = process.env.TEMPLATER_GET_BASE_URL
     ? process.env.TEMPLATER_GET_BASE_URL
@@ -144,11 +153,13 @@ export class ApigeeTemplaterService {
       this.templatesPath = basePath + "templates/";
       this.featuresPath = basePath + "features/";
       this.proxiesPath = basePath + "proxies/";
+      this.productsPath = basePath + "products/";
     } else if (basePath) {
       this.tempPath = basePath;
       this.templatesPath = basePath;
       this.featuresPath = basePath;
       this.proxiesPath = basePath;
+      this.productsPath = basePath;
     }
   }
 
@@ -1051,6 +1062,579 @@ export class ApigeeTemplaterService {
       }
 
       resolve(apigeeConfig);
+    });
+  }
+
+  public productImport(product: Product) {
+    if (!fs.existsSync(this.productsPath)) fs.mkdirSync(this.productsPath, { recursive: true });
+    let productString = JSON.stringify(product, null, 2);
+    fs.writeFileSync(path.join(this.productsPath, product.name + ".json"), productString);
+  }
+
+  public productDelete(productName: string): boolean {
+    let deleted = false;
+    let jsonPath = path.join(this.productsPath, productName + ".json");
+    let yamlPath = path.join(this.productsPath, productName + ".yaml");
+    if (fs.existsSync(jsonPath)) {
+      fs.unlinkSync(jsonPath);
+      deleted = true;
+    }
+    if (fs.existsSync(yamlPath)) {
+      fs.unlinkSync(yamlPath);
+      deleted = true;
+    }
+    return deleted;
+  }
+
+  public async productsList(): Promise<Product[]> {
+    return new Promise(async (resolve, reject) => {
+      let products: Product[] = [];
+      if (fs.existsSync(this.productsPath)) {
+        let productNames: string[] = fs.readdirSync(this.productsPath);
+        for (let productPath of productNames) {
+          if (productPath.endsWith(".json")) {
+            let product: Product = JSON.parse(
+              fs.readFileSync(path.join(this.productsPath, productPath), "utf8"),
+            );
+            products.push(product);
+          } else if (productPath.endsWith(".yaml") || productPath.endsWith(".yml")) {
+            let product: Product = YAML.parse(
+              fs.readFileSync(path.join(this.productsPath, productPath), "utf8"),
+            );
+            products.push(product);
+          }
+        }
+      }
+      resolve(products);
+    });
+  }
+
+  public async productGet(name: string): Promise<Product | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let result: Product | undefined = undefined;
+      let tempName = name.replaceAll(" ", "-");
+      let productString = "";
+      let foundJson = false,
+        foundYaml = false;
+
+      if (!tempName.endsWith(".json") && !tempName.endsWith(".yaml")) {
+        let jsonPath = path.join(this.productsPath, tempName + ".json");
+        let yamlPath = path.join(this.productsPath, tempName + ".yaml");
+        if (fs.existsSync(jsonPath)) {
+          productString = fs.readFileSync(jsonPath, "utf8");
+          foundJson = true;
+        } else if (fs.existsSync(yamlPath)) {
+          productString = fs.readFileSync(yamlPath, "utf8");
+          foundYaml = true;
+        }
+      } else if (fs.existsSync(tempName)) {
+        productString = fs.readFileSync(tempName, "utf8");
+        if (tempName.endsWith(".json")) foundJson = true;
+        else if (tempName.endsWith(".yaml")) foundYaml = true;
+      }
+
+      if (productString) {
+        if (foundJson) result = JSON.parse(productString);
+        else result = YAML.parse(productString);
+      } else {
+        let searchPaths = [
+          tempName,
+          tempName + ".yaml",
+          tempName + ".json",
+          path.join(process.cwd(), tempName),
+          path.join(process.cwd(), tempName + ".yaml"),
+          path.join(process.cwd(), tempName + ".json"),
+          path.join(import.meta.dirname, "../products", tempName + ".yaml"),
+          path.join(import.meta.dirname, "../products", tempName + ".json"),
+        ];
+        for (let sp of searchPaths) {
+          if (fs.existsSync(sp) && !fs.statSync(sp).isDirectory()) {
+            let content = fs.readFileSync(sp, "utf8");
+            if (sp.endsWith(".yaml") || sp.endsWith(".yml")) {
+              result = YAML.parse(content);
+            } else {
+              result = JSON.parse(content);
+            }
+            break;
+          }
+        }
+      }
+
+      resolve(result);
+    });
+  }
+
+  public async apigeeProductsList(
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<any | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let response = await fetch(
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apiproducts?expand=true`,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        resolve(responseBody);
+      } else {
+        console.log("Got response " + response.status);
+        resolve(undefined);
+      }
+    });
+  }
+
+  public async apigeeProductGet(
+    productName: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<any | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let response = await fetch(
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apiproducts/${productName}`,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        resolve(responseBody);
+      } else {
+        let message = await response.text();
+        console.log(" > Apigee product GET response: " + response.status + " - " + message);
+        resolve(undefined);
+      }
+    });
+  }
+
+  public async apigeeProductExport(
+    product: Product | any,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve, reject) => {
+      let converter = new ApigeeConverter();
+      let payload =
+        product.type === "product" ? converter.productToApigeeProduct(product) : product;
+      let productName = payload.name;
+
+      if (!productName) {
+        console.log(" > Error: Product name is required for export.");
+        resolve(false);
+        return;
+      }
+
+      let checkResponse = await fetch(
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apiproducts/${productName}`,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      let method = "POST";
+      let url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apiproducts`;
+
+      if (checkResponse.status === 200) {
+        method = "PUT";
+        url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apiproducts/${productName}`;
+      }
+
+      let response = await fetch(url, {
+        method: method,
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.status === 200 || response.status === 201) {
+        resolve(true);
+      } else {
+        let message = await response.text();
+        console.log(` > Apigee product ${method} response: ${response.status} - ${message}`);
+        resolve(false);
+      }
+    });
+  }
+
+  public async apigeeProductDelete(
+    productName: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve, reject) => {
+      let response = await fetch(
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apiproducts/${productName}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        resolve(true);
+      } else {
+        let message = await response.text();
+        console.log(` > Apigee product DELETE response: ${response.status} - ${message}`);
+        resolve(false);
+      }
+    });
+  }
+
+  public userImport(user: User) {
+    if (!fs.existsSync(this.usersPath)) {
+      fs.mkdirSync(this.usersPath, { recursive: true });
+    }
+    fs.writeFileSync(
+      path.join(this.usersPath, (user.name || user.email) + ".json"),
+      JSON.stringify(user, null, 2),
+    );
+  }
+
+  public userDelete(name: string): boolean {
+    let deleted = false;
+    let jsonPath = path.join(this.usersPath, name + ".json");
+    let yamlPath = path.join(this.usersPath, name + ".yaml");
+    if (fs.existsSync(jsonPath)) {
+      fs.unlinkSync(jsonPath);
+      deleted = true;
+    }
+    if (fs.existsSync(yamlPath)) {
+      fs.unlinkSync(yamlPath);
+      deleted = true;
+    }
+    return deleted;
+  }
+
+  public async usersList(): Promise<User[]> {
+    return new Promise(async (resolve, reject) => {
+      let users: User[] = [];
+      if (fs.existsSync(this.usersPath)) {
+        let userNames: string[] = fs.readdirSync(this.usersPath);
+        for (let userPath of userNames) {
+          if (userPath.endsWith(".json")) {
+            let user: User = JSON.parse(
+              fs.readFileSync(path.join(this.usersPath, userPath), "utf8"),
+            );
+            users.push(user);
+          } else if (userPath.endsWith(".yaml") || userPath.endsWith(".yml")) {
+            let user: User = YAML.parse(
+              fs.readFileSync(path.join(this.usersPath, userPath), "utf8"),
+            );
+            users.push(user);
+          }
+        }
+      }
+      resolve(users);
+    });
+  }
+
+  public async userGet(name: string): Promise<User | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let result: User | undefined = undefined;
+      let tempName = name.replaceAll(" ", "-");
+      let userString = "";
+      let foundJson = false,
+        foundYaml = false;
+
+      if (!tempName.endsWith(".json") && !tempName.endsWith(".yaml")) {
+        let jsonPath = path.join(this.usersPath, tempName + ".json");
+        let yamlPath = path.join(this.usersPath, tempName + ".yaml");
+        if (fs.existsSync(jsonPath)) {
+          userString = fs.readFileSync(jsonPath, "utf8");
+          foundJson = true;
+        } else if (fs.existsSync(yamlPath)) {
+          userString = fs.readFileSync(yamlPath, "utf8");
+          foundYaml = true;
+        }
+      } else if (fs.existsSync(tempName)) {
+        userString = fs.readFileSync(tempName, "utf8");
+        if (tempName.endsWith(".json")) foundJson = true;
+        else if (tempName.endsWith(".yaml")) foundYaml = true;
+      }
+
+      if (userString) {
+        if (foundJson) result = JSON.parse(userString);
+        else result = YAML.parse(userString);
+      } else {
+        let searchPaths = [
+          tempName,
+          tempName + ".yaml",
+          tempName + ".json",
+          path.join(process.cwd(), tempName),
+          path.join(process.cwd(), tempName + ".yaml"),
+          path.join(process.cwd(), tempName + ".json"),
+          path.join(import.meta.dirname, "../users", tempName + ".yaml"),
+          path.join(import.meta.dirname, "../users", tempName + ".json"),
+        ];
+        for (let sp of searchPaths) {
+          if (fs.existsSync(sp) && !fs.statSync(sp).isDirectory()) {
+            let content = fs.readFileSync(sp, "utf8");
+            if (sp.endsWith(".yaml") || sp.endsWith(".yml")) {
+              result = YAML.parse(content);
+            } else {
+              result = JSON.parse(content);
+            }
+            break;
+          }
+        }
+      }
+
+      if (!result && (tempName.startsWith("https://") || tempName.startsWith("http://"))) {
+        let response = await fetch(tempName);
+        if (response.status === 200) {
+          let text = await response.text();
+          if (tempName.endsWith(".json")) result = JSON.parse(text);
+          else result = YAML.parse(text);
+        }
+      }
+
+      resolve(result);
+    });
+  }
+
+  public async apigeeUsersList(
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<any | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let response = await fetch(
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers?expand=true`,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        resolve(responseBody);
+      } else {
+        console.log("Got response " + response.status);
+        resolve(undefined);
+      }
+    });
+  }
+
+  public async apigeeUserGet(
+    developerEmail: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<any | undefined> {
+    return new Promise(async (resolve, reject) => {
+      let response = await fetch(
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(developerEmail)}`,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        let dev: any = await response.json();
+        let appsResponse = await fetch(
+          `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(developerEmail)}/apps?expand=true`,
+          {
+            headers: {
+              Authorization: token,
+            },
+          },
+        );
+        let apps: any[] = [];
+        if (appsResponse.status === 200) {
+          let appsBody: any = await appsResponse.json();
+          apps = appsBody.app || [];
+        }
+        let converter = new ApigeeConverter();
+        resolve(converter.apigeeToUser(dev, apps));
+      } else {
+        let message = await response.text();
+        console.log(" > Apigee developer GET response: " + response.status + " - " + message);
+        resolve(undefined);
+      }
+    });
+  }
+
+  public async apigeeUserExport(
+    user: User | any,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve, reject) => {
+      let converter = new ApigeeConverter();
+      let devPayload = converter.userToApigeeDeveloper(user);
+      let email = devPayload.email;
+
+      if (!email) {
+        console.log(" > Error: Developer email is required for user export.");
+        resolve(false);
+        return;
+      }
+
+      let checkResponse = await fetch(
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}`,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      let method = "POST";
+      let url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers`;
+
+      if (checkResponse.status === 200) {
+        method = "PUT";
+        url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}`;
+      }
+
+      let response = await fetch(url, {
+        method: method,
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(devPayload),
+      });
+
+      if (response.status !== 200 && response.status !== 201) {
+        let message = await response.text();
+        console.log(` > Apigee developer ${method} response: ${response.status} - ${message}`);
+        resolve(false);
+        return;
+      }
+
+      let apps = converter.userToApigeeApps(user);
+      for (let app of apps) {
+        let appName = app.name;
+        if (!appName) continue;
+
+        let checkAppResponse = await fetch(
+          `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}/apps/${encodeURIComponent(appName)}`,
+          {
+            headers: {
+              Authorization: token,
+            },
+          },
+        );
+
+        let appMethod = "POST";
+        let appUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}/apps`;
+
+        if (checkAppResponse.status === 200) {
+          appMethod = "PUT";
+          appUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}/apps/${encodeURIComponent(appName)}`;
+        }
+
+        let appResp = await fetch(appUrl, {
+          method: appMethod,
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: app.name,
+            apiProducts: app.apiProducts || [],
+            callbackUrl: app.callbackUrl || "",
+            keyExpiresIn: app.keyExpiresIn || "-1",
+            scopes: app.scopes || [],
+            attributes: app.attributes || [],
+          }),
+        });
+
+        if (appResp.status !== 200 && appResp.status !== 201) {
+          let msg = await appResp.text();
+          console.log(` > Apigee app ${appMethod} response: ${appResp.status} - ${msg}`);
+        }
+
+        if (app.credentials && Array.isArray(app.credentials)) {
+          for (let cred of app.credentials) {
+            let key = cred.consumerKey || cred.key;
+            let secret = cred.consumerSecret || cred.secret;
+            if (key && secret) {
+              await fetch(
+                `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}/apps/${encodeURIComponent(appName)}/keys/create`,
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: token,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    consumerKey: key,
+                    consumerSecret: secret,
+                  }),
+                },
+              );
+              if (cred.products || cred.apiProducts) {
+                await fetch(
+                  `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}/apps/${encodeURIComponent(appName)}/keys/${encodeURIComponent(key)}`,
+                  {
+                    method: "POST",
+                    headers: {
+                      Authorization: token,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      apiProducts: cred.products || cred.apiProducts,
+                    }),
+                  },
+                );
+              }
+            }
+          }
+        }
+      }
+
+      resolve(true);
+    });
+  }
+
+  public async apigeeUserDelete(
+    developerEmail: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve, reject) => {
+      let response = await fetch(
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(developerEmail)}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        resolve(true);
+      } else {
+        let message = await response.text();
+        console.log(` > Apigee developer DELETE response: ${response.status} - ${message}`);
+        resolve(false);
+      }
     });
   }
 }

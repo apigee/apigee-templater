@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+name: svc-gemini-bot
+type: user
+gateway: 1.0.0
+schemaVersion: 1.0.0
+displayName: Gemini Bot Service Account
+email: gemini-bot@service.corp.internal
+firstName: Gemini
+lastName: Bot
+userName: gemini_bot_svc
+status: active
+attributes:
+  - name: service_type
+    value: machine-to-machine
+  - name: automated
+    value: "true"
+apps:
+  - name: gemini-slack-bot
+    displayName: Gemini Slack Bot
+    description: Automated assistant for developer channels
+    status: approved
+    products:
+      - gemini-ai-services
+    credentials:
+      - consumerKey: gemini-slack-key-1122
+        consumerSecret: gemini-slack-sec-3344
+        status: approved
+        products:
+          - gemini-ai-services
+  - name: gemini-cli-tool
+    displayName: Gemini CLI Tool
+    description: Command-line client for internal AI gateway
+    status: approved
+    products:
+      - gemini-ai-services
+    credentials:
+      - consumerKey: gemini-cli-key-5566
+        consumerSecret: gemini-cli-sec-7788
+        status: approved
+        products:
+          - gemini-ai-services

@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: template-gemini-ai-service
+type: template
+description: Full GenAI application template combining API security, CORS headers, token analytics, and automated product creation
+features:
+  - feature-01-api-key-auth.yaml
+  - feature-03-cors-security.yaml
+parameters:
+  - name: GEMINI_API_KEY
+    displayName: Google Gemini API Key
+    description: API Key for upstream Google Generative AI services
+    default: "AIzaSyDummyKey"
+endpoints:
+  - name: default
+    basePath: /v1/ai
+    routes:
+      - name: default
+        target: default
+targets:
+  - name: default
+    url: https://generativelanguage.googleapis.com
+products:
+  - product-02-gemini-ai.yaml
+users:
+  - user-03-internal-apps.yaml
+

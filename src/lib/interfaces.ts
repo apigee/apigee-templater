@@ -13,6 +13,8 @@ export class Template {
   parameters: Parameter[] = [];
   endpoints: Endpoint[] = [];
   targets: Target[] = [];
+  products?: string[] = [];
+  users?: string[] = [];
   tests?: Test[] = [];
 }
 
@@ -167,3 +169,162 @@ export class ApigeeConfig {
   environments?: any;
   environmentGroups?: any;
 }
+
+export class ProductAttribute {
+  name: string = "";
+  value: string = "";
+}
+
+export class ProductQuota {
+  limit?: string;
+  interval?: string;
+  timeUnit?: string;
+}
+
+export class ProductOperation {
+  resource: string = "";
+  methods: string[] = [];
+}
+
+export class ProductOperationConfig {
+  apiSource: string = "";
+  operations?: ProductOperation[] = [];
+  quota?: ProductQuota;
+  attributes?: ProductAttribute[] = [];
+  resource?: string;
+  methods?: string[];
+}
+
+export class ProductLlmOperation {
+  path: string = "";
+  methods?: string[] = [];
+  models?: string[] = [];
+}
+
+export class ProductLlmOperationConfig {
+  apiSource: string = "";
+  llmOperations?: ProductLlmOperation[] = [];
+  llmTokenQuota?: ProductQuota;
+  tokenQuota?: ProductQuota;
+  path?: string;
+  methods?: string[];
+  models?: string[];
+}
+
+export class ProductPayloadOperationConfig {
+  apiSource: string = "";
+  protocol?: string = "";
+  operations: string[] = [];
+  quota?: ProductQuota;
+}
+
+export class ProductGraphqlOperation {
+  operation?: string;
+  operationTypes?: string[];
+}
+
+export class ProductGraphqlOperationConfig {
+  apiSource: string = "";
+  operations?: ProductGraphqlOperation[] = [];
+  quota?: ProductQuota;
+}
+
+export class ProductGrpcOperation {
+  service?: string;
+  methods?: string[];
+}
+
+export class ProductGrpcOperationConfig {
+  apiSource: string = "";
+  operations?: ProductGrpcOperation[] = [];
+  quota?: ProductQuota;
+}
+
+export class Product {
+  constructor() {
+    this.gateway = "apigee";
+    this.schemaVersion = "1.0.0";
+  }
+  name: string = "";
+  displayName?: string = "";
+  uid?: string;
+  type: string = "product";
+  gateway: string = "apigee";
+  schemaVersion: string = "1.0.0";
+  priority?: number;
+  description: string = "";
+  approvalType?: string = "auto";
+  attributes?: ProductAttribute[] = [];
+  environments?: string[] = [];
+  proxies?: string[] = [];
+  apiResources?: string[] = [];
+  quota?: string;
+  quotaInterval?: string;
+  quotaTimeUnit?: string;
+  scopes?: string[] = [];
+  operations?: ProductOperationConfig[] = [];
+  llmOperations?: ProductLlmOperationConfig[] = [];
+  payloadOperations?: ProductPayloadOperationConfig[] = [];
+  graphqlOperations?: ProductGraphqlOperationConfig[] = [];
+  grpcOperations?: ProductGrpcOperationConfig[] = [];
+}
+
+export class Products extends Product {}
+
+export class UserAttribute {
+  name: string = "";
+  value: string = "";
+}
+
+export class UserCredential {
+  consumerKey?: string = "";
+  consumerSecret?: string = "";
+  key?: string;
+  secret?: string;
+  status?: string = "approved";
+  expiresAt?: string;
+  issuedAt?: string;
+  apiProducts?: string[] = [];
+  products?: string[] = [];
+  scopes?: string[] = [];
+  attributes?: UserAttribute[] = [];
+}
+
+export class UserApp {
+  name: string = "";
+  displayName?: string = "";
+  description?: string = "";
+  callbackUrl?: string = "";
+  status?: string = "approved";
+  keyExpiresIn?: string;
+  apiProducts?: string[] = [];
+  products?: string[] = [];
+  scopes?: string[] = [];
+  attributes?: UserAttribute[] = [];
+  credentials?: UserCredential[] = [];
+  keys?: UserCredential[] = [];
+}
+
+export class User {
+  constructor() {
+    this.gateway = "apigee";
+    this.schemaVersion = "1.0.0";
+  }
+  name: string = "";
+  displayName?: string = "";
+  uid?: string;
+  type: string = "user";
+  gateway: string = "apigee";
+  schemaVersion: string = "1.0.0";
+  priority?: number;
+  email: string = "";
+  firstName?: string = "";
+  lastName?: string = "";
+  userName?: string = "";
+  status?: string = "active";
+  attributes?: UserAttribute[] = [];
+  apps?: UserApp[] = [];
+}
+
+export class Users extends User {}
+

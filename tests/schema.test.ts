@@ -96,4 +96,30 @@ policies:
     }
     expect(valid).toBe(true);
   });
+
+  it("should validate all sample YAML files in tests/data against gateway.schema.1.0.json", () => {
+    const schema1Path = join(__dirname, "../schema/gateway.schema.1.0.json");
+    const schema1Json = JSON.parse(readFileSync(schema1Path, "utf-8"));
+    const ajv1 = new Ajv({ allErrors: true, strict: false });
+    const validate1 = ajv1.compile(schema1Json);
+
+    const dataDir = join(__dirname, "data");
+    const testFiles = existsSync(dataDir)
+      ? readdirSync(dataDir).filter((f) => f.endsWith(".yaml") || f.endsWith(".yml"))
+      : [];
+
+    expect(testFiles.length).toBeGreaterThanOrEqual(12);
+
+    for (const file of testFiles) {
+      const filePath = join(dataDir, file);
+      const content = readFileSync(filePath, "utf-8");
+      const yamlData = parseYaml.parse(content);
+
+      const valid = validate1(yamlData);
+      if (!valid) {
+        console.error(`Validation errors for tests/data/${file}:`, validate1.errors);
+      }
+      expect(valid).toBe(true);
+    }
+  });
 });

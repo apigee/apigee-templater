@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: feature-rate-limiting
+displayName: Rate Limiting & Spike Arrest
+type: feature
+description: Protects backend services against traffic spikes and applies quota limits
+priority: 20
+categories:
+  - traffic-management
+parameters:
+  - name: SPIKE_RATE
+    displayName: Spike Arrest Rate
+    description: Maximum traffic spike rate (e.g. 30ps, 100pm)
+    default: 30ps
+  - name: QUOTA_COUNT
+    displayName: Quota Count
+    description: Maximum allowed calls per time unit
+    default: "1000"
+defaultEndpoint:
+  name: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: SA-SpikeArrest
+        - name: Q-QuotaLimit
+policies:
+  - name: SA-SpikeArrest
+    type: SpikeArrest
+    content:
+      spikeArrest:
+        metadata:
+          name: SA-SpikeArrest
+        rate: "{SPIKE_RATE}"
+  - name: Q-QuotaLimit
+    type: Quota
+    content:
+      quota:
+        metadata:
+          name: Q-QuotaLimit
+        allow:
+          count: "{QUOTA_COUNT}"
+        interval: "1"
+        timeUnit: month
+        distributed: "true"
+        synchronous: "true"

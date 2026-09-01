@@ -6,7 +6,9 @@
   "oneOf": [
     { "$ref": "#/definitions/Feature" },
     { "$ref": "#/definitions/Proxy" },
-    { "$ref": "#/definitions/Template" }
+    { "$ref": "#/definitions/Template" },
+    { "$ref": "#/definitions/Product" },
+    { "$ref": "#/definitions/User" }
   ],
   "definitions": {
     "Step": {
@@ -295,6 +297,14 @@
         "tests": {
           "type": "array",
           "items": { "$ref": "#/definitions/Test" }
+        },
+        "products": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "users": {
+          "type": "array",
+          "items": { "type": "string" }
         }
       },
       "required": ["name", "type", "gateway", "schemaVersion"],
@@ -385,6 +395,335 @@
         "tests": {
           "type": "array",
           "items": { "$ref": "#/definitions/Test" }
+        }
+      },
+      "required": ["name", "type", "gateway", "schemaVersion"],
+      "additionalProperties": false
+    },
+    "ProductAttribute": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "value": { "type": "string" }
+      },
+      "required": ["name", "value"],
+      "additionalProperties": false
+    },
+    "ProductQuota": {
+      "type": "object",
+      "properties": {
+        "limit": { "type": "string" },
+        "interval": { "type": "string" },
+        "timeUnit": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ProductOperation": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "methods": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "quota": { "$ref": "#/definitions/ProductQuota" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductAttribute" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ProductOperationConfig": {
+      "type": "object",
+      "properties": {
+        "apiSource": { "type": "string" },
+        "operations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductOperation" }
+        },
+        "quota": { "$ref": "#/definitions/ProductQuota" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductAttribute" }
+        }
+      },
+      "required": ["apiSource"],
+      "additionalProperties": false
+    },
+    "ProductLlmOperation": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "methods": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "model": { "type": "string" },
+        "quota": { "$ref": "#/definitions/ProductQuota" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductAttribute" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ProductLlmOperationConfig": {
+      "type": "object",
+      "properties": {
+        "apiSource": { "type": "string" },
+        "operations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductLlmOperation" }
+        },
+        "quota": { "$ref": "#/definitions/ProductQuota" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductAttribute" }
+        }
+      },
+      "required": ["apiSource"],
+      "additionalProperties": false
+    },
+    "ProductPayloadOperationConfig": {
+      "type": "object",
+      "properties": {
+        "apiSource": { "type": "string" },
+        "operations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductOperation" }
+        },
+        "quota": { "$ref": "#/definitions/ProductQuota" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductAttribute" }
+        }
+      },
+      "required": ["apiSource"],
+      "additionalProperties": false
+    },
+    "ProductGraphqlOperation": {
+      "type": "object",
+      "properties": {
+        "operation": { "type": "string" },
+        "operationTypes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "quota": { "$ref": "#/definitions/ProductQuota" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductAttribute" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ProductGraphqlOperationConfig": {
+      "type": "object",
+      "properties": {
+        "apiSource": { "type": "string" },
+        "operations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductGraphqlOperation" }
+        },
+        "quota": { "$ref": "#/definitions/ProductQuota" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductAttribute" }
+        }
+      },
+      "required": ["apiSource"],
+      "additionalProperties": false
+    },
+    "ProductGrpcOperation": {
+      "type": "object",
+      "properties": {
+        "methods": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "service": { "type": "string" },
+        "quota": { "$ref": "#/definitions/ProductQuota" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductAttribute" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ProductGrpcOperationConfig": {
+      "type": "object",
+      "properties": {
+        "apiSource": { "type": "string" },
+        "operations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductGrpcOperation" }
+        },
+        "quota": { "$ref": "#/definitions/ProductQuota" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductAttribute" }
+        }
+      },
+      "required": ["apiSource"],
+      "additionalProperties": false
+    },
+    "Product": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "displayName": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "const": "product" },
+        "gateway": { "type": "string" },
+        "schemaVersion": { "type": "string" },
+        "approvalType": { "type": "string" },
+        "environments": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "proxies": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "apiResources": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "scopes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "quota": { "type": "string" },
+        "quotaInterval": { "type": "string" },
+        "quotaTimeUnit": { "type": "string" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductAttribute" }
+        },
+        "operations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductOperationConfig" }
+        },
+        "llmOperations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductLlmOperationConfig" }
+        },
+        "payloadOperations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductPayloadOperationConfig" }
+        },
+        "graphqlOperations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductGraphqlOperationConfig" }
+        },
+        "grpcOperations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductGrpcOperationConfig" }
+        }
+      },
+      "required": ["name", "type", "gateway", "schemaVersion"],
+      "additionalProperties": false
+    },
+    "UserAttribute": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "value": { "type": "string" }
+      },
+      "required": ["name", "value"],
+      "additionalProperties": false
+    },
+    "UserCredential": {
+      "type": "object",
+      "properties": {
+        "consumerKey": { "type": "string" },
+        "consumerSecret": { "type": "string" },
+        "key": { "type": "string" },
+        "secret": { "type": "string" },
+        "status": { "type": "string" },
+        "issuedAt": { "type": "string" },
+        "expiresAt": { "type": "string" },
+        "products": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "apiProducts": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "scopes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/UserAttribute" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "UserApp": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "displayName": { "type": "string" },
+        "description": { "type": "string" },
+        "callbackUrl": { "type": "string" },
+        "status": { "type": "string" },
+        "keyExpiresIn": { "type": "string" },
+        "products": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "apiProducts": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "scopes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/UserAttribute" }
+        },
+        "credentials": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/UserCredential" }
+        },
+        "keys": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/UserCredential" }
+        }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "User": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "displayName": { "type": "string" },
+        "uid": { "type": "string" },
+        "type": { "type": "string", "const": "user" },
+        "gateway": { "type": "string" },
+        "schemaVersion": { "type": "string" },
+        "priority": { "type": "number" },
+        "description": { "type": "string" },
+        "documentation": { "type": "string" },
+        "email": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "userName": { "type": "string" },
+        "status": { "type": "string" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/UserAttribute" }
+        },
+        "apps": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/UserApp" }
         }
       },
       "required": ["name", "type", "gateway", "schemaVersion"],

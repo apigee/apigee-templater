@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: gemini-ai-developer-product
+displayName: Gemini AI Developer Product
+type: product
+description: Developer tier for generative AI chat completions, embeddings, and tool orchestration
+approvalType: auto
+environments:
+  - eval
+  - prod
+proxies:
+  - gemini-ai-gateway-v1
+quota: "50000"
+quotaInterval: "1"
+quotaTimeUnit: month
+attributes:
+  - name: access
+    value: developer
+  - name: ai.quota.tokens
+    value: "1000000"
+llmOperations:
+  - apiSource: gemini-ai-gateway-v1
+    operations:
+      - name: /v1/ai/chat/completions
+        model: gemini-1.5-pro
+        methods:
+          - POST
+        quota:
+          limit: "60"
+          interval: "1"
+          timeUnit: minute
+      - name: /v1/ai/embeddings
+        model: text-embedding-004
+        methods:
+          - POST
+payloadOperations:
+  - apiSource: gemini-ai-gateway-v1
+    operations:
+      - name: /v1/ai/tools/execute
+        methods:
+          - POST

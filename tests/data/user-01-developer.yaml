@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+name: dev-john-doe
+type: user
+gateway: 1.0.0
+schemaVersion: 1.0.0
+displayName: John Doe
+email: john.doe@example.com
+firstName: John
+lastName: Doe
+userName: jdoe
+status: active
+attributes:
+  - name: department
+    value: engineering
+  - name: cost_center
+    value: "1040"
+apps:
+  - name: john-analytics-app
+    displayName: John Analytics App
+    description: Internal data analysis app
+    callbackUrl: https://analytics.example.com/callback
+    status: approved
+    products:
+      - standard-api-product
+    scopes:
+      - read
+    credentials:
+      - consumerKey: jdoe-client-id-12345
+        consumerSecret: jdoe-client-secret-67890
+        status: approved
+        products:
+          - standard-api-product

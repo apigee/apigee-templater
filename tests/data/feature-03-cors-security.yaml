@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: feature-cors-security
+displayName: CORS Security Headers
+type: feature
+description: Handles browser CORS preflight requests and injects Access-Control response headers
+priority: 5
+categories:
+  - security
+  - cors
+parameters:
+  - name: ALLOWED_ORIGIN
+    displayName: Allowed Origin
+    description: Allowed CORS origin domain
+    default: "*"
+defaultEndpoint:
+  name: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      condition: request.verb == "OPTIONS"
+      steps:
+        - name: RF-CORSPreflight
+    - name: PostFlow
+      mode: Response
+      steps:
+        - name: AM-AddCORSHeaders
+policies:
+  - name: RF-CORSPreflight
+    type: RaiseFault
+    content:
+      raiseFault:
+        metadata:
+          name: RF-CORSPreflight
+        faultResponse:
+          set:
+            headers:
+              - name: Access-Control-Allow-Origin
+                value: "{ALLOWED_ORIGIN}"
+              - name: Access-Control-Allow-Methods
+                value: GET, POST, PUT, DELETE, OPTIONS
+              - name: Access-Control-Allow-Headers
+                value: Origin, X-Requested-With, Content-Type, Accept, Authorization, x-api-key
+            statusCode: "200"
+            reasonPhrase: OK
+  - name: AM-AddCORSHeaders
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          name: AM-AddCORSHeaders
+        set:
+          headers:
+            - name: Access-Control-Allow-Origin
+              value: "{ALLOWED_ORIGIN}"

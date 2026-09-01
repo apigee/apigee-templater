@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: mock-echo-service-v1
+displayName: Mock Echo Service v1
+type: proxy
+description: No-target API proxy that returns structured mock JSON directly from the gateway
+priority: 1
+categories:
+  - mock
+  - testing
+endpoints:
+  - name: default
+    basePath: /v1/mock-echo
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: AM-MockResponse
+policies:
+  - name: AM-MockResponse
+    type: AssignMessage
+    content:
+      assignMessage:
+        metadata:
+          name: AM-MockResponse
+        set:
+          payload:
+            contentType: application/json
+            value: |
+              {
+                "status": "success",
+                "message": "Hello from Apigee Mock Service",
+                "timestamp": "{system.timestamp}"
+              }
+          statusCode: "200"
+          reasonPhrase: OK

@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: template-basic-weather-api
+type: template
+description: Microservice template that provisions a weather forecasting proxy with API Key security
+features:
+  - feature-01-api-key-auth.yaml
+  - feature-02-rate-limiting.yaml
+parameters:
+  - name: RATE
+    displayName: Rate Limit
+    description: Traffic rate limit
+    default: 100pm
+endpoints:
+  - name: default
+    basePath: /v1/weather
+    routes:
+      - name: default
+        target: default
+targets:
+  - name: default
+    url: https://mocktarget.apigee.net
+products:
+  - product-01-standard-api.yaml
+users:
+  - user-01-developer.yaml
+tests:
+  - name: "Health Check"
+    path: /v1/weather
+    method: GET
+    assertions:
+      - response.status == 200

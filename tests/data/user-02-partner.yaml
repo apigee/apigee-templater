@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+name: partner-acme-corp
+type: user
+gateway: 1.0.0
+schemaVersion: 1.0.0
+displayName: Acme Corp Integrations
+email: integrations@acme-corp.com
+firstName: Acme
+lastName: Partner
+userName: acme_partner
+status: active
+attributes:
+  - name: partner_tier
+    value: platinum
+  - name: region
+    value: EMEA
+apps:
+  - name: acme-order-sync
+    displayName: Acme Order Sync
+    description: Production B2B order integration service
+    callbackUrl: https://partner.acme-corp.com/oauth/callback
+    status: approved
+    products:
+      - enterprise-api-suite
+      - gemini-ai-services
+    scopes:
+      - read
+      - write
+    credentials:
+      - consumerKey: acme-b2b-key-9988
+        consumerSecret: acme-b2b-sec-5544
+        status: approved
+        products:
+          - enterprise-api-suite
+          - gemini-ai-services

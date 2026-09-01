@@ -6,7 +6,6 @@ build
 *.local
 local
 temp
-data
 .env
 __pycache__
 .npmrc

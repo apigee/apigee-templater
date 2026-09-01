@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: template-enterprise-gateway
+type: template
+description: Enterprise gateway proxy bundle with multiple endpoints, backend targets, and product bundle configuration
+features:
+  - feature-01-api-key-auth.yaml
+  - feature-02-rate-limiting.yaml
+  - feature-03-cors-security.yaml
+endpoints:
+  - name: default
+    basePath: /v1/enterprise
+    routes:
+      - name: customers-route
+        condition: request.path MatchesPath "/customers/**"
+        target: customers-target
+      - name: orders-route
+        condition: request.path MatchesPath "/orders/**"
+        target: orders-target
+targets:
+  - name: customers-target
+    url: https://customers.internal.enterprise.com
+  - name: orders-target
+    url: https://orders.internal.enterprise.com
+products:
+  - product-03-enterprise-suite.yaml
+users:
+  - user-02-partner.yaml
+tests:
+  - name: "CORS Preflight Test"
+    path: /v1/enterprise/customers
+    method: OPTIONS
+    assertions:
+      - response.status == 200
+      - response.header.Access-Control-Allow-Origin == "*"

@@ -91,7 +91,8 @@ describe("AFT Bun CLI test suite", () => {
 
     try {
       await myCli.handleCompletion("-f", "p");
-      expect(logs).toContain("proxy");
+      expect(logs[0].split("\n")).toContain("proxy");
+      expect(logs[0].split("\n")).toContain("product");
     } finally {
       console.log = origLog;
     }

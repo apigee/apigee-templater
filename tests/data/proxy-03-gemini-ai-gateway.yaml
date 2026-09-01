@@ -1,0 +1,79 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: gemini-ai-gateway-v1
+displayName: Gemini AI Gateway v1
+type: proxy
+description: Secure GenAI Gateway proxy routing to Google Vertex AI / Gemini endpoints with token telemetry and key validation
+priority: 1
+categories:
+  - ai
+  - gemini
+  - llm
+endpoints:
+  - name: default
+    basePath: /v1/ai
+    routes:
+      - name: default
+        target: default
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: Verify-API-Key
+          - name: SA-SpikeArrest
+    postClientFlow:
+      name: PostClientFlow
+      steps:
+        - name: DC-AiTelemetry
+targets:
+  - name: default
+    url: https://generativelanguage.googleapis.com
+    flows:
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-ExtractAiTokens
+policies:
+  - name: Verify-API-Key
+    type: VerifyAPIKey
+    content:
+      verifyAPIKey:
+        metadata:
+          name: Verify-API-Key
+        apiKey:
+          ref: request.header.x-api-key
+  - name: SA-SpikeArrest
+    type: SpikeArrest
+    content:
+      spikeArrest:
+        metadata:
+          name: SA-SpikeArrest
+        rate: 50ps
+  - name: JS-ExtractAiTokens
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          name: JS-ExtractAiTokens
+        source: |
+          try {
+            var body = JSON.parse(response.content);
+            if (body.usageMetadata) {
+              context.setVariable("ai.promptTokenCount", body.usageMetadata.promptTokenCount || 0);
+              context.setVariable("ai.candidatesTokenCount", body.usageMetadata.candidatesTokenCount || 0);
+              context.setVariable("ai.totalTokenCount", body.usageMetadata.totalTokenCount || 0);
+            }
+          } catch(e) {}
+  - name: DC-AiTelemetry
+    type: DataCapture
+    content:
+      dataCapture:
+        metadata:
+          name: DC-AiTelemetry
+        capture:
+          - collect:
+              metadata:
+                ref: ai.totalTokenCount
+                default: "0"
+            dataCollector: dc_ai_total_tokens

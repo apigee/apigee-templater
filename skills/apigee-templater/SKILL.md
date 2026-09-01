@@ -275,35 +275,193 @@ policies:
           URL: https://auth.internal.company.com/validate
 ```
 
-## 6. IDE JSON Schema Validation
-Apigee Templater includes a JSON Schema at `schema/apigee-templater.schema.json`.
+---
+
+## 6. API Product Data Type & Modeling
+
+Apigee Templater supports defining, importing, and exporting Apigee X API Products using concise YAML definitions (`type: product`).
+
+### A. Concise Product YAML Definition
+```yaml
+name: gemini-api-product
+displayName: Gemini API Product
+type: product
+description: Access to Gemini and AI proxy operations with rate limiting
+approvalType: auto
+environments:
+  - test
+  - prod
+proxies:
+  - gemini-proxy-v1
+quota: "1000"
+quotaInterval: "1"
+quotaTimeUnit: month
+attributes:
+  - name: access
+    value: public
+operations:
+  - apiSource: gemini-proxy-v1
+    operations:
+      - name: /models
+        methods:
+          - GET
+      - name: /chat
+        methods:
+          - POST
+        quota:
+          limit: "100"
+          interval: "1"
+          timeUnit: minute
+llmOperations:
+  - apiSource: gemini-proxy-v1
+    operations:
+      - name: /chat/completions
+        model: gemini-1.5-pro
+        methods:
+          - POST
+payloadOperations:
+  - apiSource: gemini-proxy-v1
+    operations:
+      - name: /upload
+        methods:
+          - POST
+```
+
+### B. Template Product Referencing
+Templates can reference an array of products (by filename/name or inline definition). When deploying to an Apigee environment, all referenced products are automatically deployed and associated with the environment and proxy:
+
+```yaml
+name: gemini-api-template
+type: template
+gateway: apigee
+schemaVersion: 1.0.0
+description: Complete Gemini API proxy and product bundle
+endpoints:
+  - name: default
+    basePath: /v1/gemini
+targets:
+  - name: default
+    url: https://generativelanguage.googleapis.com
+products:
+  - gemini-api-product.yaml
+  - name: gemini-premium-product
+    displayName: Gemini Premium Product
+    type: product
+    description: Unlimited premium access
+    approvalType: manual
+```
+
+### C. CLI Product Commands
+- **Create new Product file:**
+  ```bash
+  aft -f product -n my-product -o my-product.yaml
+  ```
+- **Export Product to Apigee X:**
+  ```bash
+  aft -i my-product.yaml -o my-org:my-product:eval
+  ```
+- **Import Product from Apigee X:**
+  ```bash
+  aft -i my-org:my-product -o my-product.yaml
+  ```
+- **Deploy Template and its Products & Users to Apigee X:**
+  ```bash
+  aft -i my-template.yaml -o my-org:my-proxy:eval
+  ```
+
+---
+
+## 7. Apigee Users (Developers, Apps, and Credentials)
+
+Apigee Templater supports a unified `user` data type that bundles an Apigee Developer, their Apps, and API Credentials / Keys in one YAML specification.
+
+### A. User Structure (`type: user`)
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+name: dev-john-doe
+type: user
+gateway: 1.0.0
+schemaVersion: 1.0.0
+displayName: John Doe
+email: john.doe@example.com
+firstName: John
+lastName: Doe
+userName: jdoe
+status: active
+attributes:
+  - name: department
+    value: engineering
+apps:
+  - name: john-analytics-app
+    displayName: John Analytics App
+    description: Internal data analysis app
+    callbackUrl: https://analytics.example.com/callback
+    status: approved
+    products:
+      - standard-api-product
+    scopes:
+      - read
+    credentials:
+      - consumerKey: jdoe-client-id-12345
+        consumerSecret: jdoe-client-secret-67890
+        status: approved
+        products:
+          - standard-api-product
+```
+
+### B. Referencing Users in Templates
+Templates reference products and users by file path or repository lookup name:
+```yaml
+name: my-service-template
+type: template
+gateway: 1.0.0
+schemaVersion: 1.0.0
+features:
+  - api-key-auth.yaml
+products:
+  - standard-api-product.yaml
+users:
+  - dev-john-doe.yaml
+```
+
+### C. CLI User Commands
+- **Create new User file:**
+  ```bash
+  aft -f user -n dev-john -o dev-john.yaml
+  ```
+- **Export / Deploy User to Apigee X:**
+  ```bash
+  aft -i dev-john.yaml -o my-org
+  ```
+- **Import User from Apigee X:**
+  ```bash
+  aft -i my-org:john.doe@example.com -f user -o dev-john.yaml
+  ```
+- **List Users in Apigee Org:**
+  ```bash
+  aft -i my-org -f user
+  ```
+
+---
+
+## 8. IDE JSON Schema Validation
+Apigee Templater includes a JSON Schema at `schema/gateway.schema.1.0.json`.
 
 To enable autocomplete and error checking in **VS Code** or **Zed**:
 
-### VS Code (`.vscode/settings.json`)
-```json
-{
-  "yaml.schemas": {
-    "./node_modules/apigee-templater/dist/schema/apigee-templater.schema.json": [
-      "*.yaml",
-      "repository/features/*.yaml"
-    ]
-  }
-}
-```
-
 ### In-File Header Annotation
-You can also add a schema comment directive at the top of your YAML file:
+Add a schema comment directive at the top of your YAML file:
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/apigee-templater.schema.json
-name: my-feature-v1
-type: feature
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+name: my-user
+type: user
 ```
 
 ---
 
-## 7. Checklist & Best Practices
+## 9. Checklist & Best Practices
 - [ ] Check if `setValue` is used instead of `value` for all KVM `put` operations.
 - [ ] Ensure `response.content` assignments occur in `mode: Response` flows (`PostFlow` or target response flows).
 - [ ] Attach `EventFlow` on target responses when processing streaming / SSE data.
 - [ ] Include required `resources` if JavaScript policies use `includeUrl` (e.g. `jsc://ai-functions.js`).
+

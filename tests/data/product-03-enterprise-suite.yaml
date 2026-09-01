@@ -1,0 +1,48 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: enterprise-suite-product
+displayName: Enterprise API Suite Product
+type: product
+description: Full enterprise bundle including REST, GraphQL, gRPC endpoints, and LLM services with SLA guarantees
+approvalType: manual
+environments:
+  - prod
+  - staging
+proxies:
+  - enterprise-gateway-v1
+  - gemini-ai-gateway-v1
+scopes:
+  - read:enterprise
+  - write:enterprise
+  - admin
+attributes:
+  - name: access
+    value: private
+  - name: tier
+    value: enterprise-platinum
+operations:
+  - apiSource: enterprise-gateway-v1
+    operations:
+      - name: /v1/customers/**
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+graphqlOperations:
+  - apiSource: enterprise-gateway-v1
+    operations:
+      - operation: CustomerQuery
+        operationTypes:
+          - QUERY
+      - operation: UpdateCustomerMutation
+        operationTypes:
+          - MUTATION
+grpcOperations:
+  - apiSource: enterprise-gateway-v1
+    operations:
+      - service: com.enterprise.CustomerService
+        methods:
+          - GetCustomerDetails
+          - StreamCustomerUpdates

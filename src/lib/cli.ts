@@ -21,7 +21,7 @@ import inquirer from "inquirer";
 import chalk from "chalk";
 import * as YAML from "yaml";
 import { ApigeeConverter } from "./converter.js";
-import { Proxy, Feature, Template } from "./interfaces.js";
+import { Proxy, Feature, Template, Product, Products, User, Users } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 import { GoogleAuth } from "google-auth-library";
 import { version } from "./version.js";
@@ -448,7 +448,7 @@ export class cli {
       }
 
       if (["-f", "--format"].includes(prevWord)) {
-        const formats = ["proxy", "template", "feature"].filter(
+        const formats = ["proxy", "template", "feature", "product", "user"].filter(
           (fmt) => !currentWord || fmt.startsWith(currentWord)
         );
         if (formats.length > 0) console.log(formats.join("\n"));
@@ -580,6 +580,18 @@ export class cli {
     for (const line of summaryLines) {
       if (line.startsWith("Name:")) {
         console.log(`    ${chalk.bold("Name:")}        ${chalk.cyan(line.replace("Name: ", ""))}`);
+      } else if (line.startsWith("Display Name:")) {
+        console.log(`    ${chalk.bold("Display Name:")} ${chalk.cyan(line.replace("Display Name: ", ""))}`);
+      } else if (line.startsWith("Description:")) {
+        console.log(`    ${chalk.bold("Description:")}  ${chalk.white(line.replace("Description: ", ""))}`);
+      } else if (line.startsWith("Approval Type:")) {
+        console.log(`    ${chalk.bold("Approval Type:")} ${chalk.white(line.replace("Approval Type: ", ""))}`);
+      } else if (line.startsWith("Environments:")) {
+        console.log(`    ${chalk.bold("Environments:")}  ${chalk.white(line.replace("Environments: ", ""))}`);
+      } else if (line.startsWith("Proxies:")) {
+        console.log(`    ${chalk.bold("Proxies:")}       ${chalk.white(line.replace("Proxies: ", ""))}`);
+      } else if (line.startsWith("Quota:")) {
+        console.log(`    ${chalk.bold("Quota:")}         ${chalk.yellow(line.replace("Quota: ", ""))}`);
       } else if (line.startsWith("Endpoints:")) {
         console.log(`    ${chalk.bold("Endpoints:")}`);
       } else if (line.startsWith("Targets:")) {
@@ -679,6 +691,8 @@ export class cli {
     let template: Template | undefined = undefined;
     let feature: Feature | undefined = undefined;
     let proxy: Proxy | undefined = undefined;
+    let product: Product | undefined = undefined;
+    let user: User | undefined = undefined;
     let startDir = process.cwd();
 
     // Parse parameters
@@ -698,6 +712,20 @@ export class cli {
       if (options.format == "feature") {
         feature = new Feature();
         feature.name = options.name;
+      } else if (options.format == "product") {
+        product = this.converter.productCreate(
+          options.name,
+          "",
+          [options.name],
+          [options.environment || "test"],
+        );
+      } else if (options.format == "user") {
+        user = this.converter.userCreate(
+          options.name,
+          "",
+          options.name + "-app",
+          [],
+        );
       } else {
         // console.log(`  ${chalk.cyan("ℹ Template created, converting to feature...")}`);
         template = this.converter.templateCreate(options.name, basePath, options.targetUrl);
@@ -709,7 +737,7 @@ export class cli {
       !options.input.toLowerCase().startsWith("https://") &&
       !options.input.toLowerCase().startsWith("http://")
     ) {
-      // Apigee proxy reference ORG:PROXY
+      // Apigee proxy or product reference ORG:NAME
       let pieces = options.input.split(":");
       if (pieces && pieces.length > 1 && pieces[0] && pieces[1]) {
         if (!options.token) {
@@ -717,28 +745,69 @@ export class cli {
           if (token) options.token = token;
         }
         if (!options.name) options.name = pieces[1];
-        let apigeePath = await this.apigeeService.apigeeProxyGet(
-          pieces[1],
-          pieces[0],
-          options.drz,
-          "Bearer " + options.token,
-        );
-        if (apigeePath) {
-          let importParameters = options.format == "feature";
-          proxy = await this.converter.apigeeZipToProxy(options.name, apigeePath, importParameters);
-          fs.rmSync(apigeePath);
-        } else {
-          // Try shared flows
-          let sharedFlowPath = await this.apigeeService.apigeeSharedFlowGet(
+
+        if (options.format == "product") {
+          let apigeeProductData = await this.apigeeService.apigeeProductGet(
             pieces[1],
             pieces[0],
             options.drz,
             "Bearer " + options.token,
           );
+          if (apigeeProductData) {
+            product = this.converter.apigeeProductToProduct(apigeeProductData);
+          }
+        } else if (options.format == "user") {
+          let apigeeUserData = await this.apigeeService.apigeeUserGet(
+            pieces[1],
+            pieces[0],
+            options.drz,
+            "Bearer " + options.token,
+          );
+          if (apigeeUserData) {
+            user = apigeeUserData;
+          }
+        } else {
+          let apigeePath = await this.apigeeService.apigeeProxyGet(
+            pieces[1],
+            pieces[0],
+            options.drz,
+            "Bearer " + options.token,
+          );
+          if (apigeePath) {
+            let importParameters = options.format == "feature";
+            proxy = await this.converter.apigeeZipToProxy(
+              options.name,
+              apigeePath,
+              importParameters,
+            );
+            fs.rmSync(apigeePath);
+          } else {
+            // Try shared flows
+            let sharedFlowPath = await this.apigeeService.apigeeSharedFlowGet(
+              pieces[1],
+              pieces[0],
+              options.drz,
+              "Bearer " + options.token,
+            );
 
-          if (sharedFlowPath) {
-            proxy = await this.converter.apigeeSharedFlowZipToProxy(options.name, sharedFlowPath);
-            fs.rmSync(sharedFlowPath);
+            if (sharedFlowPath) {
+              proxy = await this.converter.apigeeSharedFlowZipToProxy(
+                options.name,
+                sharedFlowPath,
+              );
+              fs.rmSync(sharedFlowPath);
+            } else {
+              // Try product
+              let apigeeProductData = await this.apigeeService.apigeeProductGet(
+                pieces[1],
+                pieces[0],
+                options.drz,
+                "Bearer " + options.token,
+              );
+              if (apigeeProductData) {
+                product = this.converter.apigeeProductToProduct(apigeeProductData);
+              }
+            }
           }
         }
 
@@ -749,9 +818,11 @@ export class cli {
       if (file && file["type"] === "template") template = file as Template;
       else if (file && file["type"] === "proxy") proxy = file as Proxy;
       else if (file && file["type"] === "feature") feature = file as Feature;
+      else if (file && file["type"] === "product") product = file as Product;
+      else if (file && file["type"] === "user") user = file as User;
       else if (file) {
         console.log(
-          `  ${chalk.red.bold("✖ Error reading '" + options.input + "', could not determine its type:")}\n  ${JSON.stringify(file, null, 2)}`
+          `  ${chalk.red.bold("✖ Error reading '" + options.input + "', could not determine its type:")}\n  ${JSON.stringify(file, null, 2)}`,
         );
         return;
       }
@@ -767,18 +838,65 @@ export class cli {
         if (file && file["type"] === "template") template = file as Template;
         else if (file && file["type"] === "proxy") proxy = file as Proxy;
         else if (file && file["type"] === "feature") feature = file as Feature;
+        else if (file && file["type"] === "product") product = file as Product;
+        else if (file && file["type"] === "user") user = file as User;
       } else {
         template = await this.apigeeService.templateGet(options.input);
         if (!template) feature = await this.apigeeService.featureGet(options.input);
+        if (!template && !feature) product = await this.apigeeService.productGet(options.input);
+        if (!template && !feature && !product) user = await this.apigeeService.userGet(options.input);
       }
     }
 
-    if (!template && !proxy && !feature) {
+    if (!template && !proxy && !feature && !product && !user) {
       if (!options.token) {
         let token = await auth.getAccessToken();
         if (token) options.token = token;
       }
       if (options.input.endsWith(":")) options.input = options.input.replace(":", "");
+      if (options.format == "product") {
+        let productList = await this.apigeeService.apigeeProductsList(
+          options.input,
+          options.drz,
+          `Bearer ${options.token}`,
+        );
+        if (
+          !options.output &&
+          productList &&
+          productList["apiProduct"] &&
+          productList["apiProduct"].length > 0
+        ) {
+          console.log(
+            `\n  ${chalk.cyan.bold("Apigee org " + options.input + " products:")} ${chalk.gray("(get product info with -i '" + options.input + ":NAME' -f product)")}`,
+          );
+          for (let p of productList["apiProduct"]) {
+            console.log(`    ${chalk.green("•")} ${p["name"]}`);
+          }
+          console.log();
+        }
+        return;
+      } else if (options.format == "user") {
+        let userList = await this.apigeeService.apigeeUsersList(
+          options.input,
+          options.drz,
+          `Bearer ${options.token}`,
+        );
+        if (
+          !options.output &&
+          userList &&
+          userList["developer"] &&
+          userList["developer"].length > 0
+        ) {
+          console.log(
+            `\n  ${chalk.cyan.bold("Apigee org " + options.input + " developers/users:")} ${chalk.gray("(get user info with -i '" + options.input + ":EMAIL' -f user)")}`,
+          );
+          for (let u of userList["developer"]) {
+            console.log(`    ${chalk.green("•")} ${u["email"] || u["userName"]}`);
+          }
+          console.log();
+        }
+        return;
+      }
       let proxyList = await this.apigeeService.apigeeProxiesList(
         options.input,
         options.drz,
@@ -786,7 +904,7 @@ export class cli {
       );
       if (!options.output && proxyList && proxyList["proxies"] && proxyList["proxies"].length > 0) {
         console.log(
-          `\n  ${chalk.cyan.bold("Apigee org " + options.input + " proxies:")} ${chalk.gray("(get proxy info with -i '" + options.input + ":NAME')")}`
+          `\n  ${chalk.cyan.bold("Apigee org " + options.input + " proxies:")} ${chalk.gray("(get proxy info with -i '" + options.input + ":NAME')")}`,
         );
         for (let p of proxyList["proxies"]) {
           console.log(`    ${chalk.green("•")} ${p["name"]}`);
@@ -871,9 +989,13 @@ export class cli {
         if (!options.format) options.format = "template";
       } else if (feature) {
         if (!options.format) options.format = "feature";
+      } else if (product) {
+        if (!options.format) options.format = "product";
+      } else if (user) {
+        if (!options.format) options.format = "user";
       } else {
         console.log(
-          `  ${chalk.red.bold("✖ Input '" + options.input + "' could not be loaded. Please check spelling or path.")}`
+          `  ${chalk.red.bold("✖ Input '" + options.input + "' could not be loaded. Please check spelling or path.")}`,
         );
         return;
       }
@@ -917,7 +1039,7 @@ export class cli {
           this.printOverviewCard(
             `Proxy ${proxy.name}`,
             this.converter.proxyToStringArray(proxy),
-            options.output
+            options.output,
           );
         } else {
           console.log(`  ${chalk.red.bold("✖ Error: Could not write proxy zip.")}`);
@@ -1010,6 +1132,56 @@ export class cli {
                 );
                 if (!deployResult) throw new Error("Proxy could not be deployed.");
               }
+
+              if (org && template && template.products && template.products.length > 0) {
+                for (let prodItem of template.products) {
+                  let prodObj: Product | undefined;
+                  if (typeof prodItem === "string") {
+                    prodObj = await this.apigeeService.productGet(prodItem);
+                  } else if (typeof prodItem === "object") {
+                    prodObj = prodItem as Product;
+                  }
+                  if (prodObj) {
+                    if (env && prodObj.environments && !prodObj.environments.includes(env)) {
+                      prodObj.environments.push(env);
+                    } else if (env && !prodObj.environments) {
+                      prodObj.environments = [env];
+                    }
+                    if (
+                      (options.name || proxy.name) &&
+                      prodObj.proxies &&
+                      !prodObj.proxies.includes(options.name || proxy.name)
+                    ) {
+                      prodObj.proxies.push(options.name || proxy.name);
+                    }
+                    await this.apigeeService.apigeeProductExport(
+                      prodObj,
+                      org,
+                      options.drz,
+                      "Bearer " + options.token,
+                    );
+                  }
+                }
+              }
+
+              if (org && template && template.users && template.users.length > 0) {
+                for (let userItem of template.users) {
+                  let userObj: User | undefined;
+                  if (typeof userItem === "string") {
+                    userObj = await this.apigeeService.userGet(userItem);
+                  } else if (typeof userItem === "object") {
+                    userObj = userItem as User;
+                  }
+                  if (userObj) {
+                    await this.apigeeService.apigeeUserExport(
+                      userObj,
+                      org,
+                      options.drz,
+                      "Bearer " + options.token,
+                    );
+                  }
+                }
+              }
             } catch (ex) {
               fs.rmSync(outputPath);
               throw ex;
@@ -1040,7 +1212,7 @@ export class cli {
           this.printOverviewCard(
             `Proxy ${proxy.name}`,
             this.converter.proxyToStringArray(proxy),
-            displayDestination || options.output
+            displayDestination || options.output,
           );
         } else {
           console.log(`  ${chalk.red.bold("✖ Error: Could not create proxy.")}`);
@@ -1069,7 +1241,7 @@ export class cli {
           this.printOverviewCard(
             `Template ${template.name}`,
             this.converter.templateToString(template).split("\n"),
-            options.output
+            options.output,
           );
         }
       } else if (options.output && options.format == "feature") {
@@ -1102,7 +1274,141 @@ export class cli {
           this.printOverviewCard(
             `Feature ${feature.name}`,
             this.converter.featureToString(feature).split("\n"),
-            options.output
+            options.output,
+          );
+        }
+      } else if (product || (options.output && options.format == "product")) {
+        process.chdir(startDir);
+        if (product) {
+          if (options.name) product.name = options.name;
+          this.converter.productUpdateParameters(product, inputParameters);
+
+          let pieces =
+            options.output && options.output.includes(":") ? options.output.split(":") : [];
+          let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
+          if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+            org = options.output;
+          }
+          let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
+
+          if (options.output && options.output.toLowerCase().endsWith(".json")) {
+            fs.writeFileSync(options.output, JSON.stringify(product, null, 2));
+          } else if (
+            options.output &&
+            (options.output.toLowerCase().endsWith(".yaml") ||
+              options.output.toLowerCase().endsWith(".yml"))
+          ) {
+            fs.writeFileSync(
+              options.output,
+              YAML.stringify(product, {
+                aliasDuplicateObjects: false,
+                blockQuote: "literal",
+              }),
+            );
+          } else if (
+            (options.output && options.output.includes(":")) ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
+            if (!options.token) {
+              let token = await auth.getAccessToken();
+              if (token) options.token = token;
+            }
+            if (env && product.environments && !product.environments.includes(env)) {
+              product.environments.push(env);
+            } else if (env && !product.environments) {
+              product.environments = [env];
+            }
+            if (org) {
+              let exportResult = await this.apigeeService.apigeeProductExport(
+                product,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+              if (!exportResult) throw new Error("Product could not be exported.");
+            }
+          }
+
+          let displayDestination = options.output;
+          if (
+            !displayDestination ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
+            displayDestination = [org, options.name || product.name, env]
+              .filter(Boolean)
+              .join(":");
+          }
+
+          this.printOverviewCard(
+            `Product ${product.name}`,
+            this.converter.productToStringArray(product),
+            displayDestination || options.output,
+          );
+        }
+      } else if (user || (options.output && options.format == "user")) {
+        process.chdir(startDir);
+        if (user) {
+          if (options.name) user.name = options.name;
+          this.converter.userUpdateParameters(user, inputParameters);
+
+          let pieces =
+            options.output && options.output.includes(":") ? options.output.split(":") : [];
+          let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
+          if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+            org = options.output;
+          }
+
+          if (options.output && options.output.toLowerCase().endsWith(".json")) {
+            fs.writeFileSync(options.output, JSON.stringify(user, null, 2));
+          } else if (
+            options.output &&
+            (options.output.toLowerCase().endsWith(".yaml") ||
+              options.output.toLowerCase().endsWith(".yml"))
+          ) {
+            fs.writeFileSync(
+              options.output,
+              YAML.stringify(user, {
+                aliasDuplicateObjects: false,
+                blockQuote: "literal",
+              }),
+            );
+          } else if (
+            (options.output && options.output.includes(":")) ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
+            if (!options.token) {
+              let token = await auth.getAccessToken();
+              if (token) options.token = token;
+            }
+            if (org) {
+              let exportResult = await this.apigeeService.apigeeUserExport(
+                user,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+              if (!exportResult) throw new Error("User could not be exported.");
+            }
+          }
+
+          let displayDestination = options.output;
+          if (
+            !displayDestination ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
+            displayDestination = [org, options.name || user.name || user.email]
+              .filter(Boolean)
+              .join(":");
+          }
+
+          this.printOverviewCard(
+            `User ${user.name || user.email}`,
+            this.converter.userToStringArray(user),
+            displayDestination || options.output,
           );
         }
       }

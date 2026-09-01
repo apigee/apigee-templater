@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: feature-api-key-auth
+displayName: API Key Authentication
+type: feature
+description: Enforces API key verification via request header or query parameter
+priority: 10
+categories:
+  - security
+  - authentication
+parameters:
+  - name: API_KEY_HEADER
+    displayName: API Key Header Name
+    description: HTTP request header containing the API key
+    default: x-api-key
+    examples:
+      - x-api-key
+      - x-apikey
+defaultEndpoint:
+  name: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: Verify-API-Key
+policies:
+  - name: Verify-API-Key
+    type: VerifyAPIKey
+    content:
+      verifyAPIKey:
+        metadata:
+          name: Verify-API-Key
+        apiKey:
+          ref: request.header.{API_KEY_HEADER}

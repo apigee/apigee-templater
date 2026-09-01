@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: weather-api-v1
+displayName: Weather Forecast API v1
+type: proxy
+description: Production proxy routing to backend Weather forecast microservice with authentication and response formatting
+priority: 1
+categories:
+  - weather
+  - external-apis
+parameters:
+  - name: BACKEND_URL
+    displayName: Backend URL
+    description: Weather backend host URL
+    default: https://mocktarget.apigee.net
+endpoints:
+  - name: default
+    basePath: /v1/weather
+    routes:
+      - name: default
+        target: default
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps:
+          - name: Verify-API-Key
+      - name: PostFlow
+        mode: Response
+        steps:
+          - name: JS-TransformResponse
+targets:
+  - name: default
+    url: "{BACKEND_URL}"
+    flows:
+      - name: PreFlow
+        mode: Request
+        steps: []
+policies:
+  - name: Verify-API-Key
+    type: VerifyAPIKey
+    content:
+      verifyAPIKey:
+        metadata:
+          name: Verify-API-Key
+        apiKey:
+          ref: request.header.x-api-key
+  - name: JS-TransformResponse
+    type: Javascript
+    content:
+      javascript:
+        metadata:
+          name: JS-TransformResponse
+        source: |
+          var payload = JSON.parse(response.content);
+          payload.servedBy = "Apigee X";
+          response.content = JSON.stringify(payload);
