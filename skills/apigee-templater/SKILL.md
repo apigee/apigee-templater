@@ -535,7 +535,8 @@ name: ai-mcp-agent-starter
 displayName: AI & MCP Agent Starter Product
 type: product
 description: Unified product bundling Gemini 2.5 completions with MCP tool orchestration
-approvalType: auto
+access: public # public, private, or internal
+approvalType: auto # auto or manual
 environments:
   - dev
 proxies:

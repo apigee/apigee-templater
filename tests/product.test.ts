@@ -43,6 +43,7 @@ describe("Product data type and operations", () => {
       gateway: "apigee",
       schemaVersion: "1.0.0",
       description: "Access to Gemini endpoints",
+      access: "public",
       approvalType: "auto",
       environments: ["test", "prod"],
       proxies: ["gemini-proxy-v1"],
@@ -52,7 +53,6 @@ describe("Product data type and operations", () => {
       quotaInterval: "1",
       quotaTimeUnit: "month",
       attributes: [
-        { name: "access", value: "public" },
         { name: "custom_flag", value: "true" },
       ],
       operations: [
@@ -131,6 +131,8 @@ describe("Product data type and operations", () => {
     const convertedBack = converter.apigeeProductToProduct(apigeeProduct);
     expect(convertedBack.name).toBe("gemini-api-product");
     expect(convertedBack.displayName).toBe("Gemini API Product");
+    expect(convertedBack.access).toBe("public");
+    expect(convertedBack.approvalType).toBe("auto");
     expect(convertedBack.environments).toEqual(["test", "prod"]);
     expect(convertedBack.proxies).toEqual(["gemini-proxy-v1"]);
     expect(convertedBack.operations?.length).toBe(2);

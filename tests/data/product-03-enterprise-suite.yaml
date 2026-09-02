@@ -5,6 +5,7 @@ name: enterprise-suite-product
 displayName: Enterprise API Suite Product
 type: product
 description: Full enterprise bundle including REST, GraphQL, gRPC endpoints, and LLM services with SLA guarantees
+access: private
 approvalType: manual
 environments:
   - prod
@@ -17,32 +18,28 @@ scopes:
   - write:enterprise
   - admin
 attributes:
-  - name: access
-    value: private
   - name: tier
     value: enterprise-platinum
 operations:
-  - apiSource: enterprise-gateway-v1
-    operations:
-      - name: /v1/customers/**
-        methods:
-          - GET
-          - POST
-          - PUT
-          - DELETE
+  - name: /v1/customers/**
+    apiSource: enterprise-gateway-v1
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
 graphqlOperations:
-  - apiSource: enterprise-gateway-v1
-    operations:
-      - operation: CustomerQuery
-        operationTypes:
-          - QUERY
-      - operation: UpdateCustomerMutation
-        operationTypes:
-          - MUTATION
+  - operation: CustomerQuery
+    apiSource: enterprise-gateway-v1
+    operationTypes:
+      - QUERY
+  - operation: UpdateCustomerMutation
+    apiSource: enterprise-gateway-v1
+    operationTypes:
+      - MUTATION
 grpcOperations:
-  - apiSource: enterprise-gateway-v1
-    operations:
-      - service: com.enterprise.CustomerService
-        methods:
-          - GetCustomerDetails
-          - StreamCustomerUpdates
+  - service: customer.v1.CustomerService
+    apiSource: enterprise-gateway-v1
+    methods:
+      - GetCustomer
+      - StreamCustomerEvents

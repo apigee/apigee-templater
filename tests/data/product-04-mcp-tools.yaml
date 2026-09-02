@@ -5,6 +5,7 @@ name: mcp-customer-service-product
 displayName: MCP Customer Service Product
 type: product
 description: Model Context Protocol (MCP) tool server product for AI agents with granular per-tool quotas
+access: internal
 approvalType: auto
 environments:
   - dev
@@ -14,9 +15,6 @@ proxies:
 quota: "100000"
 quotaInterval: "1"
 quotaTimeUnit: month
-attributes:
-  - name: access
-    value: internal
 payloadOperations:
   - name: tools/list
     apiSource: MCP-CustomerService

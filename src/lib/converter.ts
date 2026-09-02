@@ -2895,18 +2895,35 @@ export class ApigeeConverter {
       apigeeProduct.scopes = [...product.scopes];
 
     // attributes
+    let attributes: any[] = [];
     if (product.attributes) {
       if (Array.isArray(product.attributes)) {
-        apigeeProduct.attributes = product.attributes.map((attr) => ({
+        attributes = product.attributes.map((attr) => ({
           name: attr.name,
           value: attr.value,
         }));
       } else if (typeof product.attributes === "object") {
-        apigeeProduct.attributes = Object.keys(product.attributes).map((key) => ({
+        attributes = Object.keys(product.attributes).map((key) => ({
           name: key,
           value: (product.attributes as any)[key],
         }));
       }
+    }
+
+    if (product.access) {
+      const existingAccessIdx = attributes.findIndex((a) => a.name === "access");
+      if (existingAccessIdx >= 0) {
+        attributes[existingAccessIdx].value = product.access;
+      } else {
+        attributes.unshift({
+          name: "access",
+          value: product.access,
+        });
+      }
+    }
+
+    if (attributes.length > 0) {
+      apigeeProduct.attributes = attributes;
     }
 
     // operations -> operationGroup
@@ -3200,12 +3217,19 @@ export class ApigeeConverter {
       product.scopes = apigeeProduct.scopes;
 
     if (apigeeProduct.attributes && Array.isArray(apigeeProduct.attributes)) {
+      const accessAttr = apigeeProduct.attributes.find((a: any) => a && a.name === "access");
+      if (accessAttr && accessAttr.value) {
+        product.access = accessAttr.value;
+      }
       product.attributes = apigeeProduct.attributes
-        .filter((a: any) => a && a.name)
+        .filter((a: any) => a && a.name && a.name !== "access")
         .map((a: any) => ({
           name: a.name,
           value: a.value || "",
         }));
+      if (product.attributes.length === 0) {
+        delete (product as any).attributes;
+      }
     }
 
     // operationGroup -> operations
@@ -3385,6 +3409,7 @@ export class ApigeeConverter {
     if (product.displayName) result.push(`Display Name: ${product.displayName}`);
     if (product.description) result.push(`Description: ${product.description}`);
     if (product.approvalType) result.push(`Approval Type: ${product.approvalType}`);
+    if (product.access) result.push(`Access: ${product.access}`);
     if (product.environments && product.environments.length > 0)
       result.push(`Environments: ${product.environments.join(", ")}`);
     if (product.proxies && product.proxies.length > 0)

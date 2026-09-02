@@ -5,6 +5,7 @@ name: ai-mcp-agent-starter
 displayName: AI & MCP Agent Starter Product
 type: product
 description: Unified product bundling Gemini 2.5 Flash / Pro model completions with MCP tool orchestration
+access: public
 approvalType: auto
 environments:
   - dev
@@ -14,9 +15,6 @@ proxies:
 quota: "50000"
 quotaInterval: "1"
 quotaTimeUnit: month
-attributes:
-  - name: access
-    value: public
 llmOperations:
   - name: /v1/chat/completions
     apiSource: REST-AI-Completions

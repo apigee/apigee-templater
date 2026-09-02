@@ -5,6 +5,7 @@ name: standard-api-product
 displayName: Standard Public API Product
 type: product
 description: Self-service access to public weather and core microservices with monthly rate limiting
+access: public
 approvalType: auto
 environments:
   - eval
@@ -17,26 +18,23 @@ quota: "10000"
 quotaInterval: "1"
 quotaTimeUnit: month
 attributes:
-  - name: access
-    value: public
   - name: ratelimit.category
     value: standard
 operations:
-  - apiSource: weather-api-v1
-    operations:
-      - name: /v1/weather/current
-        methods:
-          - GET
-      - name: /v1/weather/forecast
-        methods:
-          - GET
-        quota:
-          limit: "500"
-          interval: "1"
-          timeUnit: hour
-  - apiSource: mock-echo-service-v1
-    operations:
-      - name: /v1/mock-echo
-        methods:
-          - GET
-          - POST
+  - name: /v1/weather/current
+    apiSource: weather-api-v1
+    methods:
+      - GET
+  - name: /v1/weather/forecast
+    apiSource: weather-api-v1
+    methods:
+      - GET
+    quota:
+      limit: "500"
+      interval: "1"
+      timeUnit: hour
+  - name: /v1/mock-echo
+    apiSource: mock-echo-service-v1
+    methods:
+      - GET
+      - POST

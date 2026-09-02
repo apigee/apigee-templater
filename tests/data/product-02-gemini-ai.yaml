@@ -5,6 +5,7 @@ name: gemini-ai-developer-product
 displayName: Gemini AI Developer Product
 type: product
 description: Developer tier for generative AI chat completions, embeddings, and tool orchestration
+access: public
 approvalType: auto
 environments:
   - eval
@@ -15,8 +16,6 @@ quota: "50000"
 quotaInterval: "1"
 quotaTimeUnit: month
 attributes:
-  - name: access
-    value: developer
   - name: ai.quota.tokens
     value: "1000000"
 llmOperations:

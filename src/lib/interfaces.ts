@@ -297,7 +297,8 @@ export class Product {
   schemaVersion: string = "1.0.0";
   priority?: number;
   description: string = "";
-  approvalType?: string = "auto";
+  access?: "public" | "private" | "internal" | string = "public";
+  approvalType?: "auto" | "manual" | string = "auto";
   attributes?: ProductAttribute[] = [];
   environments?: string[] = [];
   proxies?: string[] = [];

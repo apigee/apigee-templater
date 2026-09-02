@@ -606,7 +606,14 @@
         "type": { "type": "string", "const": "product" },
         "gateway": { "type": "string" },
         "schemaVersion": { "type": "string" },
-        "approvalType": { "type": "string" },
+        "access": {
+          "type": "string",
+          "enum": ["public", "private", "internal"]
+        },
+        "approvalType": {
+          "type": "string",
+          "enum": ["auto", "manual"]
+        },
         "environments": {
           "type": "array",
           "items": { "type": "string" }
