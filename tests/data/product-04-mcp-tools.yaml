@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: mcp-customer-service-product
+displayName: MCP Customer Service Product
+type: product
+description: Model Context Protocol (MCP) tool server product for AI agents with granular per-tool quotas
+approvalType: auto
+environments:
+  - dev
+  - prod
+proxies:
+  - MCP-CustomerService
+quota: "100000"
+quotaInterval: "1"
+quotaTimeUnit: month
+attributes:
+  - name: protocol
+    value: MCP
+  - name: access
+    value: internal
+payloadOperations:
+  - apiSource: MCP-CustomerService
+    protocol: MCP
+    operations:
+      - name: tools/list
+        quota:
+          limit: "500"
+          interval: "1"
+          timeUnit: minute
+      - name: tools/call/lookup_customer
+        quota:
+          limit: "100"
+          interval: "1"
+          timeUnit: minute
+      - name: tools/call/create_support_ticket
+        quota:
+          limit: "20"
+          interval: "1"
+          timeUnit: minute
+      - name: tools/call/refund_order
+        quota:
+          limit: "5"
+          interval: "1"
+          timeUnit: minute
+      - name: resources/list
+        quota:
+          limit: "200"
+          interval: "1"
+          timeUnit: minute
+      - name: resources/read
+        quota:
+          limit: "200"
+          interval: "1"
+          timeUnit: minute
+      - name: prompts/list
+        quota:
+          limit: "100"
+          interval: "1"
+          timeUnit: minute

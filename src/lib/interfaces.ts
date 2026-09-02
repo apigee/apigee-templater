@@ -211,11 +211,20 @@ export class ProductLlmOperationConfig {
   models?: string[];
 }
 
+export class ProductPayloadOperation {
+  name?: string;
+  operation?: string;
+  methods?: string[];
+  quota?: ProductQuota;
+  attributes?: ProductAttribute[];
+}
+
 export class ProductPayloadOperationConfig {
   apiSource: string = "";
-  protocol?: string = "";
-  operations: string[] = [];
+  protocol?: string = "MCP";
+  operations?: (ProductPayloadOperation | string)[] = [];
   quota?: ProductQuota;
+  attributes?: ProductAttribute[];
 }
 
 export class ProductGraphqlOperation {

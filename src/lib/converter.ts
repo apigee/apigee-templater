@@ -2989,27 +2989,59 @@ export class ApigeeConverter {
     if (payloadOps && payloadOps.length > 0) {
       let operationConfigs: any[] = [];
       for (let op of payloadOps) {
-        let config: any = {
-          apiSource: op.apiSource || product.proxies?.[0] || product.name,
-        };
+        const apiSource = op.apiSource || product.proxies?.[0] || product.name;
         const ops = op.operations || (op as any).payloadOperations;
         if (ops && ops.length > 0) {
-          config.operations = ops.map((o: any) => {
-            if (o.quota && !config.quota) config.quota = o.quota;
-            return {
-              operation: o.operation || o.name || o.resource || "/",
-            };
-          });
+          // If operations have individual quotas, split them into separate configs so each gets its quota
+          const hasIndividualQuotas = ops.some(
+            (o: any) => typeof o === "object" && o && o.quota
+          );
+          if (hasIndividualQuotas) {
+            for (let o of ops) {
+              const opName =
+                typeof o === "string"
+                  ? o
+                  : o.operation || o.name || o.resource || "/";
+              const opQuota = typeof o === "object" && o.quota ? o.quota : op.quota;
+              const opAttrs =
+                typeof o === "object" && o.attributes ? o.attributes : op.attributes;
+              let singleConfig: any = {
+                apiSource: apiSource,
+                operations: [{ operation: opName }],
+              };
+              if (opQuota) singleConfig.quota = opQuota;
+              if (opAttrs && opAttrs.length > 0) singleConfig.attributes = opAttrs;
+              operationConfigs.push(singleConfig);
+            }
+            continue;
+          }
+
+          let config: any = {
+            apiSource: apiSource,
+            operations: ops.map((o: any) => ({
+              operation:
+                typeof o === "string"
+                  ? o
+                  : o.operation || o.name || o.resource || "/",
+            })),
+          };
+          if (op.quota) config.quota = op.quota;
+          if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
+          operationConfigs.push(config);
         } else if ((op as any).operation || (op as any).name || (op as any).resource) {
-          config.operations = [
-            {
-              operation: (op as any).operation || (op as any).name || (op as any).resource,
-            },
-          ];
+          let config: any = {
+            apiSource: apiSource,
+            operations: [
+              {
+                operation:
+                  (op as any).operation || (op as any).name || (op as any).resource,
+              },
+            ],
+          };
+          if (op.quota) config.quota = op.quota;
+          if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
+          operationConfigs.push(config);
         }
-        if (op.quota) config.quota = op.quota;
-        if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
-        operationConfigs.push(config);
       }
       apigeeProduct.payloadOperationGroup = {
         operationConfigs: operationConfigs,

@@ -1,54 +1,58 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
 gateway: apigee
 schemaVersion: 1.0.0
-name: gemini-ai-developer-product
-displayName: Gemini AI Developer Product
+name: ai-mcp-agent-starter
+displayName: AI & MCP Agent Starter Product
 type: product
-description: Developer tier for generative AI chat completions, embeddings, and tool orchestration
+description: Unified product bundling Gemini 2.5 Flash / Pro model completions with MCP tool orchestration
 approvalType: auto
 environments:
-  - eval
-  - prod
+  - dev
 proxies:
-  - gemini-ai-gateway-v1
+  - REST-AI-Completions
+  - MCP-CustomerService
 quota: "50000"
 quotaInterval: "1"
 quotaTimeUnit: month
 attributes:
   - name: access
-    value: developer
-  - name: ai.quota.tokens
-    value: "1000000"
+    value: public
+  - name: protocol
+    value: MCP
 llmOperations:
-  - apiSource: gemini-ai-gateway-v1
+  - apiSource: REST-AI-Completions
     operations:
-      - name: /v1/ai/chat/completions
-        model: gemini-1.5-pro
+      - name: /v1/chat/completions
+        model: gemini-2.5-flash
         methods:
           - POST
         quota:
-          limit: "60"
+          limit: "10000"
           interval: "1"
           timeUnit: minute
-      - name: /v1/ai/embeddings
-        model: text-embedding-004
+      - name: /v1/models/gemini-2.5-pro:generateContent
+        model: gemini-2.5-pro
         methods:
           - POST
+        quota:
+          limit: "2000"
+          interval: "1"
+          timeUnit: minute
 payloadOperations:
-  - apiSource: gemini-ai-gateway-v1
+  - apiSource: MCP-CustomerService
     protocol: MCP
     operations:
       - name: tools/list
         quota:
-          limit: "300"
+          limit: "600"
           interval: "1"
           timeUnit: minute
-      - name: tools/call/get_weather
+      - name: tools/call/get_customer_profile
         quota:
-          limit: "60"
+          limit: "120"
           interval: "1"
           timeUnit: minute
-      - name: tools/call/search_docs
+      - name: tools/call/send_agent_notification
         quota:
           limit: "30"
           interval: "1"

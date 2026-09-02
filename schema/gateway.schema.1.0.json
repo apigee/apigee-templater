@@ -485,13 +485,36 @@
       "required": ["apiSource"],
       "additionalProperties": false
     },
+    "ProductPayloadOperation": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "operation": { "type": "string" },
+        "methods": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "quota": { "$ref": "#/definitions/ProductQuota" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProductAttribute" }
+        }
+      },
+      "additionalProperties": false
+    },
     "ProductPayloadOperationConfig": {
       "type": "object",
       "properties": {
         "apiSource": { "type": "string" },
+        "protocol": { "type": "string" },
         "operations": {
           "type": "array",
-          "items": { "$ref": "#/definitions/ProductOperation" }
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/definitions/ProductPayloadOperation" }
+            ]
+          }
         },
         "quota": { "$ref": "#/definitions/ProductQuota" },
         "attributes": {

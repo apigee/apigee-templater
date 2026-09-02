@@ -360,4 +360,65 @@ products:
     }
     expect(isValidTemplate).toBe(true);
   });
+
+  it("should convert MCP payloadOperations with per-tool quotas to Apigee format and validate against schema", () => {
+    const mcpProductYaml = fs.readFileSync(
+      path.join(__dirname, "data", "product-04-mcp-tools.yaml"),
+      "utf8",
+    );
+    const ajv = new Ajv({ allErrors: true });
+    const schema = JSON.parse(
+      fs.readFileSync(
+        path.join(__dirname, "..", "schema", "gateway.schema.1.0.json"),
+        "utf8",
+      ),
+    );
+    const validate = ajv.compile(schema);
+    const parsedMcpProduct = parseYaml.parse(mcpProductYaml);
+
+    const isValid = validate(parsedMcpProduct);
+    if (!isValid) {
+      console.error("MCP Product validation errors:", validate.errors);
+    }
+    expect(isValid).toBe(true);
+
+    const apigeeProduct = converter.productToApigeeProduct(parsedMcpProduct);
+    expect(apigeeProduct.name).toBe("mcp-customer-service-product");
+    expect(apigeeProduct.payloadOperationGroup).toBeDefined();
+
+    // Since individual tools have specific quotas, they should be converted into separate operation configs
+    const configs = apigeeProduct.payloadOperationGroup.operationConfigs;
+    expect(configs.length).toBe(7);
+
+    // Verify tools/list config
+    expect(configs[0].apiSource).toBe("MCP-CustomerService");
+    expect(configs[0].operations[0].operation).toBe("tools/list");
+    expect(configs[0].quota).toEqual({
+      limit: "500",
+      interval: "1",
+      timeUnit: "minute",
+    });
+
+    // Verify tools/call/lookup_customer config
+    expect(configs[1].operations[0].operation).toBe("tools/call/lookup_customer");
+    expect(configs[1].quota).toEqual({
+      limit: "100",
+      interval: "1",
+      timeUnit: "minute",
+    });
+
+    // Verify tools/call/refund_order config
+    expect(configs[3].operations[0].operation).toBe("tools/call/refund_order");
+    expect(configs[3].quota).toEqual({
+      limit: "5",
+      interval: "1",
+      timeUnit: "minute",
+    });
+
+    // Convert back from Apigee
+    const convertedBack = converter.apigeeProductToProduct(apigeeProduct);
+    expect(convertedBack.name).toBe("mcp-customer-service-product");
+    expect(convertedBack.payloadOperations?.length).toBe(7);
+  });
 });
+
