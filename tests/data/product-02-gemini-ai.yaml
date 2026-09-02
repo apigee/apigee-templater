@@ -20,36 +20,45 @@ attributes:
   - name: ai.quota.tokens
     value: "1000000"
 llmOperations:
-  - apiSource: gemini-ai-gateway-v1
-    operations:
-      - name: /v1/ai/chat/completions
-        model: gemini-1.5-pro
-        methods:
-          - POST
-        quota:
-          limit: "60"
-          interval: "1"
-          timeUnit: minute
-      - name: /v1/ai/embeddings
-        model: text-embedding-004
-        methods:
-          - POST
+  - name: /v1/ai/chat/completions
+    apiSource: gemini-ai-gateway-v1
+    model: gemini-1.5-pro
+    methods:
+      - POST
+    quota:
+      limit: "60"
+      interval: "1"
+      timeUnit: minute
+  - name: /v1/ai/embeddings
+    apiSource: gemini-ai-gateway-v1
+    model: text-embedding-004
+    methods:
+      - POST
 payloadOperations:
-  - apiSource: gemini-ai-gateway-v1
+  - name: tools/list
+    apiSource: gemini-ai-gateway-v1
     protocol: MCP
-    operations:
-      - name: tools/list
-        quota:
-          limit: "300"
-          interval: "1"
-          timeUnit: minute
-      - name: tools/call/get_weather
-        quota:
-          limit: "60"
-          interval: "1"
-          timeUnit: minute
-      - name: tools/call/search_docs
-        quota:
-          limit: "30"
-          interval: "1"
-          timeUnit: minute
+    quota:
+      limit: "300"
+      interval: "1"
+      timeUnit: minute
+  - name: tools/call
+    apiSource: gemini-ai-gateway-v1
+    protocol: MCP
+    attributes:
+      - name: tool
+        value: get_weather
+    quota:
+      limit: "60"
+      interval: "1"
+      timeUnit: minute
+  - name: tools/call
+    apiSource: gemini-ai-gateway-v1
+    protocol: MCP
+    attributes:
+      - name: tool
+        value: search_docs
+    quota:
+      limit: "30"
+      interval: "1"
+      timeUnit: minute

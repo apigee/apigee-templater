@@ -17,43 +17,50 @@ quotaTimeUnit: month
 attributes:
   - name: access
     value: public
-  - name: protocol
-    value: MCP
 llmOperations:
-  - apiSource: REST-AI-Completions
-    operations:
-      - name: /v1/chat/completions
-        model: gemini-2.5-flash
-        methods:
-          - POST
-        quota:
-          limit: "10000"
-          interval: "1"
-          timeUnit: minute
-      - name: /v1/models/gemini-2.5-pro:generateContent
-        model: gemini-2.5-pro
-        methods:
-          - POST
-        quota:
-          limit: "2000"
-          interval: "1"
-          timeUnit: minute
+  - name: /v1/chat/completions
+    apiSource: REST-AI-Completions
+    model: gemini-2.5-flash
+    methods:
+      - POST
+    quota:
+      limit: "10000"
+      interval: "1"
+      timeUnit: minute
+  - name: /v1/models/gemini-2.5-pro:generateContent
+    apiSource: REST-AI-Completions
+    model: gemini-2.5-pro
+    methods:
+      - POST
+    quota:
+      limit: "2000"
+      interval: "1"
+      timeUnit: minute
 payloadOperations:
-  - apiSource: MCP-CustomerService
+  - name: tools/list
+    apiSource: MCP-CustomerService
     protocol: MCP
-    operations:
-      - name: tools/list
-        quota:
-          limit: "600"
-          interval: "1"
-          timeUnit: minute
-      - name: tools/call/get_customer_profile
-        quota:
-          limit: "120"
-          interval: "1"
-          timeUnit: minute
-      - name: tools/call/send_agent_notification
-        quota:
-          limit: "30"
-          interval: "1"
-          timeUnit: minute
+    quota:
+      limit: "600"
+      interval: "1"
+      timeUnit: minute
+  - name: tools/call
+    apiSource: MCP-CustomerService
+    protocol: MCP
+    attributes:
+      - name: tool
+        value: get_customer_profile
+    quota:
+      limit: "120"
+      interval: "1"
+      timeUnit: minute
+  - name: tools/call
+    apiSource: MCP-CustomerService
+    protocol: MCP
+    attributes:
+      - name: tool
+        value: send_agent_notification
+    quota:
+      limit: "30"
+      interval: "1"
+      timeUnit: minute

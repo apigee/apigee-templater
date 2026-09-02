@@ -105,12 +105,17 @@ describe("Product data type and operations", () => {
       { name: "custom_flag", value: "true" },
     ]);
 
-    // Check operationGroup
+    // Check operationGroup (split into 2 configs because /chat has its own quota)
     expect(apigeeProduct.operationGroup).toBeDefined();
-    expect(apigeeProduct.operationGroup.operationConfigs.length).toBe(1);
+    expect(apigeeProduct.operationGroup.operationConfigs.length).toBe(2);
     expect(apigeeProduct.operationGroup.operationConfigs[0].apiSource).toBe("gemini-proxy-v1");
-    expect(apigeeProduct.operationGroup.operationConfigs[0].operations.length).toBe(2);
     expect(apigeeProduct.operationGroup.operationConfigs[0].operations[0].resource).toBe("/models");
+    expect(apigeeProduct.operationGroup.operationConfigs[1].operations[0].resource).toBe("/chat");
+    expect(apigeeProduct.operationGroup.operationConfigs[1].quota).toEqual({
+      limit: "100",
+      interval: "1",
+      timeUnit: "minute",
+    });
 
     // Check llmOperationGroup
     expect(apigeeProduct.llmOperationGroup).toBeDefined();
@@ -128,10 +133,8 @@ describe("Product data type and operations", () => {
     expect(convertedBack.displayName).toBe("Gemini API Product");
     expect(convertedBack.environments).toEqual(["test", "prod"]);
     expect(convertedBack.proxies).toEqual(["gemini-proxy-v1"]);
-    expect(convertedBack.operations?.length).toBe(1);
-    expect(convertedBack.operations?.[0].operations?.length).toBe(2);
+    expect(convertedBack.operations?.length).toBe(2);
     expect(convertedBack.llmOperations?.length).toBe(1);
-    expect(convertedBack.llmOperations?.[0].operations?.[0].model).toBe("gemini-1.5-pro");
     expect(convertedBack.payloadOperations?.length).toBe(1);
   });
 
@@ -399,16 +402,18 @@ products:
       timeUnit: "minute",
     });
 
-    // Verify tools/call/lookup_customer config
-    expect(configs[1].operations[0].operation).toBe("tools/call/lookup_customer");
+    // Verify tools/call config with lookup_customer attribute
+    expect(configs[1].operations[0].operation).toBe("tools/call");
+    expect(configs[1].attributes).toEqual([{ name: "tool", value: "lookup_customer" }]);
     expect(configs[1].quota).toEqual({
       limit: "100",
       interval: "1",
       timeUnit: "minute",
     });
 
-    // Verify tools/call/refund_order config
-    expect(configs[3].operations[0].operation).toBe("tools/call/refund_order");
+    // Verify tools/call config with refund_order attribute
+    expect(configs[3].operations[0].operation).toBe("tools/call");
+    expect(configs[3].attributes).toEqual([{ name: "tool", value: "refund_order" }]);
     expect(configs[3].quota).toEqual({
       limit: "5",
       interval: "1",

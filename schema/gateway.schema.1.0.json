@@ -421,6 +421,7 @@
     "ProductOperation": {
       "type": "object",
       "properties": {
+        "apiSource": { "type": "string" },
         "name": { "type": "string" },
         "methods": {
           "type": "array",
@@ -448,12 +449,13 @@
           "items": { "$ref": "#/definitions/ProductAttribute" }
         }
       },
-      "required": ["apiSource"],
+      "required": ["operations"],
       "additionalProperties": false
     },
     "ProductLlmOperation": {
       "type": "object",
       "properties": {
+        "apiSource": { "type": "string" },
         "name": { "type": "string" },
         "methods": {
           "type": "array",
@@ -482,12 +484,14 @@
           "items": { "$ref": "#/definitions/ProductAttribute" }
         }
       },
-      "required": ["apiSource"],
+      "required": ["operations"],
       "additionalProperties": false
     },
     "ProductPayloadOperation": {
       "type": "object",
       "properties": {
+        "apiSource": { "type": "string" },
+        "protocol": { "type": "string" },
         "name": { "type": "string" },
         "operation": { "type": "string" },
         "methods": {
@@ -522,12 +526,13 @@
           "items": { "$ref": "#/definitions/ProductAttribute" }
         }
       },
-      "required": ["apiSource"],
+      "required": ["operations"],
       "additionalProperties": false
     },
     "ProductGraphqlOperation": {
       "type": "object",
       "properties": {
+        "apiSource": { "type": "string" },
         "operation": { "type": "string" },
         "operationTypes": {
           "type": "array",
@@ -555,12 +560,13 @@
           "items": { "$ref": "#/definitions/ProductAttribute" }
         }
       },
-      "required": ["apiSource"],
+      "required": ["operations"],
       "additionalProperties": false
     },
     "ProductGrpcOperation": {
       "type": "object",
       "properties": {
+        "apiSource": { "type": "string" },
         "methods": {
           "type": "array",
           "items": { "type": "string" }
@@ -588,7 +594,7 @@
           "items": { "$ref": "#/definitions/ProductAttribute" }
         }
       },
-      "required": ["apiSource"],
+      "required": ["operations"],
       "additionalProperties": false
     },
     "Product": {
@@ -626,23 +632,48 @@
         },
         "operations": {
           "type": "array",
-          "items": { "$ref": "#/definitions/ProductOperationConfig" }
+          "items": {
+            "oneOf": [
+              { "$ref": "#/definitions/ProductOperation" },
+              { "$ref": "#/definitions/ProductOperationConfig" }
+            ]
+          }
         },
         "llmOperations": {
           "type": "array",
-          "items": { "$ref": "#/definitions/ProductLlmOperationConfig" }
+          "items": {
+            "oneOf": [
+              { "$ref": "#/definitions/ProductLlmOperation" },
+              { "$ref": "#/definitions/ProductLlmOperationConfig" }
+            ]
+          }
         },
         "payloadOperations": {
           "type": "array",
-          "items": { "$ref": "#/definitions/ProductPayloadOperationConfig" }
+          "items": {
+            "oneOf": [
+              { "$ref": "#/definitions/ProductPayloadOperation" },
+              { "$ref": "#/definitions/ProductPayloadOperationConfig" }
+            ]
+          }
         },
         "graphqlOperations": {
           "type": "array",
-          "items": { "$ref": "#/definitions/ProductGraphqlOperationConfig" }
+          "items": {
+            "oneOf": [
+              { "$ref": "#/definitions/ProductGraphqlOperation" },
+              { "$ref": "#/definitions/ProductGraphqlOperationConfig" }
+            ]
+          }
         },
         "grpcOperations": {
           "type": "array",
-          "items": { "$ref": "#/definitions/ProductGrpcOperationConfig" }
+          "items": {
+            "oneOf": [
+              { "$ref": "#/definitions/ProductGrpcOperation" },
+              { "$ref": "#/definitions/ProductGrpcOperationConfig" }
+            ]
+          }
         }
       },
       "required": ["name", "type", "gateway", "schemaVersion"],

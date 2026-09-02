@@ -523,13 +523,75 @@ When an input name is specified without a fixed format or type (e.g. `aft auth-o
 
 ---
 
-## 11. Checklist & Best Practices
+## 11. API Products & Streamlined Operations (MCP, LLM, GraphQL, gRPC, REST)
+
+Apigee API Products support flat, concise operations arrays where all operation-specific attributes (`apiSource`, `quota`, `model`, `protocol`, `attributes`) live directly on each list item:
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: ai-mcp-agent-starter
+displayName: AI & MCP Agent Starter Product
+type: product
+description: Unified product bundling Gemini 2.5 completions with MCP tool orchestration
+approvalType: auto
+environments:
+  - dev
+proxies:
+  - REST-AI-Completions
+  - MCP-CustomerService
+quota: "50000"
+quotaInterval: "1"
+quotaTimeUnit: month
+
+# Streamlined LLM Operations
+llmOperations:
+  - name: /v1/chat/completions
+    apiSource: REST-AI-Completions
+    model: gemini-2.5-flash
+    methods:
+      - POST
+    quota:
+      limit: "10000"
+      interval: "1"
+      timeUnit: minute
+
+# Streamlined MCP Payload Operations
+payloadOperations:
+  - name: tools/list
+    apiSource: MCP-CustomerService
+    protocol: MCP
+    quota:
+      limit: "600"
+      interval: "1"
+      timeUnit: minute
+  - name: tools/call
+    apiSource: MCP-CustomerService
+    protocol: MCP
+    attributes:
+      - name: tool
+        value: get_customer_profile
+    quota:
+      limit: "120"
+      interval: "1"
+      timeUnit: minute
+```
+
+### Operation Conventions:
+- **`operations`**: REST path operations with `name`, `methods`, `apiSource`, and `quota`.
+- **`llmOperations`**: Generative AI routes with `name`, `model` (e.g., `gemini-2.5-pro`), `methods`, `apiSource`, and `quota`.
+- **`payloadOperations`**: MCP tool/resource/prompt operations with `name` (`tools/list`, `tools/call`, `resources/list`, `prompts/list`), `protocol: MCP`, `apiSource`, `attributes` (e.g. `tool: <tool_name>`), and `quota`.
+- **`graphqlOperations`**: GraphQL schema operations with `operation`, `operationTypes`, `apiSource`, and `quota`.
+- **`grpcOperations`**: gRPC service endpoints with `service`, `methods`, `apiSource`, and `quota`.
+
+---
+
+## 12. Checklist & Best Practices
 - [ ] Check if `setValue` is used instead of `value` for all KVM `put` operations.
 - [ ] Ensure `response.content` assignments occur in `mode: Response` flows (`PostFlow` or target response flows).
 - [ ] Attach `EventFlow` on target responses when processing streaming / SSE data.
 - [ ] Include required `resources` if JavaScript policies use `includeUrl` (e.g. `jsc://ai-functions.js`).
 - [ ] Use `-f sharedflow` or `-f sf` when exporting Features as Apigee SharedFlow bundles or deploying SharedFlows to Apigee X.
 - [ ] When fetching from repositories, reference names directly without needing full URLs or file extensions (e.g. `aft auth-oauth21-server --organization my-org`).
-
-
-
+- [ ] Use direct flat list items for `operations`, `llmOperations`, and `payloadOperations` in Product YAML files for cleaner structure.
