@@ -3390,17 +3390,49 @@ export class ApigeeConverter {
         if (attr.value) attr.value = replaceStr(attr.value);
       }
     }
-    if (product.operations) {
-      for (let op of product.operations) {
-        if (op.apiSource) op.apiSource = replaceStr(op.apiSource);
-        if (op.operations) {
-          for (let o of op.operations) {
+
+    const updateOpList = (list?: any[]) => {
+      if (!list) return;
+      for (let item of list) {
+        if (item.apiSource) item.apiSource = replaceStr(item.apiSource);
+        if (item.name) item.name = replaceStr(item.name);
+        if (item.resource) item.resource = replaceStr(item.resource);
+        if (item.operation) item.operation = replaceStr(item.operation);
+        if (item.model) item.model = replaceStr(item.model);
+        if (item.protocol) item.protocol = replaceStr(item.protocol);
+        if (item.service) item.service = replaceStr(item.service);
+        if (item.attributes && Array.isArray(item.attributes)) {
+          for (let attr of item.attributes) {
+            if (attr.name) attr.name = replaceStr(attr.name);
+            if (attr.value) attr.value = replaceStr(attr.value);
+          }
+        }
+        if (item.operations && Array.isArray(item.operations)) {
+          for (let o of item.operations) {
             if (o.name) o.name = replaceStr(o.name);
             if (o.resource) o.resource = replaceStr(o.resource);
+            if (o.operation) o.operation = replaceStr(o.operation);
+            if (o.model) o.model = replaceStr(o.model);
+            if (o.protocol) o.protocol = replaceStr(o.protocol);
+            if (o.service) o.service = replaceStr(o.service);
+            if (o.attributes && Array.isArray(o.attributes)) {
+              for (let attr of o.attributes) {
+                if (attr.name) attr.name = replaceStr(attr.name);
+                if (attr.value) attr.value = replaceStr(attr.value);
+              }
+            }
           }
         }
       }
-    }
+    };
+
+    updateOpList(product.operations);
+    updateOpList(product.llmOperations);
+    updateOpList((product as any).llmoperations);
+    updateOpList(product.payloadOperations);
+    updateOpList((product as any).payloadoperations);
+    updateOpList(product.graphqlOperations);
+    updateOpList(product.grpcOperations);
   }
 
   public productToStringArray(product: Product): string[] {

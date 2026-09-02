@@ -468,7 +468,7 @@ export class ApigeeTemplaterService {
     });
   }
 
-  public async templateGet(name: string): Promise<Template | undefined> {
+  public async templateGet(name: string, relativeDir?: string): Promise<Template | undefined> {
     return new Promise(async (resolve, reject) => {
       let result: Template | undefined = undefined;
       const candidates = this.getCandidateFilenames(name);
@@ -476,9 +476,11 @@ export class ApigeeTemplaterService {
       // 1. Local filesystem check
       for (const candidate of candidates) {
         const localPaths = [
+          ...(relativeDir ? [path.resolve(relativeDir, candidate), path.join(relativeDir, candidate)] : []),
           path.join(this.templatesPath, candidate),
           path.join("repository/templates", candidate),
           candidate,
+          path.resolve(process.cwd(), candidate),
           path.join(process.cwd(), candidate),
           path.join(import.meta.dirname, "../templates", candidate),
         ];
@@ -597,7 +599,7 @@ export class ApigeeTemplaterService {
     );
   }
 
-  public async featureGet(name: string): Promise<Feature | undefined> {
+  public async featureGet(name: string, relativeDir?: string): Promise<Feature | undefined> {
     return new Promise(async (resolve, reject) => {
       let result: Feature | undefined = undefined;
       const candidates = this.getCandidateFilenames(name);
@@ -605,9 +607,11 @@ export class ApigeeTemplaterService {
       // 1. Local filesystem check
       for (const candidate of candidates) {
         const localPaths = [
+          ...(relativeDir ? [path.resolve(relativeDir, candidate), path.join(relativeDir, candidate)] : []),
           path.join(this.featuresPath, candidate),
           path.join("repository/features", candidate),
           candidate,
+          path.resolve(process.cwd(), candidate),
           path.join(process.cwd(), candidate),
           path.join(import.meta.dirname, "../features", candidate),
         ];
@@ -1448,7 +1452,23 @@ export class ApigeeTemplaterService {
     });
   }
 
-  public async productGet(name: string): Promise<Product | undefined> {
+  public async loadProduct(
+    productRef: string | Product,
+    relativeDir?: string,
+  ): Promise<Product | undefined> {
+    return new Promise(async (resolve) => {
+      if (typeof productRef === "object" && productRef !== null) {
+        return resolve(productRef as Product);
+      }
+      if (typeof productRef === "string") {
+        let res = await this.productGet(productRef, relativeDir);
+        return resolve(res);
+      }
+      resolve(undefined);
+    });
+  }
+
+  public async productGet(name: string, relativeDir?: string): Promise<Product | undefined> {
     return new Promise(async (resolve, reject) => {
       let result: Product | undefined = undefined;
       const candidates = this.getCandidateFilenames(name);
@@ -1456,9 +1476,11 @@ export class ApigeeTemplaterService {
       // 1. Local filesystem check
       for (const candidate of candidates) {
         const localPaths = [
+          ...(relativeDir ? [path.resolve(relativeDir, candidate), path.join(relativeDir, candidate)] : []),
           path.join(this.productsPath, candidate),
           path.join("repository/products", candidate),
           candidate,
+          path.resolve(process.cwd(), candidate),
           path.join(process.cwd(), candidate),
           path.join(import.meta.dirname, "../products", candidate),
         ];
@@ -1785,7 +1807,23 @@ export class ApigeeTemplaterService {
     });
   }
 
-  public async userGet(name: string): Promise<User | undefined> {
+  public async loadUser(
+    userRef: string | User,
+    relativeDir?: string,
+  ): Promise<User | undefined> {
+    return new Promise(async (resolve) => {
+      if (typeof userRef === "object" && userRef !== null) {
+        return resolve(userRef as User);
+      }
+      if (typeof userRef === "string") {
+        let res = await this.userGet(userRef, relativeDir);
+        return resolve(res);
+      }
+      resolve(undefined);
+    });
+  }
+
+  public async userGet(name: string, relativeDir?: string): Promise<User | undefined> {
     return new Promise(async (resolve, reject) => {
       let result: User | undefined = undefined;
       const candidates = this.getCandidateFilenames(name);
@@ -1793,9 +1831,11 @@ export class ApigeeTemplaterService {
       // 1. Local filesystem check
       for (const candidate of candidates) {
         const localPaths = [
+          ...(relativeDir ? [path.resolve(relativeDir, candidate), path.join(relativeDir, candidate)] : []),
           path.join(this.usersPath, candidate),
           path.join("repository/users", candidate),
           candidate,
+          path.resolve(process.cwd(), candidate),
           path.join(process.cwd(), candidate),
           path.join(import.meta.dirname, "../users", candidate),
         ];

@@ -696,6 +696,7 @@ export class cli {
     let product: Product | undefined = undefined;
     let user: User | undefined = undefined;
     let startDir = process.cwd();
+    let templateDir = "";
 
     // Parse parameters
     let inputParameters: { [key: string]: string } = {};
@@ -830,6 +831,7 @@ export class cli {
         if (proxy && !proxy.description) proxy.description = "Proxy for " + proxy.name;
       }
     } else if (fs.existsSync(options.input)) {
+      templateDir = path.dirname(path.resolve(options.input));
       let file = await this.loadFile(options.name, options.input);
       if (file && file["type"] === "template") template = file as Template;
       else if (file && file["type"] === "proxy") proxy = file as Proxy;
@@ -1363,6 +1365,8 @@ export class cli {
 
         process.chdir(startDir);
         if (proxy) {
+          let deployedProducts: Product[] = [];
+          let deployedUsers: User[] = [];
           if (options.name) proxy.name = options.name;
           if (options.output && options.output.toLowerCase().endsWith(".json")) {
             fs.writeFileSync(options.output, JSON.stringify(proxy, null, 2));
@@ -1426,30 +1430,39 @@ export class cli {
 
               if (org && template && template.products && template.products.length > 0) {
                 for (let prodItem of template.products) {
-                  let prodObj: Product | undefined;
-                  if (typeof prodItem === "string") {
-                    prodObj = await this.apigeeService.productGet(prodItem);
-                  } else if (typeof prodItem === "object") {
-                    prodObj = prodItem as Product;
-                  }
+                  let prodObj: Product | undefined = await this.apigeeService.loadProduct(
+                    prodItem,
+                    templateDir,
+                  );
                   if (prodObj) {
+                    this.converter.productUpdateParameters(prodObj, inputParameters);
                     if (env && prodObj.environments && !prodObj.environments.includes(env)) {
                       prodObj.environments.push(env);
                     } else if (env && !prodObj.environments) {
                       prodObj.environments = [env];
                     }
+                    const proxyName = options.name || proxy.name;
                     if (
-                      (options.name || proxy.name) &&
+                      proxyName &&
                       prodObj.proxies &&
-                      !prodObj.proxies.includes(options.name || proxy.name)
+                      !prodObj.proxies.includes(proxyName)
                     ) {
-                      prodObj.proxies.push(options.name || proxy.name);
+                      prodObj.proxies.push(proxyName);
                     }
-                    await this.apigeeService.apigeeProductExport(
+                    let exportResult = await this.apigeeService.apigeeProductExport(
                       prodObj,
                       org,
                       options.drz,
                       "Bearer " + options.token,
+                    );
+                    if (exportResult) {
+                      deployedProducts.push(prodObj);
+                    } else {
+                      throw new Error(`Product ${prodObj.name} could not be exported.`);
+                    }
+                  } else {
+                    console.log(
+                      `  ${chalk.yellow.bold("⚠ Warning: Could not resolve product:")} ${typeof prodItem === "string" ? prodItem : JSON.stringify(prodItem)}`,
                     );
                   }
                 }
@@ -1457,18 +1470,26 @@ export class cli {
 
               if (org && template && template.users && template.users.length > 0) {
                 for (let userItem of template.users) {
-                  let userObj: User | undefined;
-                  if (typeof userItem === "string") {
-                    userObj = await this.apigeeService.userGet(userItem);
-                  } else if (typeof userItem === "object") {
-                    userObj = userItem as User;
-                  }
+                  let userObj: User | undefined = await this.apigeeService.loadUser(
+                    userItem,
+                    templateDir,
+                  );
                   if (userObj) {
-                    await this.apigeeService.apigeeUserExport(
+                    this.converter.userUpdateParameters(userObj, inputParameters);
+                    let exportResult = await this.apigeeService.apigeeUserExport(
                       userObj,
                       org,
                       options.drz,
                       "Bearer " + options.token,
+                    );
+                    if (exportResult) {
+                      deployedUsers.push(userObj);
+                    } else {
+                      throw new Error(`User ${userObj.name || userObj.email} could not be exported.`);
+                    }
+                  } else {
+                    console.log(
+                      `  ${chalk.yellow.bold("⚠ Warning: Could not resolve user:")} ${typeof userItem === "string" ? userItem : JSON.stringify(userItem)}`,
                     );
                   }
                 }
@@ -1505,6 +1526,28 @@ export class cli {
             this.converter.proxyToStringArray(proxy),
             displayDestination || options.output,
           );
+
+          if (deployedProducts && deployedProducts.length > 0) {
+            for (let prod of deployedProducts) {
+              let prodDest = [org, prod.name, env].filter(Boolean).join(":");
+              this.printOverviewCard(
+                `Product ${prod.name}`,
+                this.converter.productToStringArray(prod),
+                prodDest,
+              );
+            }
+          }
+
+          if (deployedUsers && deployedUsers.length > 0) {
+            for (let usr of deployedUsers) {
+              let userDest = [org, usr.name || usr.email].filter(Boolean).join(":");
+              this.printOverviewCard(
+                `User ${usr.name || usr.email}`,
+                this.converter.userToStringArray(usr),
+                userDest,
+              );
+            }
+          }
         } else {
           console.log(`  ${chalk.red.bold("✖ Error: Could not create proxy.")}`);
           return;

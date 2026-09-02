@@ -419,6 +419,67 @@ resources: []
       myCli.apigeeService.apigeeUserExport = originalUserExport;
     }
   });
+
+  it("should deploy proxy, products, and users when deploying a template referencing them", async () => {
+    let exportedProxyName = "";
+    let deployedRevision = "";
+    let deployedEnv = "";
+    let exportedProducts: any[] = [];
+    let exportedUsers: any[] = [];
+
+    const origProxyExport = myCli.apigeeService.apigeeProxyExport;
+    const origDeploy = myCli.apigeeService.apigeeProxyRevisionDeploy;
+    const origProductExport = myCli.apigeeService.apigeeProductExport;
+    const origUserExport = myCli.apigeeService.apigeeUserExport;
+
+    myCli.apigeeService.apigeeProxyExport = async (name, path, org, drz, token) => {
+      exportedProxyName = name;
+      return "1";
+    };
+    myCli.apigeeService.apigeeProxyRevisionDeploy = async (name, rev, sa, env, org, drz, token) => {
+      deployedRevision = rev;
+      deployedEnv = env;
+      return true;
+    };
+    myCli.apigeeService.apigeeProductExport = async (prod, org, drz, token) => {
+      exportedProducts.push(prod);
+      return true;
+    };
+    myCli.apigeeService.apigeeUserExport = async (usr, org, drz, token) => {
+      exportedUsers.push(usr);
+      return true;
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "-i",
+        "tests/data/template-01-basic-api.yaml",
+        "--organization",
+        "aigateway-lab8",
+        "--environment",
+        "dev",
+        "--token",
+        "test-token",
+      ]);
+
+      expect(exportedProxyName).toBe("template-01-basic-api");
+      expect(deployedRevision).toBe("1");
+      expect(deployedEnv).toBe("dev");
+      expect(exportedProducts.length).toBe(1);
+      expect(exportedProducts[0].name).toBe("standard-api-product");
+      expect(exportedProducts[0].environments).toContain("dev");
+      expect(exportedProducts[0].proxies).toContain("template-01-basic-api");
+      expect(exportedUsers.length).toBe(1);
+      expect(exportedUsers[0].email).toBe("john.doe@example.com");
+    } finally {
+      myCli.apigeeService.apigeeProxyExport = origProxyExport;
+      myCli.apigeeService.apigeeProxyRevisionDeploy = origDeploy;
+      myCli.apigeeService.apigeeProductExport = origProductExport;
+      myCli.apigeeService.apigeeUserExport = origUserExport;
+    }
+  });
 });
 
 

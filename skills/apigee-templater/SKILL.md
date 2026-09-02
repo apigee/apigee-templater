@@ -588,7 +588,47 @@ payloadOperations:
 
 ---
 
-## 12. Checklist & Best Practices
+---
+
+## 12. Full-Stack Template Deployment (Proxy + Features + Products + Users)
+
+Apigee templates can compose proxies from features while bundling referenced **Products** and **Users** (Developers & Developer Apps). When deploying a template to Apigee, `aft` creates and deploys the entire ecosystem in a single command:
+
+1. Assembles and deploys the API Proxy (and referenced Features).
+2. Deploys all referenced API Products (resolving relative paths, substituting parameters, and associating proxies/environments).
+3. Deploys all referenced Users (developers and developer apps with credential keys and product associations).
+4. Prints visual Overview Cards for each deployed asset.
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: template-enterprise-gateway
+type: template
+description: Enterprise gateway proxy bundle with features, products, and developer onboarding
+features:
+  - feature-01-api-key-auth.yaml
+  - feature-02-rate-limiting.yaml
+endpoints:
+  - name: default
+    basePath: /v1/enterprise
+targets:
+  - name: default
+    url: https://internal.enterprise.com
+products:
+  - product-03-enterprise-suite.yaml
+users:
+  - user-02-partner.yaml
+```
+
+Deploy everything in one command:
+```bash
+aft template-enterprise-gateway.yaml --organization my-apigee-org --environment dev
+```
+
+---
+
+## 13. Checklist & Best Practices
 - [ ] Check if `setValue` is used instead of `value` for all KVM `put` operations.
 - [ ] Ensure `response.content` assignments occur in `mode: Response` flows (`PostFlow` or target response flows).
 - [ ] Attach `EventFlow` on target responses when processing streaming / SSE data.
@@ -596,3 +636,5 @@ payloadOperations:
 - [ ] Use `-f sharedflow` or `-f sf` when exporting Features as Apigee SharedFlow bundles or deploying SharedFlows to Apigee X.
 - [ ] When fetching from repositories, reference names directly without needing full URLs or file extensions (e.g. `aft auth-oauth21-server --organization my-org`).
 - [ ] Use direct flat list items for `operations`, `llmOperations`, and `payloadOperations` in Product YAML files for cleaner structure.
+- [ ] When deploying a template to an Apigee organization/environment, referenced `products` and `users` are deployed automatically alongside the proxy.
+

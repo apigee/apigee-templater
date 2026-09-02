@@ -13,8 +13,8 @@ export class Template {
   parameters: Parameter[] = [];
   endpoints: Endpoint[] = [];
   targets: Target[] = [];
-  products?: string[] = [];
-  users?: string[] = [];
+  products?: (string | Product)[] = [];
+  users?: (string | User)[] = [];
   tests?: Test[] = [];
 }
 
