@@ -76,6 +76,7 @@ export class cli {
         "--token": String,
         "--help": Boolean,
         "--version": Boolean,
+        "--delete": Boolean,
         "--config": String,
         "--drz": String,
         "-i": "--input",
@@ -101,7 +102,11 @@ export class cli {
 
     if ((args["--applyFeature"] || args["--removeFeature"]) && args["_"] && args["_"][0]) {
       args["--input"] = args["_"][0];
-    } else if (args["_"] && args["_"][0] && (args["--output"] || args["--organization"])) {
+    } else if (
+      args["_"] &&
+      args["_"][0] &&
+      (args["--output"] || args["--organization"] || args["--delete"])
+    ) {
       args["--input"] = args["_"][0];
     } else if (args["_"] && args["_"][0]) {
       args["--output"] =
@@ -129,6 +134,7 @@ export class cli {
       help: args["--help"] || false,
       version: args["--version"] || false,
       config: args["--config"] || "",
+      delete: args["--delete"] || false,
       drz: args["--drz"] || "",
     };
   }
@@ -506,6 +512,7 @@ export class cli {
           "--parameters",
           "--token",
           "--config",
+          "--delete",
           "--drz",
           "--help",
           "--version",
@@ -612,6 +619,77 @@ export class cli {
     console.log(`  ${chalk.green.bold("✔ Output written to:")} ${chalk.bold.yellow(outputPath)}\n`);
   }
 
+  private printOrgConfig(orgName: string, config: ApigeeConfig) {
+    const org = config.org || {};
+    console.log(
+      `\n  ${chalk.bgCyan.black.bold(" CONFIG ")} ${chalk.bold.magenta("Organization " + (org.name || orgName))}`,
+    );
+    console.log(chalk.gray("  ─────────────────────────────────────────────────────────"));
+    if (org.name) console.log(`    ${chalk.bold("Name:")}             ${chalk.cyan(org.name)}`);
+    if (org.displayName)
+      console.log(`    ${chalk.bold("Display Name:")}     ${chalk.cyan(org.displayName)}`);
+    if (org.project)
+      console.log(`    ${chalk.bold("GCP Project:")}      ${chalk.white(org.project)}`);
+    if (org.analyticsRegion)
+      console.log(`    ${chalk.bold("Analytics Region:")} ${chalk.yellow(org.analyticsRegion)}`);
+    if (org.runtimeType)
+      console.log(`    ${chalk.bold("Runtime Type:")}     ${chalk.white(org.runtimeType)}`);
+    if (org.billingType || org.type)
+      console.log(
+        `    ${chalk.bold("Billing Type:")}     ${chalk.green(org.billingType || org.type)}`,
+      );
+    if (org.state) console.log(`    ${chalk.bold("State:")}            ${chalk.green(org.state)}`);
+
+    let expiresAt = org.expiresAt;
+    if (!expiresAt && org.properties && Array.isArray(org.properties.property)) {
+      const expProp = org.properties.property.find(
+        (p: any) => p.name === "expiresAt" || p.name === "features.isEvaluation",
+      );
+      if (expProp && expProp.name === "expiresAt") expiresAt = expProp.value;
+    }
+    if (expiresAt) {
+      const expNum = Number(expiresAt);
+      const expDate = !isNaN(expNum) ? new Date(expNum) : new Date(expiresAt);
+      if (!isNaN(expDate.getTime())) {
+        const daysLeft = Math.round((expDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        const daysText = daysLeft > 0 ? ` (expires in ${daysLeft} days)` : ` (expired)`;
+        console.log(
+          `    ${chalk.bold("Expires At:")}       ${chalk.red(expDate.toISOString().split("T")[0] + daysText)}`,
+        );
+      } else {
+        console.log(`    ${chalk.bold("Expires At:")}       ${chalk.red(expiresAt)}`);
+      }
+    }
+
+    if (config.environments && config.environments.length > 0) {
+      console.log(`    ${chalk.bold("Environments:")}`);
+      for (const env of config.environments) {
+        const envName = typeof env === "string" ? env : env.name || JSON.stringify(env);
+        console.log(`      ${chalk.green("•")} ${chalk.white(envName)}`);
+      }
+    }
+
+    if (config.environmentGroups && config.environmentGroups.length > 0) {
+      console.log(`    ${chalk.bold("Environment Groups:")}`);
+      for (const group of config.environmentGroups) {
+        const attachedEnvs =
+          group.attachments && group.attachments.length > 0
+            ? group.attachments
+                .map((a: any) => a.environment || a.environmentName || a)
+                .join(", ")
+            : "";
+        const envSuffix = attachedEnvs ? chalk.gray(` [attached: ${attachedEnvs}]`) : "";
+        console.log(`      ${chalk.green("•")} ${chalk.cyan(group.name)}${envSuffix}`);
+        if (group.hostnames && group.hostnames.length > 0) {
+          for (const host of group.hostnames) {
+            console.log(`        ${chalk.gray("↳ Host:")} ${chalk.white(host)}`);
+          }
+        }
+      }
+    }
+    console.log(chalk.gray("  ─────────────────────────────────────────────────────────\n"));
+  }
+
   async process(args: string[]) {
     // Fast path for shell auto-completion queries
     if (args.length > 2 && args[2] === "--complete") {
@@ -635,16 +713,10 @@ export class cli {
       return;
     }
 
-    // Command route for local file cache management
+    // Command route for cache management
     if (args.length > 2 && args[2] === "cache") {
-      const target = args[3];
-      this.handleCacheCommand(target);
-      return;
-    }
-
-    if (!stdin.setRawMode) {
-      await this.processDataSpec();
-      console.log(`\n  ${chalk.yellow("⚠ Data piping from stdin is not yet supported.")}\n`);
+      const subcommand = args[3];
+      this.handleCacheCommand(subcommand);
       return;
     }
 
@@ -676,7 +748,13 @@ export class cli {
         "Bearer " + options.token,
       );
 
-      console.log(JSON.stringify(apigeeConfig, null, 2));
+      if (options.format === "json") {
+        console.log(JSON.stringify(apigeeConfig, null, 2));
+      } else if (options.format === "yaml" || options.format === "yml") {
+        console.log(YAML.stringify(apigeeConfig, { aliasDuplicateObjects: false }));
+      } else {
+        this.printOrgConfig(options.config, apigeeConfig);
+      }
       return;
     }
 
@@ -1032,6 +1110,179 @@ export class cli {
         console.log(
           `  ${chalk.red.bold("✖ Input '" + options.input + "' could not be loaded. Please check spelling or path.")}`,
         );
+        return;
+      }
+
+      if (options.delete) {
+        process.chdir(startDir);
+        let pieces =
+          options.output && options.output.includes(":") ? options.output.split(":") : [];
+        let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
+        if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+          org = options.output;
+        }
+
+        if (!org) {
+          console.log(
+            `  ${chalk.red.bold("✖ Error: Organization is required for deleting Apigee resources. Specify with --organization or target.")}`,
+          );
+          return;
+        }
+
+        if (!options.token) {
+          let token = await auth.getAccessToken();
+          if (token) options.token = token;
+        }
+
+        if (template || options.format === "template") {
+          // 1. Delete Users first
+          if (template && template.users && template.users.length > 0) {
+            for (let userItem of template.users) {
+              let userObj = await this.apigeeService.loadUser(userItem, templateDir);
+              if (userObj) {
+                this.converter.userUpdateParameters(userObj, inputParameters);
+                const userKey = userObj.email || userObj.name;
+                let del = await this.apigeeService.apigeeUserDelete(
+                  userKey,
+                  org,
+                  options.drz,
+                  "Bearer " + options.token,
+                );
+                if (del) {
+                  console.log(
+                    `  ${chalk.green.bold("✔")} Deleted User: ${chalk.cyan(userKey)} from org ${chalk.cyan(org)}`,
+                  );
+                } else {
+                  console.log(
+                    `  ${chalk.yellow.bold("⚠")} Could not delete User: ${chalk.cyan(userKey)}`,
+                  );
+                }
+              }
+            }
+          }
+
+          // 2. Delete Products second
+          if (template && template.products && template.products.length > 0) {
+            for (let prodItem of template.products) {
+              let prodObj = await this.apigeeService.loadProduct(prodItem, templateDir);
+              if (prodObj) {
+                this.converter.productUpdateParameters(prodObj, inputParameters);
+                let del = await this.apigeeService.apigeeProductDelete(
+                  prodObj.name,
+                  org,
+                  options.drz,
+                  "Bearer " + options.token,
+                );
+                if (del) {
+                  console.log(
+                    `  ${chalk.green.bold("✔")} Deleted Product: ${chalk.cyan(prodObj.name)} from org ${chalk.cyan(org)}`,
+                  );
+                } else {
+                  console.log(
+                    `  ${chalk.yellow.bold("⚠")} Could not delete Product: ${chalk.cyan(prodObj.name)}`,
+                  );
+                }
+              }
+            }
+          }
+
+          // 3. Delete Proxy third
+          const proxyName = options.name || (template ? template.name : "");
+          if (proxyName) {
+            let del = await this.apigeeService.apigeeProxyDelete(
+              proxyName,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Proxy: ${chalk.cyan(proxyName)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Proxy: ${chalk.cyan(proxyName)}`,
+              );
+            }
+          }
+        } else if (user || options.format === "user") {
+          const userKey = user ? (user.email || user.name) : options.name;
+          if (userKey) {
+            let del = await this.apigeeService.apigeeUserDelete(
+              userKey,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted User: ${chalk.cyan(userKey)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete User: ${chalk.cyan(userKey)}`,
+              );
+            }
+          }
+        } else if (product || options.format === "product") {
+          const prodName = product ? product.name : options.name;
+          if (prodName) {
+            let del = await this.apigeeService.apigeeProductDelete(
+              prodName,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Product: ${chalk.cyan(prodName)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Product: ${chalk.cyan(prodName)}`,
+              );
+            }
+          }
+        } else {
+          // Feature / Proxy / SharedFlow
+          if (feature && (options.format === "sharedflow" || options.format === "sf")) {
+            const sfName = options.name || feature.name;
+            let del = await this.apigeeService.apigeeSharedFlowDelete(
+              sfName,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted SharedFlow: ${chalk.cyan(sfName)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete SharedFlow: ${chalk.cyan(sfName)}`,
+              );
+            }
+          } else {
+            const proxyName = options.name || (proxy ? proxy.name : (feature ? feature.name : ""));
+            if (proxyName) {
+              let del = await this.apigeeService.apigeeProxyDelete(
+                proxyName,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+              if (del) {
+                console.log(
+                  `  ${chalk.green.bold("✔")} Deleted Proxy: ${chalk.cyan(proxyName)} from org ${chalk.cyan(org)}`,
+                );
+              } else {
+                console.log(
+                  `  ${chalk.yellow.bold("⚠")} Could not delete Proxy: ${chalk.cyan(proxyName)}`,
+                );
+              }
+            }
+          }
+        }
         return;
       }
 
@@ -1709,6 +1960,7 @@ class cliArgs {
   help = false;
   version = false;
   config = "";
+  delete = false;
   drz = "";
 }
 
@@ -1769,6 +2021,10 @@ const helpCommands = [
   {
     name: "--config, -c",
     description: "Display configuration information for an Apigee X org.",
+  },
+  {
+    name: "--delete",
+    description: "Delete Apigee resources defined in input template, product, user, or proxy.",
   },
   {
     name: "--token, -t",

@@ -480,6 +480,121 @@ resources: []
       myCli.apigeeService.apigeeUserExport = origUserExport;
     }
   });
+
+  it("should delete template resources in correct order (user -> product -> proxy)", async () => {
+    const deletedOrder: string[] = [];
+    const origUserDelete = myCli.apigeeService.apigeeUserDelete;
+    const origProductDelete = myCli.apigeeService.apigeeProductDelete;
+    const origProxyDelete = myCli.apigeeService.apigeeProxyDelete;
+
+    myCli.apigeeService.apigeeUserDelete = async (userKey, org, drz, token) => {
+      deletedOrder.push(`user:${userKey}`);
+      return true;
+    };
+    myCli.apigeeService.apigeeProductDelete = async (prodName, org, drz, token) => {
+      deletedOrder.push(`product:${prodName}`);
+      return true;
+    };
+    myCli.apigeeService.apigeeProxyDelete = async (proxyName, org, drz, token) => {
+      deletedOrder.push(`proxy:${proxyName}`);
+      return true;
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "-i",
+        "tests/data/template-01-basic-api.yaml",
+        "--delete",
+        "--organization",
+        "aigateway-lab8",
+        "--token",
+        "test-token",
+      ]);
+
+      expect(deletedOrder).toEqual([
+        "user:john.doe@example.com",
+        "product:standard-api-product",
+        "proxy:template-01-basic-api",
+      ]);
+    } finally {
+      myCli.apigeeService.apigeeUserDelete = origUserDelete;
+      myCli.apigeeService.apigeeProductDelete = origProductDelete;
+      myCli.apigeeService.apigeeProxyDelete = origProxyDelete;
+    }
+  });
+
+  it("should format --config output by default and support -f json / yaml", async () => {
+    const origConfigGet = myCli.apigeeService.apigeeConfigGet;
+    myCli.apigeeService.apigeeConfigGet = async (org, drz, token) => {
+      return {
+        org: {
+          name: "aigateway-lab8",
+          displayName: "AI Gateway Lab",
+          analyticsRegion: "us-central1",
+          billingType: "PAYG",
+          state: "ACTIVE",
+          expiresAt: "1767225600000",
+        },
+        environments: ["dev", "prod"],
+        environmentGroups: [
+          {
+            name: "default-group",
+            hostnames: ["api.example.com"],
+            attachments: [{ environment: "dev" }],
+          },
+        ],
+      };
+    };
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (...args: any[]) => {
+      logs.push(args.join(" "));
+    };
+
+    try {
+      // Default formatted output
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "--config",
+        "aigateway-lab8",
+        "--token",
+        "test-token",
+      ]);
+
+      const allOutput = logs.join("\n");
+      expect(allOutput).toContain("CONFIG");
+      expect(allOutput).toContain("Organization aigateway-lab8");
+      expect(allOutput).toContain("Analytics Region:");
+      expect(allOutput).toContain("us-central1");
+      expect(allOutput).toContain("Billing Type:");
+      expect(allOutput).toContain("PAYG");
+      expect(allOutput).toContain("default-group");
+      expect(allOutput).toContain("api.example.com");
+
+      // JSON format
+      logs.length = 0;
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "--config",
+        "aigateway-lab8",
+        "-f",
+        "json",
+        "--token",
+        "test-token",
+      ]);
+      const jsonParsed = JSON.parse(logs.join("\n"));
+      expect(jsonParsed.org.name).toBe("aigateway-lab8");
+      expect(jsonParsed.environments).toContain("dev");
+    } finally {
+      console.log = origLog;
+      myCli.apigeeService.apigeeConfigGet = origConfigGet;
+    }
+  });
 });
 
 

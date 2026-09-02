@@ -1233,6 +1233,119 @@ export class ApigeeTemplaterService {
     });
   }
 
+  public async apigeeProxyDeploymentsGet(
+    proxyName: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<any[]> {
+    return new Promise(async (resolve) => {
+      try {
+        let response = await fetch(
+          `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}/deployments`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: token,
+            },
+          },
+        );
+        if (response.status === 200) {
+          let body: any = await response.json();
+          let deployments: any[] = [];
+          if (body.deployments && Array.isArray(body.deployments)) {
+            deployments = body.deployments;
+          } else if (body.environment && Array.isArray(body.environment)) {
+            for (let envObj of body.environment) {
+              if (envObj.revision && Array.isArray(envObj.revision)) {
+                for (let revObj of envObj.revision) {
+                  deployments.push({
+                    environment: envObj.name,
+                    revision: revObj.name,
+                  });
+                }
+              }
+            }
+          }
+          return resolve(deployments);
+        }
+      } catch (e) {}
+      resolve([]);
+    });
+  }
+
+  public async apigeeProxyUndeploy(
+    proxyName: string,
+    environment: string,
+    revision: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve) => {
+      let response = await fetch(
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/environments/${environment}/apis/${proxyName}/revisions/${revision}/deployments`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+      if (response.status === 200) resolve(true);
+      else {
+        let text = await response.text();
+        console.log(` > Apigee proxy UNDEPLOY response: ${response.status} - ${text}`);
+        resolve(false);
+      }
+    });
+  }
+
+  public async apigeeProxyDelete(
+    proxyName: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve) => {
+      // 1. Undeploy all active deployments
+      try {
+        let deployments = await this.apigeeProxyDeploymentsGet(proxyName, apigeeOrg, drz, token);
+        if (deployments && deployments.length > 0) {
+          for (let dep of deployments) {
+            let env = dep.environment || dep.environmentName;
+            let rev = dep.revision || dep.revisionName;
+            if (env && rev) {
+              await this.apigeeProxyUndeploy(proxyName, env, rev, apigeeOrg, drz, token);
+            }
+          }
+        }
+      } catch (e) {}
+
+      // 2. Delete the proxy
+      let response = await fetch(
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        if (this.apigeeProxyListCache[apigeeOrg]) {
+          delete this.apigeeProxyListCache[apigeeOrg];
+        }
+        resolve(true);
+      } else {
+        let message = await response.text();
+        console.log(` > Apigee proxy DELETE response: ${response.status} - ${message}`);
+        resolve(false);
+      }
+    });
+  }
+
   public async apigeeConfigGet(apigeeOrg: string, drz: string, token: string): Promise<ApigeeConfig> {
     return new Promise(async (resolve, reject) => {
       let apigeeConfig: ApigeeConfig = {

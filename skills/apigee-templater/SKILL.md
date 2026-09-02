@@ -628,7 +628,45 @@ aft template-enterprise-gateway.yaml --organization my-apigee-org --environment 
 
 ---
 
-## 13. Checklist & Best Practices
+## 13. Resource Deletion (`--delete`)
+
+To clean up resources created from a template, product, user, or proxy, provide `--delete` along with the target `--organization` (or colon-separated output):
+
+```bash
+# Delete template resources (deletes Users first -> Products second -> Proxy third)
+aft template-enterprise-gateway.yaml --delete --organization my-apigee-org
+
+# Delete standalone product
+aft product-01-standard-api.yaml --delete --organization my-apigee-org
+
+# Delete standalone user (developer and apps)
+aft user-01-developer.yaml --delete --organization my-apigee-org
+
+# Delete proxy (undeploys from all environments first, then deletes proxy)
+aft my-proxy-name --delete --organization my-apigee-org
+```
+
+---
+
+## 14. Organization Configuration Inspection (`-c` / `--config`)
+
+Use `--config` (or `-c`) to inspect organization topology, runtime settings, and environments:
+
+- **Default**: Renders a formatted overview card showing organization name, project, analytics region, billing type, evaluation expiration date, environments list, and environment groups with attached hostnames.
+- **`-f json` / `-f yaml`**: Emits raw JSON or YAML.
+
+```bash
+# Visual formatted card
+aft -c my-apigee-org
+
+# Raw JSON or YAML
+aft -c my-apigee-org -f json
+aft -c my-apigee-org -f yaml
+```
+
+---
+
+## 15. Checklist & Best Practices
 - [ ] Check if `setValue` is used instead of `value` for all KVM `put` operations.
 - [ ] Ensure `response.content` assignments occur in `mode: Response` flows (`PostFlow` or target response flows).
 - [ ] Attach `EventFlow` on target responses when processing streaming / SSE data.
@@ -637,4 +675,7 @@ aft template-enterprise-gateway.yaml --organization my-apigee-org --environment 
 - [ ] When fetching from repositories, reference names directly without needing full URLs or file extensions (e.g. `aft auth-oauth21-server --organization my-org`).
 - [ ] Use direct flat list items for `operations`, `llmOperations`, and `payloadOperations` in Product YAML files for cleaner structure.
 - [ ] When deploying a template to an Apigee organization/environment, referenced `products` and `users` are deployed automatically alongside the proxy.
+- [ ] Use `--delete` to tear down resources in reverse dependency order (User -> Product -> Proxy).
+- [ ] Use `aft -c <org>` for a formatted overview of the Apigee organization and its environments/hostnames.
+
 
