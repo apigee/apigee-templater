@@ -377,7 +377,7 @@ resources: []
 
       expect(exportedOrg).toBe("aigateway-lab8");
       expect(exportedProduct).toBeDefined();
-      expect(exportedProduct.name).toBe("product-02-gemini-ai");
+      expect(exportedProduct.name).toBe("gemini-ai-developer-product");
       expect(exportedProduct.environments).toContain("dev");
     } finally {
       myCli.apigeeService.apigeeProductExport = originalProductExport;
@@ -593,6 +593,213 @@ resources: []
     } finally {
       console.log = origLog;
       myCli.apigeeService.apigeeConfigGet = origConfigGet;
+    }
+  });
+
+  it("should export a single product from Apigee to YAML using --organization and -f product", async () => {
+    const fs = require("fs");
+    const YAML = require("yaml");
+    const outYamlPath = "./test-export-product.yaml";
+
+    const origProductGet = myCli.apigeeService.apigeeProductGet;
+    myCli.apigeeService.apigeeProductGet = async (name: string, org: string, drz: string, token: string) => {
+      return {
+        name: "product-remote",
+        displayName: "Remote Product",
+        environments: ["dev", "prod"],
+        proxies: ["proxy-1"],
+        quota: "1000",
+        quotaInterval: "1",
+        quotaTimeUnit: "month",
+      };
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "product-remote",
+        "--organization",
+        "test-org",
+        "-f",
+        "product",
+        "-o",
+        outYamlPath,
+        "--token",
+        "test-token",
+      ]);
+
+      expect(fs.existsSync(outYamlPath)).toBe(true);
+      const content = YAML.parse(fs.readFileSync(outYamlPath, "utf8"));
+      expect(content.name).toBe("product-remote");
+      expect(content.type).toBe("product");
+      expect(content.environments).toContain("dev");
+    } finally {
+      myCli.apigeeService.apigeeProductGet = origProductGet;
+      if (fs.existsSync(outYamlPath)) {
+        fs.rmSync(outYamlPath);
+      }
+    }
+  });
+
+  it("should export a single user from Apigee to YAML using --organization and -f user", async () => {
+    const fs = require("fs");
+    const YAML = require("yaml");
+    const outYamlPath = "./test-export-user.yaml";
+
+    const origUserGet = myCli.apigeeService.apigeeUserGet;
+    myCli.apigeeService.apigeeUserGet = async (email: string, org: string, drz: string, token: string) => {
+      return {
+        name: "test-dev",
+        type: "user",
+        email: "test-dev@example.com",
+        firstName: "Test",
+        lastName: "Dev",
+        userName: "test-dev",
+        apps: [
+          {
+            name: "test-app",
+            credentials: [{ consumerKey: "key-123", consumerSecret: "sec-456" }],
+          },
+        ],
+      };
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "test-dev@example.com",
+        "--organization",
+        "test-org",
+        "-f",
+        "user",
+        "-o",
+        outYamlPath,
+        "--token",
+        "test-token",
+      ]);
+
+      expect(fs.existsSync(outYamlPath)).toBe(true);
+      const content = YAML.parse(fs.readFileSync(outYamlPath, "utf8"));
+      expect(content.email).toBe("test-dev@example.com");
+      expect(content.type).toBe("user");
+      expect(content.apps.length).toBe(1);
+    } finally {
+      myCli.apigeeService.apigeeUserGet = origUserGet;
+      if (fs.existsSync(outYamlPath)) {
+        fs.rmSync(outYamlPath);
+      }
+    }
+  });
+
+  it("should export all products from an Apigee org to a directory", async () => {
+    const fs = require("fs");
+    const YAML = require("yaml");
+    const outDir = "./test-export-products-dir";
+
+    const origProductsList = myCli.apigeeService.apigeeProductsList;
+    const origProductGet = myCli.apigeeService.apigeeProductGet;
+
+    myCli.apigeeService.apigeeProductsList = async (org: string, drz: string, token: string) => {
+      return {
+        apiProduct: [
+          { name: "prod-1", displayName: "Product One" },
+          { name: "prod-2", displayName: "Product Two" },
+        ],
+      };
+    };
+
+    myCli.apigeeService.apigeeProductGet = async (name: string, org: string, drz: string, token: string) => {
+      return {
+        name: name,
+        displayName: `Display ${name}`,
+        environments: ["dev"],
+        proxies: [],
+      };
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "--organization",
+        "test-org",
+        "-f",
+        "product",
+        "-o",
+        outDir,
+        "--token",
+        "test-token",
+      ]);
+
+      expect(fs.existsSync(outDir)).toBe(true);
+      expect(fs.existsSync(`${outDir}/prod-1.yaml`)).toBe(true);
+      expect(fs.existsSync(`${outDir}/prod-2.yaml`)).toBe(true);
+      const p1 = YAML.parse(fs.readFileSync(`${outDir}/prod-1.yaml`, "utf8"));
+      expect(p1.name).toBe("prod-1");
+      expect(p1.type).toBe("product");
+    } finally {
+      myCli.apigeeService.apigeeProductsList = origProductsList;
+      myCli.apigeeService.apigeeProductGet = origProductGet;
+      if (fs.existsSync(outDir)) {
+        fs.rmSync(outDir, { recursive: true });
+      }
+    }
+  });
+
+  it("should export all users from an Apigee org to a directory", async () => {
+    const fs = require("fs");
+    const YAML = require("yaml");
+    const outDir = "./test-export-users-dir";
+
+    const origUsersList = myCli.apigeeService.apigeeUsersList;
+    const origUserGet = myCli.apigeeService.apigeeUserGet;
+
+    myCli.apigeeService.apigeeUsersList = async (org: string, drz: string, token: string) => {
+      return {
+        developer: [
+          { email: "user1@example.com", userName: "user1" },
+          { email: "user2@example.com", userName: "user2" },
+        ],
+      };
+    };
+
+    myCli.apigeeService.apigeeUserGet = async (email: string, org: string, drz: string, token: string) => {
+      return {
+        name: email.split("@")[0],
+        type: "user",
+        email: email,
+        apps: [],
+      };
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "--organization",
+        "test-org",
+        "-f",
+        "user",
+        "-o",
+        outDir,
+        "--token",
+        "test-token",
+      ]);
+
+      expect(fs.existsSync(outDir)).toBe(true);
+      expect(fs.existsSync(`${outDir}/user1.yaml`)).toBe(true);
+      expect(fs.existsSync(`${outDir}/user2.yaml`)).toBe(true);
+      const u1 = YAML.parse(fs.readFileSync(`${outDir}/user1.yaml`, "utf8"));
+      expect(u1.email).toBe("user1@example.com");
+      expect(u1.type).toBe("user");
+    } finally {
+      myCli.apigeeService.apigeeUsersList = origUsersList;
+      myCli.apigeeService.apigeeUserGet = origUserGet;
+      if (fs.existsSync(outDir)) {
+        fs.rmSync(outDir, { recursive: true });
+      }
     }
   });
 });

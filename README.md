@@ -151,6 +151,7 @@ Click [here](https://iili.io/ByOhMmJ.png) for an interactive explanation of the 
 The proxy YAML & JSON formats is easy to understand and edit, with all proxy flows, policies, & resources in one YAML / JSON structure.
 
 ```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
 name: SimpleProxy-v1
 displayName: SimpleProxy-v1
 type: proxy
@@ -199,27 +200,58 @@ To deploy this proxy in your org, you could do **either** of these steps:
 
 ```bash
 # Deploy directly from YAML to Apigee X
-aft -i SimpleProxy-v1.yaml -o MyApigeeOrg:SimpleProxy-v1
+aft -i SimpleProxy-v1.yaml --organization MyApigeeOrg
 
 # Or first convert to an Apigee bundle, and then deploy with apigeecli
 aft -i SimpleProxy-v1.yaml -o SimpleProxy-v1.zip
 apigeecli apis create bundle -f SimpleProxy-v1.zip --name SimpleProxy-v1 -o MyApigeeOrg --default-token
 ```
 
-## Conversions
+## Conversions & Exports
 
-The easiest way to get started is to do some Apigee proxy conversions.
+The easiest way to get started is to do some Apigee proxy, product, and user conversions and exports.
 
 ### Convert an Apigee bundle to YAML
 ```sh
 aft -i ./test/proxies/SimpleProxy-v1.zip -o SimpleProxy-v1.yaml
 ```
 
-### Convert a deployed Apigee X proxy to YAML or JSON
+### Export a deployed Apigee X proxy to YAML or JSON
 Authorization to the Apigee X API will be done using your gcloud default application credentials, or pass a token with `-t`.
 ```bash
-aft -i MyApigeeOrg:SimpleProxy-v1 -o SimpleProxy-v1.yaml
-aft -i MyApigeeOrg:SimpleProxy-v1 -o SimpleProxy-v1.json
+aft SimpleProxy-v1 --organization MyApigeeOrg -o SimpleProxy-v1.yaml
+aft SimpleProxy-v1 --organization MyApigeeOrg -o SimpleProxy-v1.json
+
+# Export all proxies in an organization to a directory
+aft --organization MyApigeeOrg -o ./proxies/
+```
+
+### Export Apigee Products to YAML
+Export API products from an Apigee organization to clean YAML files:
+
+```bash
+# Export a single product to YAML
+aft my-product --organization MyApigeeOrg -f product -o my-product.yaml
+
+# Export all products in an organization to individual YAML files in a directory
+aft --organization MyApigeeOrg -f product -o ./products/
+
+# Export all products to a single YAML file
+aft --organization MyApigeeOrg -f product -o products.yaml
+```
+
+### Export Developers, Apps & Credentials to YAML
+Export developer users along with their registered developer apps and API credentials:
+
+```bash
+# Export a single developer user (by email or username)
+aft dev@example.com --organization MyApigeeOrg -f user -o dev.yaml
+
+# Export all developers, apps, and credentials to individual YAML files in a directory
+aft --organization MyApigeeOrg -f user -o ./users/
+
+# Export all developers, apps, and credentials to a single YAML file
+aft --organization MyApigeeOrg -f user -o users.yaml
 ```
 
 ### Convert a Proxy YAML to an Apigee bundle
@@ -229,11 +261,15 @@ aft -i SimpleProxy-v1.yaml -o SimpleProxy-v1.zip
 
 ### Convert and deploy a proxy YAML to Apigee X
 ```bash
-# simple import
-aft -i SimpleProxy-v1.yaml -o MyApigeeOrg:SimpleProxy-v1:MyApigeeEnvironment
-# deploy with a service account to the dev environment
-aft -i SimpleProxy-v1.yaml -o MyApigeeOrg:SimpleProxy-v1:dev:mysa@myproject.iam.gserviceaccount.com
+# Simple deploy to environment
+aft -i SimpleProxy-v1.yaml --organization MyApigeeOrg --environment MyApigeeEnvironment
+
+# Deploy with a service account to the dev environment
+aft -i SimpleProxy-v1.yaml --organization MyApigeeOrg --environment dev --service-account mysa@myproject.iam.gserviceaccount.com
 ```
+
+> [!TIP]
+> **Compatibility Note**: The legacy colon syntax (e.g. `aft -i MyApigeeOrg:SimpleProxy-v1 -o SimpleProxy-v1.yaml` or `-o MyApigeeOrg:Proxy:dev:sa`) is still supported for backwards compatibility.
 
 ## Feature templating
 Feature templating is a powerful way to abstract feature definitions and apply them flexibly to proxy templates. 
@@ -258,7 +294,7 @@ aft REST-AI-Gateway.yaml
 # apply the Gemini feature
 aft REST-AI-Gateway.yaml -a REST-AI-Gemini.yaml
 # deploy to Apigee X to the dev environment
-aft REST-AI-Gateway.yaml -o MyApigeeOrg:REST-AI-Gateway:dev
+aft REST-AI-Gateway.yaml --organization MyApigeeOrg --environment dev
 ```
 
 ### Convert between templates, features and proxies

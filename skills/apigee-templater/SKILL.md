@@ -588,9 +588,46 @@ payloadOperations:
 
 ---
 
+## 12. Exporting Proxies, Products & Users from Apigee X to YAML
+
+You can export existing assets from an Apigee X organization to local YAML files using the `-f` format guide and `--organization`:
+
+### A. Exporting API Products
+```bash
+# Export a single product
+aft my-product --organization my-apigee-org -f product -o my-product.yaml
+
+# Export all products in an organization to a directory
+aft --organization my-apigee-org -f product -o ./products/
+
+# Export all products into a single multi-item YAML file
+aft --organization my-apigee-org -f product -o products.yaml
+```
+
+### B. Exporting Developers, Apps & Credentials (Users)
+```bash
+# Export a single developer user (by email or username)
+aft dev@example.com --organization my-apigee-org -f user -o dev.yaml
+
+# Export all developers, apps, and credentials to a directory
+aft --organization my-apigee-org -f user -o ./users/
+
+# Export all developers, apps, and credentials to a single YAML file
+aft --organization my-apigee-org -f user -o users.yaml
+```
+
+### C. Exporting API Proxies
+```bash
+# Export a single proxy
+aft my-proxy --organization my-apigee-org -o my-proxy.yaml
+
+# Export all proxies in an organization to a directory
+aft --organization my-apigee-org -o ./proxies/
+```
+
 ---
 
-## 12. Full-Stack Template Deployment (Proxy + Features + Products + Users)
+## 13. Full-Stack Template Deployment (Proxy + Features + Products + Users)
 
 Apigee templates can compose proxies from features while bundling referenced **Products** and **Users** (Developers & Developer Apps). When deploying a template to Apigee, `aft` creates and deploys the entire ecosystem in a single command:
 

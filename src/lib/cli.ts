@@ -22,7 +22,7 @@ import chalk from "chalk";
 import * as YAML from "yaml";
 import yauzl from "yauzl";
 import { ApigeeConverter } from "./converter.js";
-import { Proxy, Feature, Template, Product, Products, User, Users } from "./interfaces.js";
+import { Proxy, Feature, Template, Product, Products, User, Users, ApigeeConfig } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 import { GoogleAuth } from "google-auth-library";
 import { version } from "./version.js";
@@ -105,7 +105,7 @@ export class cli {
     } else if (
       args["_"] &&
       args["_"][0] &&
-      (args["--output"] || args["--organization"] || args["--delete"])
+      (args["--output"] || args["--organization"] || args["--delete"] || args["--format"])
     ) {
       args["--input"] = args["_"][0];
     } else if (args["_"] && args["_"][0]) {
@@ -228,6 +228,18 @@ export class cli {
     if (!primary && secondary) {
       return this.sanitizeName(secondary, "");
     }
+    if (!primary) return "";
+
+    const isDir =
+      primary.endsWith("/") ||
+      primary.endsWith("\\") ||
+      (fs.existsSync(primary) && fs.statSync(primary).isDirectory());
+
+    if (isDir) {
+      if (secondary) return this.sanitizeName(secondary, "");
+      return "";
+    }
+
     if (primary.includes(":")) {
       let pieces = primary.split(":");
       if (pieces.length > 1 && pieces[1]) result = pieces[1];
@@ -241,7 +253,7 @@ export class cli {
     ) {
       result = path.basename(primary, path.extname(primary));
     } else if (primary) {
-      result = this.sanitizeName(secondary, "");
+      result = primary;
     }
 
     return result;
@@ -787,7 +799,7 @@ export class cli {
       }
     }
 
-    if (!options.input) {
+    if (!options.input && !options.organization) {
       // Create new template
       let basePath = options.basePath;
       if (options.format == "feature") {
@@ -814,23 +826,35 @@ export class cli {
       }
       if (!options.output) options.output = options.name + ".yaml";
     } else if (
-      options.input.includes(":") &&
-      !options.input.toLowerCase().startsWith("https://") &&
-      !options.input.toLowerCase().startsWith("http://")
+      (options.input.includes(":") &&
+        !options.input.toLowerCase().startsWith("https://") &&
+        !options.input.toLowerCase().startsWith("http://")) ||
+      (options.organization && !(options.input && fs.existsSync(options.input)))
     ) {
-      // Apigee proxy or product reference ORG:NAME
-      let pieces = options.input.split(":");
-      if (pieces && pieces.length > 1 && pieces[0] && pieces[1]) {
+      // Apigee proxy, product, user, or shared flow reference
+      const hasColonInput =
+        options.input.includes(":") &&
+        !options.input.toLowerCase().startsWith("https://") &&
+        !options.input.toLowerCase().startsWith("http://");
+      const pieces = hasColonInput ? options.input.split(":") : [];
+      const apigeeOrg = options.organization || (pieces.length > 0 ? pieces[0] : "");
+      const resourceName = hasColonInput
+        ? pieces[1]
+        : options.input && options.input !== apigeeOrg
+          ? options.input
+          : "";
+
+      if (apigeeOrg && resourceName) {
         if (!options.token) {
           let token = await auth.getAccessToken();
           if (token) options.token = token;
         }
-        if (!options.name) options.name = pieces[1];
+        if (!options.name) options.name = resourceName;
 
         if (options.format == "product") {
           let apigeeProductData = await this.apigeeService.apigeeProductGet(
-            pieces[1],
-            pieces[0],
+            resourceName,
+            apigeeOrg,
             options.drz,
             "Bearer " + options.token,
           );
@@ -839,8 +863,8 @@ export class cli {
           }
         } else if (options.format == "user") {
           let apigeeUserData = await this.apigeeService.apigeeUserGet(
-            pieces[1],
-            pieces[0],
+            resourceName,
+            apigeeOrg,
             options.drz,
             "Bearer " + options.token,
           );
@@ -849,22 +873,22 @@ export class cli {
           }
         } else if (options.format == "sharedflow" || options.format == "sf") {
           let sharedFlowPath = await this.apigeeService.apigeeSharedFlowGet(
-            pieces[1],
-            pieces[0],
+            resourceName,
+            apigeeOrg,
             options.drz,
             "Bearer " + options.token,
           );
           if (sharedFlowPath) {
             feature = await this.converter.apigeeSharedFlowZipToFeature(
-              options.name || pieces[1],
+              options.name || resourceName,
               sharedFlowPath,
             );
             fs.rmSync(sharedFlowPath);
           }
         } else {
           let apigeePath = await this.apigeeService.apigeeProxyGet(
-            pieces[1],
-            pieces[0],
+            resourceName,
+            apigeeOrg,
             options.drz,
             "Bearer " + options.token,
           );
@@ -879,36 +903,54 @@ export class cli {
           } else {
             // Try shared flows
             let sharedFlowPath = await this.apigeeService.apigeeSharedFlowGet(
-              pieces[1],
-              pieces[0],
+              resourceName,
+              apigeeOrg,
               options.drz,
               "Bearer " + options.token,
             );
 
             if (sharedFlowPath) {
               feature = await this.converter.apigeeSharedFlowZipToFeature(
-                options.name || pieces[1],
+                options.name || resourceName,
                 sharedFlowPath,
               );
               fs.rmSync(sharedFlowPath);
             } else {
               // Try product
               let apigeeProductData = await this.apigeeService.apigeeProductGet(
-                pieces[1],
-                pieces[0],
+                resourceName,
+                apigeeOrg,
                 options.drz,
                 "Bearer " + options.token,
               );
               if (apigeeProductData) {
                 product = this.converter.apigeeProductToProduct(apigeeProductData);
+              } else {
+                // Try user
+                let apigeeUserData = await this.apigeeService.apigeeUserGet(
+                  resourceName,
+                  apigeeOrg,
+                  options.drz,
+                  "Bearer " + options.token,
+                );
+                if (apigeeUserData) {
+                  user = apigeeUserData;
+                }
               }
             }
           }
         }
 
         if (proxy && !proxy.description) proxy.description = "Proxy for " + proxy.name;
+
+        if (!options.output && (product || user || proxy || feature)) {
+          if (product) options.output = (product.name || resourceName) + ".yaml";
+          else if (user) options.output = (user.name || user.email || resourceName) + ".yaml";
+          else if (feature) options.output = (feature.name || resourceName) + ".yaml";
+          else if (proxy) options.output = (proxy.name || resourceName) + ".yaml";
+        }
       }
-    } else if (fs.existsSync(options.input)) {
+    } else if (options.input && fs.existsSync(options.input)) {
       templateDir = path.dirname(path.resolve(options.input));
       let file = await this.loadFile(options.name, options.input);
       if (file && file["type"] === "template") template = file as Template;
@@ -924,7 +966,7 @@ export class cli {
       }
       let dirName = path.dirname(options.input);
       process.chdir(dirName);
-    } else {
+    } else if (options.input) {
       // Remote repository load
       if (
         options.input.toLowerCase().startsWith("https://") ||
@@ -966,21 +1008,77 @@ export class cli {
         let token = await auth.getAccessToken();
         if (token) options.token = token;
       }
-      if (options.input.endsWith(":")) options.input = options.input.replace(":", "");
+      const targetOrg = options.organization || (options.input.endsWith(":") ? options.input.slice(0, -1) : options.input);
+      if (!targetOrg) {
+        console.log(`  ${chalk.red.bold("✖ Error: No input template, proxy, product, user, or organization specified.")}`);
+        return;
+      }
+
       if (options.format == "product") {
         let productList = await this.apigeeService.apigeeProductsList(
-          options.input,
+          targetOrg,
           options.drz,
           `Bearer ${options.token}`,
         );
-        if (
-          !options.output &&
-          productList &&
-          productList["apiProduct"] &&
-          productList["apiProduct"].length > 0
-        ) {
+        if (productList && productList["apiProduct"] && productList["apiProduct"].length > 0) {
+          if (options.output) {
+            const isDir =
+              options.output.endsWith("/") ||
+              options.output.endsWith("\\") ||
+              (fs.existsSync(options.output) && fs.statSync(options.output).isDirectory()) ||
+              (!options.output.toLowerCase().endsWith(".yaml") &&
+                !options.output.toLowerCase().endsWith(".yml") &&
+                !options.output.toLowerCase().endsWith(".json"));
+
+            const products: Product[] = [];
+            for (let p of productList["apiProduct"]) {
+              let pData = p;
+              if (!pData.operationGroup && !pData.quota) {
+                let fullP = await this.apigeeService.apigeeProductGet(
+                  p.name,
+                  targetOrg,
+                  options.drz,
+                  `Bearer ${options.token}`,
+                );
+                if (fullP) pData = fullP;
+              }
+              products.push(this.converter.apigeeProductToProduct(pData));
+            }
+
+            if (isDir) {
+              if (!fs.existsSync(options.output)) {
+                fs.mkdirSync(options.output, { recursive: true });
+              }
+              for (let prod of products) {
+                const outPath = path.join(options.output, `${prod.name}.yaml`);
+                fs.writeFileSync(
+                  outPath,
+                  YAML.stringify(prod, { aliasDuplicateObjects: false, blockQuote: "literal" }),
+                );
+                this.printOverviewCard(
+                  `Product ${prod.name}`,
+                  this.converter.productToStringArray(prod),
+                  outPath,
+                );
+              }
+            } else {
+              if (options.output.toLowerCase().endsWith(".json")) {
+                fs.writeFileSync(options.output, JSON.stringify(products, null, 2));
+              } else {
+                fs.writeFileSync(
+                  options.output,
+                  YAML.stringify(products, { aliasDuplicateObjects: false, blockQuote: "literal" }),
+                );
+              }
+              console.log(
+                `\n  ${chalk.green.bold("✔")} Exported ${chalk.cyan(products.length)} products to ${chalk.bold.yellow(options.output)}\n`,
+              );
+            }
+            return;
+          }
+
           console.log(
-            `\n  ${chalk.cyan.bold("Apigee org " + options.input + " products:")} ${chalk.gray("(get product info with -i '" + options.input + ":NAME' -f product)")}`,
+            `\n  ${chalk.cyan.bold("Apigee org " + targetOrg + " products:")} ${chalk.gray("(export product with -i NAME --organization " + targetOrg + " -f product)")}`,
           );
           for (let p of productList["apiProduct"]) {
             console.log(`    ${chalk.green("•")} ${p["name"]}`);
@@ -990,18 +1088,66 @@ export class cli {
         return;
       } else if (options.format == "user") {
         let userList = await this.apigeeService.apigeeUsersList(
-          options.input,
+          targetOrg,
           options.drz,
           `Bearer ${options.token}`,
         );
-        if (
-          !options.output &&
-          userList &&
-          userList["developer"] &&
-          userList["developer"].length > 0
-        ) {
+        if (userList && userList["developer"] && userList["developer"].length > 0) {
+          if (options.output) {
+            const isDir =
+              options.output.endsWith("/") ||
+              options.output.endsWith("\\") ||
+              (fs.existsSync(options.output) && fs.statSync(options.output).isDirectory()) ||
+              (!options.output.toLowerCase().endsWith(".yaml") &&
+                !options.output.toLowerCase().endsWith(".yml") &&
+                !options.output.toLowerCase().endsWith(".json"));
+
+            const users: User[] = [];
+            for (let u of userList["developer"]) {
+              const email = u.email || u.userName;
+              const usr = await this.apigeeService.apigeeUserGet(
+                email,
+                targetOrg,
+                options.drz,
+                `Bearer ${options.token}`,
+              );
+              if (usr) users.push(usr);
+            }
+
+            if (isDir) {
+              if (!fs.existsSync(options.output)) {
+                fs.mkdirSync(options.output, { recursive: true });
+              }
+              for (let usr of users) {
+                const outPath = path.join(options.output, `${usr.name || usr.email}.yaml`);
+                fs.writeFileSync(
+                  outPath,
+                  YAML.stringify(usr, { aliasDuplicateObjects: false, blockQuote: "literal" }),
+                );
+                this.printOverviewCard(
+                  `User ${usr.name || usr.email}`,
+                  this.converter.userToStringArray(usr),
+                  outPath,
+                );
+              }
+            } else {
+              if (options.output.toLowerCase().endsWith(".json")) {
+                fs.writeFileSync(options.output, JSON.stringify(users, null, 2));
+              } else {
+                fs.writeFileSync(
+                  options.output,
+                  YAML.stringify(users, { aliasDuplicateObjects: false, blockQuote: "literal" }),
+                );
+              }
+              console.log(
+                `\n  ${chalk.green.bold("✔")} Exported ${chalk.cyan(users.length)} users to ${chalk.bold.yellow(options.output)}\n`,
+              );
+            }
+            return;
+          }
+
           console.log(
-            `\n  ${chalk.cyan.bold("Apigee org " + options.input + " developers/users:")} ${chalk.gray("(get user info with -i '" + options.input + ":EMAIL' -f user)")}`,
+            `\n  ${chalk.cyan.bold("Apigee org " + targetOrg + " developers/users:")} ${chalk.gray("(export user with -i EMAIL --organization " + targetOrg + " -f user)")}`,
           );
           for (let u of userList["developer"]) {
             console.log(`    ${chalk.green("•")} ${u["email"] || u["userName"]}`);
@@ -1011,13 +1157,52 @@ export class cli {
         return;
       }
       let proxyList = await this.apigeeService.apigeeProxiesList(
-        options.input,
+        targetOrg,
         options.drz,
         `Bearer ${options.token}`,
       );
-      if (!options.output && proxyList && proxyList["proxies"] && proxyList["proxies"].length > 0) {
+      if (proxyList && proxyList["proxies"] && proxyList["proxies"].length > 0) {
+        if (options.output) {
+          const isDir =
+            options.output.endsWith("/") ||
+            options.output.endsWith("\\") ||
+            (fs.existsSync(options.output) && fs.statSync(options.output).isDirectory()) ||
+            (!options.output.toLowerCase().endsWith(".yaml") &&
+              !options.output.toLowerCase().endsWith(".yml") &&
+              !options.output.toLowerCase().endsWith(".json"));
+
+          if (isDir) {
+            if (!fs.existsSync(options.output)) {
+              fs.mkdirSync(options.output, { recursive: true });
+            }
+            for (let p of proxyList["proxies"]) {
+              let apigeePath = await this.apigeeService.apigeeProxyGet(
+                p.name,
+                targetOrg,
+                options.drz,
+                `Bearer ${options.token}`,
+              );
+              if (apigeePath) {
+                let prx = await this.converter.apigeeZipToProxy(p.name, apigeePath, false);
+                fs.rmSync(apigeePath);
+                const outPath = path.join(options.output, `${prx.name}.yaml`);
+                fs.writeFileSync(
+                  outPath,
+                  YAML.stringify(prx, { aliasDuplicateObjects: false, blockQuote: "literal" }),
+                );
+                this.printOverviewCard(
+                  `Proxy ${prx.name}`,
+                  this.converter.proxyToStringArray(prx),
+                  outPath,
+                );
+              }
+            }
+            return;
+          }
+        }
+
         console.log(
-          `\n  ${chalk.cyan.bold("Apigee org " + options.input + " proxies:")} ${chalk.gray("(get proxy info with -i '" + options.input + ":NAME')")}`,
+          `\n  ${chalk.cyan.bold("Apigee org " + targetOrg + " proxies:")} ${chalk.gray("(export proxy with -i NAME --organization " + targetOrg + ")")}`,
         );
         for (let p of proxyList["proxies"]) {
           console.log(`    ${chalk.green("•")} ${p["name"]}`);
@@ -1290,7 +1475,7 @@ export class cli {
       if (product || (options.output && options.format == "product")) {
         process.chdir(startDir);
         if (product) {
-          if (options.name) product.name = options.name;
+          if (options.name && !product.name) product.name = options.name;
           this.converter.productUpdateParameters(product, inputParameters);
 
           let pieces =
@@ -1343,8 +1528,7 @@ export class cli {
           let displayDestination = options.output;
           if (
             !displayDestination ||
-            options.organization ||
-            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+            !displayDestination.match(/\.(yaml|yml|json|zip|dir)$/i)
           ) {
             displayDestination = [org, options.name || product.name, env]
               .filter(Boolean)
@@ -1360,7 +1544,7 @@ export class cli {
       } else if (user || (options.output && options.format == "user")) {
         process.chdir(startDir);
         if (user) {
-          if (options.name) user.name = options.name;
+          if (options.name && !user.name) user.name = options.name;
           this.converter.userUpdateParameters(user, inputParameters);
 
           let pieces =
@@ -1407,8 +1591,7 @@ export class cli {
           let displayDestination = options.output;
           if (
             !displayDestination ||
-            options.organization ||
-            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+            !displayDestination.match(/\.(yaml|yml|json|zip|dir)$/i)
           ) {
             displayDestination = [org, options.name || user.name || user.email]
               .filter(Boolean)
@@ -1764,8 +1947,7 @@ export class cli {
           let sa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
           if (
             !displayDestination ||
-            options.organization ||
-            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+            !displayDestination.match(/\.(yaml|yml|json|zip|dir)$/i)
           ) {
             displayDestination = [org, options.name || proxy.name, env, sa]
               .filter(Boolean)
@@ -1967,7 +2149,7 @@ class cliArgs {
 const helpCommands = [
   {
     name: "--input, -i",
-    description: "Input path to ZIP, JSON or YAML file, or an Apigee proxy in ORG:PROXY format.",
+    description: "Input path to a ZIP, JSON, or YAML file, or an Apigee resource name.",
   },
   {
     name: "--name, -n",
@@ -1975,11 +2157,11 @@ const helpCommands = [
   },
   {
     name: "--output, -o",
-    description: "An optional file output name and type (e.g. AI-Template-v1.yaml) or Apigee org (ORG:PROXY:ENV:SA).",
+    description: "An optional file or directory output path (e.g. AI-Template-v1.yaml, ./proxies/).",
   },
   {
     name: "--organization",
-    description: "Apigee organization name to export or deploy to.",
+    description: "Apigee organization name to export from or deploy to.",
   },
   {
     name: "--environment",
