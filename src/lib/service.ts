@@ -5,6 +5,7 @@ import path from "path";
 import os from "os";
 import * as YAML from "yaml";
 import { Blob } from "buffer";
+import chalk from "chalk";
 
 export class ApigeeTemplaterService {
   tempPath: string = "./data/temp/";
@@ -202,7 +203,13 @@ export class ApigeeTemplaterService {
     const headers: { [key: string]: string } = {
       "User-Agent": "apigee-templater",
     };
-    const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    let token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    if (!token) {
+      try {
+        const { execSync } = require("child_process");
+        token = execSync("gh auth token", { stdio: ["ignore", "pipe", "ignore"], encoding: "utf8" }).trim();
+      } catch (e) {}
+    }
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
@@ -268,7 +275,7 @@ export class ApigeeTemplaterService {
       try {
         const apiUrl = this.getRepoApiUrl(repoUrl);
         const response = await fetch(apiUrl, {
-          headers: { "User-Agent": "apigee-templater" },
+          headers: this.getGithubHeaders(),
         });
 
         if (response.status === 200) {
@@ -291,8 +298,13 @@ export class ApigeeTemplaterService {
                       } else {
                         remoteTemplate = JSON.parse(text) as Template;
                       }
-                      const idx = templates.findIndex((x) => x.name === remoteTemplate.name);
-                      if (idx === -1) templates.push(remoteTemplate);
+                      if (remoteTemplate) {
+                        if (!remoteTemplate.name) {
+                          remoteTemplate.name = name;
+                        }
+                        const idx = templates.findIndex((x) => x.name === remoteTemplate.name);
+                        if (idx === -1) templates.push(remoteTemplate);
+                      }
                     }
                   } catch (e) {}
                 } else {
@@ -348,7 +360,7 @@ export class ApigeeTemplaterService {
       try {
         const apiUrl = this.getRepoApiUrl(repoUrl);
         const response = await fetch(apiUrl, {
-          headers: { "User-Agent": "apigee-templater" },
+          headers: this.getGithubHeaders(),
         });
 
         if (response.status === 200) {
@@ -363,6 +375,7 @@ export class ApigeeTemplaterService {
 
             const fetchedFeatures = await Promise.all(
               validItems.map(async (item) => {
+                const name = item.name.replace(/\.(json|yaml|yml)$/, "");
                 if (item.download_url) {
                   try {
                     const downloadResponse = await fetch(item.download_url);
@@ -374,13 +387,15 @@ export class ApigeeTemplaterService {
                       } else {
                         remoteFeature = JSON.parse(text) as Feature;
                       }
-                      if (remoteFeature && remoteFeature.name) {
+                      if (remoteFeature) {
+                        if (!remoteFeature.name) {
+                          remoteFeature.name = name;
+                        }
                         return remoteFeature;
                       }
                     }
                   } catch (e) {}
                 }
-                const name = item.name.replace(/\.(json|yaml|yml)$/, "");
                 return {
                   name: name,
                   displayName: name,
@@ -494,7 +509,12 @@ export class ApigeeTemplaterService {
               } else {
                 result = YAML.parse(content) as Template;
               }
-              if (result && result.name) return resolve(result);
+              if (result) {
+                if (!result.name) {
+                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                }
+                return resolve(result);
+              }
             } catch (e) {}
           }
         }
@@ -507,7 +527,12 @@ export class ApigeeTemplaterService {
           if (res.status === 200) {
             const text = await res.text();
             result = name.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
-            if (result) return resolve(result);
+            if (result) {
+              if (!result.name) {
+                result.name = path.basename(name).replace(/\.(yaml|yml|json)$/i, "");
+              }
+              return resolve(result);
+            }
           }
         } catch (e) {}
       } else {
@@ -520,7 +545,12 @@ export class ApigeeTemplaterService {
             if (res.status === 200) {
               const text = await res.text();
               result = candidate.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
-              if (result && result.name) return resolve(result);
+              if (result) {
+                if (!result.name) {
+                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                }
+                return resolve(result);
+              }
             }
           } catch (e) {}
         }
@@ -625,7 +655,12 @@ export class ApigeeTemplaterService {
               } else {
                 result = YAML.parse(content) as Feature;
               }
-              if (result && result.name) return resolve(result);
+              if (result) {
+                if (!result.name) {
+                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                }
+                return resolve(result);
+              }
             } catch (e) {}
           }
         }
@@ -638,7 +673,12 @@ export class ApigeeTemplaterService {
           if (res.status === 200) {
             const text = await res.text();
             result = name.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
-            if (result) return resolve(result);
+            if (result) {
+              if (!result.name) {
+                result.name = path.basename(name).replace(/\.(yaml|yml|json)$/i, "");
+              }
+              return resolve(result);
+            }
           }
         } catch (e) {}
       } else {
@@ -651,7 +691,12 @@ export class ApigeeTemplaterService {
             if (res.status === 200) {
               const text = await res.text();
               result = candidate.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
-              if (result && result.name) return resolve(result);
+              if (result) {
+                if (!result.name) {
+                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                }
+                return resolve(result);
+              }
             }
           } catch (e) {}
         }
@@ -881,10 +926,32 @@ export class ApigeeTemplaterService {
     else return [];
   }
 
+  public async logApiError(
+    operation: string,
+    url: string,
+    response: Response,
+    customMessage?: string,
+  ): Promise<string> {
+    let responseText = "";
+    try {
+      responseText = await response.text();
+    } catch {
+      responseText = "";
+    }
+    const prefix = customMessage || `> Apigee ${operation} error: ${response.status}`;
+    console.log(
+      chalk.red.bold.italic(
+        `${prefix} from ${url}${responseText ? `\nResponse: ${responseText}` : ""}`,
+      ),
+    );
+    return responseText;
+  }
+
   public async apigeeProxiesList(apigeeOrg: string, drz: string, token: string): Promise<any | undefined> {
     return new Promise(async (resolve, reject) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis?includeRevisions=true&includeMetaData=true`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis?includeRevisions=true&includeMetaData=true`,
+        url,
         {
           headers: {
             Authorization: token,
@@ -899,7 +966,7 @@ export class ApigeeTemplaterService {
         }
         resolve(responseBody);
       } else {
-        console.log("Got response " + response.status);
+        await this.logApiError("proxies list", url, response, "Got response " + response.status);
         resolve(undefined);
       }
     });
@@ -912,8 +979,9 @@ export class ApigeeTemplaterService {
     token: string
   ): Promise<string | undefined> {
     return new Promise(async (resolve, reject) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}`,
+        url,
         {
           headers: {
             Authorization: token,
@@ -926,8 +994,8 @@ export class ApigeeTemplaterService {
         let latestRevisionId = responseBody.latestRevisionId;
         if (!latestRevisionId) resolve(undefined);
 
-        let url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}/revisions/${latestRevisionId}?format=bundle`;
-        response = await fetch(url, {
+        let bundleUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}/revisions/${latestRevisionId}?format=bundle`;
+        response = await fetch(bundleUrl, {
           headers: {
             Authorization: token,
           },
@@ -937,11 +1005,11 @@ export class ApigeeTemplaterService {
           fs.writeFileSync(this.tempPath + proxyName + ".zip", Buffer.from(arrayBuffer));
           resolve(this.tempPath + proxyName + ".zip");
         } else {
+          await this.logApiError("proxy revision bundle GET", bundleUrl, response);
           resolve(undefined);
         }
       } else {
-        let message = await response.text();
-        console.log(" > Apigee proxy GET response: " + response.status + " - " + message);
+        await this.logApiError("proxy GET", url, response, `> Apigee proxy GET response: ${response.status}`);
         resolve(undefined);
       }
     });
@@ -953,8 +1021,9 @@ export class ApigeeTemplaterService {
     token: string,
   ): Promise<string[]> {
     if (this.apigeeSharedFlowListCache[apigeeOrg]) return this.apigeeSharedFlowListCache[apigeeOrg];
+    const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows`;
     let response = await fetch(
-      `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows`,
+      url,
       {
         headers: {
           Authorization: token,
@@ -970,6 +1039,10 @@ export class ApigeeTemplaterService {
         );
         return this.apigeeSharedFlowListCache[apigeeOrg];
       }
+    } else {
+      if (response.status !== 404) {
+        await this.logApiError("SharedFlow list", url, response);
+      }
     }
     return [];
   }
@@ -981,8 +1054,9 @@ export class ApigeeTemplaterService {
     token: string,
   ): Promise<string | undefined> {
     return new Promise(async (resolve, reject) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}`,
+        url,
         {
           headers: {
             Authorization: token,
@@ -995,8 +1069,8 @@ export class ApigeeTemplaterService {
         let latestRevisionId = responseBody.latestRevisionId;
         if (!latestRevisionId) resolve(undefined);
 
-        let url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}/revisions/${latestRevisionId}?format=bundle`;
-        response = await fetch(url, {
+        let bundleUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}/revisions/${latestRevisionId}?format=bundle`;
+        response = await fetch(bundleUrl, {
           headers: {
             Authorization: token,
           },
@@ -1006,10 +1080,11 @@ export class ApigeeTemplaterService {
           fs.writeFileSync(this.tempPath + sharedFlowName + ".zip", Buffer.from(arrayBuffer));
           resolve(this.tempPath + sharedFlowName + ".zip");
         } else {
+          await this.logApiError("SharedFlow revision bundle GET", bundleUrl, response);
           resolve(undefined);
         }
       } else {
-        console.log(" > Apigee shared flow GET response: " + response.status);
+        await this.logApiError("SharedFlow GET", url, response, `> Apigee shared flow GET response: ${response.status}`);
         resolve(undefined);
       }
     });
@@ -1027,8 +1102,9 @@ export class ApigeeTemplaterService {
       const data = fs.readFileSync(apigeeSharedFlowPath);
       form.set("file", new Blob([data]), `${sharedFlowName + ".zip"}`);
 
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows?name=${sharedFlowName}&action=import`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows?name=${sharedFlowName}&action=import`,
+        url,
         {
           method: "POST",
           headers: {
@@ -1044,8 +1120,7 @@ export class ApigeeTemplaterService {
         if (!latestRevisionId) resolve("");
         else resolve(latestRevisionId);
       } else {
-        let responseText = await response.text();
-        console.log("> Apigee SharedFlow EXPORT error: " + response.status + ", " + responseText);
+        await this.logApiError("SharedFlow EXPORT", url, response);
         resolve("");
       }
     });
@@ -1076,13 +1151,7 @@ export class ApigeeTemplaterService {
         if (!latestRevisionId) resolve("");
         else resolve(latestRevisionId);
       } else {
-        let responseBody: any = await response.json();
-        console.log(
-          " > Apigee SharedFlow DEPLOY response: " +
-            response.status +
-            " - " +
-            JSON.stringify(responseBody),
-        );
+        await this.logApiError("SharedFlow DEPLOY", url, response);
         resolve("");
       }
     });
@@ -1122,8 +1191,9 @@ export class ApigeeTemplaterService {
     token: string,
   ): Promise<boolean> {
     return new Promise(async (resolve, reject) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}`,
+        url,
         {
           method: "DELETE",
           headers: {
@@ -1132,7 +1202,10 @@ export class ApigeeTemplaterService {
         },
       );
       if (response.status === 200) resolve(true);
-      else resolve(false);
+      else {
+        await this.logApiError("SharedFlow DELETE", url, response);
+        resolve(false);
+      }
     });
   }
 
@@ -1172,8 +1245,9 @@ export class ApigeeTemplaterService {
       const data = fs.readFileSync(apigeeProxyPath);
       form.set("file", new Blob([data]), `${proxyName + ".zip"}`);
 
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis?name=${proxyName}&action=import`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis?name=${proxyName}&action=import`,
+        url,
         {
           method: "POST",
           headers: {
@@ -1189,8 +1263,7 @@ export class ApigeeTemplaterService {
         if (!latestRevisionId) resolve("");
         else resolve(latestRevisionId);
       } else {
-        let responseText = await response.text();
-        console.log("> Apigee proxy EXPORT error: " + response.status + ", " + responseText);
+        await this.logApiError("proxy EXPORT", url, response);
         resolve("");
       }
     });
@@ -1221,13 +1294,7 @@ export class ApigeeTemplaterService {
         if (!latestRevisionId) resolve("");
         else resolve(latestRevisionId);
       } else {
-        let responseBody: any = await response.json();
-        console.log(
-          " > Apigee proxy DEPLOY response: " +
-            response.status +
-            " - " +
-            JSON.stringify(responseBody),
-        );
+        await this.logApiError("proxy DEPLOY", url, response);
         resolve("");
       }
     });
@@ -1283,8 +1350,9 @@ export class ApigeeTemplaterService {
     token: string,
   ): Promise<boolean> {
     return new Promise(async (resolve) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/environments/${environment}/apis/${proxyName}/revisions/${revision}/deployments`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/environments/${environment}/apis/${proxyName}/revisions/${revision}/deployments`,
+        url,
         {
           method: "DELETE",
           headers: {
@@ -1294,8 +1362,7 @@ export class ApigeeTemplaterService {
       );
       if (response.status === 200) resolve(true);
       else {
-        let text = await response.text();
-        console.log(` > Apigee proxy UNDEPLOY response: ${response.status} - ${text}`);
+        await this.logApiError("proxy UNDEPLOY", url, response);
         resolve(false);
       }
     });
@@ -1323,8 +1390,9 @@ export class ApigeeTemplaterService {
       } catch (e) {}
 
       // 2. Delete the proxy
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apis/${proxyName}`,
+        url,
         {
           method: "DELETE",
           headers: {
@@ -1339,8 +1407,7 @@ export class ApigeeTemplaterService {
         }
         resolve(true);
       } else {
-        let message = await response.text();
-        console.log(` > Apigee proxy DELETE response: ${response.status} - ${message}`);
+        await this.logApiError("proxy DELETE", url, response);
         resolve(false);
       }
     });
@@ -1354,7 +1421,8 @@ export class ApigeeTemplaterService {
         environmentGroups: [],
       };
 
-      let response = await fetch(`https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}`, {
+      const orgUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}`;
+      let response = await fetch(orgUrl, {
         method: "GET",
         headers: {
           Authorization: token,
@@ -1364,36 +1432,30 @@ export class ApigeeTemplaterService {
       if (response.status === 200) {
         apigeeConfig.org = await response.json();
       } else {
-        let responseText = await response.text();
-        console.log("> Apigee get org config error: " + response.status + ", " + responseText);
+        await this.logApiError("get org config", orgUrl, response);
       }
 
-      response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/environments`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: token,
-          },
+      const envsUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/environments`;
+      response = await fetch(envsUrl, {
+        method: "GET",
+        headers: {
+          Authorization: token,
         },
-      );
+      });
 
       if (response.status === 200) {
         apigeeConfig.environments = await response.json();
       } else {
-        let responseText = await response.text();
-        console.log("> Apigee get env config error: " + response.status + ", " + responseText);
+        await this.logApiError("get env config", envsUrl, response);
       }
 
-      response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/envgroups`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: token,
-          },
+      const envgroupsUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/envgroups`;
+      response = await fetch(envgroupsUrl, {
+        method: "GET",
+        headers: {
+          Authorization: token,
         },
-      );
+      });
 
       if (response.status === 200) {
         let groups: any = await response.json();
@@ -1401,37 +1463,26 @@ export class ApigeeTemplaterService {
           apigeeConfig.environmentGroups = groups.environmentGroups;
           if (apigeeConfig.environmentGroups && apigeeConfig.environmentGroups.length > 0) {
             for (let group of apigeeConfig.environmentGroups) {
-              response = await fetch(
-                `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/envgroups/${group.name}/attachments`,
-                {
-                  method: "GET",
-                  headers: {
-                    Authorization: token,
-                  },
+              const attachUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/envgroups/${group.name}/attachments`;
+              response = await fetch(attachUrl, {
+                method: "GET",
+                headers: {
+                  Authorization: token,
                 },
-              );
+              });
 
               if (response.status === 200) {
                 let groupAttachments: any = await response.json();
                 if (groupAttachments && groupAttachments.environmentGroupAttachments)
                   group.attachments = groupAttachments.environmentGroupAttachments;
               } else {
-                let responseText = await response.text();
-                console.log(
-                  "> Apigee get envGroups attachment config error: " +
-                    response.status +
-                    ", " +
-                    responseText,
-                );
+                await this.logApiError("get envGroups attachment config", attachUrl, response);
               }
             }
           }
         }
       } else {
-        let responseText = await response.text();
-        console.log(
-          "> Apigee get envGroups config error: " + response.status + ", " + responseText,
-        );
+        await this.logApiError("get envGroups config", envgroupsUrl, response);
       }
 
       resolve(apigeeConfig);
@@ -1537,7 +1588,10 @@ export class ApigeeTemplaterService {
                       } else {
                         remoteProduct = JSON.parse(text) as Product;
                       }
-                      if (remoteProduct && remoteProduct.name) {
+                      if (remoteProduct) {
+                        if (!remoteProduct.name) {
+                          remoteProduct.name = item.name.replace(/\.(json|yaml|yml)$/, "");
+                        }
                         const idx = products.findIndex((x) => x.name === remoteProduct.name);
                         if (idx === -1) products.push(remoteProduct);
                       }
@@ -1607,7 +1661,12 @@ export class ApigeeTemplaterService {
               } else {
                 result = YAML.parse(content) as Product;
               }
-              if (result && result.name) return resolve(result);
+              if (result) {
+                if (!result.name) {
+                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                }
+                return resolve(result);
+              }
             } catch (e) {}
           }
         }
@@ -1620,7 +1679,12 @@ export class ApigeeTemplaterService {
           if (res.status === 200) {
             const text = await res.text();
             result = name.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
-            if (result) return resolve(result);
+            if (result) {
+              if (!result.name) {
+                result.name = path.basename(name).replace(/\.(yaml|yml|json)$/i, "");
+              }
+              return resolve(result);
+            }
           }
         } catch (e) {}
       } else {
@@ -1633,7 +1697,12 @@ export class ApigeeTemplaterService {
             if (res.status === 200) {
               const text = await res.text();
               result = candidate.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
-              if (result && result.name) return resolve(result);
+              if (result) {
+                if (!result.name) {
+                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                }
+                return resolve(result);
+              }
             }
           } catch (e) {}
         }
@@ -1662,8 +1731,9 @@ export class ApigeeTemplaterService {
     token: string,
   ): Promise<any | undefined> {
     return new Promise(async (resolve, reject) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apiproducts?expand=true`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apiproducts?expand=true`,
+        url,
         {
           headers: {
             Authorization: token,
@@ -1675,7 +1745,7 @@ export class ApigeeTemplaterService {
         let responseBody: any = await response.json();
         resolve(responseBody);
       } else {
-        console.log("Got response " + response.status);
+        await this.logApiError("products list", url, response, "Got response " + response.status);
         resolve(undefined);
       }
     });
@@ -1688,8 +1758,9 @@ export class ApigeeTemplaterService {
     token: string,
   ): Promise<any | undefined> {
     return new Promise(async (resolve, reject) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apiproducts/${productName}`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apiproducts/${productName}`,
+        url,
         {
           headers: {
             Authorization: token,
@@ -1701,8 +1772,7 @@ export class ApigeeTemplaterService {
         let responseBody: any = await response.json();
         resolve(responseBody);
       } else {
-        let message = await response.text();
-        console.log(" > Apigee product GET response: " + response.status + " - " + message);
+        await this.logApiError("product GET", url, response, `> Apigee product GET response: ${response.status}`);
         resolve(undefined);
       }
     });
@@ -1721,7 +1791,7 @@ export class ApigeeTemplaterService {
       let productName = payload.name;
 
       if (!productName) {
-        console.log(" > Error: Product name is required for export.");
+        console.log(chalk.red.bold.italic(" > Error: Product name is required for export."));
         resolve(false);
         return;
       }
@@ -1755,8 +1825,7 @@ export class ApigeeTemplaterService {
       if (response.status === 200 || response.status === 201) {
         resolve(true);
       } else {
-        let message = await response.text();
-        console.log(` > Apigee product ${method} response: ${response.status} - ${message}`);
+        await this.logApiError(`product ${method}`, url, response);
         resolve(false);
       }
     });
@@ -1769,8 +1838,9 @@ export class ApigeeTemplaterService {
     token: string,
   ): Promise<boolean> {
     return new Promise(async (resolve, reject) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apiproducts/${productName}`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apiproducts/${productName}`,
+        url,
         {
           method: "DELETE",
           headers: {
@@ -1782,8 +1852,7 @@ export class ApigeeTemplaterService {
       if (response.status === 200) {
         resolve(true);
       } else {
-        let message = await response.text();
-        console.log(` > Apigee product DELETE response: ${response.status} - ${message}`);
+        await this.logApiError("product DELETE", url, response);
         resolve(false);
       }
     });
@@ -1892,7 +1961,10 @@ export class ApigeeTemplaterService {
                       } else {
                         remoteUser = JSON.parse(text) as User;
                       }
-                      if (remoteUser && (remoteUser.name || remoteUser.userName || remoteUser.email)) {
+                      if (remoteUser) {
+                        if (!remoteUser.name && !remoteUser.userName && !remoteUser.email) {
+                          remoteUser.name = item.name.replace(/\.(json|yaml|yml)$/, "");
+                        }
                         const idx = users.findIndex((x) => x.name === remoteUser.name);
                         if (idx === -1) users.push(remoteUser);
                       }
@@ -1962,7 +2034,12 @@ export class ApigeeTemplaterService {
               } else {
                 result = YAML.parse(content) as User;
               }
-              if (result && (result.name || result.userName || result.email)) return resolve(result);
+              if (result) {
+                if (!result.name && !result.userName && !result.email) {
+                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                }
+                return resolve(result);
+              }
             } catch (e) {}
           }
         }
@@ -1975,7 +2052,12 @@ export class ApigeeTemplaterService {
           if (res.status === 200) {
             const text = await res.text();
             result = name.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
-            if (result) return resolve(result);
+            if (result) {
+              if (!result.name && !result.userName && !result.email) {
+                result.name = path.basename(name).replace(/\.(yaml|yml|json)$/i, "");
+              }
+              return resolve(result);
+            }
           }
         } catch (e) {}
       } else {
@@ -1988,7 +2070,12 @@ export class ApigeeTemplaterService {
             if (res.status === 200) {
               const text = await res.text();
               result = candidate.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
-              if (result && (result.name || result.userName || result.email)) return resolve(result);
+              if (result) {
+                if (!result.name && !result.userName && !result.email) {
+                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                }
+                return resolve(result);
+              }
             }
           } catch (e) {}
         }
@@ -2039,8 +2126,9 @@ export class ApigeeTemplaterService {
     token: string,
   ): Promise<any | undefined> {
     return new Promise(async (resolve, reject) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers?expand=true`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers?expand=true`,
+        url,
         {
           headers: {
             Authorization: token,
@@ -2052,7 +2140,7 @@ export class ApigeeTemplaterService {
         let responseBody: any = await response.json();
         resolve(responseBody);
       } else {
-        console.log("Got response " + response.status);
+        await this.logApiError("users list", url, response, "Got response " + response.status);
         resolve(undefined);
       }
     });
@@ -2065,8 +2153,9 @@ export class ApigeeTemplaterService {
     token: string,
   ): Promise<any | undefined> {
     return new Promise(async (resolve, reject) => {
+      const devUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(developerEmail)}`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(developerEmail)}`,
+        devUrl,
         {
           headers: {
             Authorization: token,
@@ -2076,8 +2165,9 @@ export class ApigeeTemplaterService {
 
       if (response.status === 200) {
         let dev: any = await response.json();
+        const appsUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(developerEmail)}/apps?expand=true`;
         let appsResponse = await fetch(
-          `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(developerEmail)}/apps?expand=true`,
+          appsUrl,
           {
             headers: {
               Authorization: token,
@@ -2088,12 +2178,13 @@ export class ApigeeTemplaterService {
         if (appsResponse.status === 200) {
           let appsBody: any = await appsResponse.json();
           apps = appsBody.app || [];
+        } else {
+          await this.logApiError("developer apps GET", appsUrl, appsResponse);
         }
         let converter = new ApigeeConverter();
         resolve(converter.apigeeToUser(dev, apps));
       } else {
-        let message = await response.text();
-        console.log(" > Apigee developer GET response: " + response.status + " - " + message);
+        await this.logApiError("developer GET", devUrl, response, `> Apigee developer GET response: ${response.status}`);
         resolve(undefined);
       }
     });
@@ -2111,7 +2202,7 @@ export class ApigeeTemplaterService {
       let email = devPayload.email;
 
       if (!email) {
-        console.log(" > Error: Developer email is required for user export.");
+        console.log(chalk.red.bold.italic(" > Error: Developer email is required for user export."));
         resolve(false);
         return;
       }
@@ -2143,8 +2234,7 @@ export class ApigeeTemplaterService {
       });
 
       if (response.status !== 200 && response.status !== 201) {
-        let message = await response.text();
-        console.log(` > Apigee developer ${method} response: ${response.status} - ${message}`);
+        await this.logApiError(`developer ${method}`, url, response);
         resolve(false);
         return;
       }
@@ -2188,8 +2278,7 @@ export class ApigeeTemplaterService {
         });
 
         if (appResp.status !== 200 && appResp.status !== 201) {
-          let msg = await appResp.text();
-          console.log(` > Apigee app ${appMethod} response: ${appResp.status} - ${msg}`);
+          await this.logApiError(`app ${appMethod}`, appUrl, appResp);
         }
 
         if (app.credentials && Array.isArray(app.credentials)) {
@@ -2197,8 +2286,9 @@ export class ApigeeTemplaterService {
             let key = cred.consumerKey || cred.key;
             let secret = cred.consumerSecret || cred.secret;
             if (key && secret) {
-              await fetch(
-                `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}/apps/${encodeURIComponent(appName)}/keys/create`,
+              const createKeyUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}/apps/${encodeURIComponent(appName)}/keys/create`;
+              let keyResp = await fetch(
+                createKeyUrl,
                 {
                   method: "POST",
                   headers: {
@@ -2211,9 +2301,14 @@ export class ApigeeTemplaterService {
                   }),
                 },
               );
+              if (keyResp.status !== 200 && keyResp.status !== 201) {
+                await this.logApiError("app credential CREATE", createKeyUrl, keyResp);
+              }
+
               if (cred.products || cred.apiProducts) {
-                await fetch(
-                  `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}/apps/${encodeURIComponent(appName)}/keys/${encodeURIComponent(key)}`,
+                const assocKeyUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}/apps/${encodeURIComponent(appName)}/keys/${encodeURIComponent(key)}`;
+                let assocResp = await fetch(
+                  assocKeyUrl,
                   {
                     method: "POST",
                     headers: {
@@ -2225,6 +2320,9 @@ export class ApigeeTemplaterService {
                     }),
                   },
                 );
+                if (assocResp.status !== 200 && assocResp.status !== 201) {
+                  await this.logApiError("app credential association", assocKeyUrl, assocResp);
+                }
               }
             }
           }
@@ -2242,8 +2340,9 @@ export class ApigeeTemplaterService {
     token: string,
   ): Promise<boolean> {
     return new Promise(async (resolve, reject) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(developerEmail)}`;
       let response = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(developerEmail)}`,
+        url,
         {
           method: "DELETE",
           headers: {
@@ -2255,8 +2354,7 @@ export class ApigeeTemplaterService {
       if (response.status === 200) {
         resolve(true);
       } else {
-        let message = await response.text();
-        console.log(` > Apigee developer DELETE response: ${response.status} - ${message}`);
+        await this.logApiError("developer DELETE", url, response);
         resolve(false);
       }
     });

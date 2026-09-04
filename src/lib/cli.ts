@@ -48,16 +48,30 @@ export class cli {
     const vStr = ("v" + version).padEnd(8);
     const logoText = `
   ┌───────────────────────────────────────────────────────────┐
-  │            _   _                                          │
-  │     __ _  / _| | |_         APIGEE                        │
-  │    / _\` || |_  |  _|        FEATURE                       │
-  │   | (_| ||  _| | |_         TEMPLATER                     │
-  │    \\__,_||_|    \\__|                            ${vStr}  │
+  │                           _                               │
+  │              __ _  _ __  (_)  __ _   ___   ___            │
+  │             / _\` || '_ \\ | | / _\` | / _ \\ / _ \\           │
+  │            | (_| || |_) || || (_| ||  __/|  __/           │
+  │             \\__,_|| .__/ |_| \\__, | \\___| \\___|           │
+  │                   |_|        |___/                ${vStr}│
   └───────────────────────────────────────────────────────────┘`;
     console.log(chalk.cyan.bold(logoText));
   }
 
   parseArgumentsIntoOptions(rawArgs: string[]): cliArgs {
+    let argv = rawArgs.slice(2);
+    let command = "convert";
+    let explicitCommand = false;
+    if (argv[0] === "convert") {
+      command = "convert";
+      explicitCommand = true;
+      argv = argv.slice(1);
+    } else if (argv[0] === "describe") {
+      command = "describe";
+      explicitCommand = true;
+      argv = argv.slice(1);
+    }
+
     const args = arg(
       {
         "--input": String,
@@ -66,12 +80,16 @@ export class cli {
         "--targetUrl": String,
         "--output": String,
         "--organization": String,
+        "--org": "--organization",
+        "--project": "--organization",
         "--environment": String,
         "--service-account": String,
         "--format": String,
-        "--applyFeature": String,
-        "--removeFeature": String,
+        "--applyFeature": [String],
+        "--removeFeature": [String],
         "--listFeatures": Boolean,
+        "--list": "--listFeatures",
+        "--listTemplates": "--listFeatures",
         "--parameters": String,
         "--token": String,
         "--help": Boolean,
@@ -96,39 +114,102 @@ export class cli {
         "-d": "--drz",
       },
       {
-        argv: rawArgs.slice(2),
+        argv,
       },
     );
 
-    if ((args["--applyFeature"] || args["--removeFeature"]) && args["_"] && args["_"][0]) {
-      args["--input"] = args["_"][0];
-    } else if (
-      args["_"] &&
-      args["_"][0] &&
-      (args["--output"] || args["--organization"] || args["--delete"] || args["--format"])
-    ) {
-      args["--input"] = args["_"][0];
-    } else if (args["_"] && args["_"][0]) {
-      args["--output"] =
-        !args["_"][0].toLowerCase().endsWith(".yaml") &&
-        !args["_"][0].toLowerCase().endsWith(".json")
-          ? args["_"][0] + ".yaml"
-          : args["_"][0];
+    if (args["_"] && args["_"][0] === "convert") {
+      command = "convert";
+      explicitCommand = true;
+      args["_"].shift();
+    } else if (args["_"] && args["_"][0] === "describe") {
+      command = "describe";
+      explicitCommand = true;
+      args["_"].shift();
     }
 
+    const rawApply: string[] = args["--applyFeature"] || [];
+    const applyFeatures: string[] = rawApply
+      .flatMap((f: string) => f.split(","))
+      .map((f: string) => f.trim())
+      .filter(Boolean);
+
+    const rawRemove: string[] = args["--removeFeature"] || [];
+    const removeFeatures: string[] = rawRemove
+      .flatMap((f: string) => f.split(","))
+      .map((f: string) => f.trim())
+      .filter(Boolean);
+
+    let singlePositionalInput = "";
+
+    if (command === "describe") {
+      if (!args["--input"] && args["_"] && args["_"][0]) {
+        args["--input"] = args["_"][0];
+      }
+    } else {
+      if (args["_"] && args["_"].length >= 2 && !args["--input"] && !args["--output"]) {
+        args["--input"] = args["_"][0];
+        args["--output"] = args["_"][1];
+      } else if ((applyFeatures.length > 0 || removeFeatures.length > 0) && args["_"] && args["_"][0]) {
+        args["--input"] = args["_"][0];
+      } else if (
+        args["_"] &&
+        args["_"][0] &&
+        (args["--output"] || args["--organization"] || (args as any)["--org"] || (args as any)["--project"] || args["--delete"] || args["--format"])
+      ) {
+        args["--input"] = args["_"][0];
+      } else if (args["_"] && args["_"][0]) {
+        if (!explicitCommand) {
+          command = "describe";
+          args["--input"] = args["_"][0];
+          singlePositionalInput = args["_"][0];
+        } else {
+          args["--output"] =
+            !args["_"][0].toLowerCase().endsWith(".yaml") &&
+            !args["_"][0].toLowerCase().endsWith(".json")
+              ? args["_"][0] + ".yaml"
+              : args["_"][0];
+        }
+      } else if (
+        !explicitCommand &&
+        args["--input"] &&
+        !args["--output"] &&
+        !args["--organization"] &&
+        !(args as any)["--org"] &&
+        !(args as any)["--project"] &&
+        !args["--delete"] &&
+        applyFeatures.length === 0 &&
+        removeFeatures.length === 0 &&
+        !args["--basePath"] &&
+        !args["--targetUrl"] &&
+        !args["--environment"] &&
+        !args["--service-account"] &&
+        !args["--format"]
+      ) {
+        command = "describe";
+      }
+    }
+
+    const isList = args["--listFeatures"] || false;
+
     return {
+      command: command,
+      singlePositionalInput: singlePositionalInput,
       input: args["--input"] || "",
       name: args["--name"] || "",
       basePath: args["--basePath"] || "",
       targetUrl: args["--targetUrl"] || "",
       output: args["--output"] || "",
-      organization: args["--organization"] || "",
+      organization: args["--organization"] || (args as any)["--org"] || (args as any)["--project"] || "",
       environment: args["--environment"] || "",
       serviceAccount: args["--service-account"] || "",
       format: args["--format"] || "",
-      applyFeature: args["--applyFeature"] || "",
-      removeFeature: args["--removeFeature"] || "",
-      listFeatures: args["--listFeatures"] || false,
+      applyFeature: applyFeatures.join(","),
+      applyFeatures: applyFeatures,
+      removeFeature: removeFeatures.join(","),
+      removeFeatures: removeFeatures,
+      list: isList,
+      listFeatures: isList,
       parameters: args["--parameters"] || "",
       token: args["--token"] || "",
       help: args["--help"] || false,
@@ -267,12 +348,15 @@ export class cli {
     console.log(`  ${chalk.white("Provides tooling for feature development of Apigee proxies using YAML, JSON, and ZIP formats.")}\n`);
 
     console.log(`  ${chalk.bold.cyan("USAGE:")}`);
-    console.log(`    ${chalk.green("aft")} ${chalk.yellow("[options]")} ${chalk.dim("[<input> | <output>]")}`);
+    console.log(`    ${chalk.green("aft")} ${chalk.yellow("[convert]")} ${chalk.yellow("[options]")} ${chalk.dim("[<input> | <output>]")}`);
+    console.log(`    ${chalk.green("aft")} ${chalk.yellow("describe")} ${chalk.yellow("[options]")} ${chalk.dim("<input>")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("completion <install | zsh | bash | fish | powershell>")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("skill <install | uninstall>")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("cache <clear>")}\n`);
 
     console.log(`  ${chalk.bold.cyan("COMMANDS:")}`);
+    console.log(`    ${chalk.bold.yellow("convert".padEnd(22))} ${chalk.white("Convert between Apigee proxies, features & templates (default command).")}`);
+    console.log(`    ${chalk.bold.yellow("describe".padEnd(22))} ${chalk.white("Describe an Apigee template, proxy, feature, product, or user in the terminal summary.")}`);
     console.log(`    ${chalk.bold.yellow("completion".padEnd(22))} ${chalk.white("Install or display shell tab-completion scripts (install, uninstall, zsh, bash, fish, powershell).")}`);
     console.log(`    ${chalk.bold.yellow("skill".padEnd(22))} ${chalk.white("Install or uninstall Apigee Templater skill for AI coding assistants.")}`);
     console.log(`    ${chalk.bold.yellow("cache".padEnd(22))} ${chalk.white("Manage local cache of templates and features (clear).")}\n`);
@@ -515,12 +599,15 @@ export class cli {
           "--targetUrl",
           "--output",
           "--organization",
+          "--org",
+          "--project",
           "--environment",
           "--service-account",
           "--format",
           "--applyFeature",
           "--removeFeature",
           "--listFeatures",
+          "--list",
           "--parameters",
           "--token",
           "--config",
@@ -548,7 +635,14 @@ export class cli {
         return;
       }
 
-      if (currentWord === "completion" || currentWord === "skill" || currentWord === "cache") {
+      if (
+        currentWord === "convert" ||
+        currentWord === "describe" ||
+        currentWord === "list" ||
+        currentWord === "completion" ||
+        currentWord === "skill" ||
+        currentWord === "cache"
+      ) {
         console.log(currentWord);
         return;
       }
@@ -564,23 +658,83 @@ export class cli {
     console.log(`  ${chalk.bold.magenta("Apigee Feature Templater")} ${chalk.bold.yellow("v" + version)}\n`);
   }
 
-  async printFeatures() {
-    this.printLogo();
-    console.log(`\n  ${chalk.bold.cyan("📦 Available Apigee Features:")}\n`);
+  async printFeatures(format?: string) {
+    let [allTemplates, allFeatures] = await Promise.all([
+      this.apigeeService.templatesList(),
+      this.apigeeService.featuresList(),
+    ]);
 
-    let allFeatures = await this.apigeeService.featuresList();
+    if (format === "json" || format === "yaml" || format === "yml") {
+      const catalog = {
+        templates: allTemplates.map((t) => ({
+          name: t.name,
+          description: t.description || undefined,
+          features:
+            t.features && t.features.length > 0
+              ? t.features.map((f) => path.basename(f, path.extname(f)))
+              : undefined,
+          parameters:
+            t.parameters && t.parameters.length > 0
+              ? t.parameters.map((p) => ({
+                  name: p.name,
+                  description: p.description || p.displayName || undefined,
+                  default: p.default || undefined,
+                }))
+              : undefined,
+        })),
+        features: allFeatures.map((f) => ({
+          name: f.name,
+          description: f.description || undefined,
+          parameters:
+            f.parameters && f.parameters.length > 0
+              ? f.parameters.map((p) => ({
+                  name: p.name,
+                  description: p.description || p.displayName || undefined,
+                  default: p.default || undefined,
+                }))
+              : undefined,
+        })),
+      };
 
-    if (allFeatures.length === 0) {
-      console.log(`    ${chalk.yellow("No features found in repository.")}\n`);
+      if (format === "json") {
+        console.log(JSON.stringify(catalog, null, 2));
+      } else {
+        console.log(YAML.stringify(catalog, { aliasDuplicateObjects: false }));
+      }
       return;
     }
 
-    for (let feature of allFeatures) {
-      const nameBadge = chalk.bgMagenta.white.bold(` ${feature.name.padEnd(20)} `);
-      const desc = chalk.italic.white(feature.description || "No description");
-      console.log(`    ${nameBadge} ${desc}`);
+    this.printLogo();
+
+    const maxLen = Math.max(
+      22,
+      ...allTemplates.map((t) => (t.name || "").length),
+      ...allFeatures.map((f) => (f.name || "").length),
+    );
+
+    console.log(`\n  ${chalk.bold.cyan("📑 Available Apigee Templates:")}\n`);
+    if (allTemplates.length === 0) {
+      console.log(`    ${chalk.yellow("No templates found in repository.")}\n`);
+    } else {
+      for (let template of allTemplates) {
+        const nameBadge = chalk.bgBlue.white.bold(` ${template.name.padEnd(maxLen)} `);
+        const desc = chalk.italic.white(template.description || "No description");
+        console.log(`    ${nameBadge} ${desc}`);
+      }
+      console.log(`\n  ${chalk.dim(`Total templates available: ${allTemplates.length}`)}\n`);
     }
-    console.log(`\n  ${chalk.dim(`Total features available: ${allFeatures.length}`)}\n`);
+
+    console.log(`  ${chalk.bold.cyan("📦 Available Apigee Features:")}\n`);
+    if (allFeatures.length === 0) {
+      console.log(`    ${chalk.yellow("No features found in repository.")}\n`);
+    } else {
+      for (let feature of allFeatures) {
+        const nameBadge = chalk.bgMagenta.white.bold(` ${feature.name.padEnd(maxLen)} `);
+        const desc = chalk.italic.white(feature.description || "No description");
+        console.log(`    ${nameBadge} ${desc}`);
+      }
+      console.log(`\n  ${chalk.dim(`Total features available: ${allFeatures.length}`)}\n`);
+    }
   }
 
   processDataSpec(): Promise<string> {
@@ -595,7 +749,7 @@ export class cli {
     });
   }
 
-  private printOverviewCard(title: string, summaryLines: string[], outputPath: string) {
+  private printOverviewCard(title: string, summaryLines: string[], outputPath?: string) {
     console.log(`\n  ${chalk.bgCyan.black.bold(" OVERVIEW ")} ${chalk.bold.magenta(title)}`);
     console.log(chalk.gray("  ─────────────────────────────────────────────────────────"));
     for (const line of summaryLines) {
@@ -603,16 +757,31 @@ export class cli {
         console.log(`    ${chalk.bold("Name:")}        ${chalk.cyan(line.replace("Name: ", ""))}`);
       } else if (line.startsWith("Display Name:")) {
         console.log(`    ${chalk.bold("Display Name:")} ${chalk.cyan(line.replace("Display Name: ", ""))}`);
+      } else if (line.startsWith("Email:")) {
+        console.log(`    ${chalk.bold("Email:")}       ${chalk.cyan(line.replace("Email: ", ""))}`);
+      } else if (line.startsWith("Username:")) {
+        console.log(`    ${chalk.bold("Username:")}    ${chalk.white(line.replace("Username: ", ""))}`);
+      } else if (line.startsWith("Full Name:")) {
+        console.log(`    ${chalk.bold("Full Name:")}   ${chalk.white(line.replace("Full Name: ", ""))}`);
+      } else if (line.startsWith("Status:")) {
+        console.log(`    ${chalk.bold("Status:")}      ${chalk.white(line.replace("Status: ", ""))}`);
+      } else if (line.startsWith("Attributes:")) {
+        console.log(`    ${chalk.bold("Attributes:")}  ${chalk.white(line.replace("Attributes: ", ""))}`);
       } else if (line.startsWith("Description:")) {
-        console.log(`    ${chalk.bold("Description:")}  ${chalk.white(line.replace("Description: ", ""))}`);
+        console.log(`    ${chalk.bold("Description:")} ${chalk.white(line.replace("Description: ", ""))}`);
       } else if (line.startsWith("Approval Type:")) {
         console.log(`    ${chalk.bold("Approval Type:")} ${chalk.white(line.replace("Approval Type: ", ""))}`);
+      } else if (line.startsWith("Access:")) {
+        console.log(`    ${chalk.bold("Access:")}       ${chalk.white(line.replace("Access: ", ""))}`);
       } else if (line.startsWith("Environments:")) {
         console.log(`    ${chalk.bold("Environments:")}  ${chalk.white(line.replace("Environments: ", ""))}`);
       } else if (line.startsWith("Proxies:")) {
         console.log(`    ${chalk.bold("Proxies:")}       ${chalk.white(line.replace("Proxies: ", ""))}`);
       } else if (line.startsWith("Quota:")) {
         console.log(`    ${chalk.bold("Quota:")}         ${chalk.yellow(line.replace("Quota: ", ""))}`);
+      } else if (line.endsWith(": none")) {
+        const title = line.replace(": none", ":");
+        console.log(`    ${chalk.bold(title)}   ${chalk.dim("none")}`);
       } else if (line.startsWith("Endpoints:")) {
         console.log(`    ${chalk.bold("Endpoints:")}`);
       } else if (line.startsWith("Targets:")) {
@@ -621,6 +790,20 @@ export class cli {
         console.log(`    ${chalk.bold("Policies:")}`);
       } else if (line.startsWith("Resources:")) {
         console.log(`    ${chalk.bold("Resources:")}`);
+      } else if (line.startsWith("Features:")) {
+        console.log(`    ${chalk.bold("Features:")}`);
+      } else if (line.startsWith("Parameters:")) {
+        console.log(`    ${chalk.bold("Parameters:")}`);
+      } else if (line.startsWith("Endpoint flows:")) {
+        console.log(`    ${chalk.bold("Endpoint flows:")}`);
+      } else if (line.startsWith("Target flows:")) {
+        console.log(`    ${chalk.bold("Target flows:")}`);
+      } else if (line.startsWith("Operations:")) {
+        console.log(`    ${chalk.bold("Operations:")}    ${chalk.white(line.replace("Operations: ", ""))}`);
+      } else if (line.startsWith("Apps:")) {
+        console.log(`    ${chalk.bold("Apps:")}          ${chalk.white(line.replace("Apps: ", ""))}`);
+      } else if (line.startsWith("  - ")) {
+        console.log(`        ${chalk.dim("└─")} ${chalk.white(line.substring(4))}`);
       } else if (line.startsWith("- ")) {
         console.log(`      ${chalk.green("•")} ${chalk.white(line.substring(2))}`);
       } else {
@@ -628,7 +811,11 @@ export class cli {
       }
     }
     console.log(chalk.gray("  ─────────────────────────────────────────────────────────"));
-    console.log(`  ${chalk.green.bold("✔ Output written to:")} ${chalk.bold.yellow(outputPath)}\n`);
+    if (outputPath) {
+      console.log(`  ${chalk.green.bold("✔ Output written to:")} ${chalk.bold.yellow(outputPath)}\n`);
+    } else {
+      console.log();
+    }
   }
 
   private printOrgConfig(orgName: string, config: ApigeeConfig) {
@@ -732,6 +919,13 @@ export class cli {
       return;
     }
 
+    // Command route for listing repository templates and features
+    if (args.length > 2 && args[2] === "list") {
+      let options: cliArgs = this.parseArgumentsIntoOptions(args);
+      await this.printFeatures(options.format);
+      return;
+    }
+
     let options: cliArgs = this.parseArgumentsIntoOptions(args);
 
     if (options.help) {
@@ -744,8 +938,8 @@ export class cli {
       return;
     }
 
-    if (options.listFeatures) {
-      await this.printFeatures();
+    if (options.listFeatures || options.list) {
+      await this.printFeatures(options.format);
       return;
     }
 
@@ -770,15 +964,55 @@ export class cli {
       return;
     }
 
-    if (!options.input) {
-      this.printLogo();
-      console.log(
-        `  ${chalk.bold.magenta("Welcome to Apigee Feature Templater " + version)}`
-      );
-      console.log(`  ${chalk.green("Use -h to view all command line options.")}\n`);
+    if (options.singlePositionalInput) {
+      const fileExists = fs.existsSync(options.singlePositionalInput);
+      const isRemoteUrl =
+        options.singlePositionalInput.toLowerCase().startsWith("http://") ||
+        options.singlePositionalInput.toLowerCase().startsWith("https://");
+      const hasDirectory =
+        options.singlePositionalInput.includes("/") ||
+        options.singlePositionalInput.includes("\\");
+
+      let repoItem: any = undefined;
+      if (!fileExists && !isRemoteUrl && !hasDirectory) {
+        repoItem = await this.apigeeService.repositoryGet(options.singlePositionalInput);
+      }
+
+      if (!fileExists && !repoItem && !isRemoteUrl) {
+        options.command = "convert";
+        options.output =
+          !options.singlePositionalInput.toLowerCase().endsWith(".yaml") &&
+          !options.singlePositionalInput.toLowerCase().endsWith(".json")
+            ? options.singlePositionalInput + ".yaml"
+            : options.singlePositionalInput;
+        options.input = "";
+        options.name = this.sanitizeName(options.output, options.input);
+      } else {
+        options.command = "describe";
+        options.input = options.singlePositionalInput;
+        options.output = "";
+      }
     }
 
-    options = await this.promptForMissingOptions(options);
+    if (options.command === "describe") {
+      if (!options.input) {
+        console.log(`  ${chalk.red.bold("✖ Error: Please specify an input to describe.")}\n`);
+        return;
+      }
+      if (!options.name && options.input) {
+        options.name = this.sanitizeName("", options.input);
+      }
+    } else {
+      if (!options.input) {
+        this.printLogo();
+        console.log(
+          `  ${chalk.bold.magenta("Welcome to Apigee Feature Templater " + version)}`
+        );
+        console.log(`  ${chalk.green("Use -h to view all command line options.")}\n`);
+      }
+
+      options = await this.promptForMissingOptions(options);
+    }
 
     let template: Template | undefined = undefined;
     let feature: Feature | undefined = undefined;
@@ -958,6 +1192,17 @@ export class cli {
       else if (file && file["type"] === "feature") feature = file as Feature;
       else if (file && file["type"] === "product") product = file as Product;
       else if (file && file["type"] === "user") user = file as User;
+      else if (file && options.format === "template") template = file as Template;
+      else if (file && options.format === "proxy") proxy = file as Proxy;
+      else if (file && (options.format === "feature" || options.format === "sharedflow" || options.format === "sf")) feature = file as Feature;
+      else if (file && options.format === "product") product = file as Product;
+      else if (file && options.format === "user") user = file as User;
+      else if (file && file["endpoints"] && file["features"]) template = file as Template;
+      else if (file && file["endpoints"]) proxy = file as Proxy;
+      else if (file && file["features"]) template = file as Template;
+      else if (file && file["policies"]) feature = file as Feature;
+      else if (file && (file["approvalType"] || file["operationGroup"])) product = file as Product;
+      else if (file && (file["email"] || file["developerId"])) user = file as User;
       else if (file) {
         console.log(
           `  ${chalk.red.bold("✖ Error reading '" + options.input + "', could not determine its type:")}\n  ${JSON.stringify(file, null, 2)}`,
@@ -978,6 +1223,17 @@ export class cli {
         else if (file && file["type"] === "feature") feature = file as Feature;
         else if (file && file["type"] === "product") product = file as Product;
         else if (file && file["type"] === "user") user = file as User;
+        else if (file && options.format === "template") template = file as Template;
+        else if (file && options.format === "proxy") proxy = file as Proxy;
+        else if (file && (options.format === "feature" || options.format === "sharedflow" || options.format === "sf")) feature = file as Feature;
+        else if (file && options.format === "product") product = file as Product;
+        else if (file && options.format === "user") user = file as User;
+        else if (file && file["endpoints"] && file["features"]) template = file as Template;
+        else if (file && file["endpoints"]) proxy = file as Proxy;
+        else if (file && file["features"]) template = file as Template;
+        else if (file && file["policies"]) feature = file as Feature;
+        else if (file && (file["approvalType"] || file["operationGroup"])) product = file as Product;
+        else if (file && (file["email"] || file["developerId"])) user = file as User;
       } else {
         if (options.format == "template") {
           template = await this.apigeeService.templateGet(options.input);
@@ -1001,6 +1257,43 @@ export class cli {
           }
         }
       }
+    }
+
+    if (template && !template.name && options.input) {
+      template.name = path.basename(options.input).replace(/\.(yaml|yml|json)$/i, "");
+    }
+    if (proxy && !proxy.name && options.input) {
+      proxy.name = path.basename(options.input).replace(/\.(yaml|yml|json)$/i, "");
+    }
+    if (feature && !feature.name && options.input) {
+      feature.name = path.basename(options.input).replace(/\.(yaml|yml|json)$/i, "");
+    }
+    if (product && !product.name && options.input) {
+      product.name = path.basename(options.input).replace(/\.(yaml|yml|json)$/i, "");
+    }
+    if (user && !user.name && !user.email && options.input) {
+      user.name = path.basename(options.input).replace(/\.(yaml|yml|json)$/i, "");
+    }
+
+    if (options.command === "describe") {
+      process.chdir(startDir);
+      if (template) {
+        this.printOverviewCard(`Template ${template.name}`, this.converter.templateToStringArray(template));
+      } else if (proxy) {
+        this.printOverviewCard(`Proxy ${proxy.name}`, this.converter.proxyToStringArray(proxy));
+      } else if (feature) {
+        const title = (options.format === "sharedflow" || options.format === "sf")
+          ? `SharedFlow ${feature.name}`
+          : `Feature ${feature.name}`;
+        this.printOverviewCard(title, this.converter.featureToStringArray(feature));
+      } else if (product) {
+        this.printOverviewCard(`Product ${product.name}`, this.converter.productToStringArray(product));
+      } else if (user) {
+        this.printOverviewCard(`User ${user.name || user.email}`, this.converter.userToStringArray(user));
+      } else {
+        console.log(`  ${chalk.red.bold(`✖ Error: Could not resolve input '${options.input}' to describe.`)}\n`);
+      }
+      return;
     }
 
     if (!template && !proxy && !feature && !product && !user) {
@@ -1211,7 +1504,20 @@ export class cli {
       }
       return;
     } else {
-      if (options.applyFeature) {
+      const applyList =
+        options.applyFeatures && options.applyFeatures.length > 0
+          ? options.applyFeatures
+          : options.applyFeature
+            ? [options.applyFeature]
+            : [];
+      const removeList =
+        options.removeFeatures && options.removeFeatures.length > 0
+          ? options.removeFeatures
+          : options.removeFeature
+            ? [options.removeFeature]
+            : [];
+
+      if (applyList.length > 0) {
         process.chdir(startDir);
         if (!options.output) options.output = options.input;
 
@@ -1226,57 +1532,68 @@ export class cli {
           inputParameters["PROJECT_ID"] = targetOrg;
         }
 
-        let relativePath = options.applyFeature;
-        if (
-          fs.existsSync(options.applyFeature) &&
-          path.dirname(options.output) != "." &&
-          fs.existsSync(path.dirname(options.output))
-        ) {
-          relativePath = path.relative(path.dirname(options.output), options.applyFeature);
-        }
-        let applyFeature = await this.apigeeService.featureGet(options.applyFeature);
+        for (const featName of applyList) {
+          let relativePath = featName;
+          if (
+            fs.existsSync(featName) &&
+            path.dirname(options.output) != "." &&
+            fs.existsSync(path.dirname(options.output))
+          ) {
+            relativePath = path.relative(path.dirname(options.output), featName);
+          }
+          let applyFeature = await this.apigeeService.featureGet(featName);
 
-        if (template && applyFeature)
-          template = this.converter.templateApplyFeature(
-            template,
-            applyFeature,
-            relativePath,
-            inputParameters,
-          );
-        else if (proxy && applyFeature) {
-          proxy = this.converter.proxyApplyFeature(proxy, applyFeature, inputParameters);
-        } else if (feature && applyFeature) {
-          feature = this.converter.featureApplyFeature(feature, applyFeature, inputParameters);
-        } else if (!applyFeature) {
-          console.error(`  ${chalk.red.bold("✖ Could not load feature:")} ${relativePath}`);
+          if (template && applyFeature) {
+            template = this.converter.templateApplyFeature(
+              template,
+              applyFeature,
+              relativePath,
+              inputParameters,
+            );
+          } else if (proxy && applyFeature) {
+            proxy = this.converter.proxyApplyFeature(proxy, applyFeature, inputParameters);
+          } else if (feature && applyFeature) {
+            feature = this.converter.featureApplyFeature(feature, applyFeature, inputParameters);
+          } else if (!applyFeature) {
+            console.error(`  ${chalk.red.bold("✖ Could not load feature:")} ${relativePath}`);
+          }
         }
-      } else if (options.removeFeature) {
+      } else if (removeList.length > 0) {
         process.chdir(startDir);
         if (!options.output) options.output = options.input;
-        if (template) {
-          let templateFeatures: Feature[] = [];
-          for (let featurePath of template.features) {
-            let relativePath = featurePath;
-            relativePath = path.relative(path.dirname(options.output), relativePath);
-            let tempFeature = await this.apigeeService.featureGet(relativePath);
-            if (tempFeature) templateFeatures.push(tempFeature);
-          }
 
-          let relativePath = options.removeFeature;
-          relativePath = path.relative(path.dirname(options.output), relativePath);
-          let removeFeature = await this.apigeeService.featureGet(relativePath);
-          if (removeFeature)
-            template = this.converter.templateRemoveFeature(
-              template,
-              templateFeatures,
-              relativePath,
-              removeFeature,
-            );
-        } else if (feature) {
-          let relativePath = options.removeFeature;
-          relativePath = path.relative(path.dirname(options.output), relativePath);
-          let removeFeature = await this.apigeeService.featureGet(relativePath);
-          if (removeFeature) this.converter.featureRemoveFeature(feature, removeFeature);
+        for (const featName of removeList) {
+          if (template) {
+            let templateFeatures: Feature[] = [];
+            const relDir = options.input ? path.dirname(options.input) : undefined;
+            for (let featurePath of template.features) {
+              let tempFeature = await this.apigeeService.featureGet(featurePath, relDir);
+              if (tempFeature) templateFeatures.push(tempFeature);
+            }
+
+            let relativePath = featName;
+            if (
+              fs.existsSync(featName) &&
+              path.dirname(options.output) != "." &&
+              fs.existsSync(path.dirname(options.output))
+            ) {
+              relativePath = path.relative(path.dirname(options.output), featName);
+            }
+            let removeFeature = await this.apigeeService.featureGet(featName, relDir);
+            if (removeFeature)
+              template = this.converter.templateRemoveFeature(
+                template,
+                templateFeatures,
+                relativePath,
+                removeFeature,
+              );
+          } else if (feature) {
+            let removeFeature = await this.apigeeService.featureGet(featName);
+            if (removeFeature) this.converter.featureRemoveFeature(feature, removeFeature);
+          } else if (proxy) {
+            let removeFeature = await this.apigeeService.featureGet(featName);
+            if (removeFeature) proxy = this.converter.proxyRemoveFeature(proxy, removeFeature) ?? proxy;
+          }
         }
       }
 
@@ -1660,10 +1977,18 @@ export class cli {
           );
         } else if (feature) {
           proxy = this.converter.featureToProxy(feature, inputParameters);
-          if (options.applyFeature) {
-            let testFeature = await this.apigeeService.featureGet(options.applyFeature);
-            if (testFeature)
-              proxy = this.converter.proxyApplyFeature(proxy, testFeature, inputParameters);
+          const applyList =
+            options.applyFeatures && options.applyFeatures.length > 0
+              ? options.applyFeatures
+              : options.applyFeature
+                ? [options.applyFeature]
+                : [];
+          if (applyList.length > 0) {
+            for (const featName of applyList) {
+              let testFeature = await this.apigeeService.featureGet(featName);
+              if (testFeature)
+                proxy = this.converter.proxyApplyFeature(proxy, testFeature, inputParameters);
+            }
           }
         }
         process.chdir(startDir);
@@ -1803,12 +2128,18 @@ export class cli {
           let deployedUsers: User[] = [];
           if (options.name) proxy.name = options.name;
           if (options.output && options.output.toLowerCase().endsWith(".json")) {
+            if (path.dirname(options.output) && !fs.existsSync(path.dirname(options.output))) {
+              fs.mkdirSync(path.dirname(options.output), { recursive: true });
+            }
             fs.writeFileSync(options.output, JSON.stringify(proxy, null, 2));
           } else if (
             options.output &&
             (options.output.toLowerCase().endsWith(".yaml") ||
               options.output.toLowerCase().endsWith(".yml"))
           ) {
+            if (path.dirname(options.output) && !fs.existsSync(path.dirname(options.output))) {
+              fs.mkdirSync(path.dirname(options.output), { recursive: true });
+            }
             fs.writeFileSync(
               options.output,
               YAML.stringify(proxy, {
@@ -1928,9 +2259,10 @@ export class cli {
                   }
                 }
               }
-            } catch (ex) {
-              fs.rmSync(outputPath);
-              throw ex;
+            } catch (ex: any) {
+              if (fs.existsSync(outputPath)) fs.rmSync(outputPath);
+              console.log(`  ${chalk.red.bold("✖ Error: " + (ex?.message || ex))}`);
+              return;
             }
 
             fs.rmSync(outputPath);
@@ -2016,9 +2348,18 @@ export class cli {
         (options.format == "feature" || options.format == "sharedflow" || options.format == "sf")
       ) {
         if (proxy) {
-          if (options.removeFeature) {
-            let testFeature = await this.apigeeService.featureGet(options.removeFeature);
-            if (testFeature) proxy = this.converter.proxyRemoveFeature(proxy, testFeature) ?? proxy;
+          const removeList =
+            options.removeFeatures && options.removeFeatures.length > 0
+              ? options.removeFeatures
+              : options.removeFeature
+                ? [options.removeFeature]
+                : [];
+          if (removeList.length > 0) {
+            for (const featName of removeList) {
+              let testFeature = await this.apigeeService.featureGet(featName);
+              if (testFeature)
+                proxy = this.converter.proxyRemoveFeature(proxy, testFeature) ?? proxy;
+            }
           }
           if (proxy) feature = this.converter.proxyToFeature(proxy);
         } else if (template) {
@@ -2125,6 +2466,8 @@ export class cli {
 }
 
 class cliArgs {
+  command = "convert";
+  singlePositionalInput = "";
   input = "";
   name = "";
   basePath = "";
@@ -2135,7 +2478,10 @@ class cliArgs {
   serviceAccount = "";
   format = "";
   applyFeature = "";
+  applyFeatures: string[] = [];
   removeFeature = "";
+  removeFeatures: string[] = [];
+  list = false;
   listFeatures = false;
   parameters = "";
   token = "";
@@ -2160,8 +2506,8 @@ const helpCommands = [
     description: "An optional file or directory output path (e.g. AI-Template-v1.yaml, ./proxies/).",
   },
   {
-    name: "--organization",
-    description: "Apigee organization name to export from or deploy to.",
+    name: "--organization, --org, --project",
+    description: "Apigee organization or GCP project name to export from or deploy to.",
   },
   {
     name: "--environment",
@@ -2177,15 +2523,15 @@ const helpCommands = [
   },
   {
     name: "--applyFeature, -a",
-    description: "A feature name or path to apply to a template.",
+    description: "A feature name or comma-separated list of features to apply to a template or proxy (e.g. -a feat1,feat2 or -a feat1 -a feat2).",
   },
   {
     name: "--removeFeature, -r",
-    description: "A feature name or path to remove from a template.",
+    description: "A feature name or comma-separated list of features to remove from a template or proxy.",
   },
   {
-    name: "--listFeatures, -l",
-    description: "List all features that can be applied to a template.",
+    name: "--list, -l",
+    description: "List all templates and features available in the repository (supports -f json/yaml for structured catalog; alias: --listFeatures).",
   },
   {
     name: "--basePath, -b",

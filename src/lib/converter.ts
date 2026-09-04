@@ -1533,9 +1533,14 @@ export class ApigeeConverter {
     removeFeature: Feature,
   ): Template {
     let featureIndex = templateFeatures.findIndex((x) => x.name === removeFeature.name);
-    let featurePathIndex = template.features.findIndex((x) => x.endsWith(removeFeaturePath));
-    if (featureIndex != -1 && featurePathIndex != -1) {
-      templateFeatures.splice(featureIndex, 1);
+    let featurePathIndex = template.features.findIndex(
+      (x) =>
+        x.endsWith(removeFeaturePath) ||
+        x === removeFeaturePath ||
+        path.basename(x, path.extname(x)) === path.basename(removeFeaturePath, path.extname(removeFeaturePath)),
+    );
+    if (featurePathIndex != -1) {
+      if (featureIndex != -1) templateFeatures.splice(featureIndex, 1);
       template.features.splice(featurePathIndex, 1);
       if (removeFeature.endpoints && removeFeature.endpoints.length > 0) {
         for (let endpoint of removeFeature.endpoints) {
@@ -1679,6 +1684,16 @@ export class ApigeeConverter {
       }
     } else {
       result.push(`Features: none`);
+    }
+
+    if (template.parameters && template.parameters.length > 0) {
+      result.push(`Parameters:`);
+      for (let parameter of template.parameters) {
+        const desc = parameter.description ? ` - ${parameter.description}` : "";
+        result.push(
+          `- ${parameter.name}${desc} - ${"Default: " + (parameter.default ? parameter.default : "none")}`,
+        );
+      }
     }
 
     if (template.endpoints && template.endpoints.length > 0) {
@@ -2187,34 +2202,54 @@ export class ApigeeConverter {
   public featureToStringArray(feature: Feature): string[] {
     let result: string[] = [];
     if (feature.name) result.push(`Name: ${feature.name}`);
-    // if (feature.description) result.push(`Description: ${feature.description}`);
+    if (feature.description) result.push(`Description: ${feature.description}`);
 
     if (feature.parameters && feature.parameters.length > 0) {
       result.push(`Parameters:`);
       for (let parameter of feature.parameters) {
+        const desc = parameter.description ? ` - ${parameter.description}` : "";
         result.push(
-          `- ${parameter.name} - ${parameter.description} - ${"Default: " + (parameter.default ? parameter.default : "none")}`,
+          `- ${parameter.name}${desc} - ${"Default: " + (parameter.default ? parameter.default : "none")}`,
         );
-        // if (parameter.default) result.push(`- Default: ${parameter.default}`);
-        // if (parameter.examples && parameter.examples.length > 0)
-        //   result.push(`- Examples: ${parameter.examples.toString()}`);
       }
     } else {
       result.push(`Parameters: none`);
     }
 
+    const endpointsList: string[] = [];
     if (feature.endpoints && feature.endpoints.length > 0) {
-      result.push(`Endpoints:`);
       for (let endpoint of feature.endpoints) {
-        result.push(`- ${endpoint.basePath}`);
+        if (endpoint.basePath) endpointsList.push(endpoint.basePath);
+        else if (endpoint.name) endpointsList.push(endpoint.name);
+      }
+    } else if (feature.defaultEndpoint) {
+      if (feature.defaultEndpoint.basePath) endpointsList.push(feature.defaultEndpoint.basePath);
+      else if (feature.defaultEndpoint.name) endpointsList.push(feature.defaultEndpoint.name);
+    }
+    if (endpointsList.length > 0) {
+      result.push(`Endpoints:`);
+      for (let ep of endpointsList) {
+        result.push(`- ${ep}`);
       }
     } else {
       result.push(`Endpoints: none`);
     }
 
+    const endpointFlows: Flow[] = [];
     if (feature.defaultEndpoint && feature.defaultEndpoint.flows && feature.defaultEndpoint.flows.length > 0) {
+      endpointFlows.push(...feature.defaultEndpoint.flows);
+    }
+    if (feature.endpoints && feature.endpoints.length > 0) {
+      for (let endpoint of feature.endpoints) {
+        if (endpoint.flows && endpoint.flows.length > 0) {
+          endpointFlows.push(...endpoint.flows);
+        }
+      }
+    }
+
+    if (endpointFlows.length > 0) {
       result.push(`Endpoint flows:`);
-      for (let flow of feature.defaultEndpoint.flows) {
+      for (let flow of endpointFlows) {
         if (flow.condition) result.push(`- ${flow.name} - ${flow.mode} - ${flow.condition}`);
         else result.push(`- ${flow.name} - ${flow.mode}`);
         for (let step of flow.steps || []) {
@@ -2235,14 +2270,31 @@ export class ApigeeConverter {
       result.push(`Targets: none`);
     }
 
+    const targetFlows: Flow[] = [];
     if (feature.defaultTarget && feature.defaultTarget.flows && feature.defaultTarget.flows.length > 0) {
+      targetFlows.push(...feature.defaultTarget.flows);
+    }
+    if (feature.targets && feature.targets.length > 0) {
+      for (let target of feature.targets) {
+        if (target.flows && target.flows.length > 0) {
+          for (let flow of target.flows) {
+            const flowKey = `${flow.name}:${flow.mode}:${flow.condition || ""}:${(flow.steps || []).map((s) => s.name + (s.condition || "")).join(",")}`;
+            if (!targetFlows.some((existing) => `${existing.name}:${existing.mode}:${existing.condition || ""}:${(existing.steps || []).map((s) => s.name + (s.condition || "")).join(",")}` === flowKey)) {
+              targetFlows.push(flow);
+            }
+          }
+        }
+      }
+    }
+
+    if (targetFlows.length > 0) {
       result.push(`Target flows:`);
-      for (let flow of feature.defaultTarget.flows) {
+      for (let flow of targetFlows) {
         if (flow.condition) result.push(`- ${flow.name} - ${flow.mode} - ${flow.condition}`);
         else result.push(`- ${flow.name} - ${flow.mode}`);
         for (let step of flow.steps || []) {
-          if (step.condition) result.push(`- ${step.name} - ${step.condition}`);
-          else result.push(`- ${step.name}`);
+          if (step.condition) result.push(`  - ${step.name} - ${step.condition}`);
+          else result.push(`  - ${step.name}`);
         }
       }
     } else {
@@ -2629,7 +2681,17 @@ export class ApigeeConverter {
   public proxyToStringArray(proxy: Proxy): string[] {
     let result: string[] = [];
     if (proxy.name) result.push(`Name: ${proxy.name}`);
-    // if (proxy.description) result.push(`Description: ${proxy.description}`);
+    if (proxy.description) result.push(`Description: ${proxy.description}`);
+
+    if (proxy.parameters && proxy.parameters.length > 0) {
+      result.push(`Parameters:`);
+      for (let parameter of proxy.parameters) {
+        const desc = parameter.description ? ` - ${parameter.description}` : "";
+        result.push(
+          `- ${parameter.name}${desc} - ${"Default: " + (parameter.default ? parameter.default : "none")}`,
+        );
+      }
+    }
 
     if (proxy.endpoints && proxy.endpoints.length > 0) {
       result.push(`Endpoints:`);

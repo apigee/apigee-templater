@@ -217,10 +217,12 @@ aft -i ./test/proxies/SimpleProxy-v1.zip -o SimpleProxy-v1.yaml
 ```
 
 ### Export a deployed Apigee X proxy to YAML or JSON
-Authorization to the Apigee X API will be done using your gcloud default application credentials, or pass a token with `-t`.
+Authorization to the Apigee X API will be done using your gcloud default application credentials, or pass a token with `-t`. You can use `--organization`, `--org`, or `--project` interchangeably.
 ```bash
 aft SimpleProxy-v1 --organization MyApigeeOrg -o SimpleProxy-v1.yaml
-aft SimpleProxy-v1 --organization MyApigeeOrg -o SimpleProxy-v1.json
+# Or use the shorter --org or --project aliases:
+aft SimpleProxy-v1 --org MyApigeeOrg -o SimpleProxy-v1.yaml
+aft SimpleProxy-v1 --project MyApigeeOrg -o SimpleProxy-v1.json
 
 # Export all proxies in an organization to a directory
 aft --organization MyApigeeOrg -o ./proxies/
@@ -268,6 +270,29 @@ aft -i SimpleProxy-v1.yaml --organization MyApigeeOrg --environment MyApigeeEnvi
 aft -i SimpleProxy-v1.yaml --organization MyApigeeOrg --environment dev --service-account mysa@myproject.iam.gserviceaccount.com
 ```
 
+### Describe Resources
+Use `aft describe <input>` (or simply `aft <file/resource>`) to inspect and summarize any input (proxy, template, feature, product, user, or remote Apigee resource) directly in the terminal overview card without writing any files or showing the banner:
+
+```bash
+# Describe an existing file or repository resource directly without overwriting
+aft SimpleProxy-v1.yaml
+aft MyTemplate.yaml
+
+# If the file does not exist and is not in the repository, aft creates an empty template:
+aft NewProxy.yaml
+# -> creates NewProxy.yaml as an empty template proxy
+
+# Or explicitly using the describe command
+aft describe SimpleProxy-v1.yaml
+aft describe MyTemplate.yaml
+aft describe MyFeature.yaml
+aft describe MyProduct.yaml
+aft describe MyUser.yaml
+
+# Describe a remote Apigee proxy or resource
+aft describe SimpleProxy-v1 --org MyApigeeOrg
+```
+
 > [!TIP]
 > **Compatibility Note**: The legacy colon syntax (e.g. `aft -i MyApigeeOrg:SimpleProxy-v1 -o SimpleProxy-v1.yaml` or `-o MyApigeeOrg:Proxy:dev:sa`) is still supported for backwards compatibility.
 
@@ -290,7 +315,7 @@ A template collects features that will be deployed as one proxy to Apigee. We ca
 
 ```bash
 # create a template
-aft REST-AI-Gateway.yaml
+aft -n REST-AI-Gateway -o REST-AI-Gateway.yaml
 # apply the Gemini feature
 aft REST-AI-Gateway.yaml -a REST-AI-Gemini.yaml
 # deploy to Apigee X to the dev environment

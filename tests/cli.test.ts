@@ -1,4 +1,6 @@
 import { describe, it, expect } from "bun:test";
+import fs from "fs";
+import * as YAML from "yaml";
 import { cli } from "../src/lib/cli.js";
 import { ApigeeConverter } from "../src/lib/converter.js";
 import { version } from "../src/lib/version.js";
@@ -29,6 +31,235 @@ describe("AFT Bun CLI test suite", () => {
     expect(parsed.targetUrl).toBe("https://httpbin.org");
     expect(parsed.output).toBe("output.yaml");
     expect(parsed.parameters).toBe("PARAM1=val1,PARAM2=val2");
+    expect(parsed.command).toBe("convert");
+  });
+
+  it("should parse CLI arguments with convert command explicitly provided", () => {
+    const rawArgs = [
+      "bun",
+      "apigee-templater.ts",
+      "convert",
+      "-i",
+      "my-proxy.yaml",
+      "-o",
+      "my-proxy.zip",
+    ];
+
+    const parsed = myCli.parseArgumentsIntoOptions(rawArgs);
+
+    expect(parsed.command).toBe("convert");
+    expect(parsed.input).toBe("my-proxy.yaml");
+    expect(parsed.output).toBe("my-proxy.zip");
+  });
+
+  it("should parse positional arguments with convert command", () => {
+    const rawArgs = [
+      "bun",
+      "apigee-templater.ts",
+      "convert",
+      "input.yaml",
+      "output.zip",
+    ];
+
+    const parsed = myCli.parseArgumentsIntoOptions(rawArgs);
+
+    expect(parsed.command).toBe("convert");
+    expect(parsed.input).toBe("input.yaml");
+    expect(parsed.output).toBe("output.zip");
+  });
+
+  it("should display convert command as default in printHelp", () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      myCli.printHelp();
+      const output = logs.join("\n");
+      expect(output).toContain("convert");
+      expect(output).toContain("default command");
+      expect(output).toContain("aft [convert] [options]");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should parse -l, --list, and --listFeatures CLI arguments correctly", () => {
+    const parsedShort = myCli.parseArgumentsIntoOptions(["bun", "apigee-templater.ts", "-l"]);
+    expect(parsedShort.list).toBe(true);
+    expect(parsedShort.listFeatures).toBe(true);
+
+    const parsedLong = myCli.parseArgumentsIntoOptions(["bun", "apigee-templater.ts", "--list"]);
+    expect(parsedLong.list).toBe(true);
+    expect(parsedLong.listFeatures).toBe(true);
+
+    const parsedLegacy = myCli.parseArgumentsIntoOptions(["bun", "apigee-templater.ts", "--listFeatures"]);
+    expect(parsedLegacy.list).toBe(true);
+    expect(parsedLegacy.listFeatures).toBe(true);
+
+    const parsedConvert = myCli.parseArgumentsIntoOptions(["bun", "apigee-templater.ts", "convert", "-l"]);
+    expect(parsedConvert.list).toBe(true);
+    expect(parsedConvert.listFeatures).toBe(true);
+  });
+
+  it("should list both templates and features from repository in printFeatures", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.printFeatures();
+      const output = logs.join("\n");
+      expect(output).toContain("Available Apigee Templates:");
+      expect(output).toContain("Total templates available:");
+      expect(output).toContain("Available Apigee Features:");
+      expect(output).toContain("Total features available:");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should parse multiple features for --applyFeature and -a (comma-separated and repeated)", () => {
+    const parsedComma = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "apigee-templater.ts",
+      "-a",
+      "auth-apikey-validate,ai-post-analytics",
+    ]);
+    expect(parsedComma.applyFeature).toBe("auth-apikey-validate,ai-post-analytics");
+    expect(parsedComma.applyFeatures).toEqual(["auth-apikey-validate", "ai-post-analytics"]);
+
+    const parsedRepeated = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "apigee-templater.ts",
+      "-a",
+      "auth-apikey-validate",
+      "-a",
+      "ai-post-analytics",
+    ]);
+    expect(parsedRepeated.applyFeature).toBe("auth-apikey-validate,ai-post-analytics");
+    expect(parsedRepeated.applyFeatures).toEqual(["auth-apikey-validate", "ai-post-analytics"]);
+  });
+
+  it("should parse multiple features for --removeFeature and -r (comma-separated and repeated)", () => {
+    const parsedComma = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "apigee-templater.ts",
+      "-r",
+      "auth-apikey-validate,ai-post-analytics",
+    ]);
+    expect(parsedComma.removeFeature).toBe("auth-apikey-validate,ai-post-analytics");
+    expect(parsedComma.removeFeatures).toEqual(["auth-apikey-validate", "ai-post-analytics"]);
+
+    const parsedRepeated = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "apigee-templater.ts",
+      "-r",
+      "auth-apikey-validate",
+      "-r",
+      "ai-post-analytics",
+    ]);
+    expect(parsedRepeated.removeFeature).toBe("auth-apikey-validate,ai-post-analytics");
+    expect(parsedRepeated.removeFeatures).toEqual(["auth-apikey-validate", "ai-post-analytics"]);
+  });
+
+  it("should output concise structured catalog in JSON format for printFeatures('json')", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.printFeatures("json");
+      const output = logs.join("\n");
+      const parsed = JSON.parse(output);
+      expect(parsed).toHaveProperty("templates");
+      expect(parsed).toHaveProperty("features");
+      expect(Array.isArray(parsed.templates)).toBe(true);
+      expect(Array.isArray(parsed.features)).toBe(true);
+      expect(parsed.templates.length).toBeGreaterThan(0);
+      expect(parsed.features.length).toBeGreaterThan(0);
+
+      const template = parsed.templates[0];
+      expect(template).toHaveProperty("name");
+      expect(template).not.toHaveProperty("policies");
+      expect(template).not.toHaveProperty("endpoints");
+
+      const feature = parsed.features[0];
+      expect(feature).toHaveProperty("name");
+      expect(feature).not.toHaveProperty("policies");
+      expect(feature).not.toHaveProperty("endpoints");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should output concise structured catalog in YAML format for printFeatures('yaml')", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.printFeatures("yaml");
+      const output = logs.join("\n");
+      const parsed = YAML.parse(output);
+      expect(parsed).toHaveProperty("templates");
+      expect(parsed).toHaveProperty("features");
+      expect(Array.isArray(parsed.templates)).toBe(true);
+      expect(Array.isArray(parsed.features)).toBe(true);
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should apply and remove multiple features sequentially via CLI process", async () => {
+    const testApplyPath = "/tmp/test-apply-multi-suite.yaml";
+    const testRemovePath = "/tmp/test-remove-multi-suite.yaml";
+    const feat1 = "tests/data/feature-01-api-key-auth.yaml";
+    const feat2 = "tests/data/feature-02-rate-limiting.yaml";
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "convert",
+        "-n",
+        "MultiSuite",
+        "-b",
+        "/v1/suite",
+        "-u",
+        "https://example.com",
+        "-a",
+        `${feat1},${feat2}`,
+        "-f",
+        "template",
+        "-o",
+        testApplyPath,
+      ]);
+
+      expect(fs.existsSync(testApplyPath)).toBe(true);
+      const applied = YAML.parse(fs.readFileSync(testApplyPath, "utf8"));
+      expect(applied.features).toBeDefined();
+      expect(applied.features.length).toBe(2);
+
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "convert",
+        "-i",
+        testApplyPath,
+        "-r",
+        `${feat1},${feat2}`,
+        "-o",
+        testRemovePath,
+      ]);
+
+      expect(fs.existsSync(testRemovePath)).toBe(true);
+      const removed = YAML.parse(fs.readFileSync(testRemovePath, "utf8"));
+      expect(removed.features || []).toHaveLength(0);
+    } finally {
+      if (fs.existsSync(testApplyPath)) fs.rmSync(testApplyPath);
+      if (fs.existsSync(testRemovePath)) fs.rmSync(testRemovePath);
+    }
   });
 
   it("should sanitize template/proxy name correctly", () => {
@@ -140,14 +371,62 @@ describe("AFT Bun CLI test suite", () => {
     expect(parsed.serviceAccount).toBe("sa@my-apigee-org.iam.gserviceaccount.com");
   });
 
-  it("should handle flag auto-completion for --org, --env, --serv", async () => {
+  it("should parse --org and --project as alternative options to --organization", () => {
+    const parsedOrg = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "cli.ts",
+      "-i",
+      "test-proxy.yaml",
+      "--org",
+      "my-org-alias",
+    ]);
+    expect(parsedOrg.organization).toBe("my-org-alias");
+
+    const parsedProject = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "cli.ts",
+      "-i",
+      "test-proxy.yaml",
+      "--project",
+      "my-gcp-project",
+    ]);
+    expect(parsedProject.organization).toBe("my-gcp-project");
+
+    const parsedPositionalWithOrg = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "cli.ts",
+      "test-proxy.yaml",
+      "--org",
+      "my-org-alias",
+    ]);
+    expect(parsedPositionalWithOrg.input).toBe("test-proxy.yaml");
+    expect(parsedPositionalWithOrg.organization).toBe("my-org-alias");
+
+    const parsedPositionalWithProject = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "cli.ts",
+      "test-proxy.yaml",
+      "--project",
+      "my-gcp-project",
+    ]);
+    expect(parsedPositionalWithProject.input).toBe("test-proxy.yaml");
+    expect(parsedPositionalWithProject.organization).toBe("my-gcp-project");
+  });
+
+  it("should handle flag auto-completion for --org, --project, --env, --serv", async () => {
     const logs: string[] = [];
     const origLog = console.log;
     console.log = (msg: string) => logs.push(msg);
 
     try {
       await myCli.handleCompletion("", "--org");
-      expect(logs.join("\n")).toContain("--organization");
+      const orgOutput = logs.join("\n");
+      expect(orgOutput).toContain("--organization");
+      expect(orgOutput).toContain("--org");
+
+      logs.length = 0;
+      await myCli.handleCompletion("", "--proj");
+      expect(logs.join("\n")).toContain("--project");
 
       logs.length = 0;
       await myCli.handleCompletion("", "--env");
@@ -157,6 +436,43 @@ describe("AFT Bun CLI test suite", () => {
       await myCli.handleCompletion("", "--serv");
       expect(logs.join("\n")).toContain("--service-account");
     } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should format Apigee API errors in red bold italics with URL and response text", async () => {
+    const service = myCli.apigeeService;
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    const origFetch = global.fetch;
+    try {
+      // Mock 403 Forbidden with details
+      global.fetch = async (url: any, opts: any) => {
+        return new Response(JSON.stringify({
+          error: {
+            code: 403,
+            message: "The caller does not have permission to access the organization.",
+            status: "PERMISSION_DENIED"
+          }
+        }), {
+          status: 403,
+          statusText: "Forbidden",
+          headers: { "Content-Type": "application/json" }
+        });
+      };
+
+      const result = await service.apigeeProxiesList("test-org-403", "", "Bearer mock-token");
+      expect(result).toBeUndefined();
+
+      const combinedLogs = logs.join("\n");
+      expect(combinedLogs).toContain("Got response 403");
+      expect(combinedLogs).toContain("https://apigee.googleapis.com/v1/organizations/test-org-403/apis");
+      expect(combinedLogs).toContain("PERMISSION_DENIED");
+      expect(combinedLogs).toContain("The caller does not have permission");
+    } finally {
+      global.fetch = origFetch;
       console.log = origLog;
     }
   });
@@ -802,6 +1118,471 @@ resources: []
       }
     }
   });
+
+  it("should parse describe command and positional input argument correctly", () => {
+    const opts1 = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "apigee-templater.ts",
+      "describe",
+      "tests/data/proxy-01-weather-api.yaml",
+    ]);
+    expect(opts1.command).toBe("describe");
+    expect(opts1.input).toBe("tests/data/proxy-01-weather-api.yaml");
+
+    const opts2 = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "apigee-templater.ts",
+      "describe",
+      "-i",
+      "tests/data/feature-01-api-key-auth.yaml",
+    ]);
+    expect(opts2.command).toBe("describe");
+    expect(opts2.input).toBe("tests/data/feature-01-api-key-auth.yaml");
+  });
+
+  it("should describe a proxy YAML without welcome banner or output path", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "describe",
+        "tests/data/proxy-01-weather-api.yaml",
+      ]);
+
+      const combined = logs.join("\n");
+      expect(combined).toContain("OVERVIEW");
+      expect(combined).toContain("Proxy weather-api-v1");
+      expect(combined).toContain("Endpoints:");
+      expect(combined).toContain("/v1/weather");
+      expect(combined).not.toContain("Output written to:");
+      expect(combined).not.toContain("Welcome to Apigee Feature Templater");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should describe a feature YAML without welcome banner or output path", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "describe",
+        "tests/data/feature-01-api-key-auth.yaml",
+      ]);
+
+      const combined = logs.join("\n");
+      expect(combined).toContain("OVERVIEW");
+      expect(combined).toContain("Feature feature-api-key-auth");
+      expect(combined).toContain("Parameters:");
+      expect(combined).not.toContain("Output written to:");
+      expect(combined).not.toContain("Welcome to Apigee Feature Templater");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should format parameters without printing undefined when description is not set", () => {
+    const featureWithNoDescParam: any = {
+      name: "feature-test",
+      type: "feature",
+      parameters: [
+        {
+          name: "PARAM_WITH_DESC",
+          description: "A helpful description",
+          default: "val1",
+        },
+        {
+          name: "PARAM_WITHOUT_DESC",
+          default: "val2",
+        },
+      ],
+    };
+
+    const lines = myCli.converter.featureToStringArray(featureWithNoDescParam);
+    expect(lines).toContain("Parameters:");
+    expect(lines).toContain("- PARAM_WITH_DESC - A helpful description - Default: val1");
+    expect(lines).toContain("- PARAM_WITHOUT_DESC - Default: val2");
+    expect(lines.some((l) => l.includes("undefined"))).toBe(false);
+  });
+
+  it("should describe a template YAML without welcome banner or output path", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "describe",
+        "tests/data/template-01-basic-api.yaml",
+      ]);
+
+      const combined = logs.join("\n");
+      expect(combined).toContain("OVERVIEW");
+      expect(combined).toContain("Template template-basic-weather-api");
+      expect(combined).toContain("Features:");
+      expect(combined).not.toContain("Output written to:");
+      expect(combined).not.toContain("Welcome to Apigee Feature Templater");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should describe a product YAML without welcome banner or output path", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "describe",
+        "tests/data/product-01-standard-api.yaml",
+      ]);
+
+      const combined = logs.join("\n");
+      expect(combined).toContain("OVERVIEW");
+      expect(combined).toContain("Product standard-api-product");
+      expect(combined).toContain("Approval Type:");
+      expect(combined).not.toContain("Output written to:");
+      expect(combined).not.toContain("Welcome to Apigee Feature Templater");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should describe a user YAML without welcome banner or output path", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "describe",
+        "tests/data/user-01-developer.yaml",
+      ]);
+
+      const combined = logs.join("\n");
+      expect(combined).toContain("OVERVIEW");
+      expect(combined).toContain("User dev-john-doe");
+      expect(combined).toContain("Email:");
+      expect(combined).toContain("john.doe@example.com");
+      expect(combined).not.toContain("Output written to:");
+      expect(combined).not.toContain("Welcome to Apigee Feature Templater");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should output error if describe is invoked without input", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "describe",
+      ]);
+
+      const combined = logs.join("\n");
+      expect(combined).toContain("Please specify an input to describe");
+      expect(combined).not.toContain("Welcome to Apigee Feature Templater");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should route single parameter (positional filename) to describe command without overwriting", async () => {
+    const opts = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "apigee-templater.ts",
+      "tests/data/proxy-01-weather-api.yaml",
+    ]);
+
+    expect(opts.command).toBe("describe");
+    expect(opts.input).toBe("tests/data/proxy-01-weather-api.yaml");
+    expect(opts.output).toBeFalsy();
+
+    const optsFlag = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "apigee-templater.ts",
+      "-i",
+      "tests/data/proxy-01-weather-api.yaml",
+    ]);
+
+    expect(optsFlag.command).toBe("describe");
+    expect(optsFlag.input).toBe("tests/data/proxy-01-weather-api.yaml");
+    expect(optsFlag.output).toBeFalsy();
+  });
+
+  it("should execute describe when given only a single filename argument and not overwrite file", async () => {
+    const testFile = "./tests/data/test-single-arg-check.yaml";
+    const initialContent = "name: test-single-arg\ntype: proxy\nschemaVersion: 1.0.0\nendpoints:\n  - name: default\n    basePath: /v1/test\n";
+    fs.writeFileSync(testFile, initialContent);
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        testFile,
+      ]);
+
+      const combined = logs.join("\n");
+      expect(combined).toContain("OVERVIEW");
+      expect(combined).toContain("Proxy test-single-arg");
+      expect(combined).not.toContain("Output written to:");
+      expect(combined).not.toContain("Welcome to Apigee Feature Templater");
+
+      // Verify the file was NOT overwritten with an empty template
+      const currentContent = fs.readFileSync(testFile, "utf-8");
+      expect(currentContent).toBe(initialContent);
+    } finally {
+      console.log = origLog;
+      if (fs.existsSync(testFile)) {
+        fs.unlinkSync(testFile);
+      }
+    }
+  });
+
+  it("should create an empty template if single argument file does not exist and is not in repository", async () => {
+    const nonExistentFile = "./tests/data/test-brand-new-proxy.yaml";
+    if (fs.existsSync(nonExistentFile)) {
+      fs.unlinkSync(nonExistentFile);
+    }
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        nonExistentFile,
+      ]);
+
+      const combined = logs.join("\n");
+      expect(combined).toContain("Welcome to Apigee Feature Templater");
+      expect(combined).toContain("OVERVIEW");
+      expect(combined).toContain("Output written to: " + nonExistentFile);
+
+      expect(fs.existsSync(nonExistentFile)).toBe(true);
+      const content = fs.readFileSync(nonExistentFile, "utf-8");
+      expect(content).toContain("name: test-brand-new-proxy");
+      expect(content).toContain("endpoints:");
+    } finally {
+      console.log = origLog;
+      if (fs.existsSync(nonExistentFile)) {
+        fs.unlinkSync(nonExistentFile);
+      }
+    }
+  });
+
+  it("should describe repository resource without creating a new file when passed as single argument", async () => {
+    const localTarget = "./mock-repo-template.yaml";
+    if (fs.existsSync(localTarget)) {
+      fs.unlinkSync(localTarget);
+    }
+
+    const origRepoGet = myCli.apigeeService.repositoryGet;
+    myCli.apigeeService.repositoryGet = async (name: string) => {
+      if (name === "mock-repo-template") {
+        return {
+          type: "template",
+          data: {
+            name: "mock-repo-template",
+            type: "template",
+            endpoints: [{ name: "default", basePath: "/v1/mock" }],
+          } as any,
+        };
+      }
+      return undefined;
+    };
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "mock-repo-template",
+      ]);
+
+      const combined = logs.join("\n");
+      expect(combined).toContain("OVERVIEW");
+      expect(combined).toContain("Template mock-repo-template");
+      expect(combined).not.toContain("Output written to:");
+      expect(combined).not.toContain("Welcome to Apigee Feature Templater");
+
+      // Verify no local file was created
+      expect(fs.existsSync(localTarget)).toBe(false);
+    } finally {
+      console.log = origLog;
+      myCli.apigeeService.repositoryGet = origRepoGet;
+      if (fs.existsSync(localTarget)) {
+        fs.unlinkSync(localTarget);
+      }
+    }
+  });
+
+  it("should properly describe feature without explicit name in YAML, populating policies, target flows, and description", async () => {
+    const origRepoGet = myCli.apigeeService.repositoryGet;
+    myCli.apigeeService.repositoryGet = async (name: string) => {
+      if (name === "ai-target-googlecloud") {
+        return {
+          type: "feature",
+          data: {
+            type: "feature",
+            description: "Proxy for Google Cloud Model Garden models.",
+            parameters: [
+              {
+                name: "GoogleCloudProject",
+                default: "{organization.name}",
+              },
+            ],
+            endpoints: [
+              {
+                name: "default",
+              },
+            ],
+            targets: [
+              {
+                name: "googlecloud",
+                url: "https://aiplatform.googleapis.com",
+                flows: [
+                  {
+                    name: "PreFlow",
+                    mode: "Request",
+                    steps: [
+                      {
+                        name: "AM-SetGoogleToken",
+                        condition: "request.header.Authorization == null",
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+            policies: [
+              {
+                name: "AM-SetGoogleToken",
+                type: "AssignMessage",
+              },
+            ],
+          } as any,
+        };
+      }
+      return origRepoGet.call(myCli.apigeeService, name);
+    };
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "describe",
+        "ai-target-googlecloud",
+      ]);
+
+      const combined = logs.join("\n");
+      expect(combined).toContain("OVERVIEW");
+      expect(combined).toContain("Feature ai-target-googlecloud");
+      expect(combined).toContain("Description:");
+      expect(combined).toContain("Proxy for Google Cloud Model Garden models.");
+      expect(combined).toContain("Parameters:");
+      expect(combined).toContain("GoogleCloudProject");
+      expect(combined).toContain("Targets:");
+      expect(combined).toContain("googlecloud");
+      expect(combined).toContain("Target flows:");
+      expect(combined).toContain("PreFlow - Request");
+      expect(combined).toContain("AM-SetGoogleToken");
+      expect(combined).toContain("Policies:");
+      expect(combined).toContain("AssignMessage");
+    } finally {
+      console.log = origLog;
+      myCli.apigeeService.repositoryGet = origRepoGet;
+    }
+  });
+
+  it("should extract target flows and defaultEndpoint basePath in featureToStringArray", () => {
+    const feature: any = {
+      name: "test-feature",
+      type: "feature",
+      defaultEndpoint: {
+        name: "default",
+        basePath: "/v1/test",
+        flows: [
+          {
+            name: "DefaultFlow",
+            mode: "Request",
+            steps: [{ name: "FC-Check" }],
+          },
+        ],
+      },
+      targets: [
+        {
+          name: "target-1",
+          url: "https://example.com/1",
+          flows: [
+            {
+              name: "TargetFlow",
+              mode: "Response",
+              steps: [{ name: "AM-FormatResponse" }],
+            },
+          ],
+        },
+        {
+          name: "target-2",
+          url: "https://example.com/2",
+          flows: [
+            {
+              name: "TargetFlow",
+              mode: "Response",
+              steps: [{ name: "AM-FormatResponse" }],
+            },
+          ],
+        },
+      ],
+      policies: [{ name: "AM-FormatResponse", type: "AssignMessage" }],
+    };
+
+    const lines = myCli.converter.featureToStringArray(feature);
+    expect(lines).toContain("Endpoints:");
+    expect(lines).toContain("- /v1/test");
+    expect(lines).toContain("Endpoint flows:");
+    expect(lines).toContain("- DefaultFlow - Request");
+    expect(lines).toContain("  - FC-Check");
+    expect(lines).toContain("Target flows:");
+    expect(lines).toContain("- TargetFlow - Response");
+    expect(lines).toContain("  - AM-FormatResponse");
+    // Verify deduplication so TargetFlow is not duplicated
+    const targetFlowOccurrences = lines.filter((l) => l === "- TargetFlow - Response");
+    expect(targetFlowOccurrences.length).toBe(1);
+  });
 });
+
 
 

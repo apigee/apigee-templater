@@ -502,7 +502,7 @@ type: user
 `aft` automatically resolves templates, features, products, and users from local paths and GitHub repositories without requiring manual downloads or full URLs.
 
 ### A. Repository Configuration
-- Default Repository: `https://github.com/gcp-samples/apigee-templates-repository`
+- Default Repository: `https://github.com/gcp-samples/apigee-template-repository`
 - Environment Variables:
   - `AFT_REPOSITORY`: Override base repository URL.
   - `AFT_TEMPLATES_REPOSITORY`: Custom templates path or repository URL.
@@ -703,7 +703,52 @@ aft -c my-apigee-org -f yaml
 
 ---
 
-## 15. Checklist & Best Practices
+## 15. AI Agent Proxy Construction & Catalog Discovery (`-l`, `convert`, `-a`, `-r`)
+
+AI coding agents (such as Antigravity and Claude Code) can discover available repository templates and features, inspect their parameter schemas, and construct custom Apigee proxies with natural language.
+
+### 15.1 Token-Efficient Catalog Discovery (`-l` / `--list`)
+To inspect all available templates, features, and their configurable parameters in a token-efficient format, use `-f json` or `-f yaml`:
+
+```bash
+# JSON catalog (concise manifest, ~2,000 tokens)
+aft -l -f json
+
+# YAML catalog
+aft -l -f yaml
+
+# Formatted human console view
+aft -l
+```
+
+The output catalog structure provides:
+- **`templates`**: `name`, `description`, composed `features` list, and `parameters` (`name`, `description`, `default`).
+- **`features`**: `name`, `description`, and `parameters` (`name`, `description`, `default`).
+
+### 15.2 Building Proxies with Multi-Feature Chaining (`-a`)
+Apply multiple features in a single command using comma-separated values or repeated flags:
+
+```bash
+# Explicit convert command with multiple features (comma-separated)
+aft convert -n MySecuredAiProxy -b /v1/ai -u https://api.openai.com -a auth-apikey-validate,ai-post-analytics -f template -o my-proxy.yaml
+
+# Equivalent using repeated -a flags
+aft convert -n MySecuredAiProxy -b /v1/ai -u https://api.openai.com -a auth-apikey-validate -a ai-post-analytics -f template -o my-proxy.yaml
+
+# Default convert command behavior (omitting 'convert' is also supported)
+aft -n MySecuredAiProxy -b /v1/ai -u https://api.openai.com -a auth-apikey-validate,ai-post-analytics -f template -o my-proxy.yaml
+```
+
+### 15.3 Removing Multiple Features (`-r`)
+Remove multiple features sequentially from a proxy or template:
+
+```bash
+aft convert -i my-proxy.yaml -r auth-apikey-validate,ai-post-analytics -o updated-proxy.yaml
+```
+
+---
+
+## 16. Checklist & Best Practices
 - [ ] Check if `setValue` is used instead of `value` for all KVM `put` operations.
 - [ ] Ensure `response.content` assignments occur in `mode: Response` flows (`PostFlow` or target response flows).
 - [ ] Attach `EventFlow` on target responses when processing streaming / SSE data.
@@ -714,5 +759,6 @@ aft -c my-apigee-org -f yaml
 - [ ] When deploying a template to an Apigee organization/environment, referenced `products` and `users` are deployed automatically alongside the proxy.
 - [ ] Use `--delete` to tear down resources in reverse dependency order (User -> Product -> Proxy).
 - [ ] Use `aft -c <org>` for a formatted overview of the Apigee organization and its environments/hostnames.
-
-
+- [ ] Use `aft -l -f json` or `aft -l -f yaml` to fetch the token-efficient catalog of templates and features.
+- [ ] Use `aft convert` (or default `aft`) with `-a feat1,feat2` or repeated `-a feat1 -a feat2` to apply multiple features sequentially in one step.
+- [ ] Use `-r feat1,feat2` to remove multiple features from templates or proxies.
