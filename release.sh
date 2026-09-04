@@ -14,7 +14,10 @@ echo "================================================="
 echo " Building and Releasing AFT version ${TAG}"
 echo "================================================="
 
-# 1. Build binaries
+# 1. Build documentation and binaries
+echo -e "\n📚 Building developer documentation..."
+bun run docs:build
+
 echo -e "\n📦 Compiling cross-platform single-file binaries..."
 bun run build:binaries
 

@@ -22,24 +22,24 @@ describe("Repository resolution and fetching", () => {
 
   it("should construct correct raw github base URL from github tree and repo URLs", () => {
     const rawTree = service.getRepoRawBaseUrl(
-      "https://github.com/gcp-samples/apigee-templates-repository/tree/main/features",
+      "https://github.com/gcp-samples/apigee-template-repository/tree/main/features",
     );
     expect(rawTree).toBe(
-      "https://raw.githubusercontent.com/gcp-samples/apigee-templates-repository/main/features/",
+      "https://raw.githubusercontent.com/gcp-samples/apigee-template-repository/main/features/",
     );
 
     const rawDirect = service.getRepoRawBaseUrl(
-      "https://raw.githubusercontent.com/gcp-samples/apigee-templates-repository/main/templates",
+      "https://raw.githubusercontent.com/gcp-samples/apigee-template-repository/main/templates",
     );
     expect(rawDirect).toBe(
-      "https://raw.githubusercontent.com/gcp-samples/apigee-templates-repository/main/templates/",
+      "https://raw.githubusercontent.com/gcp-samples/apigee-template-repository/main/templates/",
     );
 
     const rawRepo = service.getRepoRawBaseUrl(
-      "https://github.com/gcp-samples/apigee-templates-repository",
+      "https://github.com/gcp-samples/apigee-template-repository",
     );
     expect(rawRepo).toBe(
-      "https://raw.githubusercontent.com/gcp-samples/apigee-templates-repository/main/",
+      "https://raw.githubusercontent.com/gcp-samples/apigee-template-repository/main/",
     );
   });
 
@@ -60,16 +60,16 @@ describe("Repository resolution and fetching", () => {
   it("should respect custom AFT_REPOSITORY or folder-specific environment variables", () => {
     const customService = new ApigeeTemplaterService();
     expect(customService.baseRepository).toBe(
-      "https://github.com/gcp-samples/apigee-templates-repository",
+      "https://github.com/gcp-samples/apigee-template-repository",
     );
     expect(customService.featuresRepository).toBe(
-      "https://github.com/gcp-samples/apigee-templates-repository/tree/main/features",
+      "https://github.com/gcp-samples/apigee-template-repository/tree/main/features",
     );
     expect(customService.productsRepository).toBe(
-      "https://github.com/gcp-samples/apigee-templates-repository/tree/main/products",
+      "https://github.com/gcp-samples/apigee-template-repository/tree/main/products",
     );
     expect(customService.usersRepository).toBe(
-      "https://github.com/gcp-samples/apigee-templates-repository/tree/main/users",
+      "https://github.com/gcp-samples/apigee-template-repository/tree/main/users",
     );
   });
 });

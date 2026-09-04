@@ -26,6 +26,16 @@
 * 💯 **100% compatibility** to the Apigee bundle format - all policies and structures can be converted to and from YAML / JSON. If something doesn't work, create an issue and it will be fixed.
 * ⛲ **Feature Driven Development** - create reusable feature files that can be easily applied to many proxies, teams & deployments.
 
+## 📚 Documentation & Reference
+
+For comprehensive developer documentation with interactive search, category filters, complete command reference, and real-world recipes, visit:
+
+👉 **[https://apigee.github.io/apigee-templater](https://apigee.github.io/apigee-templater)**
+
+* 🔍 **Real-Time Search & Filter**: Search across all commands, flags, parameters, and examples.
+* ⚡ **Complete Command Coverage**: In-depth syntax and options for `convert`, `describe`, `list`, `config`, `completion`, `skill`, `cache`, and Apigee X deployments.
+* 💡 **Copy-Pasteable Recipes**: End-to-end examples for AI model gateways, API key enforcement, SharedFlow bundles, and GitOps migrations.
+
 ## Install the CLI
 
 ### Option 1: One-Line Installer (Zero dependencies)
@@ -142,13 +152,7 @@ aft -h
 
 ### Example proxy YAML
 
-Click [here](https://iili.io/ByOhMmJ.png) for an interactive explanation of the YAML proxy format.
-
-<a href="https://apigee.github.io/apigee-templater">
-  <img src="https://iili.io/ByOhMmJ.png" alt="Alt Text" width="300" />
-</a>
-
-The proxy YAML & JSON formats is easy to understand and edit, with all proxy flows, policies, & resources in one YAML / JSON structure.
+The proxy YAML & JSON formats is easy to understand and edit, with all proxy flows, policies, & resources in one YAML / JSON structure. Check the [Documentation](https://apigee.github.io/apigee-templater) for complete syntax and schema details.
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json

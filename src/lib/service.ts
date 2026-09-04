@@ -26,7 +26,7 @@ export class ApigeeTemplaterService {
   public get baseRepository(): string {
     return (
       process.env.AFT_REPOSITORY ||
-      "https://github.com/gcp-samples/apigee-templates-repository"
+      "https://github.com/gcp-samples/apigee-template-repository"
     );
   }
 
@@ -300,7 +300,7 @@ export class ApigeeTemplaterService {
                       }
                       if (remoteTemplate) {
                         if (!remoteTemplate.name) {
-                          remoteTemplate.name = name;
+                          remoteTemplate.name = item.name;
                         }
                         const idx = templates.findIndex((x) => x.name === remoteTemplate.name);
                         if (idx === -1) templates.push(remoteTemplate);

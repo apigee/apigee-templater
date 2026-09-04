@@ -9,7 +9,9 @@
     "example": "examples"
   },
   "scripts": {
-    "build": "rm -rf dist && bun build --sourcemap=none ./src/index.ts ./src/bin/apigee-templater.ts --target=bun --outdir=./dist && node copy-assets.js",
+    "build": "rm -rf dist && bun build --sourcemap=none ./src/index.ts ./src/bin/apigee-templater.ts --target=bun --outdir=./dist && node copy-assets.js && bun run docs:build",
+    "docs:build": "bun ./scripts/build-docs.ts",
+    "prepublishOnly": "bun run docs:build",
     "install:local": "bun run build && bun build --compile ./src/bin/apigee-templater.ts --outfile ~/.local/bin/aft",
     "build:binaries": "bun run build && bun build --compile --target=bun-linux-x64 ./src/bin/apigee-templater.ts --outfile dist/aft-linux-x64 && bun build --compile --target=bun-linux-arm64 ./src/bin/apigee-templater.ts --outfile dist/aft-linux-arm64 && bun build --compile --target=bun-darwin-x64 ./src/bin/apigee-templater.ts --outfile dist/aft-darwin-x64 && bun build --compile --target=bun-darwin-arm64 ./src/bin/apigee-templater.ts --outfile dist/aft-darwin-arm64 && bun build --compile --target=bun-windows-x64 ./src/bin/apigee-templater.ts --outfile dist/aft-windows-x64.exe",
     "release": "./release.sh",
