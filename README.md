@@ -26,15 +26,15 @@
 * 💯 **100% compatibility** to the Apigee bundle format - all policies and structures can be converted to and from YAML / JSON. If something doesn't work, create an issue and it will be fixed.
 * ⛲ **Feature Driven Development** - create reusable feature files that can be easily applied to many proxies, teams & deployments.
 
-## 📚 Documentation & Reference
+## Documentation & Reference
 
 For comprehensive developer documentation with interactive search, category filters, complete command reference, and real-world recipes, visit:
 
 👉 **[https://apigee.github.io/apigee-templater](https://apigee.github.io/apigee-templater)**
 
-* 🔍 **Real-Time Search & Filter**: Search across all commands, flags, parameters, and examples.
-* ⚡ **Complete Command Coverage**: In-depth syntax and options for `convert`, `describe`, `list`, `config`, `completion`, `skill`, `cache`, and Apigee X deployments.
-* 💡 **Copy-Pasteable Recipes**: End-to-end examples for AI model gateways, API key enforcement, SharedFlow bundles, and GitOps migrations.
+* **Real-Time Search & Filter**: Search across all commands, flags, parameters, and examples.
+* **Complete Command Coverage**: In-depth syntax and options for `convert`, `describe`, `list`, `config`, `completion`, `skill`, `cache`, and Apigee X deployments.
+* **Copy-Pasteable Recipes**: End-to-end examples for AI model gateways, API key enforcement, SharedFlow bundles, and GitOps migrations.
 
 ## Install the CLI
 
@@ -319,7 +319,7 @@ A template collects features that will be deployed as one proxy to Apigee. We ca
 
 ```bash
 # create a template
-aft -n REST-AI-Gateway -o REST-AI-Gateway.yaml
+aft REST-AI-Gateway.yaml
 # apply the Gemini feature
 aft REST-AI-Gateway.yaml -a REST-AI-Gemini.yaml
 # deploy to Apigee X to the dev environment
