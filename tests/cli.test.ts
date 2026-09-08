@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import * as YAML from "yaml";
 import { cli } from "../src/lib/cli.js";
+import CliAnimation, { DEFAULT_STAGES, SPINNER_FRAMES } from "../src/lib/animation.js";
 import { ApigeeConverter } from "../src/lib/converter.js";
 import { version } from "../src/lib/version.js";
 
@@ -412,6 +413,20 @@ describe("AFT Bun CLI test suite", () => {
     ]);
     expect(parsedPositionalWithProject.input).toBe("test-proxy.yaml");
     expect(parsedPositionalWithProject.organization).toBe("my-gcp-project");
+  });
+
+  it("should parse --env as an alternative option to --environment", () => {
+    const parsed = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "cli.ts",
+      "-i",
+      "test-proxy.yaml",
+      "--org",
+      "my-org",
+      "--env",
+      "prod",
+    ]);
+    expect(parsed.environment).toBe("prod");
   });
 
   it("should expand short service account name to full GCP service account email with --service-account and --sa", () => {
@@ -1795,6 +1810,200 @@ targets:
     // Verify deduplication so TargetFlow is not duplicated
     const targetFlowOccurrences = lines.filter((l) => l === "- TargetFlow - Response");
     expect(targetFlowOccurrences.length).toBe(1);
+  });
+
+  it("should have animation stages including germinating, working, processing", () => {
+    const stageNames = DEFAULT_STAGES.map((s) => s.verb);
+    expect(stageNames).toContain("aft is germinating...");
+    expect(stageNames).toContain("aft is working...");
+    expect(stageNames).toContain("aft is processing...");
+    expect(stageNames).toContain("aft is synthesizing...");
+    expect(stageNames).toContain("aft is cultivating...");
+    expect(stageNames).toContain("aft is scaffolding...");
+  });
+
+  it("should manage CliAnimation lifecycle, frames, and stages correctly", async () => {
+    let output = "";
+    const mockStream = {
+      write: (str: string) => {
+        output += str;
+      },
+      isTTY: true,
+    };
+    const anim = new CliAnimation({ stream: mockStream, minDuration: 0, intervalMs: 10, stageDurationMs: 2000 });
+    expect(anim.isRunning).toBe(false);
+
+    // Render frame at t=0s: aft is germinating...
+    const rendered0 = anim.renderFrame(0, 0);
+    expect(rendered0).toContain("aft is germinating...");
+    expect(rendered0).toContain(SPINNER_FRAMES[0]);
+
+    // Render frame at t=1.0s (before 2s threshold): still aft is germinating...
+    const rendered1 = anim.renderFrame(10, 1000);
+    expect(rendered1).toContain("aft is germinating...");
+
+    // Render frame at t=2.1s (after 2s): switches to aft is working...
+    const rendered2 = anim.renderFrame(20, 2100);
+    expect(rendered2).toContain("aft is working...");
+
+    // Render frame at t=4.1s: switches to aft is processing...
+    const rendered3 = anim.renderFrame(30, 4100);
+    expect(rendered3).toContain("aft is processing...");
+
+    // Force enabled for test verification
+    anim.setForcedEnabled(true);
+    expect(anim.isEnabled()).toBe(true);
+
+    anim.start();
+    expect(anim.isRunning).toBe(true);
+
+    // Stop animation
+    await anim.stop();
+    expect(anim.isRunning).toBe(false);
+
+    // Disable animation
+    anim.disable();
+    expect(anim.isEnabled()).toBe(false);
+  });
+
+  it("should support --no-animation and --no-anim CLI flags", () => {
+    const testCli = new cli();
+    const parsed1 = testCli.parseArgumentsIntoOptions([
+      "bun",
+      "apigee-templater.ts",
+      "--no-animation",
+      "-i",
+      "test.yaml",
+    ]);
+    expect(parsed1.noAnimation).toBe(true);
+    expect(testCli.animation.isEnabled()).toBe(false);
+
+    const testCli2 = new cli();
+    const parsed2 = testCli2.parseArgumentsIntoOptions([
+      "bun",
+      "apigee-templater.ts",
+      "--no-anim",
+      "-i",
+      "test.yaml",
+    ]);
+    expect(parsed2.noAnimation).toBe(true);
+    expect(testCli2.animation.isEnabled()).toBe(false);
+  });
+
+  it("should safely call startAnimation and stopAnimation on cli instance", async () => {
+    const testCli = new cli();
+    testCli.startAnimation();
+    await testCli.stopAnimation();
+    expect(testCli.animation.isRunning).toBe(false);
+  });
+
+  it("should deploy a feature from the repository to an Apigee org when no -o is specified", async () => {
+    const testCli = new cli();
+    let apigeeProxyGetCalled = false;
+    let exportedProxyName = "";
+    let exportedOrg = "";
+    let deployedEnv = "";
+    let deployedSa = "";
+
+    const origProxyGet = testCli.apigeeService.apigeeProxyGet;
+    const origProxyExport = testCli.apigeeService.apigeeProxyExport;
+    const origDeploy = testCli.apigeeService.apigeeProxyRevisionDeploy;
+
+    testCli.apigeeService.apigeeProxyGet = async (name, org) => {
+      apigeeProxyGetCalled = true;
+      return "";
+    };
+    testCli.apigeeService.apigeeProxyExport = async (name, zipPath, org) => {
+      exportedProxyName = name;
+      exportedOrg = org;
+      return "1";
+    };
+    testCli.apigeeService.apigeeProxyRevisionDeploy = async (name, rev, sa, env, org) => {
+      deployedEnv = env;
+      deployedSa = sa;
+      return true;
+    };
+
+    try {
+      await testCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "data-proxy-firestore",
+        "--project",
+        "aigateway-lab8",
+        "--env",
+        "dev",
+        "--sa",
+        "apigee-service",
+        "--token",
+        "mock-token",
+        "--no-anim",
+      ]);
+
+      // Should load data-proxy-firestore from repo and NOT attempt to fetch it from Apigee
+      expect(apigeeProxyGetCalled).toBe(false);
+      expect(exportedProxyName).toBe("data-proxy-firestore");
+      expect(exportedOrg).toBe("aigateway-lab8");
+      expect(deployedEnv).toBe("dev");
+      expect(deployedSa).toBe("apigee-service@aigateway-lab8.iam.gserviceaccount.com");
+    } finally {
+      testCli.apigeeService.apigeeProxyGet = origProxyGet;
+      testCli.apigeeService.apigeeProxyExport = origProxyExport;
+      testCli.apigeeService.apigeeProxyRevisionDeploy = origDeploy;
+    }
+  });
+
+  it("should fetch remote proxy from Apigee when a file output -o is specified with --project", async () => {
+    const testCli = new cli();
+    const fs = require("fs");
+    const YAML = require("yaml");
+    const outPath = "./remote-custom-proxy.yaml";
+
+    let fetchedProxyName = "";
+    let fetchedOrg = "";
+
+    const origProxyGet = testCli.apigeeService.apigeeProxyGet;
+    const origZipToProxy = testCli.converter.apigeeZipToProxy;
+
+    testCli.apigeeService.apigeeProxyGet = async (name, org) => {
+      fetchedProxyName = name;
+      fetchedOrg = org;
+      return "/tmp/mock-proxy.zip";
+    };
+    testCli.converter.apigeeZipToProxy = async (name, zipPath) => {
+      return {
+        name: name,
+        type: "proxy",
+        endpoints: [],
+      };
+    };
+
+    try {
+      await testCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "remote-custom-proxy",
+        "--project",
+        "aigateway-lab8",
+        "-o",
+        outPath,
+        "--token",
+        "mock-token",
+        "--no-anim",
+      ]);
+
+      expect(fetchedProxyName).toBe("remote-custom-proxy");
+      expect(fetchedOrg).toBe("aigateway-lab8");
+      expect(fs.existsSync(outPath)).toBe(true);
+      const parsed = YAML.parse(fs.readFileSync(outPath, "utf8"));
+      expect(parsed.name).toBe("remote-custom-proxy");
+    } finally {
+      testCli.apigeeService.apigeeProxyGet = origProxyGet;
+      testCli.converter.apigeeZipToProxy = origZipToProxy;
+      if (fs.existsSync(outPath)) {
+        fs.rmSync(outPath);
+      }
+    }
   });
 });
 

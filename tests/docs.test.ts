@@ -56,6 +56,7 @@ describe("Documentation Generator", () => {
       "--org",
       "--project",
       "--environment",
+      "--env",
       "--service-account",
       "--sa",
       "--format",

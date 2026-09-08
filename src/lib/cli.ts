@@ -28,6 +28,7 @@ import { GoogleAuth } from "google-auth-library";
 import { version } from "./version.js";
 import { CompletionManager } from "./completion.js";
 import { stdin } from "process";
+import CliAnimation, { AnimationStage } from "./animation.js";
 
 const auth = new GoogleAuth({
   scopes: "https://www.googleapis.com/auth/cloud-platform",
@@ -43,6 +44,15 @@ process.on("uncaughtException", function (e) {
 export class cli {
   converter = new ApigeeConverter("./", false);
   apigeeService = new ApigeeTemplaterService("./", false);
+  animation = new CliAnimation();
+
+  public startAnimation(stages?: AnimationStage[]): void {
+    this.animation.start(stages);
+  }
+
+  public async stopAnimation(): Promise<void> {
+    await this.animation.stop();
+  }
 
   private printLogo() {
     const vStr = ("v" + version).padEnd(8);
@@ -85,7 +95,7 @@ export class cli {
         "-p", "--parameters",
         "-t", "--token",
         "-d", "--drz",
-        "--environment",
+        "--environment", "--env",
         "--service-account", "--sa",
       ]);
       for (let i = 0; i < argv.length; i++) {
@@ -121,6 +131,7 @@ export class cli {
         "--org": "--organization",
         "--project": "--organization",
         "--environment": String,
+        "--env": "--environment",
         "--service-account": String,
         "--sa": "--service-account",
         "--format": String,
@@ -135,6 +146,8 @@ export class cli {
         "--version": Boolean,
         "--delete": Boolean,
         "--drz": String,
+        "--no-animation": Boolean,
+        "--no-anim": "--no-animation",
         "-i": "--input",
         "-n": "--name",
         "-b": "--basePath",
@@ -192,7 +205,16 @@ export class cli {
       } else if (
         args["_"] &&
         args["_"][0] &&
-        (args["--output"] || args["--organization"] || (args as any)["--org"] || (args as any)["--project"] || args["--delete"] || args["--format"])
+        (args["--output"] ||
+          args["--organization"] ||
+          (args as any)["--org"] ||
+          (args as any)["--project"] ||
+          args["--environment"] ||
+          (args as any)["--env"] ||
+          args["--service-account"] ||
+          (args as any)["--sa"] ||
+          args["--delete"] ||
+          args["--format"])
       ) {
         args["--input"] = args["_"][0];
       } else if (args["_"] && args["_"][0]) {
@@ -220,6 +242,7 @@ export class cli {
         !args["--basePath"] &&
         !args["--targetUrl"] &&
         !args["--environment"] &&
+        !(args as any)["--env"] &&
         !args["--service-account"] &&
         !(args as any)["--sa"] &&
         !args["--format"]
@@ -241,6 +264,10 @@ export class cli {
 
     const rawSa = args["--service-account"] || (args as any)["--sa"] || "";
     const sa = this.formatServiceAccount(rawSa, org);
+    const noAnimation = Boolean(args["--no-animation"]);
+    if (noAnimation) {
+      this.animation.disable();
+    }
 
     return {
       command: command,
@@ -251,7 +278,7 @@ export class cli {
       targetUrl: args["--targetUrl"] || "",
       output: args["--output"] || "",
       organization: args["--organization"] || (args as any)["--org"] || (args as any)["--project"] || "",
-      environment: args["--environment"] || "",
+      environment: args["--environment"] || (args as any)["--env"] || "",
       serviceAccount: sa,
       format: args["--format"] || "",
       applyFeature: applyFeatures.join(","),
@@ -266,6 +293,7 @@ export class cli {
       version: args["--version"] || false,
       delete: args["--delete"] || false,
       drz: args["--drz"] || "",
+      noAnimation: noAnimation,
     };
   }
 
@@ -672,6 +700,7 @@ export class cli {
           "--org",
           "--project",
           "--environment",
+          "--env",
           "--service-account",
           "--sa",
           "--format",
@@ -683,6 +712,8 @@ export class cli {
           "--token",
           "--delete",
           "--drz",
+          "--no-animation",
+          "--no-anim",
           "--help",
           "--version",
           "-i",
@@ -728,10 +759,13 @@ export class cli {
   }
 
   async printFeatures(format?: string) {
+    this.startAnimation();
     let [allTemplates, allFeatures] = await Promise.all([
       this.apigeeService.templatesList(),
       this.apigeeService.featuresList(),
     ]);
+
+    await this.stopAnimation();
 
     if (format === "json" || format === "yaml" || format === "yml") {
       const catalog = {
@@ -818,7 +852,8 @@ export class cli {
     });
   }
 
-  private printOverviewCard(title: string, summaryLines: string[], outputPath?: string) {
+  private async printOverviewCard(title: string, summaryLines: string[], outputPath?: string) {
+    await this.stopAnimation();
     console.log(`\n  ${chalk.bgCyan.black.bold(" OVERVIEW ")} ${chalk.bold.magenta(title)}`);
     console.log(chalk.gray("  ─────────────────────────────────────────────────────────"));
     for (const line of summaryLines) {
@@ -887,7 +922,8 @@ export class cli {
     }
   }
 
-  private printOrgConfig(orgName: string, config: ApigeeConfig) {
+  private async printOrgConfig(orgName: string, config: ApigeeConfig) {
+    await this.stopAnimation();
     const org = config.org || {};
     console.log(
       `\n  ${chalk.bgCyan.black.bold(" CONFIG ")} ${chalk.bold.magenta("Organization " + (org.name || orgName))}`,
@@ -1012,6 +1048,11 @@ export class cli {
       return;
     }
 
+    try {
+      if (options.singlePositionalInput || options.input || options.organization) {
+        this.startAnimation();
+      }
+
     if (options.singlePositionalInput) {
       const fileExists = fs.existsSync(options.singlePositionalInput);
       const isRemoteUrl =
@@ -1044,9 +1085,11 @@ export class cli {
 
     if (options.command === "describe") {
       if (!options.input && !options.organization) {
+        await this.stopAnimation();
         console.log(`  ${chalk.red.bold("✖ Error: Please specify an input to describe.")}\n`);
         return;
       }
+      this.startAnimation();
       if (options.organization && (!options.input || options.input === options.organization)) {
         if (!options.token) {
           let token = await auth.getAccessToken();
@@ -1058,12 +1101,13 @@ export class cli {
           "Bearer " + options.token,
         );
 
+        await this.stopAnimation();
         if (options.format === "json") {
           console.log(JSON.stringify(apigeeConfig, null, 2));
         } else if (options.format === "yaml" || options.format === "yml") {
           console.log(YAML.stringify(apigeeConfig, { aliasDuplicateObjects: false }));
         } else {
-          this.printOrgConfig(options.organization, apigeeConfig);
+          await this.printOrgConfig(options.organization, apigeeConfig);
         }
         return;
       }
@@ -1072,6 +1116,7 @@ export class cli {
       }
     } else {
       if (!options.input) {
+        await this.stopAnimation();
         this.printLogo();
         console.log(
           `  ${chalk.bold.magenta("Welcome to Apigee Feature Templater " + version)}`
@@ -1080,6 +1125,7 @@ export class cli {
       }
 
       options = await this.promptForMissingOptions(options);
+      this.startAnimation();
     }
 
     let template: Template | undefined = undefined;
@@ -1127,26 +1173,28 @@ export class cli {
         if (!options.format && options.basePath && options.targetUrl) options.format = "feature";
       }
       if (!options.output) options.output = options.name + ".yaml";
-    } else if (
-      (options.input.includes(":") &&
-        !options.input.toLowerCase().startsWith("https://") &&
-        !options.input.toLowerCase().startsWith("http://")) ||
-      (options.organization && !(options.input && fs.existsSync(options.input)))
-    ) {
-      // Apigee proxy, product, user, or shared flow reference
+    } else {
       const hasColonInput =
         options.input.includes(":") &&
         !options.input.toLowerCase().startsWith("https://") &&
         !options.input.toLowerCase().startsWith("http://");
-      const pieces = hasColonInput ? options.input.split(":") : [];
-      const apigeeOrg = options.organization || (pieces.length > 0 ? pieces[0] : "");
-      const resourceName = hasColonInput
-        ? pieces[1]
-        : options.input && options.input !== apigeeOrg
-          ? options.input
-          : "";
 
-      if (apigeeOrg && resourceName) {
+      const hasFileOutput = Boolean(
+        options.output &&
+        !options.output.includes(":") &&
+        (
+          Boolean(options.organization) ||
+          options.output.match(/\.(yaml|yml|json|zip|dir)$/i) ||
+          options.output.endsWith("/") ||
+          options.output.endsWith("\\") ||
+          options.output.includes("/") ||
+          options.output.includes("\\") ||
+          fs.existsSync(options.output)
+        )
+      );
+
+      const fetchResourceFromApigee = async (apigeeOrg: string, resourceName: string) => {
+        if (!apigeeOrg || !resourceName) return;
         if (!options.token) {
           let token = await auth.getAccessToken();
           if (token) options.token = token;
@@ -1185,7 +1233,7 @@ export class cli {
               options.name || resourceName,
               sharedFlowPath,
             );
-            fs.rmSync(sharedFlowPath);
+            if (fs.existsSync(sharedFlowPath)) fs.rmSync(sharedFlowPath);
           }
         } else {
           let apigeePath = await this.apigeeService.apigeeProxyGet(
@@ -1201,7 +1249,7 @@ export class cli {
               apigeePath,
               importParameters,
             );
-            fs.rmSync(apigeePath);
+            if (fs.existsSync(apigeePath)) fs.rmSync(apigeePath);
           } else {
             // Try shared flows
             let sharedFlowPath = await this.apigeeService.apigeeSharedFlowGet(
@@ -1216,7 +1264,7 @@ export class cli {
                 options.name || resourceName,
                 sharedFlowPath,
               );
-              fs.rmSync(sharedFlowPath);
+              if (fs.existsSync(sharedFlowPath)) fs.rmSync(sharedFlowPath);
             } else {
               // Try product
               let apigeeProductData = await this.apigeeService.apigeeProductGet(
@@ -1245,47 +1293,30 @@ export class cli {
 
         if (proxy && !proxy.description) proxy.description = "Proxy for " + proxy.name;
 
-        if (!options.output && (product || user || proxy || feature)) {
+        if (!options.output && !options.organization && (product || user || proxy || feature)) {
           if (product) options.output = (product.name || resourceName) + ".yaml";
           else if (user) options.output = (user.name || user.email || resourceName) + ".yaml";
           else if (feature) options.output = (feature.name || resourceName) + ".yaml";
           else if (proxy) options.output = (proxy.name || resourceName) + ".yaml";
         }
-      }
-    } else if (options.input && fs.existsSync(options.input)) {
-      templateDir = path.dirname(path.resolve(options.input));
-      let file = await this.loadFile(options.name, options.input);
-      if (file && file["type"] === "template") template = file as Template;
-      else if (file && file["type"] === "proxy") proxy = file as Proxy;
-      else if (file && file["type"] === "feature") feature = file as Feature;
-      else if (file && file["type"] === "product") product = file as Product;
-      else if (file && file["type"] === "user") user = file as User;
-      else if (file && options.format === "template") template = file as Template;
-      else if (file && options.format === "proxy") proxy = file as Proxy;
-      else if (file && (options.format === "feature" || options.format === "sharedflow" || options.format === "sf")) feature = file as Feature;
-      else if (file && options.format === "product") product = file as Product;
-      else if (file && options.format === "user") user = file as User;
-      else if (file && file["endpoints"] && file["features"]) template = file as Template;
-      else if (file && file["endpoints"]) proxy = file as Proxy;
-      else if (file && file["features"]) template = file as Template;
-      else if (file && file["policies"]) feature = file as Feature;
-      else if (file && (file["approvalType"] || file["operationGroup"])) product = file as Product;
-      else if (file && (file["email"] || file["developerId"])) user = file as User;
-      else if (file) {
-        console.log(
-          `  ${chalk.red.bold("✖ Error reading '" + options.input + "', could not determine its type:")}\n  ${JSON.stringify(file, null, 2)}`,
-        );
-        return;
-      }
-      let dirName = path.dirname(options.input);
-      process.chdir(dirName);
-    } else if (options.input) {
-      // Remote repository load
+      };
+
       if (
-        options.input.toLowerCase().startsWith("https://") ||
-        options.input.toLowerCase().startsWith("http://")
+        hasColonInput ||
+        (hasFileOutput && options.organization && !(options.input && fs.existsSync(options.input)))
       ) {
-        let file = await this.loadRemoteFile(options.input);
+        // Apigee proxy, product, user, or shared flow reference
+        const pieces = hasColonInput ? options.input.split(":") : [];
+        const apigeeOrg = options.organization || (pieces.length > 0 ? pieces[0] : "");
+        const resourceName = hasColonInput
+          ? pieces[1]
+          : options.input && options.input !== apigeeOrg
+            ? options.input
+            : "";
+        await fetchResourceFromApigee(apigeeOrg, resourceName);
+      } else if (options.input && fs.existsSync(options.input)) {
+        templateDir = path.dirname(path.resolve(options.input));
+        let file = await this.loadFile(options.name, options.input);
         if (file && file["type"] === "template") template = file as Template;
         else if (file && file["type"] === "proxy") proxy = file as Proxy;
         else if (file && file["type"] === "feature") feature = file as Feature;
@@ -1302,26 +1333,62 @@ export class cli {
         else if (file && file["policies"]) feature = file as Feature;
         else if (file && (file["approvalType"] || file["operationGroup"])) product = file as Product;
         else if (file && (file["email"] || file["developerId"])) user = file as User;
-      } else {
-        if (options.format == "template") {
-          template = await this.apigeeService.templateGet(options.input);
-        } else if (
-          options.format == "feature" ||
-          options.format == "sharedflow" ||
-          options.format == "sf"
+        else if (file) {
+          console.log(
+            `  ${chalk.red.bold("✖ Error reading '" + options.input + "', could not determine its type:")}\n  ${JSON.stringify(file, null, 2)}`,
+          );
+          return;
+        }
+        let dirName = path.dirname(options.input);
+        process.chdir(dirName);
+      } else if (options.input) {
+        // Remote repository load
+        if (
+          options.input.toLowerCase().startsWith("https://") ||
+          options.input.toLowerCase().startsWith("http://")
         ) {
-          feature = await this.apigeeService.featureGet(options.input);
-        } else if (options.format == "product") {
-          product = await this.apigeeService.productGet(options.input);
-        } else if (options.format == "user") {
-          user = await this.apigeeService.userGet(options.input);
+          let file = await this.loadRemoteFile(options.input);
+          if (file && file["type"] === "template") template = file as Template;
+          else if (file && file["type"] === "proxy") proxy = file as Proxy;
+          else if (file && file["type"] === "feature") feature = file as Feature;
+          else if (file && file["type"] === "product") product = file as Product;
+          else if (file && file["type"] === "user") user = file as User;
+          else if (file && options.format === "template") template = file as Template;
+          else if (file && options.format === "proxy") proxy = file as Proxy;
+          else if (file && (options.format === "feature" || options.format === "sharedflow" || options.format === "sf")) feature = file as Feature;
+          else if (file && options.format === "product") product = file as Product;
+          else if (file && options.format === "user") user = file as User;
+          else if (file && file["endpoints"] && file["features"]) template = file as Template;
+          else if (file && file["endpoints"]) proxy = file as Proxy;
+          else if (file && file["features"]) template = file as Template;
+          else if (file && file["policies"]) feature = file as Feature;
+          else if (file && (file["approvalType"] || file["operationGroup"])) product = file as Product;
+          else if (file && (file["email"] || file["developerId"])) user = file as User;
         } else {
-          let resolved = await this.apigeeService.repositoryGet(options.input);
-          if (resolved) {
-            if (resolved.type === "template") template = resolved.data as Template;
-            else if (resolved.type === "feature") feature = resolved.data as Feature;
-            else if (resolved.type === "product") product = resolved.data as Product;
-            else if (resolved.type === "user") user = resolved.data as User;
+          if (options.format == "template") {
+            template = await this.apigeeService.templateGet(options.input);
+          } else if (
+            options.format == "feature" ||
+            options.format == "sharedflow" ||
+            options.format == "sf"
+          ) {
+            feature = await this.apigeeService.featureGet(options.input);
+          } else if (options.format == "product") {
+            product = await this.apigeeService.productGet(options.input);
+          } else if (options.format == "user") {
+            user = await this.apigeeService.userGet(options.input);
+          } else {
+            let resolved = await this.apigeeService.repositoryGet(options.input);
+            if (resolved) {
+              if (resolved.type === "template") template = resolved.data as Template;
+              else if (resolved.type === "feature") feature = resolved.data as Feature;
+              else if (resolved.type === "product") product = resolved.data as Product;
+              else if (resolved.type === "user") user = resolved.data as User;
+            }
+          }
+          if (!template && !proxy && !feature && !product && !user && options.organization) {
+            // Fallback: Check if resource exists in the Apigee organization
+            await fetchResourceFromApigee(options.organization, options.input);
           }
         }
       }
@@ -1345,19 +1412,20 @@ export class cli {
 
     if (options.command === "describe") {
       process.chdir(startDir);
+      await this.stopAnimation();
       if (template) {
-        this.printOverviewCard(`Template ${template.name}`, this.converter.templateToStringArray(template));
+        await this.printOverviewCard(`Template ${template.name}`, this.converter.templateToStringArray(template));
       } else if (proxy) {
-        this.printOverviewCard(`Proxy ${proxy.name}`, this.converter.proxyToStringArray(proxy));
+        await this.printOverviewCard(`Proxy ${proxy.name}`, this.converter.proxyToStringArray(proxy));
       } else if (feature) {
         const title = (options.format === "sharedflow" || options.format === "sf")
           ? `SharedFlow ${feature.name}`
           : `Feature ${feature.name}`;
-        this.printOverviewCard(title, this.converter.featureToStringArray(feature));
+        await this.printOverviewCard(title, this.converter.featureToStringArray(feature));
       } else if (product) {
-        this.printOverviewCard(`Product ${product.name}`, this.converter.productToStringArray(product));
+        await this.printOverviewCard(`Product ${product.name}`, this.converter.productToStringArray(product));
       } else if (user) {
-        this.printOverviewCard(`User ${user.name || user.email}`, this.converter.userToStringArray(user));
+        await this.printOverviewCard(`User ${user.name || user.email}`, this.converter.userToStringArray(user));
       } else {
         console.log(`  ${chalk.red.bold(`✖ Error: Could not resolve input '${options.input}' to describe.`)}\n`);
       }
@@ -1372,6 +1440,13 @@ export class cli {
       const targetOrg = options.organization || (options.input.endsWith(":") ? options.input.slice(0, -1) : options.input);
       if (!targetOrg) {
         console.log(`  ${chalk.red.bold("✖ Error: No input template, proxy, product, user, or organization specified.")}`);
+        return;
+      }
+
+      if (options.input && options.input !== targetOrg && !options.input.endsWith(":")) {
+        console.log(
+          `  ${chalk.red.bold(`✖ Error: Could not resolve input '${options.input}' locally, from repository, or from Apigee organization '${targetOrg}'.`)}\n`,
+        );
         return;
       }
 
@@ -1416,7 +1491,7 @@ export class cli {
                   outPath,
                   YAML.stringify(prod, { aliasDuplicateObjects: false, blockQuote: "literal" }),
                 );
-                this.printOverviewCard(
+                await this.printOverviewCard(
                   `Product ${prod.name}`,
                   this.converter.productToStringArray(prod),
                   outPath,
@@ -1431,6 +1506,7 @@ export class cli {
                   YAML.stringify(products, { aliasDuplicateObjects: false, blockQuote: "literal" }),
                 );
               }
+              await this.stopAnimation();
               console.log(
                 `\n  ${chalk.green.bold("✔")} Exported ${chalk.cyan(products.length)} products to ${chalk.bold.yellow(options.output)}\n`,
               );
@@ -1438,6 +1514,7 @@ export class cli {
             return;
           }
 
+          await this.stopAnimation();
           console.log(
             `\n  ${chalk.cyan.bold("Apigee org " + targetOrg + " products:")} ${chalk.gray("(export product with -i NAME --organization " + targetOrg + " -f product)")}`,
           );
@@ -1463,7 +1540,7 @@ export class cli {
                 !options.output.toLowerCase().endsWith(".yml") &&
                 !options.output.toLowerCase().endsWith(".json"));
 
-            const users: User[] = [];
+            let users: User[] = [];
             for (let u of userList["developer"]) {
               const email = u.email || u.userName;
               const usr = await this.apigeeService.apigeeUserGet(
@@ -1485,7 +1562,7 @@ export class cli {
                   outPath,
                   YAML.stringify(usr, { aliasDuplicateObjects: false, blockQuote: "literal" }),
                 );
-                this.printOverviewCard(
+                await this.printOverviewCard(
                   `User ${usr.name || usr.email}`,
                   this.converter.userToStringArray(usr),
                   outPath,
@@ -1500,6 +1577,7 @@ export class cli {
                   YAML.stringify(users, { aliasDuplicateObjects: false, blockQuote: "literal" }),
                 );
               }
+              await this.stopAnimation();
               console.log(
                 `\n  ${chalk.green.bold("✔")} Exported ${chalk.cyan(users.length)} users to ${chalk.bold.yellow(options.output)}\n`,
               );
@@ -1507,6 +1585,7 @@ export class cli {
             return;
           }
 
+          await this.stopAnimation();
           console.log(
             `\n  ${chalk.cyan.bold("Apigee org " + targetOrg + " developers/users:")} ${chalk.gray("(export user with -i EMAIL --organization " + targetOrg + " -f user)")}`,
           );
@@ -1551,7 +1630,7 @@ export class cli {
                   outPath,
                   YAML.stringify(prx, { aliasDuplicateObjects: false, blockQuote: "literal" }),
                 );
-                this.printOverviewCard(
+                await this.printOverviewCard(
                   `Proxy ${prx.name}`,
                   this.converter.proxyToStringArray(prx),
                   outPath,
@@ -1562,6 +1641,7 @@ export class cli {
           }
         }
 
+        await this.stopAnimation();
         console.log(
           `\n  ${chalk.cyan.bold("Apigee org " + targetOrg + " proxies:")} ${chalk.gray("(export proxy with -i NAME --organization " + targetOrg + ")")}`,
         );
@@ -1587,7 +1667,7 @@ export class cli {
 
       if (applyList.length > 0) {
         process.chdir(startDir);
-        if (!options.output) options.output = options.input;
+        if (!options.output && !options.organization) options.output = options.input;
 
         const targetOrg =
           options.organization ||
@@ -1628,7 +1708,7 @@ export class cli {
         }
       } else if (removeList.length > 0) {
         process.chdir(startDir);
-        if (!options.output) options.output = options.input;
+        if (!options.output && !options.organization) options.output = options.input;
 
         for (const featName of removeList) {
           if (template) {
@@ -1920,7 +2000,7 @@ export class cli {
               .join(":");
           }
 
-          this.printOverviewCard(
+          await this.printOverviewCard(
             `Product ${product.name}`,
             this.converter.productToStringArray(product),
             displayDestination || options.output,
@@ -1983,7 +2063,7 @@ export class cli {
               .join(":");
           }
 
-          this.printOverviewCard(
+          await this.printOverviewCard(
             `User ${user.name || user.email}`,
             this.converter.userToStringArray(user),
             displayDestination || options.output,
@@ -2024,7 +2104,7 @@ export class cli {
                 fs.rmSync(outputPath);
               }
 
-              this.printOverviewCard(
+              await this.printOverviewCard(
                 `SharedFlow ${feature.name}`,
                 this.converter.featureToStringArray(feature),
                 options.output,
@@ -2074,7 +2154,7 @@ export class cli {
             fs.rmSync(outputPath);
           }
 
-          this.printOverviewCard(
+          await this.printOverviewCard(
             `Proxy ${proxy.name}`,
             this.converter.proxyToStringArray(proxy),
             options.output,
@@ -2159,7 +2239,7 @@ export class cli {
                   .join(":");
               }
 
-              this.printOverviewCard(
+              await this.printOverviewCard(
                 `SharedFlow ${feature.name}`,
                 this.converter.featureToStringArray(feature),
                 displayDestination || options.output,
@@ -2360,7 +2440,7 @@ export class cli {
               .join(":");
           }
 
-          this.printOverviewCard(
+          await this.printOverviewCard(
             `Proxy ${proxy.name}`,
             this.converter.proxyToStringArray(proxy),
             displayDestination || options.output,
@@ -2369,7 +2449,7 @@ export class cli {
           if (deployedProducts && deployedProducts.length > 0) {
             for (let prod of deployedProducts) {
               let prodDest = [org, prod.name, env].filter(Boolean).join(":");
-              this.printOverviewCard(
+              await this.printOverviewCard(
                 `Product ${prod.name}`,
                 this.converter.productToStringArray(prod),
                 prodDest,
@@ -2380,7 +2460,7 @@ export class cli {
           if (deployedUsers && deployedUsers.length > 0) {
             for (let usr of deployedUsers) {
               let userDest = [org, usr.name || usr.email].filter(Boolean).join(":");
-              this.printOverviewCard(
+              await this.printOverviewCard(
                 `User ${usr.name || usr.email}`,
                 this.converter.userToStringArray(usr),
                 userDest,
@@ -2411,7 +2491,7 @@ export class cli {
             );
           }
 
-          this.printOverviewCard(
+          await this.printOverviewCard(
             `Template ${template.name}`,
             this.converter.templateToString(template).split("\n"),
             options.output,
@@ -2456,7 +2536,7 @@ export class cli {
             );
           }
 
-          this.printOverviewCard(
+          await this.printOverviewCard(
             `Feature ${feature.name}`,
             this.converter.featureToString(feature).split("\n"),
             options.output,
@@ -2464,7 +2544,10 @@ export class cli {
         }
       }
     }
+  } finally {
+    await this.stopAnimation();
   }
+}
 
   async loadFile(name: string, inputPath: string): Promise<any | undefined> {
     return new Promise(async (resolve, reject) => {
@@ -2563,6 +2646,7 @@ class cliArgs {
   version = false;
   delete = false;
   drz = "";
+  noAnimation = false;
 }
 
 const helpCommands = [
@@ -2583,7 +2667,7 @@ const helpCommands = [
     description: "Apigee organization or GCP project name to export from, deploy to, or describe.",
   },
   {
-    name: "--environment",
+    name: "--environment, --env",
     description: "Apigee environment name to deploy the proxy revision to.",
   },
   {
@@ -2639,6 +2723,10 @@ const helpCommands = [
   {
     name: "--drz, -d",
     description: "Use a DRZ Apigee endpoint (us, eu, in) for API calls.",
+  },
+  {
+    name: "--no-animation, --no-anim",
+    description: "Disable working animation and spinner during execution.",
   },
 ];
 
