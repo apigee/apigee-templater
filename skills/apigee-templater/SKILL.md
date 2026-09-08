@@ -685,20 +685,20 @@ aft my-proxy-name --delete --organization my-apigee-org
 
 ---
 
-## 14. Organization Configuration Inspection (`-c` / `--config`)
+## 14. Organization Configuration Inspection (`describe --project`)
 
-Use `--config` (or `-c`) to inspect organization topology, runtime settings, and environments:
+Use `describe --project` (or `--org` / `--organization`) to inspect organization topology, runtime settings, and environments:
 
 - **Default**: Renders a formatted overview card showing organization name, project, analytics region, billing type, evaluation expiration date, environments list, and environment groups with attached hostnames.
 - **`-f json` / `-f yaml`**: Emits raw JSON or YAML.
 
 ```bash
 # Visual formatted card
-aft -c my-apigee-org
+aft describe --project my-apigee-org
 
 # Raw JSON or YAML
-aft -c my-apigee-org -f json
-aft -c my-apigee-org -f yaml
+aft describe --project my-apigee-org -f json
+aft describe --project my-apigee-org -f yaml
 ```
 
 ---

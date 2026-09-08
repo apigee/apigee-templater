@@ -33,7 +33,7 @@ For comprehensive developer documentation with interactive search, category filt
 👉 **[https://apigee.github.io/apigee-templater](https://apigee.github.io/apigee-templater)**
 
 * **Real-Time Search & Filter**: Search across all commands, flags, parameters, and examples.
-* **Complete Command Coverage**: In-depth syntax and options for `convert`, `describe`, `list`, `config`, `completion`, `skill`, `cache`, and Apigee X deployments.
+* **Complete Command Coverage**: In-depth syntax and options for `convert`, `describe`, `list`, `completion`, `skill`, `cache`, and Apigee X deployments.
 * **Copy-Pasteable Recipes**: End-to-end examples for AI model gateways, API key enforcement, SharedFlow bundles, and GitOps migrations.
 
 ## Install the CLI
@@ -270,8 +270,9 @@ aft -i SimpleProxy-v1.yaml -o SimpleProxy-v1.zip
 # Simple deploy to environment
 aft -i SimpleProxy-v1.yaml --organization MyApigeeOrg --environment MyApigeeEnvironment
 
-# Deploy with a service account to the dev environment
-aft -i SimpleProxy-v1.yaml --organization MyApigeeOrg --environment dev --service-account mysa@myproject.iam.gserviceaccount.com
+# Deploy with a service account to the dev environment (supports full email or short name via --service-account or --sa)
+aft -i SimpleProxy-v1.yaml --org MyApigeeOrg --environment dev --sa mysa
+# mysa will automatically expand to mysa@MyApigeeOrg.iam.gserviceaccount.com
 ```
 
 ### Describe Resources

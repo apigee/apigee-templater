@@ -799,17 +799,13 @@
           <span>convert</span>
           <span class="nav-tag">default</span>
         </a>
-        <a href="#cmd-describe" class="nav-link" data-search="describe inspect overview card parameters summary flow policies">
+        <a href="#cmd-describe" class="nav-link" data-search="describe inspect overview card parameters summary flow policies organization project config runtime">
           <span>describe</span>
           <span class="nav-tag">inspect</span>
         </a>
         <a href="#cmd-list" class="nav-link" data-search="list catalog features templates browse repository json yaml">
           <span>list</span>
           <span class="nav-tag">catalog</span>
-        </a>
-        <a href="#cmd-config" class="nav-link" data-search="config organization gcp project region billing trial expiration hostnames">
-          <span>config</span>
-          <span class="nav-tag">cloud</span>
         </a>
         <a href="#cmd-completion" class="nav-link" data-search="completion shell tab install zsh bash fish powershell">
           <span>completion</span>
@@ -830,7 +826,7 @@
         <a href="#cloud-export" class="nav-link" data-search="export proxies products users developers credentials sharedflow">
           <span>Remote Export</span>
         </a>
-        <a href="#cloud-deploy" class="nav-link" data-search="deploy proxy product user developer template environment service-account">
+        <a href="#cloud-deploy" class="nav-link" data-search="deploy proxy product user developer template environment service-account sa">
           <span>Remote Deployment</span>
         </a>
         <a href="#cloud-delete" class="nav-link" data-search="delete cleanup proxy product user template teardown">
@@ -997,8 +993,8 @@
                   <td>Apigee environment name to deploy the proxy revision to (e.g. dev, prod).</td>
                 </tr>
                 <tr>
-                  <td class="flag-name">--service-account &lt;email&gt;</td>
-                  <td>Google Cloud service account email attached to proxy deployment.</td>
+                  <td class="flag-name">--service-account, --sa &lt;name|email&gt;</td>
+                  <td>Google Cloud service account email or name attached to proxy deployment. If not an email address, automatically formats as {sa-name}@{project-id}.iam.gserviceaccount.com.</td>
                 </tr>
                 <tr>
                   <td class="flag-name">--delete</td>
@@ -1064,15 +1060,15 @@
           </div>
           <div class="example-box">
             <div class="example-title">Deploy Proxy directly to Apigee Environment</div>
-            <div class="example-desc">Deploys a local YAML proxy directly to an Apigee X environment, attaching a service account if needed.</div>
+            <div class="example-desc">Deploys a local YAML proxy directly to an Apigee X environment, attaching a service account (short name or email) if needed.</div>
             <div class="code-block">
-              <code>aft -i WeatherAPI.yaml --org my-org --environment dev --service-account apigee-sa@my-proj.iam.gserviceaccount.com</code>
-              <button class="copy-btn" data-clipboard="aft -i WeatherAPI.yaml --org my-org --environment dev --service-account apigee-sa@my-proj.iam.gserviceaccount.com">Copy</button>
+              <code>aft -i WeatherAPI.yaml --org my-org --environment dev --sa apigee-sa</code>
+              <button class="copy-btn" data-clipboard="aft -i WeatherAPI.yaml --org my-org --environment dev --sa apigee-sa">Copy</button>
             </div>
           </div>
         </article>
 
-        <article class="command-card searchable-item" id="cmd-describe" data-category="inspect" data-search="describe Inspects and summarizes any local file or remote repository resource (template, proxy, feature, product, or user). Renders a high-contrast terminal card detailing the name, description, endpoints, target URLs, flows, policies, and parameters without modifying or creating files. If given a non-existent filename as a single argument, AFT safely creates an empty template proxy instead.">
+        <article class="command-card searchable-item" id="cmd-describe" data-category="inspect" data-search="describe Inspects and summarizes any local file, remote repository resource (template, proxy, feature, product, or user), or Apigee organization configuration (--project). Renders a high-contrast terminal card detailing the name, description, endpoints, target URLs, flows, policies, parameters, or org runtime settings without modifying or creating files. If given a non-existent filename as a single argument, AFT safely creates an empty template proxy instead.">
           <div class="command-header">
             <div class="command-title">
               <h3>aft describe</h3>
@@ -1085,7 +1081,7 @@
             <button class="copy-btn" data-clipboard="aft describe &lt;input&gt;   |   aft &lt;input&gt;">Copy</button>
           </div>
 
-          <p>Inspects and summarizes any local file or remote repository resource (template, proxy, feature, product, or user). Renders a high-contrast terminal card detailing the name, description, endpoints, target URLs, flows, policies, and parameters without modifying or creating files. If given a non-existent filename as a single argument, AFT safely creates an empty template proxy instead.</p>
+          <p>Inspects and summarizes any local file, remote repository resource (template, proxy, feature, product, or user), or Apigee organization configuration (--project). Renders a high-contrast terminal card detailing the name, description, endpoints, target URLs, flows, policies, parameters, or org runtime settings without modifying or creating files. If given a non-existent filename as a single argument, AFT safely creates an empty template proxy instead.</p>
 
           
           <h4 style="font-size: 14px; font-weight: 600; margin: 20px 0 10px; color: #e2e8f0;">Command Options</h4>
@@ -1108,16 +1104,20 @@
                   <td>Explicit flag alternative for the input resource.</td>
                 </tr>
                 <tr>
-                  <td class="flag-name">--organization, --org, --project &lt;name&gt;</td>
-                  <td>Inspect a deployed Apigee remote proxy or resource.</td>
+                  <td class="flag-name">--project, --org, --organization &lt;name&gt;</td>
+                  <td>Inspect Apigee organization/project configuration, or scope remote resources.</td>
                 </tr>
                 <tr>
                   <td class="flag-name">-f, --format &lt;format&gt;</td>
-                  <td>Optional format hint (&#039;proxy&#039;, &#039;template&#039;, &#039;feature&#039;, &#039;product&#039;, &#039;user&#039;, &#039;sf&#039;).</td>
+                  <td>Output format: &#039;json&#039; or &#039;yaml&#039; for raw payloads, or format hint (&#039;proxy&#039;, &#039;template&#039;, &#039;feature&#039;, &#039;product&#039;, &#039;user&#039;, &#039;sf&#039;).</td>
                 </tr>
                 <tr>
                   <td class="flag-name">-t, --token &lt;token&gt;</td>
                   <td>Google Cloud OAuth2 token (defaults to Application Default Credentials).</td>
+                </tr>
+                <tr>
+                  <td class="flag-name">-d, --drz &lt;region&gt;</td>
+                  <td>Specify DRZ endpoint (&#039;us&#039;, &#039;eu&#039;, &#039;in&#039;).</td>
                 </tr>
               </tbody>
             </table>
@@ -1125,6 +1125,22 @@
 
           <h4 style="font-size: 14px; font-weight: 600; margin: 24px 0 12px; color: #e2e8f0;">Examples</h4>
           
+          <div class="example-box">
+            <div class="example-title">Describe an Apigee Organization / GCP Project</div>
+            <div class="example-desc">Queries and inspects runtime and organizational configuration for an Apigee organization (GCP project, analytics region, billing type, trial expiration, environments, environment groups, and hostnames).</div>
+            <div class="code-block">
+              <code>aft describe --project my-apigee-org</code>
+              <button class="copy-btn" data-clipboard="aft describe --project my-apigee-org">Copy</button>
+            </div>
+          </div>
+          <div class="example-box">
+            <div class="example-title">Export Organization Configuration to JSON / YAML</div>
+            <div class="example-desc">Fetches full organization details and prints the raw JSON or YAML response.</div>
+            <div class="code-block">
+              <code>aft describe --project my-apigee-org -f json</code>
+              <button class="copy-btn" data-clipboard="aft describe --project my-apigee-org -f json">Copy</button>
+            </div>
+          </div>
           <div class="example-box">
             <div class="example-title">Describe a local Proxy YAML</div>
             <div class="example-desc">Outputs an overview card showing endpoints, targets, pre/post flows, and policies for a local proxy file.</div>
@@ -1234,81 +1250,6 @@
             <div class="code-block">
               <code>aft list -f yaml</code>
               <button class="copy-btn" data-clipboard="aft list -f yaml">Copy</button>
-            </div>
-          </div>
-        </article>
-
-        <article class="command-card searchable-item" id="cmd-config" data-category="cloud" data-search="config Queries and inspects runtime and organizational configuration for an Apigee X organization. Displays the associated GCP Project, analytics region, billing type, evaluation trial expiration countdown, environments, environment groups, and hostnames.">
-          <div class="command-header">
-            <div class="command-title">
-              <h3>aft config</h3>
-              <span class="badge badge-amber">Apigee Cloud</span>
-            </div>
-          </div>
-
-          <div class="syntax-box">
-            <span class="syntax-text">aft -c &lt;organization&gt;   |   aft --config &lt;organization&gt;</span>
-            <button class="copy-btn" data-clipboard="aft -c &lt;organization&gt;   |   aft --config &lt;organization&gt;">Copy</button>
-          </div>
-
-          <p>Queries and inspects runtime and organizational configuration for an Apigee X organization. Displays the associated GCP Project, analytics region, billing type, evaluation trial expiration countdown, environments, environment groups, and hostnames.</p>
-
-          
-          <h4 style="font-size: 14px; font-weight: 600; margin: 20px 0 10px; color: #e2e8f0;">Command Options</h4>
-          <div class="flags-table-wrap">
-            <table class="flags-table">
-              <thead>
-                <tr>
-                  <th style="width: 35%;">Option</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                
-                <tr>
-                  <td class="flag-name">-c, --config &lt;organization&gt;</td>
-                  <td>Apigee organization name to inspect.</td>
-                </tr>
-                <tr>
-                  <td class="flag-name">-f, --format &lt;json|yaml&gt;</td>
-                  <td>Output raw configuration payload in JSON or YAML format.</td>
-                </tr>
-                <tr>
-                  <td class="flag-name">-t, --token &lt;token&gt;</td>
-                  <td>Google Cloud token (uses Application Default Credentials if omitted).</td>
-                </tr>
-                <tr>
-                  <td class="flag-name">-d, --drz &lt;region&gt;</td>
-                  <td>Specify DRZ endpoint (&#039;us&#039;, &#039;eu&#039;, &#039;in&#039;).</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <h4 style="font-size: 14px; font-weight: 600; margin: 24px 0 12px; color: #e2e8f0;">Examples</h4>
-          
-          <div class="example-box">
-            <div class="example-title">Inspect Apigee X Organization Configuration</div>
-            <div class="example-desc">Prints a formatted summary card showing project ID, region, trial days remaining, environments, and hostnames.</div>
-            <div class="code-block">
-              <code>aft --config my-apigee-org</code>
-              <button class="copy-btn" data-clipboard="aft --config my-apigee-org">Copy</button>
-            </div>
-          </div>
-          <div class="example-box">
-            <div class="example-title">Export Org Configuration to JSON</div>
-            <div class="example-desc">Fetches full organization details and prints the raw JSON response.</div>
-            <div class="code-block">
-              <code>aft -c my-apigee-org -f json</code>
-              <button class="copy-btn" data-clipboard="aft -c my-apigee-org -f json">Copy</button>
-            </div>
-          </div>
-          <div class="example-box">
-            <div class="example-title">Inspect Org in a DRZ (Data Residency) Region</div>
-            <div class="example-desc">Directs API calls to a regional Apigee control plane (e.g. EU or US).</div>
-            <div class="code-block">
-              <code>aft -c my-apigee-org --drz eu</code>
-              <button class="copy-btn" data-clipboard="aft -c my-apigee-org --drz eu">Copy</button>
             </div>
           </div>
         </article>
@@ -1607,10 +1548,10 @@
           </div>
           <div class="example-box">
             <div class="example-title">Deploy Proxy with Google Service Account</div>
-            <div class="example-desc">Attaches a Google Cloud Service Account to the deployed proxy revision for secure backend identity.</div>
+            <div class="example-desc">Attaches a Google Cloud Service Account to the deployed proxy revision for secure backend identity. Supports --sa or --service-account. If a short name is supplied instead of an email address, it automatically expands to &#039;{sa-name}@{project-id}.iam.gserviceaccount.com&#039;.</div>
             <div class="code-block">
-              <code>aft -i WeatherAPI.yaml --org my-org --environment prod --service-account apigee-runtime@my-proj.iam.gserviceaccount.com</code>
-              <button class="copy-btn" data-clipboard="aft -i WeatherAPI.yaml --org my-org --environment prod --service-account apigee-runtime@my-proj.iam.gserviceaccount.com">Copy</button>
+              <code>aft -i WeatherAPI.yaml --org my-org --environment prod --sa apigee-runtime</code>
+              <button class="copy-btn" data-clipboard="aft -i WeatherAPI.yaml --org my-org --environment prod --sa apigee-runtime">Copy</button>
             </div>
           </div>
           <div class="example-box">
@@ -1714,7 +1655,7 @@
               <tr>
                 <td class="flag-name">--organization, --org, --project</td>
                 <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);">&lt;name&gt;</td>
-                <td>Apigee organization or GCP project name to export from or deploy to. All 3 aliases are interchangeable.</td>
+                <td>Apigee organization or GCP project name to export from, deploy to, or describe (inspect org configuration). All 3 aliases are interchangeable.</td>
               </tr>
               <tr>
                 <td class="flag-name">--environment</td>
@@ -1722,9 +1663,9 @@
                 <td>Apigee environment name to deploy the proxy revision to (e.g. dev, test, prod).</td>
               </tr>
               <tr>
-                <td class="flag-name">--service-account</td>
-                <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);">&lt;email&gt;</td>
-                <td>Google Cloud service account email attached to proxy deployment.</td>
+                <td class="flag-name">--service-account, --sa</td>
+                <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);">&lt;name|email&gt;</td>
+                <td>Google Cloud service account email or name attached to proxy deployment. If not an email address, automatically formats as {sa-name}@{project-id}.iam.gserviceaccount.com.</td>
               </tr>
               <tr>
                 <td class="flag-name">--format, -f</td>
@@ -1765,11 +1706,6 @@
                 <td class="flag-name">--list, -l</td>
                 <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);">--</td>
                 <td>List all templates and features available in the central repository (supports -f json/yaml).</td>
-              </tr>
-              <tr>
-                <td class="flag-name">--config, -c</td>
-                <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);">&lt;org&gt;</td>
-                <td>Display runtime configuration information for an Apigee X organization.</td>
               </tr>
               <tr>
                 <td class="flag-name">--delete</td>

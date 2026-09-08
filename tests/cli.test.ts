@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import fs from "fs";
+import path from "path";
 import * as YAML from "yaml";
 import { cli } from "../src/lib/cli.js";
 import { ApigeeConverter } from "../src/lib/converter.js";
@@ -413,7 +414,45 @@ describe("AFT Bun CLI test suite", () => {
     expect(parsedPositionalWithProject.organization).toBe("my-gcp-project");
   });
 
-  it("should handle flag auto-completion for --org, --project, --env, --serv", async () => {
+  it("should expand short service account name to full GCP service account email with --service-account and --sa", () => {
+    const parsedWithSaShort = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "cli.ts",
+      "-i",
+      "test-proxy.yaml",
+      "--org",
+      "my-gcp-project",
+      "--sa",
+      "apigee-sa",
+    ]);
+    expect(parsedWithSaShort.serviceAccount).toBe("apigee-sa@my-gcp-project.iam.gserviceaccount.com");
+
+    const parsedWithFullSa = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "cli.ts",
+      "-i",
+      "test-proxy.yaml",
+      "--project",
+      "my-gcp-project",
+      "--service-account",
+      "custom-sa",
+    ]);
+    expect(parsedWithFullSa.serviceAccount).toBe("custom-sa@my-gcp-project.iam.gserviceaccount.com");
+
+    const parsedWithExistingEmail = myCli.parseArgumentsIntoOptions([
+      "bun",
+      "cli.ts",
+      "-i",
+      "test-proxy.yaml",
+      "--organization",
+      "my-gcp-project",
+      "--sa",
+      "already-full@other-project.iam.gserviceaccount.com",
+    ]);
+    expect(parsedWithExistingEmail.serviceAccount).toBe("already-full@other-project.iam.gserviceaccount.com");
+  });
+
+  it("should handle flag auto-completion for --org, --project, --env, --serv, --sa", async () => {
     const logs: string[] = [];
     const origLog = console.log;
     console.log = (msg: string) => logs.push(msg);
@@ -435,6 +474,10 @@ describe("AFT Bun CLI test suite", () => {
       logs.length = 0;
       await myCli.handleCompletion("", "--serv");
       expect(logs.join("\n")).toContain("--service-account");
+
+      logs.length = 0;
+      await myCli.handleCompletion("", "--sa");
+      expect(logs.join("\n")).toContain("--sa");
     } finally {
       console.log = origLog;
     }
@@ -661,6 +704,128 @@ resources: []
     }
   });
 
+  it("should deploy proxy with short service account using --sa and expand to full GCP email", async () => {
+    const testYamlPath = path.join(process.cwd(), "test-short-sa-proxy.yaml");
+    fs.writeFileSync(
+      testYamlPath,
+      `name: test-short-sa-proxy
+basepaths:
+  - /test-short-sa
+targets:
+  - name: default
+    url: https://httpbin.org
+`
+    );
+
+    let deployedRevision = "";
+    let deployedSA = "";
+    let deployedEnv = "";
+    let deployedOrg = "";
+
+    const originalExport = myCli.apigeeService.apigeeProxyExport;
+    const originalDeploy = myCli.apigeeService.apigeeProxyRevisionDeploy;
+
+    myCli.apigeeService.apigeeProxyExport = async () => "1";
+    myCli.apigeeService.apigeeProxyRevisionDeploy = async (
+      _proxyName: string,
+      rev: string,
+      sa: string,
+      env: string,
+      org: string
+    ) => {
+      deployedRevision = rev;
+      deployedSA = sa;
+      deployedEnv = env;
+      deployedOrg = org;
+      return "1";
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "-i",
+        testYamlPath,
+        "--org",
+        "my-target-project",
+        "--environment",
+        "dev",
+        "--sa",
+        "my-short-sa",
+        "--token",
+        "test-token",
+      ]);
+
+      expect(deployedRevision).toBe("1");
+      expect(deployedOrg).toBe("my-target-project");
+      expect(deployedEnv).toBe("dev");
+      expect(deployedSA).toBe("my-short-sa@my-target-project.iam.gserviceaccount.com");
+    } finally {
+      myCli.apigeeService.apigeeProxyExport = originalExport;
+      myCli.apigeeService.apigeeProxyRevisionDeploy = originalDeploy;
+      if (fs.existsSync(testYamlPath)) {
+        fs.rmSync(testYamlPath);
+      }
+    }
+  });
+
+  it("should deploy proxy with colon notation containing short service account name and expand to full GCP email", async () => {
+    const testYamlPath = path.join(process.cwd(), "test-colon-short-sa.yaml");
+    fs.writeFileSync(
+      testYamlPath,
+      `name: test-colon-short-sa
+basepaths:
+  - /test-colon-sa
+targets:
+  - name: default
+    url: https://httpbin.org
+`
+    );
+
+    let deployedRevision = "";
+    let deployedSA = "";
+    let deployedEnv = "";
+
+    const originalExport = myCli.apigeeService.apigeeProxyExport;
+    const originalDeploy = myCli.apigeeService.apigeeProxyRevisionDeploy;
+
+    myCli.apigeeService.apigeeProxyExport = async () => "1";
+    myCli.apigeeService.apigeeProxyRevisionDeploy = async (
+      _proxyName: string,
+      rev: string,
+      sa: string,
+      env: string
+    ) => {
+      deployedRevision = rev;
+      deployedSA = sa;
+      deployedEnv = env;
+      return "1";
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "-i",
+        testYamlPath,
+        "-o",
+        "colon-project:my-custom-proxy:prod:runtime-sa",
+        "--token",
+        "test-token",
+      ]);
+
+      expect(deployedRevision).toBe("1");
+      expect(deployedEnv).toBe("prod");
+      expect(deployedSA).toBe("runtime-sa@colon-project.iam.gserviceaccount.com");
+    } finally {
+      myCli.apigeeService.apigeeProxyExport = originalExport;
+      myCli.apigeeService.apigeeProxyRevisionDeploy = originalDeploy;
+      if (fs.existsSync(testYamlPath)) {
+        fs.rmSync(testYamlPath);
+      }
+    }
+  });
+
   it("should export product using CLI flags --organization and --environment", async () => {
     let exportedProduct: any;
     let exportedOrg = "";
@@ -841,7 +1006,7 @@ resources: []
     }
   });
 
-  it("should format --config output by default and support -f json / yaml", async () => {
+  it("should format describe --project output by default and support -f json / yaml", async () => {
     const origConfigGet = myCli.apigeeService.apigeeConfigGet;
     myCli.apigeeService.apigeeConfigGet = async (org, drz, token) => {
       return {
@@ -871,17 +1036,18 @@ resources: []
     };
 
     try {
-      // Default formatted output
+      // Default formatted output with describe --project
       await myCli.process([
         "bun",
-        "apigee-templater.ts",
-        "--config",
+        "cli.ts",
+        "describe",
+        "--project",
         "aigateway-lab8",
         "--token",
         "test-token",
       ]);
 
-      const allOutput = logs.join("\n");
+      let allOutput = logs.join("\n");
       expect(allOutput).toContain("CONFIG");
       expect(allOutput).toContain("Organization aigateway-lab8");
       expect(allOutput).toContain("Analytics Region:");
@@ -891,12 +1057,43 @@ resources: []
       expect(allOutput).toContain("default-group");
       expect(allOutput).toContain("api.example.com");
 
+      // Shorthand order: describe <org> --project
+      logs.length = 0;
+      await myCli.process([
+        "bun",
+        "cli.ts",
+        "describe",
+        "aigateway-lab8",
+        "--project",
+        "--token",
+        "test-token",
+      ]);
+      allOutput = logs.join("\n");
+      expect(allOutput).toContain("CONFIG");
+      expect(allOutput).toContain("Organization aigateway-lab8");
+
+      // With alias: describe --org <org>
+      logs.length = 0;
+      await myCli.process([
+        "bun",
+        "cli.ts",
+        "describe",
+        "--org",
+        "aigateway-lab8",
+        "--token",
+        "test-token",
+      ]);
+      allOutput = logs.join("\n");
+      expect(allOutput).toContain("CONFIG");
+      expect(allOutput).toContain("Organization aigateway-lab8");
+
       // JSON format
       logs.length = 0;
       await myCli.process([
         "bun",
-        "apigee-templater.ts",
-        "--config",
+        "cli.ts",
+        "describe",
+        "--project",
         "aigateway-lab8",
         "-f",
         "json",
@@ -906,6 +1103,23 @@ resources: []
       const jsonParsed = JSON.parse(logs.join("\n"));
       expect(jsonParsed.org.name).toBe("aigateway-lab8");
       expect(jsonParsed.environments).toContain("dev");
+
+      // YAML format
+      logs.length = 0;
+      await myCli.process([
+        "bun",
+        "cli.ts",
+        "describe",
+        "--project",
+        "aigateway-lab8",
+        "-f",
+        "yaml",
+        "--token",
+        "test-token",
+      ]);
+      const yamlOutput = logs.join("\n");
+      expect(yamlOutput).toContain("name: aigateway-lab8");
+      expect(yamlOutput).toContain("default-group");
     } finally {
       console.log = origLog;
       myCli.apigeeService.apigeeConfigGet = origConfigGet;

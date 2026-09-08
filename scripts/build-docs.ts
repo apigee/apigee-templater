@@ -51,7 +51,7 @@ const commands = [
       { flag: "-n, --name <name>", desc: "Resource name for output template, feature, or proxy." },
       { flag: "--organization, --org, --project <name>", desc: "Target Apigee organization or GCP project for deployment or export." },
       { flag: "--environment <name>", desc: "Apigee environment name to deploy the proxy revision to (e.g. dev, prod)." },
-      { flag: "--service-account <email>", desc: "Google Cloud service account email attached to proxy deployment." },
+      { flag: "--service-account, --sa <name|email>", desc: "Google Cloud service account email or name attached to proxy deployment. If not an email address, automatically formats as {sa-name}@{project-id}.iam.gserviceaccount.com." },
       { flag: "--delete", desc: "Delete Apigee resources defined in input template, product, user, or proxy." },
       { flag: "-d, --drz <region>", desc: "Specify DRZ endpoint region ('us', 'eu', 'in') for data-residency compliance." },
     ],
@@ -88,8 +88,8 @@ const commands = [
       },
       {
         title: "Deploy Proxy directly to Apigee Environment",
-        description: "Deploys a local YAML proxy directly to an Apigee X environment, attaching a service account if needed.",
-        command: "aft -i WeatherAPI.yaml --org my-org --environment dev --service-account apigee-sa@my-proj.iam.gserviceaccount.com",
+        description: "Deploys a local YAML proxy directly to an Apigee X environment, attaching a service account (short name or email) if needed.",
+        command: "aft -i WeatherAPI.yaml --org my-org --environment dev --sa apigee-sa",
       },
     ],
   },
@@ -102,15 +102,26 @@ const commands = [
     badgeColor: "purple",
     syntax: "aft describe <input>   |   aft <input>",
     description:
-      "Inspects and summarizes any local file or remote repository resource (template, proxy, feature, product, or user). Renders a high-contrast terminal card detailing the name, description, endpoints, target URLs, flows, policies, and parameters without modifying or creating files. If given a non-existent filename as a single argument, AFT safely creates an empty template proxy instead.",
+      "Inspects and summarizes any local file, remote repository resource (template, proxy, feature, product, or user), or Apigee organization configuration (--project). Renders a high-contrast terminal card detailing the name, description, endpoints, target URLs, flows, policies, parameters, or org runtime settings without modifying or creating files. If given a non-existent filename as a single argument, AFT safely creates an empty template proxy instead.",
     flags: [
       { flag: "<input>", desc: "Path to a local YAML/JSON file, or the identifier of a feature/template in the repository." },
       { flag: "-i, --input <path|name>", desc: "Explicit flag alternative for the input resource." },
-      { flag: "--organization, --org, --project <name>", desc: "Inspect a deployed Apigee remote proxy or resource." },
-      { flag: "-f, --format <format>", desc: "Optional format hint ('proxy', 'template', 'feature', 'product', 'user', 'sf')." },
+      { flag: "--project, --org, --organization <name>", desc: "Inspect Apigee organization/project configuration, or scope remote resources." },
+      { flag: "-f, --format <format>", desc: "Output format: 'json' or 'yaml' for raw payloads, or format hint ('proxy', 'template', 'feature', 'product', 'user', 'sf')." },
       { flag: "-t, --token <token>", desc: "Google Cloud OAuth2 token (defaults to Application Default Credentials)." },
+      { flag: "-d, --drz <region>", desc: "Specify DRZ endpoint ('us', 'eu', 'in')." },
     ],
     examples: [
+      {
+        title: "Describe an Apigee Organization / GCP Project",
+        description: "Queries and inspects runtime and organizational configuration for an Apigee organization (GCP project, analytics region, billing type, trial expiration, environments, environment groups, and hostnames).",
+        command: "aft describe --project my-apigee-org",
+      },
+      {
+        title: "Export Organization Configuration to JSON / YAML",
+        description: "Fetches full organization details and prints the raw JSON or YAML response.",
+        command: "aft describe --project my-apigee-org -f json",
+      },
       {
         title: "Describe a local Proxy YAML",
         description: "Outputs an overview card showing endpoints, targets, pre/post flows, and policies for a local proxy file.",
@@ -168,40 +179,6 @@ const commands = [
         title: "Export Catalog as YAML",
         description: "Outputs the complete catalog of features and templates formatted as YAML.",
         command: "aft list -f yaml",
-      },
-    ],
-  },
-  {
-    id: "cmd-config",
-    name: "config",
-    category: "cloud",
-    isDefault: false,
-    badge: "Apigee Cloud",
-    badgeColor: "amber",
-    syntax: "aft -c <organization>   |   aft --config <organization>",
-    description:
-      "Queries and inspects runtime and organizational configuration for an Apigee X organization. Displays the associated GCP Project, analytics region, billing type, evaluation trial expiration countdown, environments, environment groups, and hostnames.",
-    flags: [
-      { flag: "-c, --config <organization>", desc: "Apigee organization name to inspect." },
-      { flag: "-f, --format <json|yaml>", desc: "Output raw configuration payload in JSON or YAML format." },
-      { flag: "-t, --token <token>", desc: "Google Cloud token (uses Application Default Credentials if omitted)." },
-      { flag: "-d, --drz <region>", desc: "Specify DRZ endpoint ('us', 'eu', 'in')." },
-    ],
-    examples: [
-      {
-        title: "Inspect Apigee X Organization Configuration",
-        description: "Prints a formatted summary card showing project ID, region, trial days remaining, environments, and hostnames.",
-        command: "aft --config my-apigee-org",
-      },
-      {
-        title: "Export Org Configuration to JSON",
-        description: "Fetches full organization details and prints the raw JSON response.",
-        command: "aft -c my-apigee-org -f json",
-      },
-      {
-        title: "Inspect Org in a DRZ (Data Residency) Region",
-        description: "Directs API calls to a regional Apigee control plane (e.g. EU or US).",
-        command: "aft -c my-apigee-org --drz eu",
       },
     ],
   },
@@ -354,8 +331,8 @@ const cloudOperations = [
       },
       {
         title: "Deploy Proxy with Google Service Account",
-        command: "aft -i WeatherAPI.yaml --org my-org --environment prod --service-account apigee-runtime@my-proj.iam.gserviceaccount.com",
-        explanation: "Attaches a Google Cloud Service Account to the deployed proxy revision for secure backend identity.",
+        command: "aft -i WeatherAPI.yaml --org my-org --environment prod --sa apigee-runtime",
+        explanation: "Attaches a Google Cloud Service Account to the deployed proxy revision for secure backend identity. Supports --sa or --service-account. If a short name is supplied instead of an email address, it automatically expands to '{sa-name}@{project-id}.iam.gserviceaccount.com'.",
       },
       {
         title: "Deploy API Product",
@@ -408,9 +385,9 @@ const cloudOperations = [
 const cliOptions = [
   { flag: "--input, -i", arg: "<path|name>", desc: "Input path to a ZIP, JSON, or YAML file, or an Apigee resource name." },
   { flag: "--output, -o", arg: "<path>", desc: "Optional file or directory output path (e.g. proxy.yaml, bundle.zip, ./proxies/)." },
-  { flag: "--organization, --org, --project", arg: "<name>", desc: "Apigee organization or GCP project name to export from or deploy to. All 3 aliases are interchangeable." },
+  { flag: "--organization, --org, --project", arg: "<name>", desc: "Apigee organization or GCP project name to export from, deploy to, or describe (inspect org configuration). All 3 aliases are interchangeable." },
   { flag: "--environment", arg: "<name>", desc: "Apigee environment name to deploy the proxy revision to (e.g. dev, test, prod)." },
-  { flag: "--service-account", arg: "<email>", desc: "Google Cloud service account email attached to proxy deployment." },
+  { flag: "--service-account, --sa", arg: "<name|email>", desc: "Google Cloud service account email or name attached to proxy deployment. If not an email address, automatically formats as {sa-name}@{project-id}.iam.gserviceaccount.com." },
   { flag: "--format, -f", arg: "<format>", desc: "Resource format: 'proxy', 'template', 'feature', 'product', 'user', or 'sharedflow' ('sf')." },
   { flag: "--applyFeature, -a", arg: "<features>", desc: "Feature name or comma-separated list of features to apply to a template or proxy." },
   { flag: "--removeFeature, -r", arg: "<features>", desc: "Feature name or comma-separated list of features to remove from a template or proxy." },
@@ -419,7 +396,6 @@ const cliOptions = [
   { flag: "--targetUrl, -u", arg: "<url>", desc: "Backend target URL when scaffolding a new proxy or template." },
   { flag: "--name, -n", arg: "<name>", desc: "The name for the output template, feature, or proxy." },
   { flag: "--list, -l", arg: "--", desc: "List all templates and features available in the central repository (supports -f json/yaml)." },
-  { flag: "--config, -c", arg: "<org>", desc: "Display runtime configuration information for an Apigee X organization." },
   { flag: "--delete", arg: "--", desc: "Delete Apigee resources defined in input template, product, user, or proxy." },
   { flag: "--token, -t", arg: "<token>", desc: "Google Cloud OAuth2 token for Apigee API (uses Application Default Credentials if omitted)." },
   { flag: "--drz, -d", arg: "<region>", desc: "Use a DRZ Apigee endpoint ('us', 'eu', 'in') for data-residency compliance." },
@@ -1325,17 +1301,13 @@ function generateDocsHtml(): string {
           <span>convert</span>
           <span class="nav-tag">default</span>
         </a>
-        <a href="#cmd-describe" class="nav-link" data-search="describe inspect overview card parameters summary flow policies">
+        <a href="#cmd-describe" class="nav-link" data-search="describe inspect overview card parameters summary flow policies organization project config runtime">
           <span>describe</span>
           <span class="nav-tag">inspect</span>
         </a>
         <a href="#cmd-list" class="nav-link" data-search="list catalog features templates browse repository json yaml">
           <span>list</span>
           <span class="nav-tag">catalog</span>
-        </a>
-        <a href="#cmd-config" class="nav-link" data-search="config organization gcp project region billing trial expiration hostnames">
-          <span>config</span>
-          <span class="nav-tag">cloud</span>
         </a>
         <a href="#cmd-completion" class="nav-link" data-search="completion shell tab install zsh bash fish powershell">
           <span>completion</span>
@@ -1356,7 +1328,7 @@ function generateDocsHtml(): string {
         <a href="#cloud-export" class="nav-link" data-search="export proxies products users developers credentials sharedflow">
           <span>Remote Export</span>
         </a>
-        <a href="#cloud-deploy" class="nav-link" data-search="deploy proxy product user developer template environment service-account">
+        <a href="#cloud-deploy" class="nav-link" data-search="deploy proxy product user developer template environment service-account sa">
           <span>Remote Deployment</span>
         </a>
         <a href="#cloud-delete" class="nav-link" data-search="delete cleanup proxy product user template teardown">

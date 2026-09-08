@@ -72,6 +72,44 @@ export class cli {
       argv = argv.slice(1);
     }
 
+    if (command === "describe") {
+      const flagsWithValue = new Set([
+        "-i", "--input",
+        "-n", "--name",
+        "-b", "--basePath",
+        "-u", "--targetUrl",
+        "-o", "--output",
+        "-f", "--format",
+        "-a", "--applyFeature",
+        "-r", "--removeFeature",
+        "-p", "--parameters",
+        "-t", "--token",
+        "-d", "--drz",
+        "--environment",
+        "--service-account", "--sa",
+      ]);
+      for (let i = 0; i < argv.length; i++) {
+        if (["--project", "--org", "--organization"].includes(argv[i])) {
+          const next = argv[i + 1];
+          if (!next || next.startsWith("-")) {
+            let posIdx = -1;
+            for (let j = 0; j < argv.length; j++) {
+              if (j === i) continue;
+              if (argv[j].startsWith("-")) continue;
+              if (j > 0 && flagsWithValue.has(argv[j - 1])) continue;
+              posIdx = j;
+              break;
+            }
+            if (posIdx !== -1) {
+              const [val] = argv.splice(posIdx, 1);
+              const insertAt = posIdx < i ? i : i + 1;
+              argv.splice(insertAt, 0, val);
+            }
+          }
+        }
+      }
+    }
+
     const args = arg(
       {
         "--input": String,
@@ -84,6 +122,7 @@ export class cli {
         "--project": "--organization",
         "--environment": String,
         "--service-account": String,
+        "--sa": "--service-account",
         "--format": String,
         "--applyFeature": [String],
         "--removeFeature": [String],
@@ -95,7 +134,6 @@ export class cli {
         "--help": Boolean,
         "--version": Boolean,
         "--delete": Boolean,
-        "--config": String,
         "--drz": String,
         "-i": "--input",
         "-n": "--name",
@@ -110,7 +148,6 @@ export class cli {
         "-t": "--token",
         "-h": "--help",
         "-v": "--version",
-        "-c": "--config",
         "-d": "--drz",
       },
       {
@@ -184,6 +221,7 @@ export class cli {
         !args["--targetUrl"] &&
         !args["--environment"] &&
         !args["--service-account"] &&
+        !(args as any)["--sa"] &&
         !args["--format"]
       ) {
         command = "describe";
@@ -191,6 +229,18 @@ export class cli {
     }
 
     const isList = args["--listFeatures"] || false;
+    const org =
+      args["--organization"] ||
+      (args as any)["--org"] ||
+      (args as any)["--project"] ||
+      (args["--output"] && args["--output"].includes(":")
+        ? args["--output"].split(":")[0]
+        : args["--output"] && !args["--output"].match(/\.(yaml|yml|json|zip|dir)$/i)
+          ? args["--output"]
+          : "");
+
+    const rawSa = args["--service-account"] || (args as any)["--sa"] || "";
+    const sa = this.formatServiceAccount(rawSa, org);
 
     return {
       command: command,
@@ -202,7 +252,7 @@ export class cli {
       output: args["--output"] || "",
       organization: args["--organization"] || (args as any)["--org"] || (args as any)["--project"] || "",
       environment: args["--environment"] || "",
-      serviceAccount: args["--service-account"] || "",
+      serviceAccount: sa,
       format: args["--format"] || "",
       applyFeature: applyFeatures.join(","),
       applyFeatures: applyFeatures,
@@ -214,7 +264,6 @@ export class cli {
       token: args["--token"] || "",
       help: args["--help"] || false,
       version: args["--version"] || false,
-      config: args["--config"] || "",
       delete: args["--delete"] || false,
       drz: args["--drz"] || "",
     };
@@ -295,6 +344,17 @@ export class cli {
       answers.targetUrl = "https://" + answers.targetUrl;
     }
 
+    const targetOrg =
+      options.organization ||
+      (options.output && options.output.includes(":")
+        ? options.output.split(":")[0]
+        : options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)
+          ? options.output
+          : "");
+    if (options.serviceAccount && targetOrg) {
+      options.serviceAccount = this.formatServiceAccount(options.serviceAccount, targetOrg);
+    }
+
     return {
       ...options,
       name: options.name || answers.name,
@@ -302,6 +362,16 @@ export class cli {
       targetUrl: options.targetUrl || answers.targetUrl,
       output: options.output || answers.output,
     };
+  }
+
+  formatServiceAccount(serviceAccount: string, projectId: string): string {
+    if (!serviceAccount) return "";
+    const sa = serviceAccount.trim();
+    if (!sa) return "";
+    if (!sa.includes("@") && projectId && projectId.trim()) {
+      return `${sa}@${projectId.trim()}.iam.gserviceaccount.com`;
+    }
+    return sa;
   }
 
   sanitizeName(primary: string, secondary: string): string {
@@ -349,14 +419,14 @@ export class cli {
 
     console.log(`  ${chalk.bold.cyan("USAGE:")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("[convert]")} ${chalk.yellow("[options]")} ${chalk.dim("[<input> | <output>]")}`);
-    console.log(`    ${chalk.green("aft")} ${chalk.yellow("describe")} ${chalk.yellow("[options]")} ${chalk.dim("<input>")}`);
+    console.log(`    ${chalk.green("aft")} ${chalk.yellow("describe")} ${chalk.yellow("[options]")} ${chalk.dim("[<input>]")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("completion <install | zsh | bash | fish | powershell>")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("skill <install | uninstall>")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("cache <clear>")}\n`);
 
     console.log(`  ${chalk.bold.cyan("COMMANDS:")}`);
     console.log(`    ${chalk.bold.yellow("convert".padEnd(22))} ${chalk.white("Convert between Apigee proxies, features & templates (default command).")}`);
-    console.log(`    ${chalk.bold.yellow("describe".padEnd(22))} ${chalk.white("Describe an Apigee template, proxy, feature, product, or user in the terminal summary.")}`);
+    console.log(`    ${chalk.bold.yellow("describe".padEnd(22))} ${chalk.white("Describe an Apigee template, proxy, feature, product, user, or organization (--project) in the terminal summary.")}`);
     console.log(`    ${chalk.bold.yellow("completion".padEnd(22))} ${chalk.white("Install or display shell tab-completion scripts (install, uninstall, zsh, bash, fish, powershell).")}`);
     console.log(`    ${chalk.bold.yellow("skill".padEnd(22))} ${chalk.white("Install or uninstall Apigee Templater skill for AI coding assistants.")}`);
     console.log(`    ${chalk.bold.yellow("cache".padEnd(22))} ${chalk.white("Manage local cache of templates and features (clear).")}\n`);
@@ -603,6 +673,7 @@ export class cli {
           "--project",
           "--environment",
           "--service-account",
+          "--sa",
           "--format",
           "--applyFeature",
           "--removeFeature",
@@ -610,7 +681,6 @@ export class cli {
           "--list",
           "--parameters",
           "--token",
-          "--config",
           "--delete",
           "--drz",
           "--help",
@@ -626,7 +696,6 @@ export class cli {
           "-l",
           "-p",
           "-t",
-          "-c",
           "-d",
           "-h",
           "-v",
@@ -943,27 +1012,6 @@ export class cli {
       return;
     }
 
-    if (options.config) {
-      if (!options.token) {
-        let token = await auth.getAccessToken();
-        if (token) options.token = token;
-      }
-      let apigeeConfig = await this.apigeeService.apigeeConfigGet(
-        options.config,
-        options.drz,
-        "Bearer " + options.token,
-      );
-
-      if (options.format === "json") {
-        console.log(JSON.stringify(apigeeConfig, null, 2));
-      } else if (options.format === "yaml" || options.format === "yml") {
-        console.log(YAML.stringify(apigeeConfig, { aliasDuplicateObjects: false }));
-      } else {
-        this.printOrgConfig(options.config, apigeeConfig);
-      }
-      return;
-    }
-
     if (options.singlePositionalInput) {
       const fileExists = fs.existsSync(options.singlePositionalInput);
       const isRemoteUrl =
@@ -995,8 +1043,28 @@ export class cli {
     }
 
     if (options.command === "describe") {
-      if (!options.input) {
+      if (!options.input && !options.organization) {
         console.log(`  ${chalk.red.bold("✖ Error: Please specify an input to describe.")}\n`);
+        return;
+      }
+      if (options.organization && (!options.input || options.input === options.organization)) {
+        if (!options.token) {
+          let token = await auth.getAccessToken();
+          if (token) options.token = token;
+        }
+        let apigeeConfig = await this.apigeeService.apigeeConfigGet(
+          options.organization,
+          options.drz,
+          "Bearer " + options.token,
+        );
+
+        if (options.format === "json") {
+          console.log(JSON.stringify(apigeeConfig, null, 2));
+        } else if (options.format === "yaml" || options.format === "yml") {
+          console.log(YAML.stringify(apigeeConfig, { aliasDuplicateObjects: false }));
+        } else {
+          this.printOrgConfig(options.organization, apigeeConfig);
+        }
         return;
       }
       if (!options.name && options.input) {
@@ -2040,7 +2108,9 @@ export class cli {
               org = options.output;
             }
             let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
-            let sa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+            let rawSa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+            let sa = this.formatServiceAccount(rawSa, org);
+            if (sa) options.serviceAccount = sa;
             let lastRevision = "";
 
             if (!options.token) {
@@ -2161,7 +2231,9 @@ export class cli {
               org = options.output;
             }
             let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
-            let sa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+            let rawSa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+            let sa = this.formatServiceAccount(rawSa, org);
+            if (sa) options.serviceAccount = sa;
             let lastRevision = "";
 
             if (!options.token) {
@@ -2276,7 +2348,9 @@ export class cli {
             org = options.output;
           }
           let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
-          let sa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+          let rawSa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+          let sa = this.formatServiceAccount(rawSa, org);
+          if (sa) options.serviceAccount = sa;
           if (
             !displayDestination ||
             !displayDestination.match(/\.(yaml|yml|json|zip|dir)$/i)
@@ -2487,7 +2561,6 @@ class cliArgs {
   token = "";
   help = false;
   version = false;
-  config = "";
   delete = false;
   drz = "";
 }
@@ -2507,15 +2580,15 @@ const helpCommands = [
   },
   {
     name: "--organization, --org, --project",
-    description: "Apigee organization or GCP project name to export from or deploy to.",
+    description: "Apigee organization or GCP project name to export from, deploy to, or describe.",
   },
   {
     name: "--environment",
     description: "Apigee environment name to deploy the proxy revision to.",
   },
   {
-    name: "--service-account",
-    description: "Google Cloud service account email for proxy deployment.",
+    name: "--service-account, --sa",
+    description: "Google Cloud service account email or name for proxy deployment.",
   },
   {
     name: "--format, -f",
@@ -2545,10 +2618,6 @@ const helpCommands = [
     name: "--parameters, -p",
     description:
       "If generating a proxy from a template, parameter substitutions (param1=val1,param2=val2).",
-  },
-  {
-    name: "--config, -c",
-    description: "Display configuration information for an Apigee X org.",
   },
   {
     name: "--delete",
