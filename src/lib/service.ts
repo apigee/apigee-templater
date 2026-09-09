@@ -83,6 +83,7 @@ export class ApigeeTemplaterService {
       const parsed = JSON.parse(raw);
 
       if (!parsed || !Array.isArray(parsed.data)) return null;
+      if (parsed.version !== 2) return null;
 
       const age = Date.now() - (parsed.timestamp || 0);
       if (age < this.cacheTtlMs && parsed.data.length > 0) {
@@ -100,7 +101,7 @@ export class ApigeeTemplaterService {
       if (!fs.existsSync(filePath)) return null;
       const raw = fs.readFileSync(filePath, "utf8");
       const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
+      if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0 && parsed.version === 2) {
         return parsed.data as T[];
       }
     } catch (e) {}
@@ -115,6 +116,7 @@ export class ApigeeTemplaterService {
         fs.mkdirSync(dir, { recursive: true });
       }
       const payload = {
+        version: 2,
         timestamp: Date.now(),
         data,
       };
@@ -299,8 +301,11 @@ export class ApigeeTemplaterService {
                         remoteTemplate = JSON.parse(text) as Template;
                       }
                       if (remoteTemplate) {
-                        if (!remoteTemplate.name) {
-                          remoteTemplate.name = item.name;
+                        const name = item.name.replace(/\.(json|yaml|yml)$/, "");
+                        const yamlName = remoteTemplate.name;
+                        remoteTemplate.name = name;
+                        if (yamlName && yamlName !== name) {
+                          remoteTemplate.yamlName = yamlName;
                         }
                         const idx = templates.findIndex((x) => x.name === remoteTemplate.name);
                         if (idx === -1) templates.push(remoteTemplate);
@@ -388,8 +393,10 @@ export class ApigeeTemplaterService {
                         remoteFeature = JSON.parse(text) as Feature;
                       }
                       if (remoteFeature) {
-                        if (!remoteFeature.name) {
-                          remoteFeature.name = name;
+                        const yamlName = remoteFeature.name;
+                        remoteFeature.name = name;
+                        if (yamlName && yamlName !== name) {
+                          remoteFeature.yamlName = yamlName;
                         }
                         return remoteFeature;
                       }
@@ -528,8 +535,11 @@ export class ApigeeTemplaterService {
             const text = await res.text();
             result = name.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
             if (result) {
-              if (!result.name) {
-                result.name = path.basename(name).replace(/\.(yaml|yml|json)$/i, "");
+              const fileStem = path.basename(name).replace(/\.(yaml|yml|json)$/i, "");
+              const yamlName = result.name;
+              result.name = fileStem;
+              if (yamlName && yamlName !== fileStem) {
+                result.yamlName = yamlName;
               }
               return resolve(result);
             }
@@ -546,8 +556,11 @@ export class ApigeeTemplaterService {
               const text = await res.text();
               result = candidate.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
               if (result) {
-                if (!result.name) {
-                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                const fileStem = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                const yamlName = result.name;
+                result.name = fileStem;
+                if (yamlName && yamlName !== fileStem) {
+                  result.yamlName = yamlName;
                 }
                 return resolve(result);
               }
@@ -561,7 +574,10 @@ export class ApigeeTemplaterService {
         const allTemplates = await this.templatesList();
         const baseNames = candidates.map((c) => c.replace(/\.(yaml|yml|json)$/i, ""));
         const found = allTemplates.find(
-          (t) => baseNames.includes(t.name) || baseNames.includes(t.name.replace(/-+/g, "-")),
+          (t) =>
+            baseNames.includes(t.name) ||
+            baseNames.includes(t.name.replace(/-+/g, "-")) ||
+            (t.yamlName && baseNames.includes(t.yamlName)),
         );
         if (found) result = found;
       } catch (e) {}
@@ -674,8 +690,11 @@ export class ApigeeTemplaterService {
             const text = await res.text();
             result = name.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
             if (result) {
-              if (!result.name) {
-                result.name = path.basename(name).replace(/\.(yaml|yml|json)$/i, "");
+              const fileStem = path.basename(name).replace(/\.(yaml|yml|json)$/i, "");
+              const yamlName = result.name;
+              result.name = fileStem;
+              if (yamlName && yamlName !== fileStem) {
+                result.yamlName = yamlName;
               }
               return resolve(result);
             }
@@ -692,8 +711,11 @@ export class ApigeeTemplaterService {
               const text = await res.text();
               result = candidate.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
               if (result) {
-                if (!result.name) {
-                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                const fileStem = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                const yamlName = result.name;
+                result.name = fileStem;
+                if (yamlName && yamlName !== fileStem) {
+                  result.yamlName = yamlName;
                 }
                 return resolve(result);
               }
@@ -710,6 +732,7 @@ export class ApigeeTemplaterService {
           (f) =>
             baseNames.includes(f.name) ||
             baseNames.includes(f.name.replace(/-+/g, "-")) ||
+            (f.yamlName && baseNames.includes(f.yamlName)) ||
             (f.displayName && baseNames.includes(f.displayName.replace(/-+/g, "-"))),
         );
         if (found) result = found;
@@ -1589,9 +1612,7 @@ export class ApigeeTemplaterService {
                         remoteProduct = JSON.parse(text) as Product;
                       }
                       if (remoteProduct) {
-                        if (!remoteProduct.name) {
-                          remoteProduct.name = item.name.replace(/\.(json|yaml|yml)$/, "");
-                        }
+                        remoteProduct.name = item.name.replace(/\.(json|yaml|yml)$/, "");
                         const idx = products.findIndex((x) => x.name === remoteProduct.name);
                         if (idx === -1) products.push(remoteProduct);
                       }

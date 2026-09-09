@@ -43,15 +43,15 @@ describe("Repository resolution and fetching", () => {
     );
   });
 
-  it("should successfully fetch auth-oauth21-server feature from default remote repository", async () => {
-    const feature = await service.featureGet("auth-oauth21-server");
+  it("should successfully fetch auth-oauth-server feature from default remote repository", async () => {
+    const feature = await service.featureGet("auth-oauth-server");
     expect(feature).toBeDefined();
     expect(feature?.type).toBe("feature");
     expect(feature?.name).toContain("auth");
   }, 10000);
 
   it("should resolve unknown type using repositoryGet in order (templates -> features -> products -> users)", async () => {
-    const resolved = await service.repositoryGet("auth-oauth21-server");
+    const resolved = await service.repositoryGet("auth-oauth-server");
     expect(resolved).toBeDefined();
     expect(resolved?.type).toBe("feature");
     expect(resolved?.data.type).toBe("feature");

@@ -30,7 +30,7 @@ _aft_completions() {
   cur="\${COMP_WORDS[COMP_CWORD]}"
   prev="\${COMP_WORDS[COMP_CWORD-1]}"
 
-  if [[ "$prev" == "-a" || "$prev" == "--applyFeature" || "$prev" == "-r" || "$prev" == "--removeFeature" || "$prev" == "-f" || "$prev" == "--format" || "$prev" == "-d" || "$prev" == "--drz" || "$prev" == "completion" || "$cur" == -* ]]; then
+  if [[ "$prev" == "-a" || "$prev" == "--applyFeature" || "$prev" == "-r" || "$prev" == "--removeFeature" || "$prev" == "-i" || "$prev" == "--input" || "$prev" == "describe" || "$prev" == "reset" || "$prev" == "-f" || "$prev" == "--format" || "$prev" == "-d" || "$prev" == "--drz" || "$prev" == "completion" || "$prev" == "skill" || "$prev" == "cache" || "$cur" == -* ]]; then
     completions="$(aft --complete "$prev" "$cur" 2>/dev/null)"
     if [[ -n "$completions" ]]; then
       COMPREPLY=( $(compgen -W "$completions" -- "$cur") )
@@ -54,7 +54,7 @@ _aft_completions() {
   local cur="\${words[CURRENT]}"
   local -a completions
 
-  if [[ "$prev" == "-a" || "$prev" == "--applyFeature" || "$prev" == "-r" || "$prev" == "--removeFeature" || "$prev" == "-f" || "$prev" == "--format" || "$prev" == "-d" || "$prev" == "--drz" || "$prev" == "completion" || "$cur" == -* ]]; then
+  if [[ "$prev" == "-a" || "$prev" == "--applyFeature" || "$prev" == "-r" || "$prev" == "--removeFeature" || "$prev" == "-i" || "$prev" == "--input" || "$prev" == "describe" || "$prev" == "reset" || "$prev" == "-f" || "$prev" == "--format" || "$prev" == "-d" || "$prev" == "--drz" || "$prev" == "completion" || "$prev" == "skill" || "$prev" == "cache" || "$cur" == -* ]]; then
     completions=("\${(@f)$(aft --complete "$prev" "$cur" 2>/dev/null)}")
     completions=("\${(@)completions:#}")
 
@@ -78,7 +78,7 @@ function __fish_aft_needs_complete
   set -l cmd (commandline -poc)
   set -l prev "$cmd[-1]"
   set -l cur (commandline -ct)
-  string match -q -r '^-' -- "$cur"; or string match -q -r '^(-a|--applyFeature|-r|--removeFeature|-f|--format|-d|--drz|completion)$' -- "$prev"
+  string match -q -r '^-' -- "$cur"; or string match -q -r '^(-a|--applyFeature|-r|--removeFeature|-i|--input|describe|reset|-f|--format|-d|--drz|completion|skill|cache)$' -- "$prev"
 end
 
 function __fish_aft_complete
@@ -104,7 +104,7 @@ Register-ArgumentCompleter -Native -CommandName 'aft', 'apigee-templater', 'aft.
         $prev = $elements[$elements.Count - 2].Extent.Text
     }
 
-    if ($prev -match '^(-a|--applyFeature|-r|--removeFeature|-f|--format|-d|--drz|completion)$' -or $wordToComplete -like '-*') {
+    if ($prev -match '^(-a|--applyFeature|-r|--removeFeature|-i|--input|describe|reset|-f|--format|-d|--drz|completion|skill|cache)$' -or $wordToComplete -like '-*') {
         $completions = & aft --complete "$prev" "$wordToComplete" 2>$null
         if ($completions) {
             $completions | ForEach-Object {

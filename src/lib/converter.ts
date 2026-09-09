@@ -1476,6 +1476,88 @@ export class ApigeeConverter {
     return newTemplate;
   }
 
+  public templateReset(template: Template): Template {
+    template.features = [];
+    template.parameters = [];
+    template.endpoints = [];
+    template.targets = [];
+    delete (template as any).products;
+    delete (template as any).users;
+    delete (template as any).tests;
+    return template;
+  }
+
+  public featureReset(feature: Feature): Feature {
+    feature.policies = [];
+    feature.resources = [];
+    if (feature.defaultEndpoint) {
+      feature.defaultEndpoint.flows = [];
+      delete feature.defaultEndpoint.postClientFlow;
+      delete feature.defaultEndpoint.defaultFaultRule;
+      delete feature.defaultEndpoint.faultRules;
+    }
+    if (feature.endpoints && Array.isArray(feature.endpoints)) {
+      for (const ep of feature.endpoints) {
+        ep.flows = [];
+        delete ep.postClientFlow;
+        delete ep.defaultFaultRule;
+        delete ep.faultRules;
+      }
+    }
+    if (feature.defaultTarget) {
+      feature.defaultTarget.flows = [];
+      delete feature.defaultTarget.defaultFaultRule;
+      delete feature.defaultTarget.faultRules;
+    }
+    if (feature.targets && Array.isArray(feature.targets)) {
+      for (const tgt of feature.targets) {
+        tgt.flows = [];
+        delete tgt.defaultFaultRule;
+        delete tgt.faultRules;
+      }
+    }
+    delete (feature as any).tests;
+    return feature;
+  }
+
+  public proxyReset(proxy: Proxy): Proxy {
+    proxy.policies = [];
+    proxy.resources = [];
+    if (proxy.endpoints && Array.isArray(proxy.endpoints)) {
+      for (const ep of proxy.endpoints) {
+        ep.flows = [];
+        delete ep.postClientFlow;
+        delete ep.defaultFaultRule;
+        delete ep.faultRules;
+      }
+    }
+    if (proxy.targets && Array.isArray(proxy.targets)) {
+      for (const tgt of proxy.targets) {
+        tgt.flows = [];
+        delete tgt.defaultFaultRule;
+        delete tgt.faultRules;
+      }
+    }
+    delete (proxy as any).tests;
+    return proxy;
+  }
+
+  public productReset(product: Product): Product {
+    product.operations = [];
+    product.llmOperations = [];
+    product.payloadOperations = [];
+    product.graphqlOperations = [];
+    product.grpcOperations = [];
+    product.proxies = [];
+    product.environments = [];
+    return product;
+  }
+
+  public userReset(user: User): User {
+    user.apps = [];
+    return user;
+  }
+
   public templateApplyFeature(
     template: Template,
     feature: Feature,

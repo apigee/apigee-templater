@@ -13,7 +13,11 @@ describe("ApigeeTemplaterService templatesList and featuresList", () => {
     expect(Array.isArray(templates)).toBe(true);
     expect(templates.length).toBeGreaterThan(0);
     expect(templates.some((t) => t.name === "REST-AI-Completions")).toBe(true);
+    expect(templates.some((t) => t.name === "REST-AI-Completions-Screened")).toBe(true);
     expect(service.templateListCache).toContain("REST-AI-Completions");
+    expect(service.templateListCache).toContain("REST-AI-Completions-Screened");
+    const screenedTmpl = templates.find((t) => t.name === "REST-AI-Completions-Screened");
+    expect(screenedTmpl?.yamlName).toBe("REST-AI-Completions-ModelArmor");
 
     // Check cache file exists
     const cacheDir = service.getCacheDir();
@@ -29,8 +33,10 @@ describe("ApigeeTemplaterService templatesList and featuresList", () => {
 
     expect(Array.isArray(features)).toBe(true);
     expect(features.length).toBeGreaterThan(0);
-    expect(features.some((f) => f.name === "ai-completions")).toBe(true);
-    expect(service.featureListCache).toContain("ai-completions");
+    expect(features.some((f) => f.name === "ai-endpoint-completions")).toBe(true);
+    expect(service.featureListCache).toContain("ai-endpoint-completions");
+    const endpointFeat = features.find((f) => f.name === "ai-endpoint-completions");
+    expect(endpointFeat?.yamlName).toBe("ai-completions");
 
     // Check cache file exists
     const cacheDir = service.getCacheDir();

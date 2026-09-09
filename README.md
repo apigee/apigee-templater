@@ -298,6 +298,26 @@ aft describe MyUser.yaml
 aft describe SimpleProxy-v1 --org MyApigeeOrg
 ```
 
+### Reset Resources
+Use `aft reset <file>` to reset any template, feature, or proxy file to its default empty contents:
+- **Templates**: Resets to an empty template with no features, parameters, endpoints, or targets.
+- **Features**: Removes all policies, flows, and resources, leaving endpoints and targets with no flow steps.
+- **Proxies**: Removes all policies, flows, and resources, preserving endpoints and targets with no flow steps.
+
+```bash
+# Reset a template file in-place
+aft reset MyTemplate.yaml
+
+# Reset a feature file in-place
+aft reset MyFeature.yaml
+
+# Reset a proxy file in-place
+aft reset SimpleProxy-v1.yaml
+
+# Reset and write to an alternative output file
+aft reset MyTemplate.yaml -o CleanTemplate.yaml
+```
+
 > [!TIP]
 > **Compatibility Note**: The legacy colon syntax (e.g. `aft -i MyApigeeOrg:SimpleProxy-v1 -o SimpleProxy-v1.yaml` or `-o MyApigeeOrg:Proxy:dev:sa`) is still supported for backwards compatibility.
 

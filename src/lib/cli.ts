@@ -80,6 +80,10 @@ export class cli {
       command = "describe";
       explicitCommand = true;
       argv = argv.slice(1);
+    } else if (argv[0] === "reset") {
+      command = "reset";
+      explicitCommand = true;
+      argv = argv.slice(1);
     }
 
     if (command === "describe") {
@@ -176,6 +180,10 @@ export class cli {
       command = "describe";
       explicitCommand = true;
       args["_"].shift();
+    } else if (args["_"] && args["_"][0] === "reset") {
+      command = "reset";
+      explicitCommand = true;
+      args["_"].shift();
     }
 
     const rawApply: string[] = args["--applyFeature"] || [];
@@ -195,6 +203,13 @@ export class cli {
     if (command === "describe") {
       if (!args["--input"] && args["_"] && args["_"][0]) {
         args["--input"] = args["_"][0];
+      }
+    } else if (command === "reset") {
+      if (!args["--input"] && args["_"] && args["_"][0]) {
+        args["--input"] = args["_"][0];
+      }
+      if (!args["--output"] && args["_"] && args["_"][1]) {
+        args["--output"] = args["_"][1];
       }
     } else {
       if (args["_"] && args["_"].length >= 2 && !args["--input"] && !args["--output"]) {
@@ -448,6 +463,7 @@ export class cli {
     console.log(`  ${chalk.bold.cyan("USAGE:")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("[convert]")} ${chalk.yellow("[options]")} ${chalk.dim("[<input> | <output>]")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("describe")} ${chalk.yellow("[options]")} ${chalk.dim("[<input>]")}`);
+    console.log(`    ${chalk.green("aft")} ${chalk.yellow("reset")} ${chalk.yellow("[options]")} ${chalk.dim("<input> [<output>]")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("completion <install | zsh | bash | fish | powershell>")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("skill <install | uninstall>")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("cache <clear>")}\n`);
@@ -455,6 +471,7 @@ export class cli {
     console.log(`  ${chalk.bold.cyan("COMMANDS:")}`);
     console.log(`    ${chalk.bold.yellow("convert".padEnd(22))} ${chalk.white("Convert between Apigee proxies, features & templates (default command).")}`);
     console.log(`    ${chalk.bold.yellow("describe".padEnd(22))} ${chalk.white("Describe an Apigee template, proxy, feature, product, user, or organization (--project) in the terminal summary.")}`);
+    console.log(`    ${chalk.bold.yellow("reset".padEnd(22))} ${chalk.white("Reset a template, proxy, or feature file to default empty contents.")}`);
     console.log(`    ${chalk.bold.yellow("completion".padEnd(22))} ${chalk.white("Install or display shell tab-completion scripts (install, uninstall, zsh, bash, fish, powershell).")}`);
     console.log(`    ${chalk.bold.yellow("skill".padEnd(22))} ${chalk.white("Install or uninstall Apigee Templater skill for AI coding assistants.")}`);
     console.log(`    ${chalk.bold.yellow("cache".padEnd(22))} ${chalk.white("Manage local cache of templates and features (clear).")}\n`);
@@ -599,52 +616,85 @@ export class cli {
     }
   }
 
+  private getCompletionFiles(currentWord: string): string[] {
+    const localFiles: string[] = [];
+    try {
+      let targetDir = ".";
+      if (currentWord.includes("/")) {
+        if (currentWord.endsWith("/")) {
+          targetDir = currentWord.replace(/\/+$/, "");
+        } else {
+          targetDir = path.dirname(currentWord);
+        }
+      }
+
+      if (fs.existsSync(targetDir)) {
+        const entries = fs.readdirSync(targetDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            if (!entry.name.startsWith(".")) {
+              const dirPath = targetDir === "." ? `${entry.name}/` : `${targetDir}/${entry.name}/`;
+              if (!currentWord || dirPath.startsWith(currentWord)) {
+                localFiles.push(dirPath);
+              }
+            }
+          } else if (
+            entry.name.endsWith(".yaml") ||
+            entry.name.endsWith(".yml") ||
+            entry.name.endsWith(".json")
+          ) {
+            const filePath = targetDir === "." ? entry.name : `${targetDir}/${entry.name}`;
+            if (!currentWord || filePath.startsWith(currentWord)) {
+              localFiles.push(filePath);
+            }
+          }
+        }
+      }
+    } catch (e) {}
+    return localFiles;
+  }
+
   async handleCompletion(prevWord: string, currentWord: string) {
     try {
       if (["-a", "--applyFeature", "-r", "--removeFeature"].includes(prevWord)) {
         const features = await this.apigeeService.featuresList();
         const featureNames = features.map((f) => f.name);
-
-        const localFiles: string[] = [];
-        try {
-          let targetDir = ".";
-          if (currentWord.includes("/")) {
-            if (currentWord.endsWith("/")) {
-              targetDir = currentWord.replace(/\/+$/, "");
-            } else {
-              targetDir = path.dirname(currentWord);
-            }
-          }
-
-          if (fs.existsSync(targetDir)) {
-            const entries = fs.readdirSync(targetDir, { withFileTypes: true });
-            for (const entry of entries) {
-              if (entry.isDirectory()) {
-                if (!entry.name.startsWith(".")) {
-                  const dirPath = targetDir === "." ? `${entry.name}/` : `${targetDir}/${entry.name}/`;
-                  if (!currentWord || dirPath.startsWith(currentWord)) {
-                    localFiles.push(dirPath);
-                  }
-                }
-              } else if (
-                entry.name.endsWith(".yaml") ||
-                entry.name.endsWith(".yml") ||
-                entry.name.endsWith(".json")
-              ) {
-                const filePath = targetDir === "." ? entry.name : `${targetDir}/${entry.name}`;
-                if (!currentWord || filePath.startsWith(currentWord)) {
-                  localFiles.push(filePath);
-                }
-              }
-            }
-          }
-        } catch (e) {}
+        const localFiles = this.getCompletionFiles(currentWord);
 
         const allCandidates = Array.from(new Set([...featureNames, ...localFiles])).filter(
           (name) => !currentWord || name.startsWith(currentWord)
         );
         if (allCandidates.length > 0) {
           console.log(allCandidates.join("\n"));
+        }
+        return;
+      }
+
+      if (["-i", "--input", "describe"].includes(prevWord)) {
+        const [templates, features] = await Promise.all([
+          this.apigeeService.templatesList(),
+          this.apigeeService.featuresList(),
+        ]);
+        const repoNames = [
+          ...templates.map((t) => t.name),
+          ...features.map((f) => f.name),
+        ];
+        const localFiles = this.getCompletionFiles(currentWord);
+
+        const allCandidates = Array.from(new Set([...repoNames, ...localFiles])).filter(
+          (name) => !currentWord || name.startsWith(currentWord)
+        );
+        if (allCandidates.length > 0) {
+          console.log(allCandidates.join("\n"));
+        }
+        return;
+      }
+
+      if (prevWord === "reset") {
+        const localFiles = this.getCompletionFiles(currentWord);
+        const filtered = localFiles.filter((name) => !currentWord || name.startsWith(currentWord));
+        if (filtered.length > 0) {
+          console.log(filtered.join("\n"));
         }
         return;
       }
@@ -735,15 +785,32 @@ export class cli {
         return;
       }
 
-      if (
-        currentWord === "convert" ||
-        currentWord === "describe" ||
-        currentWord === "list" ||
-        currentWord === "completion" ||
-        currentWord === "skill" ||
-        currentWord === "cache"
-      ) {
-        console.log(currentWord);
+      const commands = [
+        "convert",
+        "describe",
+        "reset",
+        "list",
+        "completion",
+        "skill",
+        "cache",
+      ];
+      if (!currentWord.startsWith("-") && (!prevWord || ["aft", "apigee-templater"].includes(prevWord))) {
+        const templates = await this.apigeeService.templatesList();
+        const templateNames = templates.map((t) => t.name);
+        const localFiles = this.getCompletionFiles(currentWord);
+
+        const allCandidates = Array.from(new Set([...commands, ...templateNames, ...localFiles])).filter(
+          (name) => !currentWord || name.startsWith(currentWord)
+        );
+        if (allCandidates.length > 0) {
+          console.log(allCandidates.join("\n"));
+        }
+        return;
+      }
+
+      const matchingCommands = commands.filter((cmd) => cmd.startsWith(currentWord));
+      if (matchingCommands.length > 0) {
+        console.log(matchingCommands.join("\n"));
         return;
       }
 
@@ -994,6 +1061,146 @@ export class cli {
     console.log(chalk.gray("  ─────────────────────────────────────────────────────────\n"));
   }
 
+  private async handleResetCommand(options: cliArgs) {
+    if (!options.input) {
+      await this.stopAnimation();
+      console.log(`  ${chalk.red.bold("✖ Error: Please specify an input file to reset.")}\n`);
+      return;
+    }
+
+    if (
+      options.input.includes(":") ||
+      options.organization ||
+      options.input.toLowerCase().startsWith("http://") ||
+      options.input.toLowerCase().startsWith("https://")
+    ) {
+      await this.stopAnimation();
+      console.log(`  ${chalk.red.bold("✖ Error: The 'reset' command only supports local files.")}\n`);
+      return;
+    }
+
+    if (!fs.existsSync(options.input)) {
+      if (fs.existsSync(options.input + ".yaml")) {
+        options.input = options.input + ".yaml";
+      } else if (fs.existsSync(options.input + ".yml")) {
+        options.input = options.input + ".yml";
+      } else if (fs.existsSync(options.input + ".json")) {
+        options.input = options.input + ".json";
+      }
+    }
+
+    if (!fs.existsSync(options.input)) {
+      await this.stopAnimation();
+      console.log(`  ${chalk.red.bold(`✖ Error: Input file '${options.input}' does not exist.`)}\n`);
+      return;
+    }
+
+    if (fs.statSync(options.input).isDirectory()) {
+      await this.stopAnimation();
+      console.log(`  ${chalk.red.bold(`✖ Error: '${options.input}' is a directory. The 'reset' command only supports files.`)}\n`);
+      return;
+    }
+
+    const ext = path.extname(options.input).toLowerCase();
+    if (ext !== ".yaml" && ext !== ".yml" && ext !== ".json") {
+      await this.stopAnimation();
+      console.log(`  ${chalk.red.bold(`✖ Error: The 'reset' command only supports YAML and JSON files.`)}\n`);
+      return;
+    }
+
+    const name = options.name || this.sanitizeName("", options.input);
+    const file = await this.loadFile(name, options.input);
+    if (!file) {
+      await this.stopAnimation();
+      console.log(
+        `  ${chalk.red.bold("✖ Error reading '" + options.input + "', could not determine its type:")}\n  ${JSON.stringify(file, null, 2)}\n`,
+      );
+      return;
+    }
+
+    let template: Template | undefined = undefined;
+    let proxy: Proxy | undefined = undefined;
+    let feature: Feature | undefined = undefined;
+    let product: Product | undefined = undefined;
+    let user: User | undefined = undefined;
+
+    if (file && file["type"] === "template") template = file as Template;
+    else if (file && file["type"] === "proxy") proxy = file as Proxy;
+    else if (file && file["type"] === "feature") feature = file as Feature;
+    else if (file && file["type"] === "product") product = file as Product;
+    else if (file && file["type"] === "user") user = file as User;
+    else if (file && options.format === "template") template = file as Template;
+    else if (file && options.format === "proxy") proxy = file as Proxy;
+    else if (file && (options.format === "feature" || options.format === "sharedflow" || options.format === "sf")) feature = file as Feature;
+    else if (file && options.format === "product") product = file as Product;
+    else if (file && options.format === "user") user = file as User;
+    else if (file && file["endpoints"] && file["features"]) template = file as Template;
+    else if (file && file["endpoints"]) proxy = file as Proxy;
+    else if (file && file["features"]) template = file as Template;
+    else if (file && file["policies"]) feature = file as Feature;
+    else if (file && (file["approvalType"] || file["operationGroup"])) product = file as Product;
+    else if (file && (file["email"] || file["developerId"])) user = file as User;
+    else {
+      await this.stopAnimation();
+      console.log(
+        `  ${chalk.red.bold("✖ Error reading '" + options.input + "', could not determine its type:")}\n  ${JSON.stringify(file, null, 2)}\n`,
+      );
+      return;
+    }
+
+    let resetObject: any;
+    let title = "";
+    let summaryLines: string[] = [];
+
+    if (template) {
+      template = this.converter.templateReset(template);
+      resetObject = template;
+      title = `Template ${template.name}`;
+      summaryLines = this.converter.templateToStringArray(template);
+    } else if (feature) {
+      feature = this.converter.featureReset(feature);
+      resetObject = feature;
+      title = `Feature ${feature.name}`;
+      summaryLines = this.converter.featureToStringArray(feature);
+    } else if (proxy) {
+      proxy = this.converter.proxyReset(proxy);
+      resetObject = proxy;
+      title = `Proxy ${proxy.name}`;
+      summaryLines = this.converter.proxyToStringArray(proxy);
+    } else if (product) {
+      product = this.converter.productReset(product);
+      resetObject = product;
+      title = `Product ${product.name}`;
+      summaryLines = this.converter.productToStringArray(product);
+    } else if (user) {
+      user = this.converter.userReset(user);
+      resetObject = user;
+      title = `User ${user.name || user.email}`;
+      summaryLines = this.converter.userToStringArray(user);
+    }
+
+    const outputPath = options.output || options.input;
+    if (outputPath.toLowerCase().endsWith(".json")) {
+      fs.writeFileSync(outputPath, JSON.stringify(resetObject, null, 2) + "\n", "utf8");
+    } else {
+      let yamlStr = YAML.stringify(resetObject, {
+        aliasDuplicateObjects: false,
+        blockQuote: "literal",
+      });
+      try {
+        const originalContent = fs.readFileSync(options.input, "utf8");
+        const schemaCommentMatch = originalContent.match(/^(# yaml-language-server: [^\r\n]+)/);
+        if (schemaCommentMatch) {
+          yamlStr = schemaCommentMatch[1] + "\n" + yamlStr;
+        }
+      } catch (e) {}
+      fs.writeFileSync(outputPath, yamlStr, "utf8");
+    }
+
+    await this.stopAnimation();
+    await this.printOverviewCard(title, summaryLines, outputPath);
+  }
+
   async process(args: string[]) {
     // Fast path for shell auto-completion queries
     if (args.length > 2 && args[2] === "--complete") {
@@ -1081,6 +1288,11 @@ export class cli {
         options.input = options.singlePositionalInput;
         options.output = "";
       }
+    }
+
+    if (options.command === "reset") {
+      await this.handleResetCommand(options);
+      return;
     }
 
     if (options.command === "describe") {

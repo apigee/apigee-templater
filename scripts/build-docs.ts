@@ -150,6 +150,44 @@ const commands = [
     ],
   },
   {
+    id: "cmd-reset",
+    name: "reset",
+    category: "scaffold",
+    isDefault: false,
+    badge: "Reset",
+    badgeColor: "blue",
+    syntax: "aft reset <input> [options]",
+    description:
+      "Resets a template, feature, or proxy file to its default empty contents. For templates, removes all features, parameters, endpoints, and targets. For features, removes all policies, flows, and resources while leaving endpoints and targets with no flow steps. For proxies, removes all policies, flows, and resources while leaving endpoints and targets with no flow steps.",
+    flags: [
+      { flag: "<input>", desc: "Path to a local YAML or JSON template, feature, or proxy file to reset." },
+      { flag: "-i, --input <path>", desc: "Explicit flag alternative for the input file." },
+      { flag: "-o, --output <path>", desc: "Optional destination path to write the reset file to (defaults to in-place overwrite)." },
+    ],
+    examples: [
+      {
+        title: "Reset a Template to Empty Starter Definition",
+        description: "Clears all features, parameters, endpoints, and targets from a template file in-place.",
+        command: "aft reset MyTemplate.yaml",
+      },
+      {
+        title: "Reset a Feature (Clear Policies & Flows)",
+        description: "Removes all policies, flows, and resources from a feature file, leaving endpoints and targets with no flow steps.",
+        command: "aft reset MyFeature.yaml",
+      },
+      {
+        title: "Reset a Proxy to Clean Endpoints & Targets",
+        description: "Strips all policies, flows, and resources from a proxy while preserving endpoints and target routes.",
+        command: "aft reset SimpleProxy-v1.yaml",
+      },
+      {
+        title: "Reset and Write to a New File",
+        description: "Resets the input file and writes the clean result to an alternative output destination.",
+        command: "aft reset MyTemplate.yaml -o CleanTemplate.yaml",
+      },
+    ],
+  },
+  {
     id: "cmd-list",
     name: "list",
     category: "catalog",
@@ -1304,6 +1342,10 @@ function generateDocsHtml(): string {
         <a href="#cmd-describe" class="nav-link" data-search="describe inspect overview card parameters summary flow policies organization project config runtime">
           <span>describe</span>
           <span class="nav-tag">inspect</span>
+        </a>
+        <a href="#cmd-reset" class="nav-link" data-search="reset template proxy feature empty default clean">
+          <span>reset</span>
+          <span class="nav-tag">scaffold</span>
         </a>
         <a href="#cmd-list" class="nav-link" data-search="list catalog features templates browse repository json yaml">
           <span>list</span>

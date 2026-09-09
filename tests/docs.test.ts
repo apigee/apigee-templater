@@ -35,6 +35,7 @@ describe("Documentation Generator", () => {
     const requiredCommands = [
       "convert",
       "describe",
+      "reset",
       "list",
       "completion",
       "skill",

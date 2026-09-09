@@ -302,7 +302,7 @@ describe("AFT Bun CLI test suite", () => {
     expect(psScript).toContain("Get-ChildItem");
   });
 
-  it("should handle feature auto-completion for -a and --applyFeature", async () => {
+  it("should handle feature auto-completion for -a and --applyFeature using filename without extension", async () => {
     const logs: string[] = [];
     const origLog = console.log;
     console.log = (msg: string) => logs.push(msg);
@@ -311,7 +311,26 @@ describe("AFT Bun CLI test suite", () => {
       await myCli.handleCompletion("-a", "");
       expect(logs.length).toBeGreaterThan(0);
       const output = logs.join("\n");
-      expect(output).toContain("ai-completions");
+      const lines = output.split("\n");
+      expect(lines).toContain("ai-endpoint-completions");
+      expect(lines).not.toContain("ai-completions");
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it("should handle template and feature auto-completion for -i, --input, and describe using filename without extension", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+
+    try {
+      await myCli.handleCompletion("-i", "REST-");
+      expect(logs.length).toBeGreaterThan(0);
+      const output = logs.join("\n");
+      const lines = output.split("\n");
+      expect(lines).toContain("REST-AI-Completions-Screened");
+      expect(lines).not.toContain("REST-AI-Completions-ModelArmor");
     } finally {
       console.log = origLog;
     }
@@ -2003,6 +2022,242 @@ targets:
       if (fs.existsSync(outPath)) {
         fs.rmSync(outPath);
       }
+    }
+  });
+
+  it("should reset a template YAML file (clearing features, parameters, endpoints, targets)", async () => {
+    const testCli = new cli();
+    const tempTemplate = path.join(__dirname, "temp-reset-template.yaml");
+    const templateContent = `gateway: apigee
+schemaVersion: 1.0.0
+name: my-sample-template
+type: template
+description: Sample template to reset
+features:
+  - feature-01-api-key-auth.yaml
+  - feature-02-rate-limiting.yaml
+parameters:
+  - name: RATE
+    default: 100pm
+endpoints:
+  - name: default
+    basePath: /v1/sample
+    routes:
+      - name: default
+        target: default
+targets:
+  - name: default
+    url: https://mocktarget.apigee.net
+products:
+  - product-01.yaml
+users:
+  - user-01.yaml
+tests:
+  - name: Health
+    path: /v1/sample
+`;
+    fs.writeFileSync(tempTemplate, templateContent, "utf8");
+
+    try {
+      await testCli.process(["bun", "apigee-templater.ts", "reset", tempTemplate, "--no-anim"]);
+
+      expect(fs.existsSync(tempTemplate)).toBe(true);
+      const parsed = YAML.parse(fs.readFileSync(tempTemplate, "utf8"));
+      expect(parsed.name).toBe("my-sample-template");
+      expect(parsed.type).toBe("template");
+      expect(parsed.features).toEqual([]);
+      expect(parsed.parameters).toEqual([]);
+      expect(parsed.endpoints).toEqual([]);
+      expect(parsed.targets).toEqual([]);
+      expect(parsed.products).toBeUndefined();
+      expect(parsed.users).toBeUndefined();
+      expect(parsed.tests).toBeUndefined();
+    } finally {
+      if (fs.existsSync(tempTemplate)) fs.rmSync(tempTemplate);
+    }
+  });
+
+  it("should reset a feature YAML file (clearing policies, flows, resources, keeping endpoints and targets with no steps)", async () => {
+    const testCli = new cli();
+    const tempFeature = path.join(__dirname, "temp-reset-feature.yaml");
+    const featureContent = `gateway: apigee
+schemaVersion: 1.0.0
+name: feature-auth-key
+displayName: Auth Key Feature
+type: feature
+description: Feature with policies and flows
+defaultEndpoint:
+  name: default
+  basePath: /v1/auth
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: Verify-API-Key
+defaultTarget:
+  name: default
+  flows:
+    - name: PreFlow
+      mode: Request
+      steps:
+        - name: Some-Target-Step
+policies:
+  - name: Verify-API-Key
+    type: VerifyAPIKey
+resources:
+  - name: script.js
+    type: jsc
+`;
+    fs.writeFileSync(tempFeature, featureContent, "utf8");
+
+    try {
+      await testCli.process(["bun", "apigee-templater.ts", "reset", tempFeature, "--no-anim"]);
+
+      expect(fs.existsSync(tempFeature)).toBe(true);
+      const parsed = YAML.parse(fs.readFileSync(tempFeature, "utf8"));
+      expect(parsed.name).toBe("feature-auth-key");
+      expect(parsed.type).toBe("feature");
+      expect(parsed.policies).toEqual([]);
+      expect(parsed.resources).toEqual([]);
+      expect(parsed.defaultEndpoint).toBeDefined();
+      expect(parsed.defaultEndpoint.basePath).toBe("/v1/auth");
+      expect(parsed.defaultEndpoint.flows).toEqual([]);
+      expect(parsed.defaultTarget).toBeDefined();
+      expect(parsed.defaultTarget.flows).toEqual([]);
+    } finally {
+      if (fs.existsSync(tempFeature)) fs.rmSync(tempFeature);
+    }
+  });
+
+  it("should reset a proxy YAML file (clearing policies, flows, resources, preserving endpoints and targets with no steps)", async () => {
+    const testCli = new cli();
+    const tempProxy = path.join(__dirname, "temp-reset-proxy.yaml");
+    const originalProxy = fs.readFileSync(path.join(__dirname, "data/proxy-01-weather-api.yaml"), "utf8");
+    fs.writeFileSync(tempProxy, originalProxy, "utf8");
+
+    try {
+      await testCli.process(["bun", "apigee-templater.ts", "reset", tempProxy, "--no-anim"]);
+
+      expect(fs.existsSync(tempProxy)).toBe(true);
+      const parsed = YAML.parse(fs.readFileSync(tempProxy, "utf8"));
+      expect(parsed.name).toBe("weather-api-v1");
+      expect(parsed.type).toBe("proxy");
+      expect(parsed.policies).toEqual([]);
+      expect(parsed.resources).toEqual([]);
+      expect(parsed.endpoints.length).toBe(1);
+      expect(parsed.endpoints[0].basePath).toBe("/v1/weather");
+      expect(parsed.endpoints[0].flows).toEqual([]);
+      expect(parsed.endpoints[0].routes.length).toBe(1);
+      expect(parsed.targets.length).toBe(1);
+      expect(parsed.targets[0].name).toBe("default");
+      expect(parsed.targets[0].url).toBe("{BACKEND_URL}");
+      expect(parsed.targets[0].flows).toEqual([]);
+    } finally {
+      if (fs.existsSync(tempProxy)) fs.rmSync(tempProxy);
+    }
+  });
+
+  it("should reset to an alternative output file when -o is provided", async () => {
+    const testCli = new cli();
+    const tempInput = path.join(__dirname, "temp-reset-input.yaml");
+    const tempOutput = path.join(__dirname, "temp-reset-output.yaml");
+    const originalProxy = fs.readFileSync(path.join(__dirname, "data/proxy-01-weather-api.yaml"), "utf8");
+    fs.writeFileSync(tempInput, originalProxy, "utf8");
+
+    try {
+      await testCli.process(["bun", "apigee-templater.ts", "reset", tempInput, "-o", tempOutput, "--no-anim"]);
+
+      expect(fs.existsSync(tempInput)).toBe(true);
+      expect(fs.existsSync(tempOutput)).toBe(true);
+
+      // Original input should be unmodified
+      const originalParsed = YAML.parse(fs.readFileSync(tempInput, "utf8"));
+      expect(originalParsed.policies.length).toBeGreaterThan(0);
+
+      // Output should be reset
+      const resetParsed = YAML.parse(fs.readFileSync(tempOutput, "utf8"));
+      expect(resetParsed.policies).toEqual([]);
+      expect(resetParsed.endpoints[0].flows).toEqual([]);
+    } finally {
+      if (fs.existsSync(tempInput)) fs.rmSync(tempInput);
+      if (fs.existsSync(tempOutput)) fs.rmSync(tempOutput);
+    }
+  });
+
+  it("should reset a JSON format file properly", async () => {
+    const testCli = new cli();
+    const tempJson = path.join(__dirname, "temp-reset-proxy.json");
+    const proxyObj = {
+      name: "json-proxy",
+      type: "proxy",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      endpoints: [
+        {
+          name: "default",
+          basePath: "/v1/json",
+          flows: [
+            {
+              name: "PreFlow",
+              mode: "Request",
+              steps: [{ name: "Verify-Key" }],
+            },
+          ],
+        },
+      ],
+      targets: [
+        {
+          name: "default",
+          url: "https://example.com",
+          flows: [],
+        },
+      ],
+      policies: [{ name: "Verify-Key", type: "VerifyAPIKey" }],
+      resources: [],
+    };
+    fs.writeFileSync(tempJson, JSON.stringify(proxyObj, null, 2), "utf8");
+
+    try {
+      await testCli.process(["bun", "apigee-templater.ts", "reset", tempJson, "--no-anim"]);
+
+      expect(fs.existsSync(tempJson)).toBe(true);
+      const parsed = JSON.parse(fs.readFileSync(tempJson, "utf8"));
+      expect(parsed.name).toBe("json-proxy");
+      expect(parsed.policies).toEqual([]);
+      expect(parsed.endpoints[0].flows).toEqual([]);
+      expect(parsed.targets[0].url).toBe("https://example.com");
+    } finally {
+      if (fs.existsSync(tempJson)) fs.rmSync(tempJson);
+    }
+  });
+
+  it("should output error if reset is called with non-existent file or directory or remote resource", async () => {
+    const testCli = new cli();
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (...args: any[]) => logs.push(args.join(" "));
+
+    try {
+      // Non-existent file
+      await testCli.process(["bun", "apigee-templater.ts", "reset", "non-existent-reset-file.yaml", "--no-anim"]);
+      expect(logs.some((l) => l.includes("does not exist"))).toBe(true);
+
+      // Directory
+      logs.length = 0;
+      await testCli.process(["bun", "apigee-templater.ts", "reset", path.join(__dirname, "data"), "--no-anim"]);
+      expect(logs.some((l) => l.includes("is a directory"))).toBe(true);
+
+      // Remote resource
+      logs.length = 0;
+      await testCli.process(["bun", "apigee-templater.ts", "reset", "my-org:my-proxy", "--no-anim"]);
+      expect(logs.some((l) => l.includes("only supports local files"))).toBe(true);
+
+      // Missing input
+      logs.length = 0;
+      await testCli.process(["bun", "apigee-templater.ts", "reset", "--no-anim"]);
+      expect(logs.some((l) => l.includes("Please specify an input file to reset"))).toBe(true);
+    } finally {
+      console.log = origLog;
     }
   });
 });

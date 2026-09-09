@@ -803,6 +803,10 @@
           <span>describe</span>
           <span class="nav-tag">inspect</span>
         </a>
+        <a href="#cmd-reset" class="nav-link" data-search="reset template proxy feature empty default clean">
+          <span>reset</span>
+          <span class="nav-tag">scaffold</span>
+        </a>
         <a href="#cmd-list" class="nav-link" data-search="list catalog features templates browse repository json yaml">
           <span>list</span>
           <span class="nav-tag">catalog</span>
@@ -1179,6 +1183,85 @@
             <div class="code-block">
               <code>aft describe developer-john.yaml</code>
               <button class="copy-btn" data-clipboard="aft describe developer-john.yaml">Copy</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="command-card searchable-item" id="cmd-reset" data-category="scaffold" data-search="reset Resets a template, feature, or proxy file to its default empty contents. For templates, removes all features, parameters, endpoints, and targets. For features, removes all policies, flows, and resources while leaving endpoints and targets with no flow steps. For proxies, removes all policies, flows, and resources while leaving endpoints and targets with no flow steps.">
+          <div class="command-header">
+            <div class="command-title">
+              <h3>aft reset</h3>
+              <span class="badge badge-blue">Reset</span>
+            </div>
+          </div>
+
+          <div class="syntax-box">
+            <span class="syntax-text">aft reset &lt;input&gt; [options]</span>
+            <button class="copy-btn" data-clipboard="aft reset &lt;input&gt; [options]">Copy</button>
+          </div>
+
+          <p>Resets a template, feature, or proxy file to its default empty contents. For templates, removes all features, parameters, endpoints, and targets. For features, removes all policies, flows, and resources while leaving endpoints and targets with no flow steps. For proxies, removes all policies, flows, and resources while leaving endpoints and targets with no flow steps.</p>
+
+          
+          <h4 style="font-size: 14px; font-weight: 600; margin: 20px 0 10px; color: #e2e8f0;">Command Options</h4>
+          <div class="flags-table-wrap">
+            <table class="flags-table">
+              <thead>
+                <tr>
+                  <th style="width: 35%;">Option</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                <tr>
+                  <td class="flag-name">&lt;input&gt;</td>
+                  <td>Path to a local YAML or JSON template, feature, or proxy file to reset.</td>
+                </tr>
+                <tr>
+                  <td class="flag-name">-i, --input &lt;path&gt;</td>
+                  <td>Explicit flag alternative for the input file.</td>
+                </tr>
+                <tr>
+                  <td class="flag-name">-o, --output &lt;path&gt;</td>
+                  <td>Optional destination path to write the reset file to (defaults to in-place overwrite).</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4 style="font-size: 14px; font-weight: 600; margin: 24px 0 12px; color: #e2e8f0;">Examples</h4>
+          
+          <div class="example-box">
+            <div class="example-title">Reset a Template to Empty Starter Definition</div>
+            <div class="example-desc">Clears all features, parameters, endpoints, and targets from a template file in-place.</div>
+            <div class="code-block">
+              <code>aft reset MyTemplate.yaml</code>
+              <button class="copy-btn" data-clipboard="aft reset MyTemplate.yaml">Copy</button>
+            </div>
+          </div>
+          <div class="example-box">
+            <div class="example-title">Reset a Feature (Clear Policies &amp; Flows)</div>
+            <div class="example-desc">Removes all policies, flows, and resources from a feature file, leaving endpoints and targets with no flow steps.</div>
+            <div class="code-block">
+              <code>aft reset MyFeature.yaml</code>
+              <button class="copy-btn" data-clipboard="aft reset MyFeature.yaml">Copy</button>
+            </div>
+          </div>
+          <div class="example-box">
+            <div class="example-title">Reset a Proxy to Clean Endpoints &amp; Targets</div>
+            <div class="example-desc">Strips all policies, flows, and resources from a proxy while preserving endpoints and target routes.</div>
+            <div class="code-block">
+              <code>aft reset SimpleProxy-v1.yaml</code>
+              <button class="copy-btn" data-clipboard="aft reset SimpleProxy-v1.yaml">Copy</button>
+            </div>
+          </div>
+          <div class="example-box">
+            <div class="example-title">Reset and Write to a New File</div>
+            <div class="example-desc">Resets the input file and writes the clean result to an alternative output destination.</div>
+            <div class="code-block">
+              <code>aft reset MyTemplate.yaml -o CleanTemplate.yaml</code>
+              <button class="copy-btn" data-clipboard="aft reset MyTemplate.yaml -o CleanTemplate.yaml">Copy</button>
             </div>
           </div>
         </article>
