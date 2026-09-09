@@ -28,6 +28,12 @@ describe("Documentation Generator", () => {
     // Must display current version
     expect(content).toContain(`v${packageJson.version}`);
     expect(content).toContain(`Apigee Feature Templater (aft) v${packageJson.version}`);
+    expect(content).toContain("<title>Aft Documentation</title>");
+    expect(content).toContain("Aft Documentation");
+    // Should use monochrome SVG logo and not pull in the external white logo
+    expect(content).not.toContain("https://amalbagee.web.app/apigee/aft-logo.png");
+    expect(content).toContain('<svg class="brand-logo"');
+    expect(fs.existsSync(path.resolve(import.meta.dir, "../docs/aft-logo.svg"))).toBe(true);
   });
 
   it("should document all primary CLI commands", () => {

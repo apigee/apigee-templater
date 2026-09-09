@@ -542,9 +542,9 @@ function generateDocsHtml(): string {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Apigee Feature Templater (aft) v${version} · Documentation &amp; CLI Reference</title>
+  <title>Aft Documentation</title>
   <meta name="description" content="Complete developer documentation, CLI command reference, interactive search, and examples for Apigee Feature Templater (aft) v${version}." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' fill='none'%3E%3Crect width='36' height='36' rx='8' fill='%23151d30'/%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M18 8L8.8 25.5H13.4L15.3 21.5H20.7L22.6 25.5H27.2L18 8ZM18 14.6L19.6 18.5H16.4L18 14.6Z' fill='%23ffffff'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -669,8 +669,8 @@ function generateDocsHtml(): string {
       width: 36px;
       height: 36px;
       border-radius: 8px;
-      background: #000;
       display: block;
+      flex-shrink: 0;
     }
 
     .brand-text h1 {
@@ -1285,8 +1285,12 @@ function generateDocsHtml(): string {
   <!-- Mobile Top Bar -->
   <header class="mobile-header">
     <div class="brand">
-      <img src="https://amalbagee.web.app/apigee/aft-logo.png" alt="AFT Logo" class="brand-logo" />
-      <span style="font-weight: 700; color: #fff;">AFT Docs</span>
+      <svg class="brand-logo" width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Aft Logo">
+        <rect width="36" height="36" rx="8" fill="#151d30"/>
+        <rect x="0.5" y="0.5" width="35" height="35" rx="7.5" stroke="#ffffff" stroke-opacity="0.12"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M18 8L8.8 25.5H13.4L15.3 21.5H20.7L22.6 25.5H27.2L18 8ZM18 14.6L19.6 18.5H16.4L18 14.6Z" fill="#ffffff" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/>
+      </svg>
+      <span style="font-weight: 700; color: #fff;">Aft Documentation</span>
       <span class="brand-version">v${version}</span>
     </div>
     <button class="menu-toggle" id="menuToggle" aria-label="Toggle Navigation Menu">
@@ -1300,9 +1304,13 @@ function generateDocsHtml(): string {
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <a href="#overview" class="brand">
-        <img src="https://amalbagee.web.app/apigee/aft-logo.png" alt="AFT Logo" class="brand-logo" />
+        <svg class="brand-logo" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Aft Logo">
+          <rect width="36" height="36" rx="8" fill="#151d30"/>
+          <rect x="0.5" y="0.5" width="35" height="35" rx="7.5" stroke="#ffffff" stroke-opacity="0.12"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M18 8L8.8 25.5H13.4L15.3 21.5H20.7L22.6 25.5H27.2L18 8ZM18 14.6L19.6 18.5H16.4L18 14.6Z" fill="#ffffff" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/>
+        </svg>
         <div class="brand-text">
-          <h1>Apigee Templater</h1>
+          <h1>Aft Documentation</h1>
           <span class="brand-version">v${version}</span>
         </div>
       </a>
@@ -1407,7 +1415,7 @@ function generateDocsHtml(): string {
           <span class="badge badge-green">Apigee X &amp; Hybrid</span>
           <span class="badge badge-purple">Bun Native</span>
         </div>
-        <h1>Apigee Feature Templater</h1>
+        <h1>Aft Documentation</h1>
         <p>
           <strong>Apigee Feature Templater (aft)</strong> is a lightning-fast, zero-dependency CLI tool built for modern Apigee development. It converts effortlessly between Apigee ZIP proxy bundles, concise YAML proxies, and JSON formats, while providing modular feature composition, remote Apigee X deployments, and full developer/product exports.
         </p>
