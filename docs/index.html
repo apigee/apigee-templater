@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>Aft Documentation</title>
   <meta name="description" content="Complete developer documentation, CLI command reference, interactive search, and examples for Apigee Feature Templater (aft) v5.1.6." />
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' fill='none'%3E%3Crect width='36' height='36' rx='8' fill='%23151d30'/%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M18 8L8.8 25.5H13.4L15.3 21.5H20.7L22.6 25.5H27.2L18 8ZM18 14.6L19.6 18.5H16.4L18 14.6Z' fill='%23ffffff'/%3E%3C/svg%3E" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 42 42' fill='none'%3E%3Crect width='42' height='42' rx='10' fill='%23151d30'/%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M29.3 10H32.5V32H29.3V27.6A11 11 0 1 1 29.3 14.4V10ZM20.5 13.2A7.8 7.8 0 1 0 20.5 28.8A7.8 7.8 0 0 0 20.5 13.2Z' fill='%23ffffff'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -120,17 +120,23 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
       text-decoration: none;
       color: inherit;
     }
 
     .brand-logo {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
       display: block;
       flex-shrink: 0;
+    }
+
+    .mobile-header .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
     }
 
     .brand-text h1 {
@@ -745,10 +751,10 @@
   <!-- Mobile Top Bar -->
   <header class="mobile-header">
     <div class="brand">
-      <svg class="brand-logo" width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Aft Logo">
-        <rect width="36" height="36" rx="8" fill="#151d30"/>
-        <rect x="0.5" y="0.5" width="35" height="35" rx="7.5" stroke="#ffffff" stroke-opacity="0.12"/>
-        <path fill-rule="evenodd" clip-rule="evenodd" d="M18 8L8.8 25.5H13.4L15.3 21.5H20.7L22.6 25.5H27.2L18 8ZM18 14.6L19.6 18.5H16.4L18 14.6Z" fill="#ffffff" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/>
+      <svg class="brand-logo" width="36" height="36" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Aft Logo">
+        <rect width="42" height="42" rx="10" fill="#151d30"/>
+        <rect x="0.5" y="0.5" width="41" height="41" rx="9.5" stroke="#ffffff" stroke-opacity="0.14"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M29.3 10H32.5V32H29.3V27.6A11 11 0 1 1 29.3 14.4V10ZM20.5 13.2A7.8 7.8 0 1 0 20.5 28.8A7.8 7.8 0 0 0 20.5 13.2Z" fill="#ffffff" stroke="#ffffff" stroke-width="0.5" stroke-linejoin="round"/>
       </svg>
       <span style="font-weight: 700; color: #fff;">Aft Documentation</span>
       <span class="brand-version">v5.1.6</span>
@@ -764,10 +770,10 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <a href="#overview" class="brand">
-        <svg class="brand-logo" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Aft Logo">
-          <rect width="36" height="36" rx="8" fill="#151d30"/>
-          <rect x="0.5" y="0.5" width="35" height="35" rx="7.5" stroke="#ffffff" stroke-opacity="0.12"/>
-          <path fill-rule="evenodd" clip-rule="evenodd" d="M18 8L8.8 25.5H13.4L15.3 21.5H20.7L22.6 25.5H27.2L18 8ZM18 14.6L19.6 18.5H16.4L18 14.6Z" fill="#ffffff" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/>
+        <svg class="brand-logo" width="44" height="44" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Aft Logo">
+          <rect width="42" height="42" rx="10" fill="#151d30"/>
+          <rect x="0.5" y="0.5" width="41" height="41" rx="9.5" stroke="#ffffff" stroke-opacity="0.14"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M29.3 10H32.5V32H29.3V27.6A11 11 0 1 1 29.3 14.4V10ZM20.5 13.2A7.8 7.8 0 1 0 20.5 28.8A7.8 7.8 0 0 0 20.5 13.2Z" fill="#ffffff" stroke="#ffffff" stroke-width="0.5" stroke-linejoin="round"/>
         </svg>
         <div class="brand-text">
           <h1>Aft Documentation</h1>
