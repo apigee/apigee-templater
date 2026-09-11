@@ -99,7 +99,7 @@ export class cli {
         "-p", "--parameters",
         "-t", "--token",
         "-d", "--drz",
-        "--environment", "--env",
+        "-e", "--environment", "--env",
         "--service-account", "--sa",
       ]);
       for (let i = 0; i < argv.length; i++) {
@@ -136,6 +136,7 @@ export class cli {
         "--project": "--organization",
         "--environment": String,
         "--env": "--environment",
+        "-e": "--environment",
         "--service-account": String,
         "--sa": "--service-account",
         "--format": String,
@@ -1618,6 +1619,11 @@ export class cli {
     if (product && !product.name && options.input) {
       product.name = path.basename(options.input).replace(/\.(yaml|yml|json)$/i, "");
     }
+    if (product && options.environment) {
+      product.environments = options.environment.includes(",")
+        ? options.environment.split(",").map((e: string) => e.trim()).filter(Boolean)
+        : [options.environment.trim()];
+    }
     if (user && !user.name && !user.email && options.input) {
       user.name = path.basename(options.input).replace(/\.(yaml|yml|json)$/i, "");
     }
@@ -1965,9 +1971,9 @@ export class cli {
       } else if (feature) {
         if (!options.format) options.format = "feature";
       } else if (product) {
-        if (!options.format) options.format = "product";
+        if (!options.format || options.format === "proxy") options.format = "product";
       } else if (user) {
-        if (!options.format) options.format = "user";
+        if (!options.format || options.format === "proxy") options.format = "user";
       } else {
         console.log(
           `  ${chalk.red.bold("✖ Input '" + options.input + "' could not be loaded. Please check spelling or path.")}`,
@@ -2879,7 +2885,7 @@ const helpCommands = [
     description: "Apigee organization or GCP project name to export from, deploy to, or describe.",
   },
   {
-    name: "--environment, --env",
+    name: "--environment, --env, -e",
     description: "Apigee environment name to deploy the proxy revision to.",
   },
   {

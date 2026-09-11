@@ -894,9 +894,53 @@ targets:
       expect(exportedOrg).toBe("aigateway-lab8");
       expect(exportedProduct).toBeDefined();
       expect(exportedProduct.name).toBe("gemini-ai-developer-product");
-      expect(exportedProduct.environments).toContain("dev");
+      expect(exportedProduct.environments).toEqual(["dev"]);
     } finally {
       myCli.apigeeService.apigeeProductExport = originalProductExport;
+    }
+  });
+
+  it("should overwrite environments array in product YAML when converting with --environment or -e", async () => {
+    const outYamlPath = "./test-env-product.yaml";
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "-i",
+        "tests/data/product-01-standard-api.yaml",
+        "-e",
+        "staging",
+        "-o",
+        outYamlPath,
+      ]);
+
+      expect(fs.existsSync(outYamlPath)).toBe(true);
+      const parsed = YAML.parse(fs.readFileSync(outYamlPath, "utf-8"));
+      expect(parsed.name).toBe("standard-api-product");
+      expect(parsed.environments).toEqual(["staging"]);
+    } finally {
+      if (fs.existsSync(outYamlPath)) fs.unlinkSync(outYamlPath);
+    }
+  });
+
+  it("should leave environments array in product YAML as is when no environment is passed", async () => {
+    const outYamlPath = "./test-no-env-product.yaml";
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "-i",
+        "tests/data/product-01-standard-api.yaml",
+        "-o",
+        outYamlPath,
+      ]);
+
+      expect(fs.existsSync(outYamlPath)).toBe(true);
+      const parsed = YAML.parse(fs.readFileSync(outYamlPath, "utf-8"));
+      expect(parsed.name).toBe("standard-api-product");
+      expect(parsed.environments).toEqual(["eval", "dev", "test"]);
+    } finally {
+      if (fs.existsSync(outYamlPath)) fs.unlinkSync(outYamlPath);
     }
   });
 
