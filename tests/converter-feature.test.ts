@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import fs from "fs";
 import { ApigeeConverter } from "../src/lib/converter.js";
-import { Feature, Proxy } from "../src/lib/interfaces.js";
+import { Feature, Proxy, Template } from "../src/lib/interfaces.js";
 
 describe("featureApplyFeature parameter merging", () => {
   it("should add new parameters and overwrite existing parameters by name", () => {
@@ -441,5 +441,239 @@ describe("featureApplyFeature parameter merging", () => {
     expect(merged.defaultEndpoint?.routes.find((r) => r.name === "route2")).toBeUndefined();
   });
 });
+
+describe("templateToProxy conversion with default endpoint and target", () => {
+  const converter = new ApigeeConverter();
+
+  it("should add default endpoint, target, and routerule from template when features are applied (e.g. test.local.yaml)", () => {
+    const template: Template = {
+      name: "test.local",
+      type: "template",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      description: "API template for test.local",
+      features: ["auth-apikey-verify"],
+      parameters: [],
+      endpoints: [
+        {
+          name: "default",
+          basePath: "/test",
+          routes: [
+            {
+              name: "default",
+              target: "default",
+            },
+          ],
+        },
+      ],
+      targets: [
+        {
+          name: "default",
+          url: "https://httpbin.org",
+          scopes: [],
+        },
+      ],
+    };
+
+    const authFeature: Feature = {
+      name: "auth-apikey-verify",
+      type: "feature",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      description: "API Key Auth",
+      parameters: [],
+      endpoints: [],
+      targets: [],
+      policies: [
+        {
+          name: "VA-VerifyKey",
+          type: "VerifyAPIKey",
+          content: {},
+        },
+      ],
+      resources: [],
+      defaultEndpoint: {
+        name: "default",
+        basePath: "",
+        routes: [],
+        flows: [
+          {
+            name: "PreFlow",
+            mode: "Request",
+            steps: [{ name: "VA-VerifyKey" }],
+          },
+        ],
+      },
+    };
+
+    const proxy = converter.templateToProxy(template, [authFeature]);
+
+    expect(proxy.name).toBe("test.local");
+    expect(proxy.endpoints).toHaveLength(1);
+    expect(proxy.endpoints[0].name).toBe("default");
+    expect(proxy.endpoints[0].basePath).toBe("/test");
+    expect(proxy.endpoints[0].routes).toHaveLength(1);
+    expect(proxy.endpoints[0].routes[0].name).toBe("default");
+    expect(proxy.endpoints[0].routes[0].target).toBe("default");
+
+    // Feature's PreFlow flow step should be merged onto proxy's default endpoint
+    expect(proxy.endpoints[0].flows).toHaveLength(1);
+    expect(proxy.endpoints[0].flows[0].name).toBe("PreFlow");
+    expect(proxy.endpoints[0].flows[0].steps).toHaveLength(1);
+    expect(proxy.endpoints[0].flows[0].steps[0].name).toBe("VA-VerifyKey");
+
+    // Target should be present
+    expect(proxy.targets).toHaveLength(1);
+    expect(proxy.targets[0].name).toBe("default");
+    expect(proxy.targets[0].url).toBe("https://httpbin.org");
+
+    // Feature policy should be present
+    expect(proxy.policies).toHaveLength(1);
+    expect(proxy.policies[0].name).toBe("VA-VerifyKey");
+  });
+
+  it("should support template with defaultEndpoint and defaultTarget properties", () => {
+    const template: Template = {
+      name: "custom-template",
+      type: "template",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      description: "Template with direct defaultEndpoint/defaultTarget",
+      features: [],
+      parameters: [],
+      endpoints: [],
+      targets: [],
+      defaultEndpoint: {
+        name: "default",
+        basePath: "/v1/custom",
+        routes: [],
+        flows: [],
+      },
+      defaultTarget: {
+        name: "default",
+        url: "https://api.example.com",
+        flows: [],
+      },
+    };
+
+    const proxy = converter.templateToProxy(template, []);
+
+    expect(proxy.endpoints).toHaveLength(1);
+    expect(proxy.endpoints[0].name).toBe("default");
+    expect(proxy.endpoints[0].basePath).toBe("/v1/custom");
+    expect(proxy.endpoints[0].routes).toHaveLength(1);
+    expect(proxy.endpoints[0].routes[0].name).toBe("default");
+    expect(proxy.endpoints[0].routes[0].target).toBe("default");
+
+    expect(proxy.targets).toHaveLength(1);
+    expect(proxy.targets[0].name).toBe("default");
+    expect(proxy.targets[0].url).toBe("https://api.example.com");
+  });
+
+  it("should support template with default endpoint but no target (no-target proxy)", () => {
+    const template: Template = {
+      name: "no-target-template",
+      type: "template",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      description: "Template with no target",
+      features: [],
+      parameters: [],
+      endpoints: [
+        {
+          name: "default",
+          basePath: "/no-target",
+          routes: [],
+        },
+      ],
+      targets: [],
+    };
+
+    const proxy = converter.templateToProxy(template, []);
+
+    expect(proxy.endpoints).toHaveLength(1);
+    expect(proxy.endpoints[0].name).toBe("default");
+    expect(proxy.endpoints[0].basePath).toBe("/no-target");
+    expect(proxy.endpoints[0].routes).toHaveLength(1);
+    expect(proxy.endpoints[0].routes[0].name).toBe("default");
+    expect(proxy.endpoints[0].routes[0].target).toBeUndefined();
+    expect(proxy.targets).toHaveLength(0);
+  });
+
+  it("should create default endpoint and routerule if template only defines default target", () => {
+    const template: Template = {
+      name: "target-only-template",
+      type: "template",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      description: "Template with target only",
+      features: [],
+      parameters: [],
+      endpoints: [],
+      targets: [
+        {
+          name: "default",
+          url: "https://backend.example.com",
+        },
+      ],
+    };
+
+    const proxy = converter.templateToProxy(template, []);
+
+    expect(proxy.endpoints).toHaveLength(1);
+    expect(proxy.endpoints[0].name).toBe("default");
+    expect(proxy.endpoints[0].basePath).toBe("/target-only-template");
+    expect(proxy.endpoints[0].routes).toHaveLength(1);
+    expect(proxy.endpoints[0].routes[0].name).toBe("default");
+    expect(proxy.endpoints[0].routes[0].target).toBe("default");
+    expect(proxy.targets).toHaveLength(1);
+    expect(proxy.targets[0].name).toBe("default");
+    expect(proxy.targets[0].url).toBe("https://backend.example.com");
+  });
+
+  it("should preserve additional non-default endpoints and targets from template", () => {
+    const template: Template = {
+      name: "multi-endpoint-template",
+      type: "template",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      description: "Multi endpoint template",
+      features: [],
+      parameters: [],
+      endpoints: [
+        {
+          name: "default",
+          basePath: "/main",
+          routes: [{ name: "default", target: "default" }],
+        },
+        {
+          name: "health",
+          basePath: "/healthz",
+          routes: [{ name: "health", target: "health-target" }],
+        },
+      ],
+      targets: [
+        {
+          name: "default",
+          url: "https://main.example.com",
+        },
+        {
+          name: "health-target",
+          url: "https://health.example.com",
+        },
+      ],
+    };
+
+    const proxy = converter.templateToProxy(template, []);
+
+    expect(proxy.endpoints).toHaveLength(2);
+    expect(proxy.endpoints[0].name).toBe("default");
+    expect(proxy.endpoints[1].name).toBe("health");
+    expect(proxy.targets).toHaveLength(2);
+    expect(proxy.targets[0].name).toBe("default");
+    expect(proxy.targets[1].name).toBe("health-target");
+  });
+});
+
 
 

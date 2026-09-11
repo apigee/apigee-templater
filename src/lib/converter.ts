@@ -1667,36 +1667,176 @@ export class ApigeeConverter {
     if (template.priority) proxy.priority = template.priority;
     if (template.tests) proxy.tests = template.tests;
 
-    if ((template.endpoints || []).length > 0 && (features || []).length == 0) {
-      // this is an empty template, so at least add a default enpoint
-      let name = template.endpoints[0]?.basePath
-        ? template.endpoints[0]?.basePath.replaceAll("/", "")
-        : "default";
-      proxy.endpoints.push({
-        name: name,
-        basePath: template.endpoints[0]?.basePath ?? "",
-        routes: [
-          {
-            name: name,
-          },
-        ],
-        flows: [],
-      });
+    // Check if template defines a default endpoint (either template.defaultEndpoint or in endpoints array with name: "default")
+    let templateDefaultEndpoint: Endpoint | ProxyEndpoint | undefined =
+      template.defaultEndpoint ||
+      (template.endpoints || []).find((e) => e.name === "default");
 
-      if ((template.targets || []).length > 0 && template.targets[0]) {
-        if (
-          proxy.endpoints.length > 0 &&
-          proxy.endpoints[0] &&
-          (proxy.endpoints[0].routes || []).length > 0 &&
-          proxy.endpoints[0].routes[0]
-        )
-          proxy.endpoints[0].routes[0].target = name;
-        proxy.targets.push({
-          name: name,
-          url: template.targets[0].url ?? "",
-          flows: []
-        });
+    // Check if template defines a default target (either template.defaultTarget or in targets array with name: "default")
+    let templateDefaultTarget: Target | ProxyTarget | undefined =
+      template.defaultTarget ||
+      (template.targets || []).find((t) => t.name === "default");
+
+    if (templateDefaultEndpoint || templateDefaultTarget) {
+      if (templateDefaultEndpoint) {
+        let proxyDefaultEndpoint: ProxyEndpoint = {
+          name: templateDefaultEndpoint.name || "default",
+          basePath: templateDefaultEndpoint.basePath || "",
+          routes: templateDefaultEndpoint.routes
+            ? JSON.parse(JSON.stringify(templateDefaultEndpoint.routes))
+            : [],
+          flows: (templateDefaultEndpoint as any).flows
+            ? JSON.parse(JSON.stringify((templateDefaultEndpoint as any).flows))
+            : [],
+        };
+        if ((templateDefaultEndpoint as any).faultRules) {
+          proxyDefaultEndpoint.faultRules = JSON.parse(
+            JSON.stringify((templateDefaultEndpoint as any).faultRules),
+          );
+        }
+        if ((templateDefaultEndpoint as any).defaultFaultRule) {
+          proxyDefaultEndpoint.defaultFaultRule = JSON.parse(
+            JSON.stringify((templateDefaultEndpoint as any).defaultFaultRule),
+          );
+        }
+
+        if (templateDefaultTarget) {
+          let targetName = templateDefaultTarget.name || "default";
+          if (proxyDefaultEndpoint.routes.length === 0) {
+            proxyDefaultEndpoint.routes.push({
+              name: "default",
+              target: targetName,
+            });
+          } else {
+            let hasTarget = proxyDefaultEndpoint.routes.some((r) => r.target);
+            if (!hasTarget) {
+              let defaultRoute =
+                proxyDefaultEndpoint.routes.find((r) => r.name === "default") ||
+                proxyDefaultEndpoint.routes[0];
+              if (defaultRoute) {
+                defaultRoute.target = targetName;
+              }
+            }
+          }
+        } else if (proxyDefaultEndpoint.routes.length === 0) {
+          proxyDefaultEndpoint.routes.push({
+            name: "default",
+          });
+        }
+
+        proxy.endpoints.push(proxyDefaultEndpoint);
+      } else if (templateDefaultTarget) {
+        // Template has default target, but no default endpoint: add default endpoint routing to target
+        let targetName = templateDefaultTarget.name || "default";
+        let proxyDefaultEndpoint: ProxyEndpoint = {
+          name: "default",
+          basePath:
+            "/" + (template.name ? template.name.toLowerCase().replaceAll(" ", "-") : "default"),
+          routes: [
+            {
+              name: "default",
+              target: targetName,
+            },
+          ],
+          flows: [],
+        };
+        proxy.endpoints.push(proxyDefaultEndpoint);
       }
+
+      if (templateDefaultTarget) {
+        let proxyDefaultTarget: ProxyTarget = {
+          name: templateDefaultTarget.name || "default",
+          url: templateDefaultTarget.url ?? "",
+          flows: (templateDefaultTarget as any).flows
+            ? JSON.parse(JSON.stringify((templateDefaultTarget as any).flows))
+            : [],
+        };
+        if (templateDefaultTarget.auth) proxyDefaultTarget.auth = templateDefaultTarget.auth;
+        if (templateDefaultTarget.scopes)
+          proxyDefaultTarget.scopes = JSON.parse(JSON.stringify(templateDefaultTarget.scopes));
+        if (templateDefaultTarget.aud) proxyDefaultTarget.aud = templateDefaultTarget.aud;
+        if ((templateDefaultTarget as any).faultRules) {
+          proxyDefaultTarget.faultRules = JSON.parse(
+            JSON.stringify((templateDefaultTarget as any).faultRules),
+          );
+        }
+        if ((templateDefaultTarget as any).defaultFaultRule) {
+          proxyDefaultTarget.defaultFaultRule = JSON.parse(
+            JSON.stringify((templateDefaultTarget as any).defaultFaultRule),
+          );
+        }
+        if ((templateDefaultTarget as any).httpTargetConnection) {
+          proxyDefaultTarget.httpTargetConnection = JSON.parse(
+            JSON.stringify((templateDefaultTarget as any).httpTargetConnection),
+          );
+        }
+        if ((templateDefaultTarget as any).localTargetConnection) {
+          proxyDefaultTarget.localTargetConnection = JSON.parse(
+            JSON.stringify((templateDefaultTarget as any).localTargetConnection),
+          );
+        }
+        proxy.targets.push(proxyDefaultTarget);
+      }
+
+      // Add any additional non-default endpoints from template
+      for (let ep of template.endpoints || []) {
+        if (ep !== templateDefaultEndpoint && ep.name !== "default") {
+          if (!proxy.endpoints.find((e) => e.name === ep.name)) {
+            proxy.endpoints.push({
+              name: ep.name,
+              basePath: ep.basePath || "",
+              routes: ep.routes ? JSON.parse(JSON.stringify(ep.routes)) : [],
+              flows: (ep as any).flows ? JSON.parse(JSON.stringify((ep as any).flows)) : [],
+            });
+          }
+        }
+      }
+
+      // Add any additional non-default targets from template
+      for (let tg of template.targets || []) {
+        if (tg !== templateDefaultTarget && tg.name !== "default") {
+          if (!proxy.targets.find((t) => t.name === tg.name)) {
+            let extraTarget: ProxyTarget = {
+              name: tg.name,
+              url: tg.url ?? "",
+              flows: (tg as any).flows ? JSON.parse(JSON.stringify((tg as any).flows)) : [],
+            };
+            if (tg.auth) extraTarget.auth = tg.auth;
+            if (tg.scopes) extraTarget.scopes = JSON.parse(JSON.stringify(tg.scopes));
+            if (tg.aud) extraTarget.aud = tg.aud;
+            proxy.targets.push(extraTarget);
+          }
+        }
+      }
+    } else if ((template.endpoints || []).length > 0) {
+      // Fallback if template has endpoints but none is named "default"
+      let firstEp = template.endpoints[0];
+      let name =
+        firstEp.name || (firstEp.basePath ? firstEp.basePath.replaceAll("/", "") : "default");
+      let proxyEp: ProxyEndpoint = {
+        name: name,
+        basePath: firstEp.basePath ?? "",
+        routes:
+          firstEp.routes && firstEp.routes.length > 0
+            ? JSON.parse(JSON.stringify(firstEp.routes))
+            : [{ name: name }],
+        flows: (firstEp as any).flows ? JSON.parse(JSON.stringify((firstEp as any).flows)) : [],
+      };
+      if ((template.targets || []).length > 0 && template.targets[0]) {
+        let firstTg = template.targets[0];
+        let tgName = firstTg.name || name;
+        if (proxyEp.routes.length > 0 && !proxyEp.routes.some((r) => r.target)) {
+          proxyEp.routes[0].target = tgName;
+        }
+        if (!proxy.targets.find((t) => t.name === tgName)) {
+          proxy.targets.push({
+            name: tgName,
+            url: firstTg.url ?? "",
+            flows: (firstTg as any).flows ? JSON.parse(JSON.stringify((firstTg as any).flows)) : [],
+          });
+        }
+      }
+      proxy.endpoints.push(proxyEp);
     }
 
     proxy = this.proxyApplyFeatures(proxy, features, parameters);

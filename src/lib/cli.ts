@@ -1049,11 +1049,11 @@ export class cli {
                 .map((a: any) => a.environment || a.environmentName || a)
                 .join(", ")
             : "";
-        const envSuffix = attachedEnvs ? chalk.gray(` [attached: ${attachedEnvs}]`) : "";
+        const envSuffix = attachedEnvs ? chalk.yellow(` [attached: ${attachedEnvs}]`) : "";
         console.log(`      ${chalk.green("•")} ${chalk.cyan(group.name)}${envSuffix}`);
         if (group.hostnames && group.hostnames.length > 0) {
           for (const host of group.hostnames) {
-            console.log(`        ${chalk.gray("↳ Host:")} ${chalk.white(host)}`);
+            console.log(`        ${chalk.yellow("↳ Host:")} ${chalk.white(host)}`);
           }
         }
       }

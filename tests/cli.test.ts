@@ -1,6 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import fs from "fs";
 import path from "path";
+import chalk from "chalk";
 import * as YAML from "yaml";
 import { cli } from "../src/lib/cli.js";
 import CliAnimation, { DEFAULT_STAGES, SPINNER_FRAMES } from "../src/lib/animation.js";
@@ -1090,6 +1091,8 @@ targets:
       expect(allOutput).toContain("PAYG");
       expect(allOutput).toContain("default-group");
       expect(allOutput).toContain("api.example.com");
+      expect(allOutput).toContain(chalk.yellow("[attached: dev]"));
+      expect(allOutput).toContain(chalk.yellow("↳ Host:"));
 
       // Shorthand order: describe <org> --project
       logs.length = 0;

@@ -12,6 +12,8 @@ export class Template {
   description: string = "";
   features: string[] = [];
   parameters: Parameter[] = [];
+  defaultEndpoint?: ProxyEndpoint;
+  defaultTarget?: ProxyTarget;
   endpoints: Endpoint[] = [];
   targets: Target[] = [];
   products?: (string | Product)[] = [];
