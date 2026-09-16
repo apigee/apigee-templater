@@ -12,19 +12,19 @@ parameters:
       - Hello mars!
       - Hello internet!
 endpoints:
-  - name: apigeemock-apigeemock
-    basePath: /apigeemock
+  - name: default
+    basePath: /testproxy
     routes:
       - name: default
-        target: apigeemock-apigeemock
+        target: default
     flows:
       - name: PostFlow
         mode: Response
         steps:
-          - name: helloworld-JS-AddHelloWorld
+          - name: JS-AddHelloWorld
     faultRules: []
 targets:
-  - name: apigeemock-apigeemock
+  - name: default
     url: https://mocktarget.apigee.net
     flows: []
     faultRules: []
@@ -32,7 +32,7 @@ targets:
       properties: {}
       url: https://mocktarget.apigee.net
 policies:
-  - name: helloworld-JS-AddHelloWorld
+  - name: JS-AddHelloWorld
     type: Javascript
     content:
       javascript:
@@ -40,12 +40,12 @@ policies:
           continueOnError: "false"
           enabled: "true"
           timeLimit: "200"
-          name: helloworld-JS-AddHelloWorld
+          name: JS-AddHelloWorld
         displayName: JS-AddHelloWorld
         properties: {}
-        resourceUrl: jsc://helloworld-hello-world.js
+        resourceUrl: jsc://hello-world.js
 resources:
-  - name: helloworld-hello-world.js
+  - name: hello-world.js
     type: jsc
     content: |-
       var responseText = response.content;
@@ -61,7 +61,7 @@ resources:
 
       var message = context.getVariable("request.queryparam.message");
       if (!message)
-        message = context.getVariable("propertyset.helloworld-helloworld.MESSAGE");
+        message = context.getVariable("propertyset.helloworld.MESSAGE");
       if (!message)
         message = "Hello world!";
 
@@ -72,7 +72,7 @@ resources:
         responseText = responseText + " " + message;
         context.setVariable("response.content", responseText);
       }
-  - name: helloworld-helloworld.properties
+  - name: helloworld.properties
     type: properties
     content: |
       MESSAGE=Hello world!
