@@ -8,9 +8,6 @@
 ![image](https://img.shields.io/badge/Status-Beta-orange?style=for-the-badge)
 ![image](https://img.shields.io/badge/Apache--2.0-green?style=for-the-badge)
 
-> [!NOTE]
-> **AFT v5 is currently in Beta testing!** We've refactored `aft` to run natively on Bun with zero-dependency standalone binaries. If you encounter any bugs or have feature requests, please [open an issue](https://github.com/apigee/apigee-templater/issues).
-
 > [!IMPORTANT]
 > 🚀 **Exciting News: Native Apigee X & `gcloud` YAML Proxy Support is now in BETA!**
 > 
@@ -35,6 +32,7 @@ For comprehensive developer documentation with interactive search, category filt
 * **Real-Time Search & Filter**: Search across all commands, flags, parameters, and examples.
 * **Complete Command Coverage**: In-depth syntax and options for `convert`, `describe`, `list`, `completion`, `skill`, `cache`, and Apigee X deployments.
 * **Copy-Pasteable Recipes**: End-to-end examples for AI model gateways, API key enforcement, SharedFlow bundles, and GitOps migrations.
+* **Template Repository**: Browse pre-built templates and features in the [apigee-template-repository](https://github.com/gcp-samples/apigee-template-repository). You can also set your own repository with the `AFT_REPOSITORY` environment variable (use the same directory format as the sample repository). If you ever reference a template, feature or proxy without a file path, it will be looked up in the repository as either a YAML or JSON file.
 
 ## Install the CLI
 
