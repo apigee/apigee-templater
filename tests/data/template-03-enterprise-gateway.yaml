@@ -23,10 +23,6 @@ targets:
     url: https://customers.internal.enterprise.com
   - name: orders-target
     url: https://orders.internal.enterprise.com
-products:
-  - product-03-enterprise-suite.yaml
-users:
-  - user-02-partner.yaml
 tests:
   - name: "CORS Preflight Test"
     path: /v1/enterprise/customers

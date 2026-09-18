@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: deployment-sample
+type: deployment
+description: Sample deployment referencing template, product, and user
+templates:
+  - template-01-basic-api.yaml
+products:
+  - product-01-standard-api.yaml
+users:
+  - user-01-developer.yaml

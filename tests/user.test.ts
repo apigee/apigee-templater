@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { ApigeeConverter } from "../src/lib/converter.js";
 import { ApigeeTemplaterService } from "../src/lib/service.js";
-import { User, Users, Template } from "../src/lib/interfaces.js";
+import { User, Users, Template, Deployment } from "../src/lib/interfaces.js";
 import Ajv from "ajv";
 import parseYaml from "yaml";
 import fs from "fs";
@@ -243,32 +243,26 @@ describe("User data type and operations", () => {
     }
   });
 
-  it("should support Template with products and users string arrays", () => {
-    const template: Template = {
-      name: "template-with-users-and-products",
-      type: "template",
+  it("should support Deployment with products and users string arrays", () => {
+    const deployment: Deployment = {
+      name: "deployment-with-users-and-products",
+      type: "deployment",
       gateway: "apigee",
       schemaVersion: "1.0.0",
-      features: ["feature-01-api-key-auth.yaml"],
+      templates: ["template-01-basic-api.yaml"],
       products: ["product-01-standard-api.yaml"],
       users: ["user-01-developer.yaml"],
-      endpoints: [
-        {
-          name: "default",
-          basePath: "/v1/test",
-        },
-      ],
     };
 
-    expect(template.users).toEqual(["user-01-developer.yaml"]);
-    expect(template.products).toEqual(["product-01-standard-api.yaml"]);
+    expect(deployment.users).toEqual(["user-01-developer.yaml"]);
+    expect(deployment.products).toEqual(["product-01-standard-api.yaml"]);
 
     const schemaContent = JSON.parse(
       fs.readFileSync(path.join(process.cwd(), "schema", "gateway.schema.1.0.json"), "utf8"),
     );
     const ajv = new Ajv({ strict: false, allErrors: true });
     const validate = ajv.compile(schemaContent);
-    const valid = validate(template);
+    const valid = validate(deployment);
     expect(valid).toBe(true);
   });
 });

@@ -21,10 +21,6 @@ endpoints:
 targets:
   - name: default
     url: https://mocktarget.apigee.net
-products:
-  - product-01-standard-api.yaml
-users:
-  - user-01-developer.yaml
 tests:
   - name: "Health Check"
     path: /v1/weather

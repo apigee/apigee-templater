@@ -8,7 +8,8 @@
     { "$ref": "#/definitions/Proxy" },
     { "$ref": "#/definitions/Template" },
     { "$ref": "#/definitions/Product" },
-    { "$ref": "#/definitions/User" }
+    { "$ref": "#/definitions/User" },
+    { "$ref": "#/definitions/Deployment" }
   ],
   "definitions": {
     "Step": {
@@ -272,6 +273,7 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
+        "displayName": { "type": "string" },
         "type": { "type": "string", "const": "template" },
         "gateway": { "type": "string" },
         "schemaVersion": { "type": "string" },
@@ -297,14 +299,6 @@
         "tests": {
           "type": "array",
           "items": { "$ref": "#/definitions/Test" }
-        },
-        "products": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "users": {
-          "type": "array",
-          "items": { "type": "string" }
         }
       },
       "required": ["name", "type", "gateway", "schemaVersion"],
@@ -463,6 +457,8 @@
         },
         "model": { "type": "string" },
         "quota": { "$ref": "#/definitions/ProductQuota" },
+        "llmTokenQuota": { "$ref": "#/definitions/ProductQuota" },
+        "tokenQuota": { "$ref": "#/definitions/ProductQuota" },
         "attributes": {
           "type": "array",
           "items": { "$ref": "#/definitions/ProductAttribute" }
@@ -479,6 +475,8 @@
           "items": { "$ref": "#/definitions/ProductLlmOperation" }
         },
         "quota": { "$ref": "#/definitions/ProductQuota" },
+        "llmTokenQuota": { "$ref": "#/definitions/ProductQuota" },
+        "tokenQuota": { "$ref": "#/definitions/ProductQuota" },
         "attributes": {
           "type": "array",
           "items": { "$ref": "#/definitions/ProductAttribute" }
@@ -785,6 +783,79 @@
         "apps": {
           "type": "array",
           "items": { "$ref": "#/definitions/UserApp" }
+        }
+      },
+      "required": ["name", "type", "gateway", "schemaVersion"],
+      "additionalProperties": false
+    },
+    "Deployment": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "displayName": { "type": "string" },
+        "uid": { "type": "string" },
+        "type": { "type": "string", "const": "deployment" },
+        "gateway": { "type": "string" },
+        "schemaVersion": { "type": "string" },
+        "priority": { "type": "number" },
+        "description": { "type": "string" },
+        "documentation": { "type": "string" },
+        "environments": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Parameter" }
+        },
+        "templates": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/definitions/Template" }
+            ]
+          }
+        },
+        "proxies": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/definitions/Proxy" }
+            ]
+          }
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/definitions/Feature" }
+            ]
+          }
+        },
+        "products": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/definitions/Product" }
+            ]
+          }
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/definitions/User" }
+            ]
+          }
+        },
+        "tests": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Test" }
         }
       },
       "required": ["name", "type", "gateway", "schemaVersion"],

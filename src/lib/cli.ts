@@ -22,7 +22,7 @@ import chalk from "chalk";
 import * as YAML from "yaml";
 import yauzl from "yauzl";
 import { ApigeeConverter } from "./converter.js";
-import { Proxy, Feature, Template, Product, Products, User, Users, ApigeeConfig } from "./interfaces.js";
+import { Proxy, Feature, Template, Product, Products, User, Users, Deployment, Deployments, ApigeeConfig } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 import { GoogleAuth } from "google-auth-library";
 import { version } from "./version.js";
@@ -1119,22 +1119,26 @@ export class cli {
       return;
     }
 
+    let deployment: Deployment | undefined = undefined;
     let template: Template | undefined = undefined;
     let proxy: Proxy | undefined = undefined;
     let feature: Feature | undefined = undefined;
     let product: Product | undefined = undefined;
     let user: User | undefined = undefined;
 
-    if (file && file["type"] === "template") template = file as Template;
+    if (file && file["type"] === "deployment") deployment = file as Deployment;
+    else if (file && file["type"] === "template") template = file as Template;
     else if (file && file["type"] === "proxy") proxy = file as Proxy;
     else if (file && file["type"] === "feature") feature = file as Feature;
     else if (file && file["type"] === "product") product = file as Product;
     else if (file && file["type"] === "user") user = file as User;
+    else if (file && options.format === "deployment") deployment = file as Deployment;
     else if (file && options.format === "template") template = file as Template;
     else if (file && options.format === "proxy") proxy = file as Proxy;
     else if (file && (options.format === "feature" || options.format === "sharedflow" || options.format === "sf")) feature = file as Feature;
     else if (file && options.format === "product") product = file as Product;
     else if (file && options.format === "user") user = file as User;
+    else if (file && (file["templates"] || file["deployments"])) deployment = file as Deployment;
     else if (file && file["endpoints"] && file["features"]) template = file as Template;
     else if (file && file["endpoints"]) proxy = file as Proxy;
     else if (file && file["features"]) template = file as Template;
@@ -1153,7 +1157,12 @@ export class cli {
     let title = "";
     let summaryLines: string[] = [];
 
-    if (template) {
+    if (deployment) {
+      deployment = this.converter.deploymentReset(deployment);
+      resetObject = deployment;
+      title = `Deployment ${deployment.name}`;
+      summaryLines = this.converter.deploymentToStringArray(deployment);
+    } else if (template) {
       template = this.converter.templateReset(template);
       resetObject = template;
       title = `Template ${template.name}`;
@@ -1341,6 +1350,7 @@ export class cli {
       this.startAnimation();
     }
 
+    let deployment: Deployment | undefined = undefined;
     let template: Template | undefined = undefined;
     let feature: Feature | undefined = undefined;
     let proxy: Proxy | undefined = undefined;
@@ -1363,7 +1373,10 @@ export class cli {
     if (!options.input && !options.organization) {
       // Create new template
       let basePath = options.basePath;
-      if (options.format == "feature") {
+      if (options.format == "deployment") {
+        deployment = new Deployment();
+        deployment.name = options.name;
+      } else if (options.format == "feature") {
         feature = new Feature();
         feature.name = options.name;
       } else if (options.format == "product") {
@@ -1506,8 +1519,9 @@ export class cli {
 
         if (proxy && !proxy.description) proxy.description = "Proxy for " + proxy.name;
 
-        if (!options.output && !options.organization && (product || user || proxy || feature)) {
-          if (product) options.output = (product.name || resourceName) + ".yaml";
+        if (!options.output && !options.organization && (deployment || product || user || proxy || feature)) {
+          if (deployment) options.output = (deployment.name || resourceName) + ".yaml";
+          else if (product) options.output = (product.name || resourceName) + ".yaml";
           else if (user) options.output = (user.name || user.email || resourceName) + ".yaml";
           else if (feature) options.output = (feature.name || resourceName) + ".yaml";
           else if (proxy) options.output = (proxy.name || resourceName) + ".yaml";
@@ -1530,16 +1544,19 @@ export class cli {
       } else if (options.input && fs.existsSync(options.input)) {
         templateDir = path.dirname(path.resolve(options.input));
         let file = await this.loadFile(options.name, options.input);
-        if (file && file["type"] === "template") template = file as Template;
+        if (file && file["type"] === "deployment") deployment = file as Deployment;
+        else if (file && file["type"] === "template") template = file as Template;
         else if (file && file["type"] === "proxy") proxy = file as Proxy;
         else if (file && file["type"] === "feature") feature = file as Feature;
         else if (file && file["type"] === "product") product = file as Product;
         else if (file && file["type"] === "user") user = file as User;
+        else if (file && options.format === "deployment") deployment = file as Deployment;
         else if (file && options.format === "template") template = file as Template;
         else if (file && options.format === "proxy") proxy = file as Proxy;
         else if (file && (options.format === "feature" || options.format === "sharedflow" || options.format === "sf")) feature = file as Feature;
         else if (file && options.format === "product") product = file as Product;
         else if (file && options.format === "user") user = file as User;
+        else if (file && (file["templates"] || file["deployments"])) deployment = file as Deployment;
         else if (file && file["endpoints"] && file["features"]) template = file as Template;
         else if (file && file["endpoints"]) proxy = file as Proxy;
         else if (file && file["features"]) template = file as Template;
@@ -1561,16 +1578,19 @@ export class cli {
           options.input.toLowerCase().startsWith("http://")
         ) {
           let file = await this.loadRemoteFile(options.input);
-          if (file && file["type"] === "template") template = file as Template;
+          if (file && file["type"] === "deployment") deployment = file as Deployment;
+          else if (file && file["type"] === "template") template = file as Template;
           else if (file && file["type"] === "proxy") proxy = file as Proxy;
           else if (file && file["type"] === "feature") feature = file as Feature;
           else if (file && file["type"] === "product") product = file as Product;
           else if (file && file["type"] === "user") user = file as User;
+          else if (file && options.format === "deployment") deployment = file as Deployment;
           else if (file && options.format === "template") template = file as Template;
           else if (file && options.format === "proxy") proxy = file as Proxy;
           else if (file && (options.format === "feature" || options.format === "sharedflow" || options.format === "sf")) feature = file as Feature;
           else if (file && options.format === "product") product = file as Product;
           else if (file && options.format === "user") user = file as User;
+          else if (file && (file["templates"] || file["deployments"])) deployment = file as Deployment;
           else if (file && file["endpoints"] && file["features"]) template = file as Template;
           else if (file && file["endpoints"]) proxy = file as Proxy;
           else if (file && file["features"]) template = file as Template;
@@ -1578,7 +1598,9 @@ export class cli {
           else if (file && (file["approvalType"] || file["operationGroup"])) product = file as Product;
           else if (file && (file["email"] || file["developerId"])) user = file as User;
         } else {
-          if (options.format == "template") {
+          if (options.format == "deployment") {
+            deployment = await this.apigeeService.deploymentGet(options.input);
+          } else if (options.format == "template") {
             template = await this.apigeeService.templateGet(options.input);
           } else if (
             options.format == "feature" ||
@@ -1593,13 +1615,15 @@ export class cli {
           } else {
             let resolved = await this.apigeeService.repositoryGet(options.input);
             if (resolved) {
-              if (resolved.type === "template") template = resolved.data as Template;
+              if (resolved.type === "deployment") deployment = resolved.data as Deployment;
+              else if (resolved.type === "template") template = resolved.data as Template;
+              else if (resolved.type === "proxy") proxy = resolved.data as Proxy;
               else if (resolved.type === "feature") feature = resolved.data as Feature;
               else if (resolved.type === "product") product = resolved.data as Product;
               else if (resolved.type === "user") user = resolved.data as User;
             }
           }
-          if (!template && !proxy && !feature && !product && !user && options.organization) {
+          if (!deployment && !template && !proxy && !feature && !product && !user && options.organization) {
             // Fallback: Check if resource exists in the Apigee organization
             await fetchResourceFromApigee(options.organization, options.input);
           }
@@ -1607,6 +1631,9 @@ export class cli {
       }
     }
 
+    if (deployment && !deployment.name && options.input) {
+      deployment.name = path.basename(options.input).replace(/\.(yaml|yml|json)$/i, "");
+    }
     if (template && !template.name && options.input) {
       template.name = path.basename(options.input).replace(/\.(yaml|yml|json)$/i, "");
     }
@@ -1631,7 +1658,9 @@ export class cli {
     if (options.command === "describe") {
       process.chdir(startDir);
       await this.stopAnimation();
-      if (template) {
+      if (deployment) {
+        await this.printOverviewCard(`Deployment ${deployment.name}`, this.converter.deploymentToStringArray(deployment));
+      } else if (template) {
         await this.printOverviewCard(`Template ${template.name}`, this.converter.templateToStringArray(template));
       } else if (proxy) {
         await this.printOverviewCard(`Proxy ${proxy.name}`, this.converter.proxyToStringArray(proxy));
@@ -1650,7 +1679,7 @@ export class cli {
       return;
     }
 
-    if (!template && !proxy && !feature && !product && !user) {
+    if (!deployment && !template && !proxy && !feature && !product && !user) {
       if (!options.token) {
         let token = await auth.getAccessToken();
         if (token) options.token = token;
@@ -1964,7 +1993,9 @@ export class cli {
       }
 
       // Determine output format
-      if (proxy) {
+      if (deployment) {
+        if (!options.format) options.format = "deployment";
+      } else if (proxy) {
         if (!options.format) options.format = "proxy";
       } else if (template) {
         if (!options.format) options.format = "template";
@@ -1975,6 +2006,7 @@ export class cli {
       } else if (user) {
         if (!options.format || options.format === "proxy") options.format = "user";
       } else {
+        process.chdir(startDir);
         console.log(
           `  ${chalk.red.bold("✖ Input '" + options.input + "' could not be loaded. Please check spelling or path.")}`,
         );
@@ -2002,59 +2034,88 @@ export class cli {
           if (token) options.token = token;
         }
 
-        if (template || options.format === "template") {
+        if (deployment || options.format === "deployment") {
+          let resolved = deployment
+            ? await this.apigeeService.deploymentResolveAssets(deployment, templateDir)
+            : { templates: [], proxies: [], features: [], products: [], users: [] };
+
           // 1. Delete Users first
-          if (template && template.users && template.users.length > 0) {
-            for (let userItem of template.users) {
-              let userObj = await this.apigeeService.loadUser(userItem, templateDir);
-              if (userObj) {
-                this.converter.userUpdateParameters(userObj, inputParameters);
-                const userKey = userObj.email || userObj.name;
-                let del = await this.apigeeService.apigeeUserDelete(
-                  userKey,
-                  org,
-                  options.drz,
-                  "Bearer " + options.token,
-                );
-                if (del) {
-                  console.log(
-                    `  ${chalk.green.bold("✔")} Deleted User: ${chalk.cyan(userKey)} from org ${chalk.cyan(org)}`,
-                  );
-                } else {
-                  console.log(
-                    `  ${chalk.yellow.bold("⚠")} Could not delete User: ${chalk.cyan(userKey)}`,
-                  );
-                }
-              }
+          for (let userObj of resolved.users) {
+            this.converter.userUpdateParameters(userObj, inputParameters);
+            const userKey = userObj.email || userObj.name;
+            let del = await this.apigeeService.apigeeUserDelete(
+              userKey,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted User: ${chalk.cyan(userKey)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete User: ${chalk.cyan(userKey)}`,
+              );
             }
           }
 
           // 2. Delete Products second
-          if (template && template.products && template.products.length > 0) {
-            for (let prodItem of template.products) {
-              let prodObj = await this.apigeeService.loadProduct(prodItem, templateDir);
-              if (prodObj) {
-                this.converter.productUpdateParameters(prodObj, inputParameters);
-                let del = await this.apigeeService.apigeeProductDelete(
-                  prodObj.name,
-                  org,
-                  options.drz,
-                  "Bearer " + options.token,
-                );
-                if (del) {
-                  console.log(
-                    `  ${chalk.green.bold("✔")} Deleted Product: ${chalk.cyan(prodObj.name)} from org ${chalk.cyan(org)}`,
-                  );
-                } else {
-                  console.log(
-                    `  ${chalk.yellow.bold("⚠")} Could not delete Product: ${chalk.cyan(prodObj.name)}`,
-                  );
-                }
-              }
+          for (let prodObj of resolved.products) {
+            this.converter.productUpdateParameters(prodObj, inputParameters);
+            let del = await this.apigeeService.apigeeProductDelete(
+              prodObj.name,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Product: ${chalk.cyan(prodObj.name)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Product: ${chalk.cyan(prodObj.name)}`,
+              );
             }
           }
 
-          // 3. Delete Proxy third
+          // 3. Delete Proxies and Templates
+          for (let proxyObj of resolved.proxies) {
+            let del = await this.apigeeService.apigeeProxyDelete(
+              proxyObj.name,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Proxy: ${chalk.cyan(proxyObj.name)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Proxy: ${chalk.cyan(proxyObj.name)}`,
+              );
+            }
+          }
+          for (let tmplObj of resolved.templates) {
+            let del = await this.apigeeService.apigeeProxyDelete(
+              tmplObj.name,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Template Proxy: ${chalk.cyan(tmplObj.name)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Template Proxy: ${chalk.cyan(tmplObj.name)}`,
+              );
+            }
+          }
+        } else if (template || options.format === "template") {
           const proxyName = options.name || (template ? template.name : "");
           if (proxyName) {
             let del = await this.apigeeService.apigeeProxyDelete(
@@ -2155,7 +2216,152 @@ export class cli {
       }
 
       // WRITE OUTPUT
-      if (product || (options.output && options.format == "product")) {
+      if (deployment || (options.output && options.format == "deployment")) {
+        process.chdir(startDir);
+        if (deployment) {
+          if (options.name && !deployment.name) deployment.name = options.name;
+          this.converter.deploymentUpdateParameters(deployment, inputParameters);
+
+          let pieces =
+            options.output && options.output.includes(":") ? options.output.split(":") : [];
+          let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
+          if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+            org = options.output;
+          }
+          let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
+          let rawSa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+          let sa = this.formatServiceAccount(rawSa, org);
+          if (sa) options.serviceAccount = sa;
+
+          if (options.output && options.output.toLowerCase().endsWith(".json")) {
+            fs.writeFileSync(options.output, JSON.stringify(deployment, null, 2));
+          } else if (
+            options.output &&
+            (options.output.toLowerCase().endsWith(".yaml") ||
+              options.output.toLowerCase().endsWith(".yml"))
+          ) {
+            fs.writeFileSync(
+              options.output,
+              YAML.stringify(deployment, {
+                aliasDuplicateObjects: false,
+                blockQuote: "literal",
+              }),
+            );
+          } else if (
+            (options.output && options.output.includes(":")) ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
+            if (!options.token) {
+              let token = await auth.getAccessToken();
+              if (token) options.token = token;
+            }
+
+            const resolved = await this.apigeeService.deploymentResolveAssets(deployment, templateDir);
+
+            // 1. Export & deploy proxies from templates
+            for (let t of resolved.templates) {
+              let tProxy = await this.apigeeService.templateObjectToProxy(
+                t,
+                this.converter,
+                inputParameters,
+                templateDir,
+              );
+              if (tProxy) {
+                let zipPath = await this.converter.proxyToApigeeZip(tProxy);
+                let lastRev = await this.apigeeService.apigeeProxyExport(
+                  tProxy.name,
+                  zipPath,
+                  org,
+                  options.drz,
+                  "Bearer " + options.token,
+                );
+                if (env && lastRev) {
+                  await this.apigeeService.apigeeProxyRevisionDeploy(
+                    tProxy.name,
+                    lastRev,
+                    sa,
+                    env,
+                    org,
+                    options.drz,
+                    "Bearer " + options.token,
+                  );
+                }
+                if (fs.existsSync(zipPath)) fs.rmSync(zipPath);
+              }
+            }
+
+            // 2. Export & deploy direct proxies
+            for (let p of resolved.proxies) {
+              this.converter.proxyUpdateParameters(p, inputParameters);
+              let zipPath = await this.converter.proxyToApigeeZip(p);
+              let lastRev = await this.apigeeService.apigeeProxyExport(
+                p.name,
+                zipPath,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+              if (env && lastRev) {
+                await this.apigeeService.apigeeProxyRevisionDeploy(
+                  p.name,
+                  lastRev,
+                  sa,
+                  env,
+                  org,
+                  options.drz,
+                  "Bearer " + options.token,
+                );
+              }
+              if (fs.existsSync(zipPath)) fs.rmSync(zipPath);
+            }
+
+            // 3. Export products
+            for (let prod of resolved.products) {
+              this.converter.productUpdateParameters(prod, inputParameters);
+              if (env && prod.environments && !prod.environments.includes(env)) {
+                prod.environments.push(env);
+              } else if (env && !prod.environments) {
+                prod.environments = [env];
+              }
+              await this.apigeeService.apigeeProductExport(
+                prod,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+            }
+
+            // 4. Export users
+            for (let u of resolved.users) {
+              this.converter.userUpdateParameters(u, inputParameters);
+              await this.apigeeService.apigeeUserExport(
+                u,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+            }
+          }
+
+          let displayDestination = options.output;
+          if (
+            !displayDestination ||
+            !displayDestination.match(/\.(yaml|yml|json|zip|dir)$/i)
+          ) {
+            displayDestination = [org, options.name || deployment.name, env]
+              .filter(Boolean)
+              .join(":");
+          }
+
+          await this.printOverviewCard(
+            `Deployment ${deployment.name}`,
+            this.converter.deploymentToStringArray(deployment),
+            displayDestination || options.output,
+          );
+        }
+        return;
+      } else if (product || (options.output && options.format == "product")) {
         process.chdir(startDir);
         if (product) {
           if (options.name && !product.name) product.name = options.name;
@@ -2340,6 +2546,7 @@ export class cli {
             template,
             this.converter,
             inputParameters,
+            templateDir,
           );
         } else if (feature) {
           proxy = this.converter.featureToProxy(feature, inputParameters);
@@ -2492,8 +2699,6 @@ export class cli {
 
         process.chdir(startDir);
         if (proxy) {
-          let deployedProducts: Product[] = [];
-          let deployedUsers: User[] = [];
           if (options.name) proxy.name = options.name;
           if (options.output && options.output.toLowerCase().endsWith(".json")) {
             if (path.dirname(options.output) && !fs.existsSync(path.dirname(options.output))) {
@@ -2562,73 +2767,6 @@ export class cli {
                 );
                 if (!deployResult) throw new Error("Proxy could not be deployed.");
               }
-
-              if (org && template && template.products && template.products.length > 0) {
-                for (let prodItem of template.products) {
-                  let prodObj: Product | undefined = await this.apigeeService.loadProduct(
-                    prodItem,
-                    templateDir,
-                  );
-                  if (prodObj) {
-                    this.converter.productUpdateParameters(prodObj, inputParameters);
-                    if (env && prodObj.environments && !prodObj.environments.includes(env)) {
-                      prodObj.environments.push(env);
-                    } else if (env && !prodObj.environments) {
-                      prodObj.environments = [env];
-                    }
-                    const proxyName = options.name || proxy.name;
-                    if (
-                      proxyName &&
-                      prodObj.proxies &&
-                      !prodObj.proxies.includes(proxyName)
-                    ) {
-                      prodObj.proxies.push(proxyName);
-                    }
-                    let exportResult = await this.apigeeService.apigeeProductExport(
-                      prodObj,
-                      org,
-                      options.drz,
-                      "Bearer " + options.token,
-                    );
-                    if (exportResult) {
-                      deployedProducts.push(prodObj);
-                    } else {
-                      throw new Error(`Product ${prodObj.name} could not be exported.`);
-                    }
-                  } else {
-                    console.log(
-                      `  ${chalk.yellow.bold("⚠ Warning: Could not resolve product:")} ${typeof prodItem === "string" ? prodItem : JSON.stringify(prodItem)}`,
-                    );
-                  }
-                }
-              }
-
-              if (org && template && template.users && template.users.length > 0) {
-                for (let userItem of template.users) {
-                  let userObj: User | undefined = await this.apigeeService.loadUser(
-                    userItem,
-                    templateDir,
-                  );
-                  if (userObj) {
-                    this.converter.userUpdateParameters(userObj, inputParameters);
-                    let exportResult = await this.apigeeService.apigeeUserExport(
-                      userObj,
-                      org,
-                      options.drz,
-                      "Bearer " + options.token,
-                    );
-                    if (exportResult) {
-                      deployedUsers.push(userObj);
-                    } else {
-                      throw new Error(`User ${userObj.name || userObj.email} could not be exported.`);
-                    }
-                  } else {
-                    console.log(
-                      `  ${chalk.yellow.bold("⚠ Warning: Could not resolve user:")} ${typeof userItem === "string" ? userItem : JSON.stringify(userItem)}`,
-                    );
-                  }
-                }
-              }
             } catch (ex: any) {
               if (fs.existsSync(outputPath)) fs.rmSync(outputPath);
               console.log(`  ${chalk.red.bold("✖ Error: " + (ex?.message || ex))}`);
@@ -2663,28 +2801,6 @@ export class cli {
             this.converter.proxyToStringArray(proxy),
             displayDestination || options.output,
           );
-
-          if (deployedProducts && deployedProducts.length > 0) {
-            for (let prod of deployedProducts) {
-              let prodDest = [org, prod.name, env].filter(Boolean).join(":");
-              await this.printOverviewCard(
-                `Product ${prod.name}`,
-                this.converter.productToStringArray(prod),
-                prodDest,
-              );
-            }
-          }
-
-          if (deployedUsers && deployedUsers.length > 0) {
-            for (let usr of deployedUsers) {
-              let userDest = [org, usr.name || usr.email].filter(Boolean).join(":");
-              await this.printOverviewCard(
-                `User ${usr.name || usr.email}`,
-                this.converter.userToStringArray(usr),
-                userDest,
-              );
-            }
-          }
         } else {
           console.log(`  ${chalk.red.bold("✖ Error: Could not create proxy.")}`);
           return;

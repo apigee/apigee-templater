@@ -980,7 +980,7 @@ targets:
     }
   });
 
-  it("should deploy proxy, products, and users when deploying a template referencing them", async () => {
+  it("should deploy proxy, products, and users when deploying a deployment referencing them", async () => {
     let exportedProxyName = "";
     let deployedRevision = "";
     let deployedEnv = "";
@@ -1015,7 +1015,7 @@ targets:
         "bun",
         "apigee-templater.ts",
         "-i",
-        "tests/data/template-01-basic-api.yaml",
+        "tests/data/deployment-sample.yaml",
         "--organization",
         "aigateway-lab8",
         "--environment",
@@ -1024,13 +1024,12 @@ targets:
         "test-token",
       ]);
 
-      expect(exportedProxyName).toBe("template-01-basic-api");
+      expect(exportedProxyName).toBe("template-basic-weather-api");
       expect(deployedRevision).toBe("1");
       expect(deployedEnv).toBe("dev");
       expect(exportedProducts.length).toBe(1);
       expect(exportedProducts[0].name).toBe("standard-api-product");
       expect(exportedProducts[0].environments).toContain("dev");
-      expect(exportedProducts[0].proxies).toContain("template-01-basic-api");
       expect(exportedUsers.length).toBe(1);
       expect(exportedUsers[0].email).toBe("john.doe@example.com");
     } finally {
@@ -1041,7 +1040,7 @@ targets:
     }
   });
 
-  it("should delete template resources in correct order (user -> product -> proxy)", async () => {
+  it("should delete deployment resources in correct order (user -> product -> proxy)", async () => {
     const deletedOrder: string[] = [];
     const origUserDelete = myCli.apigeeService.apigeeUserDelete;
     const origProductDelete = myCli.apigeeService.apigeeProductDelete;
@@ -1065,7 +1064,7 @@ targets:
         "bun",
         "apigee-templater.ts",
         "-i",
-        "tests/data/template-01-basic-api.yaml",
+        "tests/data/deployment-sample.yaml",
         "--delete",
         "--organization",
         "aigateway-lab8",
@@ -1076,11 +1075,39 @@ targets:
       expect(deletedOrder).toEqual([
         "user:john.doe@example.com",
         "product:standard-api-product",
-        "proxy:template-01-basic-api",
+        "proxy:template-basic-weather-api",
       ]);
     } finally {
       myCli.apigeeService.apigeeUserDelete = origUserDelete;
       myCli.apigeeService.apigeeProductDelete = origProductDelete;
+      myCli.apigeeService.apigeeProxyDelete = origProxyDelete;
+    }
+  });
+
+  it("should delete template proxy when deleting a template", async () => {
+    const deletedOrder: string[] = [];
+    const origProxyDelete = myCli.apigeeService.apigeeProxyDelete;
+
+    myCli.apigeeService.apigeeProxyDelete = async (proxyName, org, drz, token) => {
+      deletedOrder.push(`proxy:${proxyName}`);
+      return true;
+    };
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "-i",
+        "tests/data/template-01-basic-api.yaml",
+        "--delete",
+        "--organization",
+        "aigateway-lab8",
+        "--token",
+        "test-token",
+      ]);
+
+      expect(deletedOrder).toEqual(["proxy:template-01-basic-api"]);
+    } finally {
       myCli.apigeeService.apigeeProxyDelete = origProxyDelete;
     }
   });

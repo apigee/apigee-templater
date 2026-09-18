@@ -21,8 +21,4 @@ endpoints:
 targets:
   - name: default
     url: https://generativelanguage.googleapis.com
-products:
-  - product-02-gemini-ai.yaml
-users:
-  - user-03-internal-apps.yaml
 

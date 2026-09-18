@@ -1,0 +1,147 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: deployment-01
+type: deployment
+templates:
+  - REST-AI-Completions.yaml
+products:
+- name: ai-starter-package
+  displayName: AI Starter Package
+  type: product
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: Starter tier for MCP & LLM Model access.
+  access: public
+  approvalType: auto
+  environments:
+    - default-dev
+  proxies:
+    - REST-Orders
+    - REST-AI-Completions
+    - MCP-CustomerService
+  apiResources: []
+  quota: "50000"
+  quotaInterval: "1"
+  quotaTimeUnit: month
+  scopes: []
+  operations:
+    - apiSource: REST-Orders
+      operations:
+        - name: /json
+          methods: []
+      quota: {}
+  llmOperations:
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: glm-5.2-maas
+      llmTokenQuota:
+        limit: "100"
+        interval: "1"
+        timeUnit: minute
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.8-flash
+      llmTokenQuota:
+        limit: "10000"
+        interval: "1"
+        timeUnit: minute
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.5-flash-lite
+      llmTokenQuota: {}
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: claude-sonnet-5
+      llmTokenQuota:
+        limit: "10000"
+        interval: "1"
+        timeUnit: hour
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: claude-opus-5
+      llmTokenQuota:
+        limit: "1000"
+        interval: "1"
+        timeUnit: hour
+  payloadOperations:
+    - apiSource: MCP-CustomerService
+      protocol: MCP
+      operations:
+        - name: tools/list
+    - apiSource: MCP-CustomerService
+      protocol: MCP
+      operations:
+        - name: tools/call/customers_list
+      quota:
+        limit: "10"
+        interval: "1"
+        timeUnit: minute
+  graphqlOperations: []
+  grpcOperations: []
+users:
+- name: test@example.com
+  displayName: ""
+  type: user
+  gateway: apigee
+  schemaVersion: 1.0.0
+  email: test@example.com
+  firstName: Test
+  lastName: User
+  userName: test@example.com
+  status: active
+  attributes: []
+  apps:
+    - name: Starter App
+      displayName: Starter App
+      description: ""
+      callbackUrl: ""
+      status: approved
+      products:
+        - ai-starter-package
+      scopes: []
+      attributes: []
+      credentials:
+        - consumerKey: starter-app-key-123
+          consumerSecret: starter-app-secret-123
+          status: approved
+          issuedAt: "1788775511054"
+          expiresAt: "-1"
+          products:
+            - ai-starter-package
+          scopes: []
+          attributes: []
+    - name: Premium App
+      displayName: Premium App
+      description: ""
+      callbackUrl: ""
+      status: approved
+      products:
+        - ai-premium-package
+      scopes: []
+      attributes: []
+      credentials:
+        - consumerKey: premium-app-key-123
+          consumerSecret: premium-app-secret-123
+          status: approved
+          issuedAt: "1788775546367"
+          expiresAt: "-1"
+          products:
+            - ai-premium-package
+          scopes: []
+          attributes: []

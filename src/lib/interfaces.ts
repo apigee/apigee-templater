@@ -16,8 +16,6 @@ export class Template {
   defaultTarget?: ProxyTarget;
   endpoints: Endpoint[] = [];
   targets: Target[] = [];
-  products?: (string | Product)[] = [];
-  users?: (string | User)[] = [];
   tests?: Test[] = [];
 }
 
@@ -376,4 +374,31 @@ export class User {
 }
 
 export class Users extends User {}
+
+export class Deployment {
+  constructor() {
+    this.gateway = "apigee";
+    this.schemaVersion = "1.0.0";
+  }
+  name: string = "";
+  displayName?: string = "";
+  yamlName?: string;
+  uid?: string;
+  type: string = "deployment";
+  gateway: string = "apigee";
+  schemaVersion: string = "1.0.0";
+  priority?: number;
+  description: string = "";
+  documentation?: string = "";
+  environments?: string[] = [];
+  parameters: Parameter[] = [];
+  templates?: (string | Template)[] = [];
+  proxies?: (string | Proxy)[] = [];
+  features?: (string | Feature)[] = [];
+  products?: (string | Product)[] = [];
+  users?: (string | User)[] = [];
+  tests?: Test[] = [];
+}
+
+export class Deployments extends Deployment {}
 

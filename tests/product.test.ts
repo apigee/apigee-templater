@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { ApigeeConverter } from "../src/lib/converter.js";
 import { ApigeeTemplaterService } from "../src/lib/service.js";
-import { Product, Products, Template } from "../src/lib/interfaces.js";
+import { Product, Products, Template, Deployment } from "../src/lib/interfaces.js";
 import Ajv from "ajv";
 import parseYaml from "yaml";
 import fs from "fs";
@@ -273,15 +273,14 @@ describe("Product data type and operations", () => {
     expect(fs.existsSync(path.join(tempDir, "unit-test-product.json"))).toBe(false);
   });
 
-  it("should support products array in Template", () => {
-    const template: Template = {
-      name: "sample-template",
-      type: "template",
+  it("should support products array in Deployment", () => {
+    const deployment: Deployment = {
+      name: "sample-deployment",
+      type: "deployment",
       gateway: "apigee",
       schemaVersion: "1.0.0",
-      description: "Template with products",
-      endpoints: [{ name: "default", basePath: "/v1/test" }],
-      targets: [{ name: "default", url: "https://mocktarget.apigee.net" }],
+      description: "Deployment with products",
+      templates: ["sample-template.yaml"],
       products: [
         "product-ref-1.yaml",
         {
@@ -297,12 +296,12 @@ describe("Product data type and operations", () => {
       ],
     };
 
-    expect(template.products?.length).toBe(2);
-    expect(template.products?.[0]).toBe("product-ref-1.yaml");
-    expect((template.products?.[1] as Product).name).toBe("inline-product");
+    expect(deployment.products?.length).toBe(2);
+    expect(deployment.products?.[0]).toBe("product-ref-1.yaml");
+    expect((deployment.products?.[1] as Product).name).toBe("inline-product");
   });
 
-  it("should validate Product and Template with products against schema 1.0", () => {
+  it("should validate Product and Deployment with products against schema 1.0", () => {
     const schema1Path = path.join(__dirname, "../schema/gateway.schema.1.0.json");
     const schema1Json = JSON.parse(fs.readFileSync(schema1Path, "utf-8"));
     const ajv = new Ajv({ allErrors: true, strict: false });
@@ -342,28 +341,24 @@ operations:
     }
     expect(isValidProduct).toBe(true);
 
-    const templateWithProductsYaml = `
+    const deploymentWithProductsYaml = `
 gateway: apigee
 schemaVersion: 1.0.0
-name: test-template
-type: template
-description: Template with product references
-endpoints:
-  - name: default
-    basePath: /v1/test
-targets:
-  - name: default
-    url: https://mocktarget.apigee.net
+name: test-deployment
+type: deployment
+description: Deployment with product references
+templates:
+  - test-template.yaml
 products:
   - test-product.yaml
   - other-product.yaml
 `;
-    const parsedTemplate = parseYaml.parse(templateWithProductsYaml);
-    const isValidTemplate = validate(parsedTemplate);
-    if (!isValidTemplate) {
-      console.error("Template validation errors:", validate.errors);
+    const parsedDeployment = parseYaml.parse(deploymentWithProductsYaml);
+    const isValidDeployment = validate(parsedDeployment);
+    if (!isValidDeployment) {
+      console.error("Deployment validation errors:", validate.errors);
     }
-    expect(isValidTemplate).toBe(true);
+    expect(isValidDeployment).toBe(true);
   });
 
   it("should convert MCP payloadOperations with per-tool quotas to Apigee format and validate against schema", () => {

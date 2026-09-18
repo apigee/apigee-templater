@@ -31,6 +31,8 @@ import {
   UserApp,
   UserCredential,
   UserAttribute,
+  Deployment,
+  Deployments,
 } from "./interfaces.js";
 
 export class ApigeeConverter {
@@ -3649,7 +3651,8 @@ export class ApigeeConverter {
         res = res
           .replaceAll("{" + key + "}", val)
           .replaceAll("%" + key + "%", val)
-          .replaceAll("${" + key + "}", val);
+          .replaceAll("${" + key + "}", val)
+          .replaceAll("$" + key, val);
       }
       return res;
     };
@@ -3868,7 +3871,8 @@ export class ApigeeConverter {
         res = res
           .replaceAll("{" + key + "}", val)
           .replaceAll("%" + key + "%", val)
-          .replaceAll("${" + key + "}", val);
+          .replaceAll("${" + key + "}", val)
+          .replaceAll("$" + key, val);
       }
       return res;
     };
@@ -3942,6 +3946,118 @@ export class ApigeeConverter {
 
   public userToString(user: User): string {
     return this.userToStringArray(user).join("\n");
+  }
+
+  public deploymentToStringArray(deployment: Deployment): string[] {
+    let result: string[] = [];
+    if (deployment.name) result.push(`Name: ${deployment.name}`);
+    if (deployment.displayName) result.push(`Display Name: ${deployment.displayName}`);
+    if (deployment.description) result.push(`Description: ${deployment.description}`);
+    if (deployment.environments && deployment.environments.length > 0)
+      result.push(`Environments: ${deployment.environments.join(", ")}`);
+    if (deployment.templates && deployment.templates.length > 0) {
+      const tNames = deployment.templates.map((t) => (typeof t === "string" ? t : t.name));
+      result.push(`Templates: ${tNames.join(", ")}`);
+    }
+    if (deployment.proxies && deployment.proxies.length > 0) {
+      const pNames = deployment.proxies.map((p) => (typeof p === "string" ? p : p.name));
+      result.push(`Proxies: ${pNames.join(", ")}`);
+    }
+    if (deployment.features && deployment.features.length > 0) {
+      const fNames = deployment.features.map((f) => (typeof f === "string" ? f : f.name));
+      result.push(`Features: ${fNames.join(", ")}`);
+    }
+    if (deployment.products && deployment.products.length > 0) {
+      const prodNames = deployment.products.map((p) => (typeof p === "string" ? p : p.name));
+      result.push(`Products: ${prodNames.join(", ")}`);
+    }
+    if (deployment.users && deployment.users.length > 0) {
+      const uNames = deployment.users.map((u) => (typeof u === "string" ? u : u.name || u.email));
+      result.push(`Users: ${uNames.join(", ")}`);
+    }
+    if (deployment.parameters && deployment.parameters.length > 0) {
+      result.push(`Parameters: ${deployment.parameters.map((p) => p.name).join(", ")}`);
+    }
+    return result;
+  }
+
+  public deploymentToString(deployment: Deployment): string {
+    return this.deploymentToStringArray(deployment).join("\n");
+  }
+
+  public deploymentUpdateParameters(
+    deployment: Deployment,
+    parameters?: { [key: string]: string },
+  ) {
+    if (!parameters || Object.keys(parameters).length === 0) return;
+
+    const replaceStr = (str: string): string => {
+      let res = str;
+      for (const [k, v] of Object.entries(parameters)) {
+        res = res
+          .replaceAll("{" + k + "}", v)
+          .replaceAll("%" + k + "%", v)
+          .replaceAll("${" + k + "}", v)
+          .replaceAll("$" + k, v);
+      }
+      return res;
+    };
+
+    if (deployment.name) deployment.name = replaceStr(deployment.name);
+    if (deployment.displayName) deployment.displayName = replaceStr(deployment.displayName);
+    if (deployment.description) deployment.description = replaceStr(deployment.description);
+    if (deployment.environments) {
+      deployment.environments = deployment.environments.map(replaceStr);
+    }
+    if (deployment.templates) {
+      deployment.templates = deployment.templates.map((t) => {
+        if (typeof t === "string") return replaceStr(t);
+        if (t.name) t.name = replaceStr(t.name);
+        if (t.displayName) t.displayName = replaceStr(t.displayName);
+        if (t.description) t.description = replaceStr(t.description);
+        this.templateUpdateParameters(t, parameters);
+        return t;
+      });
+    }
+    if (deployment.proxies) {
+      deployment.proxies = deployment.proxies.map((p) => {
+        if (typeof p === "string") return replaceStr(p);
+        if (p.name) p.name = replaceStr(p.name);
+        if (p.displayName) p.displayName = replaceStr(p.displayName);
+        if (p.description) p.description = replaceStr(p.description);
+        this.proxyUpdateParameters(p, parameters);
+        return p;
+      });
+    }
+    if (deployment.features) {
+      deployment.features = deployment.features.map((f) => {
+        if (typeof f === "string") return replaceStr(f);
+        if (f.name) f.name = replaceStr(f.name);
+        if (f.displayName) f.displayName = replaceStr(f.displayName);
+        if (f.description) f.description = replaceStr(f.description);
+        this.featureUpdateParameters(f, parameters);
+        return f;
+      });
+    }
+    if (deployment.products) {
+      deployment.products = deployment.products.map((p) => {
+        if (typeof p === "string") return replaceStr(p);
+        this.productUpdateParameters(p, parameters);
+        return p;
+      });
+    }
+    if (deployment.users) {
+      deployment.users = deployment.users.map((u) => {
+        if (typeof u === "string") return replaceStr(u);
+        this.userUpdateParameters(u, parameters);
+        return u;
+      });
+    }
+  }
+
+  public deploymentReset(deployment: Deployment): Deployment {
+    const clone: Deployment = JSON.parse(JSON.stringify(deployment));
+    return clone;
   }
 }
 
