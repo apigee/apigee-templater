@@ -1961,9 +1961,11 @@ export class cli {
           if (template) {
             let templateFeatures: Feature[] = [];
             const relDir = options.input ? path.dirname(options.input) : undefined;
-            for (let featurePath of template.features) {
-              let tempFeature = await this.apigeeService.featureGet(featurePath, relDir);
-              if (tempFeature) templateFeatures.push(tempFeature);
+            if (template.features && Array.isArray(template.features)) {
+              for (let featurePath of template.features) {
+                let tempFeature = await this.apigeeService.featureGet(featurePath, relDir);
+                if (tempFeature) templateFeatures.push(tempFeature);
+              }
             }
 
             let relativePath = featName;
@@ -2112,6 +2114,23 @@ export class cli {
             } else {
               console.log(
                 `  ${chalk.yellow.bold("⚠")} Could not delete Template Proxy: ${chalk.cyan(tmplObj.name)}`,
+              );
+            }
+          }
+          for (let featObj of resolved.features) {
+            let del = await this.apigeeService.apigeeProxyDelete(
+              featObj.name,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Feature Proxy: ${chalk.cyan(featObj.name)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Feature Proxy: ${chalk.cyan(featObj.name)}`,
               );
             }
           }
@@ -2316,13 +2335,39 @@ export class cli {
               if (fs.existsSync(zipPath)) fs.rmSync(zipPath);
             }
 
-            // 3. Export products
+            // 3. Export & deploy direct features
+            for (let f of resolved.features) {
+              let fProxy = this.converter.featureToProxy(f, inputParameters);
+              let zipPath = await this.converter.proxyToApigeeZip(fProxy);
+              let lastRev = await this.apigeeService.apigeeProxyExport(
+                fProxy.name,
+                zipPath,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+              if (env && lastRev) {
+                await this.apigeeService.apigeeProxyRevisionDeploy(
+                  fProxy.name,
+                  lastRev,
+                  sa,
+                  env,
+                  org,
+                  options.drz,
+                  "Bearer " + options.token,
+                );
+              }
+              if (fs.existsSync(zipPath)) fs.rmSync(zipPath);
+            }
+
+            // 4. Export products
             for (let prod of resolved.products) {
               this.converter.productUpdateParameters(prod, inputParameters);
-              if (env && prod.environments && !prod.environments.includes(env)) {
-                prod.environments.push(env);
-              } else if (env && !prod.environments) {
-                prod.environments = [env];
+              const targetEnv = options.environment || env;
+              if (targetEnv) {
+                prod.environments = targetEnv.includes(",")
+                  ? targetEnv.split(",").map((e: string) => e.trim()).filter(Boolean)
+                  : [targetEnv.trim()];
               }
               await this.apigeeService.apigeeProductExport(
                 prod,
@@ -2398,10 +2443,11 @@ export class cli {
               let token = await auth.getAccessToken();
               if (token) options.token = token;
             }
-            if (env && product.environments && !product.environments.includes(env)) {
-              product.environments.push(env);
-            } else if (env && !product.environments) {
-              product.environments = [env];
+            const targetEnv = options.environment || env;
+            if (targetEnv) {
+              product.environments = targetEnv.includes(",")
+                ? targetEnv.split(",").map((e: string) => e.trim()).filter(Boolean)
+                : [targetEnv.trim()];
             }
             if (org) {
               let exportResult = await this.apigeeService.apigeeProductExport(

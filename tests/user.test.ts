@@ -265,4 +265,114 @@ describe("User data type and operations", () => {
     const valid = validate(deployment);
     expect(valid).toBe(true);
   });
+
+  it("should overwrite credential if already exists and ignore conflict in apigeeUserExport", async () => {
+    const originalFetch = globalThis.fetch;
+    const deletedUrls: string[] = [];
+    const postedUrls: string[] = [];
+
+    globalThis.fetch = (async (url: any, init?: any) => {
+      const urlStr = String(url);
+      const method = init?.method || "GET";
+
+      if (urlStr.includes("/developers/test%40example.com/apps/starter-app/keys/starter-key")) {
+        if (method === "GET") {
+          return new Response(JSON.stringify({ consumerKey: "starter-key" }), { status: 200 });
+        }
+        if (method === "DELETE") {
+          deletedUrls.push(urlStr);
+          return new Response("", { status: 200 });
+        }
+        if (method === "POST") {
+          // association
+          return new Response(JSON.stringify({ status: "approved" }), { status: 200 });
+        }
+      }
+
+      if (urlStr.endsWith("/keys/create") && method === "POST") {
+        postedUrls.push(urlStr);
+        return new Response(JSON.stringify({ consumerKey: "starter-key" }), { status: 201 });
+      }
+
+      // Default 200 for dev and app checks
+      return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    }) as any;
+
+    try {
+      const user = {
+        name: "test-user",
+        email: "test@example.com",
+        apps: [
+          {
+            name: "starter-app",
+            credentials: [
+              {
+                consumerKey: "starter-key",
+                consumerSecret: "starter-secret",
+                products: ["ai-product"],
+              },
+            ],
+          },
+        ],
+      };
+
+      const result = await service.apigeeUserExport(user, "test-org", "", "Bearer token");
+      expect(result).toBe(true);
+      expect(deletedUrls.length).toBe(1);
+      expect(postedUrls.length).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("should ignore credential error if it already exists (409) in apigeeUserExport", async () => {
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (url: any, init?: any) => {
+      const urlStr = String(url);
+      const method = init?.method || "GET";
+
+      if (urlStr.includes("/developers/test2%40example.com/apps/starter-app/keys/existing-key")) {
+        if (method === "GET") {
+          return new Response("Not found", { status: 404 });
+        }
+        if (method === "DELETE") {
+          return new Response("Forbidden", { status: 403 });
+        }
+        if (method === "POST") {
+          return new Response(JSON.stringify({ status: "approved" }), { status: 200 });
+        }
+      }
+
+      if (urlStr.endsWith("/keys/create") && method === "POST") {
+        return new Response(JSON.stringify({ message: "ConsumerKeyAlreadyExists" }), { status: 409 });
+      }
+
+      return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    }) as any;
+
+    try {
+      const user = {
+        name: "test2-user",
+        email: "test2@example.com",
+        apps: [
+          {
+            name: "starter-app",
+            credentials: [
+              {
+                consumerKey: "existing-key",
+                consumerSecret: "existing-secret",
+                products: ["ai-product"],
+              },
+            ],
+          },
+        ],
+      };
+
+      const result = await service.apigeeUserExport(user, "test-org", "", "Bearer token");
+      expect(result).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

@@ -538,6 +538,9 @@ export class ApigeeTemplaterService {
                 if (!result.name) {
                   result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
                 }
+                if (!result.features) {
+                  result.features = [];
+                }
                 return resolve(result);
               }
             } catch (e) {}
@@ -558,6 +561,9 @@ export class ApigeeTemplaterService {
               result.name = fileStem;
               if (yamlName && yamlName !== fileStem) {
                 result.yamlName = yamlName;
+              }
+              if (!result.features) {
+                result.features = [];
               }
               return resolve(result);
             }
@@ -610,10 +616,13 @@ export class ApigeeTemplaterService {
   ): Promise<Template | undefined> {
     return new Promise(async (resolve) => {
       if (typeof templateRef === "object" && templateRef !== null) {
-        return resolve(templateRef as Template);
+        const tmpl = templateRef as Template;
+        if (!tmpl.features) tmpl.features = [];
+        return resolve(tmpl);
       }
       if (typeof templateRef === "string") {
         let res = await this.templateGet(templateRef, relativeDir);
+        if (res && !res.features) res.features = [];
         return resolve(res);
       }
       resolve(undefined);
@@ -1002,14 +1011,16 @@ export class ApigeeTemplaterService {
 
       if (template) {
         let features: Feature[] = [];
-        for (let templateFeature of template.features) {
-          let loadedFeature = await this.loadFeature(templateFeature, relativeDir);
-          if (loadedFeature) {
-            features.push(loadedFeature);
-          } else {
-            // abort, could not load feature
-            console.error(`Could not load feature ${templateFeature}.`);
-            resolve(undefined);
+        if (template.features && Array.isArray(template.features)) {
+          for (let templateFeature of template.features) {
+            let loadedFeature = await this.loadFeature(templateFeature, relativeDir);
+            if (loadedFeature) {
+              features.push(loadedFeature);
+            } else {
+              // abort, could not load feature
+              console.error(`Could not load feature ${templateFeature}.`);
+              resolve(undefined);
+            }
           }
         }
 
@@ -2659,23 +2670,93 @@ export class ApigeeTemplaterService {
             let key = cred.consumerKey || cred.key;
             let secret = cred.consumerSecret || cred.secret;
             if (key && secret) {
+              const keyUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}/apps/${encodeURIComponent(appName)}/keys/${encodeURIComponent(key)}`;
               const createKeyUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(email)}/apps/${encodeURIComponent(appName)}/keys/create`;
-              let keyResp = await fetch(
-                createKeyUrl,
-                {
-                  method: "POST",
-                  headers: {
-                    Authorization: token,
-                    "Content-Type": "application/json",
+
+              // First, check if the key already exists on this app
+              let checkKeyResp = await fetch(keyUrl, {
+                headers: { Authorization: token },
+              });
+
+              if (checkKeyResp.status === 200) {
+                // Key already exists: attempt overwrite by deleting existing key and recreating
+                try {
+                  const delResp = await fetch(keyUrl, {
+                    method: "DELETE",
+                    headers: { Authorization: token },
+                  });
+                  if (delResp.status === 200 || delResp.status === 204) {
+                    await fetch(createKeyUrl, {
+                      method: "POST",
+                      headers: {
+                        Authorization: token,
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        consumerKey: key,
+                        consumerSecret: secret,
+                      }),
+                    });
+                  }
+                } catch (e) {
+                  // Ignore error since it is ok if it already exists
+                }
+              } else {
+                // Key does not exist yet: create it
+                let keyResp = await fetch(
+                  createKeyUrl,
+                  {
+                    method: "POST",
+                    headers: {
+                      Authorization: token,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      consumerKey: key,
+                      consumerSecret: secret,
+                    }),
                   },
-                  body: JSON.stringify({
-                    consumerKey: key,
-                    consumerSecret: secret,
-                  }),
-                },
-              );
-              if (keyResp.status !== 200 && keyResp.status !== 201) {
-                await this.logApiError("app credential CREATE", createKeyUrl, keyResp);
+                );
+
+                if (keyResp.status !== 200 && keyResp.status !== 201) {
+                  let errText = "";
+                  try {
+                    errText = await keyResp.clone().text();
+                  } catch (e) {}
+
+                  const isAlreadyExists =
+                    keyResp.status === 409 ||
+                    errText.toLowerCase().includes("already exists") ||
+                    errText.toLowerCase().includes("conflict") ||
+                    errText.includes("ConsumerKeyAlreadyExists");
+
+                  if (isAlreadyExists) {
+                    // Attempt overwrite: delete and recreate
+                    try {
+                      const delResp = await fetch(keyUrl, {
+                        method: "DELETE",
+                        headers: { Authorization: token },
+                      });
+                      if (delResp.status === 200 || delResp.status === 204) {
+                        await fetch(createKeyUrl, {
+                          method: "POST",
+                          headers: {
+                            Authorization: token,
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({
+                            consumerKey: key,
+                            consumerSecret: secret,
+                          }),
+                        });
+                      }
+                    } catch (e) {
+                      // Ignore error since it is ok if it already exists
+                    }
+                  } else {
+                    await this.logApiError("app credential CREATE", createKeyUrl, keyResp);
+                  }
+                }
               }
 
               if (cred.products || cred.apiProducts) {
@@ -2694,7 +2775,18 @@ export class ApigeeTemplaterService {
                   },
                 );
                 if (assocResp.status !== 200 && assocResp.status !== 201) {
-                  await this.logApiError("app credential association", assocKeyUrl, assocResp);
+                  let assocErrText = "";
+                  try {
+                    assocErrText = await assocResp.clone().text();
+                  } catch (e) {}
+                  const isAlreadyAssoc =
+                    assocResp.status === 409 ||
+                    assocErrText.toLowerCase().includes("already exists") ||
+                    assocErrText.toLowerCase().includes("already associated") ||
+                    assocErrText.toLowerCase().includes("conflict");
+                  if (!isAlreadyAssoc) {
+                    await this.logApiError("app credential association", assocKeyUrl, assocResp);
+                  }
                 }
               }
             }

@@ -56,7 +56,7 @@ describe("Deployment data type, resolution, and operations", () => {
       description: "Deployment with both inline assets and string references",
       environments: ["dev", "prod"],
       templates: [
-        "tests/data/REST-AI-Completions.yaml",
+        "REST-AI-Completions.yaml",
         {
           name: "inline-template",
           type: "template",
@@ -146,6 +146,65 @@ describe("Deployment data type, resolution, and operations", () => {
     expect(resolved).toBeDefined();
     expect(resolved.templates.length).toBeGreaterThan(0);
     expect(resolved.templates[0].name).toBe("REST-AI-Completions");
+
+    // Verify converting template without features to proxy does not throw
+    const tProxy = await service.templateObjectToProxy(
+      resolved.templates[0],
+      converter,
+      {},
+      path.dirname(deploymentFile),
+    );
+    expect(tProxy).toBeDefined();
+    expect(tProxy!.name).toBe("REST-AI-Completions");
+    expect(tProxy!.endpoints.length).toBeGreaterThan(0);
+  });
+
+  it("should convert template object without features property to proxy cleanly", async () => {
+    const rawTemplate = {
+      name: "minimal-template",
+      type: "template",
+      endpoints: [
+        {
+          name: "default",
+          basePath: "/v1/minimal",
+          routes: [{ name: "default", target: "default" }],
+        },
+      ],
+      targets: [
+        {
+          name: "default",
+          url: "https://example.com",
+        },
+      ],
+    } as any;
+
+    const proxy = await service.templateObjectToProxy(rawTemplate, converter);
+    expect(proxy).toBeDefined();
+    expect(proxy!.name).toBe("minimal-template");
+    expect(proxy!.endpoints[0].basePath).toBe("/v1/minimal");
+  });
+
+  it("should safely add and remove features when template.features is initially undefined", () => {
+    const rawTemplate = {
+      name: "no-features-tmpl",
+      type: "template",
+      parameters: [],
+      endpoints: [],
+    } as any;
+
+    const mockFeature: Feature = {
+      name: "test-feature",
+      type: "feature",
+      parameters: [{ name: "PARAM_1", default: "default-val" }],
+      endpoints: [{ name: "feat-ep", basePath: "/feat" }],
+    };
+
+    const updated = converter.templateApplyFeature(rawTemplate, [mockFeature], "test-feature", mockFeature);
+    expect(updated.features).toBeDefined();
+    expect(updated.features).toContain("test-feature");
+
+    const removed = converter.templateRemoveFeature(updated, [mockFeature], "test-feature", mockFeature);
+    expect(removed.features).not.toContain("test-feature");
   });
 
   it("should resolve mixed inline objects and string references with deploymentResolveAssets", async () => {
@@ -155,7 +214,7 @@ describe("Deployment data type, resolution, and operations", () => {
       gateway: "apigee",
       schemaVersion: "1.0.0",
       templates: [
-        "tests/data/REST-AI-Completions.yaml",
+        "REST-AI-Completions.yaml",
         {
           name: "direct-template",
           type: "template",

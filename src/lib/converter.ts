@@ -1596,6 +1596,9 @@ export class ApigeeConverter {
       }
     }
 
+    if (!template.features) {
+      template.features = [];
+    }
     template.features.push(featurePath);
 
     // add parameters with feature name and uid if available
@@ -1616,6 +1619,9 @@ export class ApigeeConverter {
     removeFeaturePath: string,
     removeFeature: Feature,
   ): Template {
+    if (!template.features) {
+      template.features = [];
+    }
     let featureIndex = templateFeatures.findIndex((x) => x.name === removeFeature.name);
     let featurePathIndex = template.features.findIndex(
       (x) =>
