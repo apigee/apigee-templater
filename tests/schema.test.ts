@@ -122,4 +122,58 @@ policies:
       expect(valid).toBe(true);
     }
   });
+
+  it("should validate Test object with headers, queryParams, and variables as key-value objects", () => {
+    const schema1Path = join(__dirname, "../schema/gateway.schema.1.0.json");
+    const schema1Json = JSON.parse(readFileSync(schema1Path, "utf-8"));
+    const ajv1 = new Ajv({ allErrors: true, strict: false });
+    const validate1 = ajv1.compile(schema1Json);
+
+    const testYaml = `
+gateway: apigee
+schemaVersion: 1.0.0
+name: test-proxy
+type: proxy
+endpoints:
+  - name: default
+    basePath: /test
+tests:
+  - name: Sample Test
+    path: /test
+    method: GET
+    headers:
+      Authorization: Bearer token123
+      X-Custom-Header: "custom-val"
+    queryParams:
+      limit: 10
+      filter: active
+    variables:
+      expectedStatus: 200
+      userId: "user-1"
+    assertions:
+      - response.status == 200
+`;
+    const yamlData = parseYaml.parse(testYaml);
+    const valid = validate1(yamlData);
+    if (!valid) {
+      console.error("Validation errors for Test object:", validate1.errors);
+    }
+    expect(valid).toBe(true);
+
+    const invalidYaml = `
+gateway: apigee
+schemaVersion: 1.0.0
+name: test-proxy
+type: proxy
+endpoints:
+  - name: default
+    basePath: /test
+tests:
+  - name: Sample Test
+    headers:
+      - "Authorization: Bearer 123"
+`;
+    const invalidData = parseYaml.parse(invalidYaml);
+    expect(validate1(invalidData)).toBe(false);
+  });
 });

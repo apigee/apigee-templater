@@ -250,17 +250,14 @@
         "path": { "type": "string" },
         "method": { "type": "string" },
         "headers": {
-          "type": "array",
-          "items": { "type": "string" }
+          "type": "object"
         },
         "request": { "type": "string" },
         "queryParams": {
-          "type": "array",
-          "items": { "type": "string" }
+          "type": "object"
         },
         "variables": {
-          "type": "array",
-          "items": { "type": "string" }
+          "type": "object"
         },
         "assertions": {
           "type": "array",
