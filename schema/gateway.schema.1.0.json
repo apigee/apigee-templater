@@ -245,6 +245,7 @@
       "properties": {
         "name": { "type": "string" },
         "description": { "type": "string" },
+        "proxy": { "type": "string" },
         "url": { "type": "string" },
         "path": { "type": "string" },
         "method": { "type": "string" },
