@@ -6,6 +6,7 @@ import Ajv from "ajv";
 import parseYaml from "yaml";
 import fs from "fs";
 import path from "path";
+import { cli } from "../src/lib/cli.js";
 
 describe("Deployment data type, resolution, and operations", () => {
   const converter = new ApigeeConverter();
@@ -373,5 +374,209 @@ describe("Deployment data type, resolution, and operations", () => {
     const reset = converter.deploymentReset(deployment);
     expect(reset).toEqual(deployment);
     expect(reset).not.toBe(deployment); // Must be a clone
+  });
+
+  it("should convert product to Apigee emulator product format", () => {
+    const product: Product = {
+      name: "test-product",
+      displayName: "Test Product Display",
+      description: "Test Product Description",
+      quota: 100,
+      quotaInterval: "1",
+      quotaTimeUnit: "minute",
+      attributes: [{ name: "access", value: "public" }],
+    };
+
+    const emProduct = converter.productToApigeeEmulatorProduct(
+      product,
+      ["test-proxy"],
+      ["eval"],
+    );
+
+    expect(emProduct.name).toBe("test-product");
+    expect(emProduct.displayName).toBe("Test Product Display");
+    expect(emProduct.approvalType).toBe("auto");
+    expect(emProduct.environments).toEqual(["eval"]);
+    expect(emProduct.proxies).toEqual(["test-proxy"]);
+    expect(emProduct.apiResources).toEqual(["/", "/*", "/**"]);
+    expect(emProduct.quota).toBe("100");
+  });
+
+  it("should convert user to Apigee emulator apps format with credentials", () => {
+    const user: User = {
+      name: "dev-user",
+      email: "dev@example.com",
+      userName: "devuser",
+      apps: [
+        {
+          name: "dev-app",
+          displayName: "Developer App",
+          products: ["test-product"],
+          credentials: [
+            {
+              consumerKey: "test-key-123",
+              consumerSecret: "test-secret-456",
+            },
+          ],
+        },
+      ],
+    };
+
+    const emApps = converter.userToApigeeEmulatorApps(user);
+    expect(emApps.length).toBe(1);
+    expect(emApps[0].name).toBe("dev-app");
+    expect(emApps[0].developerEmail).toBe("dev@example.com");
+    expect(emApps[0].expiryType).toBe("never");
+    expect(emApps[0].credentials.length).toBe(1);
+    expect(emApps[0].credentials[0].consumerKey).toBe("test-key-123");
+    expect(emApps[0].credentials[0].consumerSecret).toBe("test-secret-456");
+    expect(emApps[0].credentials[0].status).toBe("approved");
+    expect(emApps[0].credentials[0].apiProducts).toEqual([
+      { apiproduct: "test-product", status: "approved" },
+    ]);
+  });
+
+  it("should convert deployment to ZIP bundle and emulator JSON files with -f zip and -o <dir>", async () => {
+    const myCli = new cli();
+    const outDir = path.join(process.cwd(), "tests/tmp-deployment-export-zip");
+    if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true, force: true });
+
+    await myCli.process([
+      "bun",
+      "apigee-templater.ts",
+      "tests/data/deployment-01.yaml",
+      "-f",
+      "zip",
+      "-o",
+      outDir,
+      "--no-anim",
+    ]);
+
+    expect(fs.existsSync(outDir)).toBe(true);
+
+    // 1. Template converted to proxy zip
+    const proxyZip = path.join(outDir, "REST-AI-Completions.zip");
+    expect(fs.existsSync(proxyZip)).toBe(true);
+    expect(fs.statSync(proxyZip).size).toBeGreaterThan(0);
+
+    // 2. Emulator Products
+    const productsJson = path.join(outDir, "products.json");
+    const apiproductsJson = path.join(outDir, "apiproducts.json");
+    const individualProductJson = path.join(outDir, "ai-starter-package.json");
+
+    expect(fs.existsSync(productsJson)).toBe(true);
+    expect(fs.existsSync(apiproductsJson)).toBe(true);
+    expect(fs.existsSync(individualProductJson)).toBe(true);
+
+    const products = JSON.parse(fs.readFileSync(productsJson, "utf8"));
+    expect(Array.isArray(products)).toBe(true);
+    expect(products.length).toBeGreaterThan(0);
+    expect(products[0].name).toBe("ai-starter-package");
+    expect(products[0].proxies).toContain("REST-AI-Completions");
+    expect(products[0].apiResources).toBeDefined();
+
+    // 3. Emulator Developers / Users
+    const developersJson = path.join(outDir, "developers.json");
+    const usersJson = path.join(outDir, "users.json");
+    const individualUserJson = path.join(outDir, "test@example.com.json");
+
+    expect(fs.existsSync(developersJson)).toBe(true);
+    expect(fs.existsSync(usersJson)).toBe(true);
+    expect(fs.existsSync(individualUserJson)).toBe(true);
+
+    const developers = JSON.parse(fs.readFileSync(developersJson, "utf8"));
+    expect(Array.isArray(developers)).toBe(true);
+    expect(developers.length).toBeGreaterThan(0);
+    expect(developers[0].email).toBe("test@example.com");
+
+    // 4. Emulator Apps
+    const developerappsJson = path.join(outDir, "developerapps.json");
+    const appsJson = path.join(outDir, "apps.json");
+    const individualAppJson = path.join(outDir, "Starter App.json");
+
+    expect(fs.existsSync(developerappsJson)).toBe(true);
+    expect(fs.existsSync(appsJson)).toBe(true);
+    expect(fs.existsSync(individualAppJson)).toBe(true);
+
+    const apps = JSON.parse(fs.readFileSync(developerappsJson, "utf8"));
+    expect(Array.isArray(apps)).toBe(true);
+    expect(apps.length).toBeGreaterThan(0);
+    expect(apps[0].name).toBe("Starter App");
+    expect(apps[0].developerEmail).toBe("test@example.com");
+    expect(apps[0].credentials.length).toBeGreaterThan(0);
+    expect(apps[0].credentials[0].consumerKey).toBe("starter-app-key-123");
+
+    // Cleanup
+    fs.rmSync(outDir, { recursive: true, force: true });
+  });
+
+  it("should convert deployment to JSON proxy files and emulator JSON files with -f json and -o <dir>", async () => {
+    const myCli = new cli();
+    const outDir = path.join(process.cwd(), "tests/tmp-deployment-export-json");
+    if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true, force: true });
+
+    await myCli.process([
+      "bun",
+      "apigee-templater.ts",
+      "tests/data/deployment-01.yaml",
+      "-f",
+      "json",
+      "-o",
+      outDir,
+      "--no-anim",
+    ]);
+
+    expect(fs.existsSync(outDir)).toBe(true);
+
+    // 1. Template converted to proxy json
+    const proxyJson = path.join(outDir, "REST-AI-Completions.json");
+    expect(fs.existsSync(proxyJson)).toBe(true);
+    const parsedProxy = JSON.parse(fs.readFileSync(proxyJson, "utf8"));
+    expect(parsedProxy.name).toBe("REST-AI-Completions");
+    expect(parsedProxy.endpoints.length).toBeGreaterThan(0);
+
+    // 2. Emulator files
+    expect(fs.existsSync(path.join(outDir, "products.json"))).toBe(true);
+    expect(fs.existsSync(path.join(outDir, "developers.json"))).toBe(true);
+    expect(fs.existsSync(path.join(outDir, "developerapps.json"))).toBe(true);
+
+    // Cleanup
+    fs.rmSync(outDir, { recursive: true, force: true });
+  });
+
+  it("should convert deployment to local directory when -o is omitted with -f zip", async () => {
+    const myCli = new cli();
+    const expectedFiles = [
+      "REST-AI-Completions.zip",
+      "products.json",
+      "apiproducts.json",
+      "ai-starter-package.json",
+      "developers.json",
+      "users.json",
+      "test@example.com.json",
+      "developerapps.json",
+      "apps.json",
+      "Starter App.json",
+      "Premium App.json",
+    ];
+
+    // Cleanup any existing before run
+    for (const file of expectedFiles) {
+      if (fs.existsSync(file)) fs.rmSync(file, { force: true });
+    }
+
+    await myCli.process([
+      "bun",
+      "apigee-templater.ts",
+      "tests/data/deployment-01.yaml",
+      "-f",
+      "zip",
+      "--no-anim",
+    ]);
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(file), `Expected ${file} to exist`).toBe(true);
+      fs.rmSync(file, { force: true });
+    }
   });
 });

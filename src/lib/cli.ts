@@ -333,7 +333,9 @@ export class cli {
       } else if (
         options.name &&
         fs.existsSync(options.output) &&
-        fs.lstatSync(options.output).isDirectory()
+        fs.lstatSync(options.output).isDirectory() &&
+        options.format?.toLowerCase() !== "zip" &&
+        options.format?.toLowerCase() !== "json"
       ) {
         if (!options.output.endsWith("/")) options.output += "/";
         options.output += options.name + ".yaml";
@@ -2240,6 +2242,193 @@ export class cli {
         if (deployment) {
           if (options.name && !deployment.name) deployment.name = options.name;
           this.converter.deploymentUpdateParameters(deployment, inputParameters);
+
+          const isExportFormat =
+            options.format &&
+            (options.format.toLowerCase() === "zip" ||
+              options.format.toLowerCase() === "json");
+
+          if (isExportFormat) {
+            const format = options.format.toLowerCase();
+            let targetDir = options.output
+              ? path.resolve(startDir, options.output)
+              : startDir;
+
+            if (!fs.existsSync(targetDir)) {
+              fs.mkdirSync(targetDir, { recursive: true });
+            }
+
+            const resolved = await this.apigeeService.deploymentResolveAssets(
+              deployment,
+              templateDir,
+            );
+
+            // Collect all proxy names from templates, proxies, and features
+            let allProxyNames: string[] = [];
+            for (let t of resolved.templates) {
+              if (t.name) allProxyNames.push(t.name);
+            }
+            for (let p of resolved.proxies) {
+              if (p.name) allProxyNames.push(p.name);
+            }
+            for (let f of resolved.features) {
+              if (f.name) allProxyNames.push(f.name);
+            }
+
+            // 1. Convert and export templates
+            for (let t of resolved.templates) {
+              let tProxy = await this.apigeeService.templateObjectToProxy(
+                t,
+                this.converter,
+                inputParameters,
+                templateDir,
+              );
+              if (tProxy) {
+                if (format === "zip") {
+                  let zipPath = await this.converter.proxyToApigeeZip(tProxy);
+                  let destPath = path.join(targetDir, `${tProxy.name}.zip`);
+                  if (path.resolve(zipPath) !== path.resolve(destPath)) {
+                    fs.copyFileSync(zipPath, destPath);
+                    if (fs.existsSync(zipPath)) fs.rmSync(zipPath);
+                  }
+                } else {
+                  let destPath = path.join(targetDir, `${tProxy.name}.json`);
+                  fs.writeFileSync(destPath, JSON.stringify(tProxy, null, 2));
+                }
+              }
+            }
+
+            // 2. Convert and export proxies
+            for (let p of resolved.proxies) {
+              this.converter.proxyUpdateParameters(p, inputParameters);
+              if (format === "zip") {
+                let zipPath = await this.converter.proxyToApigeeZip(p);
+                let destPath = path.join(targetDir, `${p.name}.zip`);
+                if (path.resolve(zipPath) !== path.resolve(destPath)) {
+                  fs.copyFileSync(zipPath, destPath);
+                  if (fs.existsSync(zipPath)) fs.rmSync(zipPath);
+                }
+              } else {
+                let destPath = path.join(targetDir, `${p.name}.json`);
+                fs.writeFileSync(destPath, JSON.stringify(p, null, 2));
+              }
+            }
+
+            // 3. Convert and export features (if any)
+            for (let f of resolved.features) {
+              let fProxy = this.converter.featureToProxy(f, inputParameters);
+              if (fProxy) {
+                if (format === "zip") {
+                  let zipPath = await this.converter.proxyToApigeeZip(fProxy);
+                  let destPath = path.join(targetDir, `${fProxy.name}.zip`);
+                  if (path.resolve(zipPath) !== path.resolve(destPath)) {
+                    fs.copyFileSync(zipPath, destPath);
+                    if (fs.existsSync(zipPath)) fs.rmSync(zipPath);
+                  }
+                } else {
+                  let destPath = path.join(targetDir, `${fProxy.name}.json`);
+                  fs.writeFileSync(destPath, JSON.stringify(fProxy, null, 2));
+                }
+              }
+            }
+
+            // 4. Convert and export products in emulator JSON format
+            let emulatorProducts: any[] = [];
+            for (let prod of resolved.products) {
+              this.converter.productUpdateParameters(prod, inputParameters);
+              let emProd = this.converter.productToApigeeEmulatorProduct(
+                prod,
+                allProxyNames,
+                deployment.environments,
+              );
+              emulatorProducts.push(emProd);
+
+              let prodFileName = `${prod.name}.json`;
+              if (format !== "json" || !allProxyNames.includes(prod.name)) {
+                fs.writeFileSync(
+                  path.join(targetDir, prodFileName),
+                  JSON.stringify(emProd, null, 2),
+                );
+              }
+            }
+
+            if (emulatorProducts.length > 0) {
+              fs.writeFileSync(
+                path.join(targetDir, "products.json"),
+                JSON.stringify(emulatorProducts, null, 2),
+              );
+              fs.writeFileSync(
+                path.join(targetDir, "apiproducts.json"),
+                JSON.stringify(emulatorProducts, null, 2),
+              );
+            }
+
+            // 5. Convert and export users (developers) and apps in emulator JSON format
+            let emulatorDevelopers: any[] = [];
+            let emulatorApps: any[] = [];
+
+            for (let u of resolved.users) {
+              this.converter.userUpdateParameters(u, inputParameters);
+              let dev = this.converter.userToApigeeDeveloper(u);
+              emulatorDevelopers.push(dev);
+
+              let userFileBase = (u.name || dev.email || "").replace(/[/\\:]/g, "-");
+              if (userFileBase) {
+                let userFileName = `${userFileBase}.json`;
+                if (format !== "json" || !allProxyNames.includes(userFileBase)) {
+                  fs.writeFileSync(
+                    path.join(targetDir, userFileName),
+                    JSON.stringify(dev, null, 2),
+                  );
+                }
+              }
+
+              let userApps = this.converter.userToApigeeEmulatorApps(u);
+              for (let app of userApps) {
+                emulatorApps.push(app);
+
+                let appFileBase = (app.name || "").replace(/[/\\:]/g, "-");
+                if (appFileBase) {
+                  let appFileName = `${appFileBase}.json`;
+                  if (format !== "json" || !allProxyNames.includes(appFileBase)) {
+                    fs.writeFileSync(
+                      path.join(targetDir, appFileName),
+                      JSON.stringify(app, null, 2),
+                    );
+                  }
+                }
+              }
+            }
+
+            if (emulatorDevelopers.length > 0) {
+              fs.writeFileSync(
+                path.join(targetDir, "developers.json"),
+                JSON.stringify(emulatorDevelopers, null, 2),
+              );
+              fs.writeFileSync(
+                path.join(targetDir, "users.json"),
+                JSON.stringify(emulatorDevelopers, null, 2),
+              );
+            }
+
+            if (emulatorApps.length > 0) {
+              fs.writeFileSync(
+                path.join(targetDir, "developerapps.json"),
+                JSON.stringify(emulatorApps, null, 2),
+              );
+              fs.writeFileSync(
+                path.join(targetDir, "apps.json"),
+                JSON.stringify(emulatorApps, null, 2),
+              );
+            }
+
+            await this.printOverviewCard(
+              `Deployment ${deployment.name}`,
+              this.converter.deploymentToStringArray(deployment),
+              targetDir,
+            );
+            return;
+          }
 
           let pieces =
             options.output && options.output.includes(":") ? options.output.split(":") : [];

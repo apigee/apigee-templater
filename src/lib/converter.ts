@@ -3490,6 +3490,43 @@ export class ApigeeConverter {
     return apigeeProduct;
   }
 
+  public productToApigeeEmulatorProduct(
+    product: Product,
+    defaultProxies?: string[],
+    defaultEnvironments?: string[],
+  ): any {
+    let apigeeProduct = this.productToApigeeProduct(product);
+
+    if (!apigeeProduct.approvalType) {
+      apigeeProduct.approvalType = product.approvalType || "auto";
+    }
+
+    if (!apigeeProduct.environments || apigeeProduct.environments.length === 0) {
+      if (defaultEnvironments && defaultEnvironments.length > 0) {
+        apigeeProduct.environments = [...defaultEnvironments];
+      } else {
+        apigeeProduct.environments = ["test"];
+      }
+    }
+
+    if (!apigeeProduct.proxies || apigeeProduct.proxies.length === 0) {
+      if (product.proxies && product.proxies.length > 0) {
+        apigeeProduct.proxies = [...product.proxies];
+      } else if (defaultProxies && defaultProxies.length > 0) {
+        apigeeProduct.proxies = [...defaultProxies];
+      }
+    }
+
+    if (!apigeeProduct.apiResources || apigeeProduct.apiResources.length === 0) {
+      apigeeProduct.apiResources =
+        product.apiResources && product.apiResources.length > 0
+          ? [...product.apiResources]
+          : ["/", "/*", "/**"];
+    }
+
+    return apigeeProduct;
+  }
+
   public apigeeProductToProduct(apigeeProduct: any): Product {
     let product = new Product();
     product.name = apigeeProduct.name || "";
@@ -3792,12 +3829,23 @@ export class ApigeeConverter {
 
   public userToApigeeDeveloper(user: User): any {
     const email = user.email || (user.name.includes("@") ? user.name : `${user.name}@example.com`);
+    let attributes: any[] = [];
+    if (user.attributes) {
+      if (Array.isArray(user.attributes)) {
+        attributes = user.attributes.map((a: any) => ({ name: a.name, value: a.value }));
+      } else if (typeof user.attributes === "object") {
+        attributes = Object.keys(user.attributes).map((k) => ({
+          name: k,
+          value: (user.attributes as any)[k],
+        }));
+      }
+    }
     return {
       email: email,
       userName: user.userName || user.name || email.split("@")[0],
       firstName: user.firstName || user.displayName?.split(" ")[0] || user.name || "Developer",
       lastName: user.lastName || user.displayName?.split(" ").slice(1).join(" ") || "User",
-      attributes: user.attributes || [],
+      attributes: attributes,
     };
   }
 
@@ -3818,6 +3866,71 @@ export class ApigeeConverter {
       if (app.credentials || app.keys) {
         appPayload.credentials = app.credentials || app.keys;
       }
+      apps.push(appPayload);
+    }
+    return apps;
+  }
+
+  public userToApigeeEmulatorApps(user: User): any[] {
+    let dev = this.userToApigeeDeveloper(user);
+    let apps: any[] = [];
+    for (let app of user.apps || []) {
+      let apiProducts = app.products || app.apiProducts || [];
+      let formattedCredentials: any[] = [];
+
+      let creds = app.credentials || app.keys || [];
+      if (creds && creds.length > 0) {
+        for (let c of creds) {
+          let credProducts = c.products || c.apiProducts || apiProducts;
+          let mappedCredProducts = credProducts.map((p: any) => {
+            if (typeof p === "object" && p && p.apiproduct) return p;
+            return {
+              apiproduct: typeof p === "string" ? p : p.name,
+              status: p.status || "approved",
+            };
+          });
+
+          formattedCredentials.push({
+            consumerKey: c.consumerKey || c.key || "",
+            consumerSecret: c.consumerSecret || c.secret || "",
+            apiProducts: mappedCredProducts,
+            status: c.status || "approved",
+          });
+        }
+      } else if (apiProducts.length > 0) {
+        formattedCredentials.push({
+          consumerKey: `${app.name}-key`,
+          consumerSecret: `${app.name}-secret`,
+          apiProducts: apiProducts.map((p: any) => ({
+            apiproduct: typeof p === "string" ? p : p.name,
+            status: "approved",
+          })),
+          status: "approved",
+        });
+      }
+
+      let attributes: any[] = [];
+      if (app.attributes) {
+        if (Array.isArray(app.attributes)) {
+          attributes = app.attributes.map((a: any) => ({ name: a.name, value: a.value }));
+        } else if (typeof app.attributes === "object") {
+          attributes = Object.keys(app.attributes).map((k) => ({
+            name: k,
+            value: (app.attributes as any)[k],
+          }));
+        }
+      }
+
+      let appPayload: any = {
+        name: app.name,
+        displayName: app.displayName || app.name,
+        developerEmail: dev.email,
+        callbackUrl: app.callbackUrl || "",
+        expiryType: (app as any).expiryType || "never",
+        apiProducts: apiProducts,
+        credentials: formattedCredentials,
+        attributes: attributes,
+      };
       apps.push(appPayload);
     }
     return apps;
