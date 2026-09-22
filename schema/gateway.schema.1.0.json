@@ -252,7 +252,7 @@
         "headers": {
           "type": "object"
         },
-        "request": { "type": "string" },
+        "body": { "type": "string" },
         "queryParams": {
           "type": "object"
         },
