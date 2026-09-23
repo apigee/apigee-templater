@@ -42,15 +42,34 @@ describe("Deployment data type, resolution, and operations", () => {
     expect(valid).toBe(true);
   });
 
-  it("should create a default Kvm instance and validate KVM alias", () => {
+  it("should create a default Kvm instance and validate KVM alias with optional type", () => {
     const kvm = new Kvm();
     expect(kvm.name).toBe("");
     expect(kvm.type).toBe("environment");
     expect(kvm.values).toEqual({});
     expect(kvm.proxy).toBeUndefined();
 
+    const kvmWithoutType: Kvm = {
+      name: "optional-type-kvm",
+      values: { FOO: "bar" },
+    };
+    expect(kvmWithoutType.type).toBeUndefined();
+
     const kvmAlias = new KVM();
     expect(kvmAlias instanceof Kvm).toBe(true);
+  });
+
+  it("should convert Kvm to emulator map defaulting scope to environment when type is omitted", () => {
+    const kvmWithoutType: Kvm = {
+      name: "default-scope-kvm",
+      values: { KEY1: "VAL1" },
+    };
+    const map = converter.kvmToApigeeEmulatorMap(kvmWithoutType, "test");
+    expect(map.name).toBe("default-scope-kvm");
+    expect(map.scope).toBe("environment");
+    expect(map.environment).toBe("test");
+    expect(map.entries).toEqual({ KEY1: "VAL1" });
+    expect(map.proxy).toBeUndefined();
   });
 
   it("should validate Deployment with environment and proxy kvms against schema", () => {
@@ -72,6 +91,12 @@ describe("Deployment data type, resolution, and operations", () => {
           values: {
             API_KEY: "secret-key",
             HOST: "https://api.example.com",
+          },
+        },
+        {
+          name: "omitted-type-config",
+          values: {
+            DEFAULT_SCOPED: "true",
           },
         },
         {
@@ -744,7 +769,6 @@ environments:
   - test
 kvms:
   - name: test-env-kvm
-    type: environment
     values:
       API_KEY: my-secret-key
   - name: test-proxy-kvm

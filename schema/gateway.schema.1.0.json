@@ -792,19 +792,21 @@
         "name": { "type": "string" },
         "type": {
           "type": "string",
-          "enum": ["environment", "proxy"]
+          "enum": ["environment", "proxy"],
+          "default": "environment"
         },
         "proxy": { "type": "string" },
         "values": {
           "type": "object"
         }
       },
-      "required": ["name", "type", "values"],
+      "required": ["name", "values"],
       "additionalProperties": false,
       "if": {
         "properties": {
           "type": { "const": "proxy" }
-        }
+        },
+        "required": ["type"]
       },
       "then": {
         "required": ["proxy"]

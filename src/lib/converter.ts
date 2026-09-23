@@ -4069,6 +4069,22 @@ export class ApigeeConverter {
     return this.userToStringArray(user).join("\n");
   }
 
+  public kvmToApigeeEmulatorMap(kvm: Kvm, environment?: string): any {
+    const scope = kvm.type || "environment";
+    const mapEntry: any = {
+      name: kvm.name,
+      scope: scope,
+      entries: kvm.values || {},
+    };
+    if (scope === "proxy" && kvm.proxy) {
+      mapEntry.proxy = kvm.proxy;
+    }
+    if (environment) {
+      mapEntry.environment = environment;
+    }
+    return mapEntry;
+  }
+
   public deploymentToStringArray(deployment: Deployment): string[] {
     let result: string[] = [];
     if (deployment.name) result.push(`Name: ${deployment.name}`);
@@ -4181,6 +4197,7 @@ export class ApigeeConverter {
     if (deployment.kvms) {
       deployment.kvms = deployment.kvms.map((k) => {
         if (k.name) k.name = replaceStr(k.name);
+        if (k.type) k.type = replaceStr(k.type);
         if (k.proxy) k.proxy = replaceStr(k.proxy);
         if (k.values) {
           const updatedValues: { [key: string]: string } = {};

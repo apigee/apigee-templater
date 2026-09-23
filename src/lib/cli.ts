@@ -2425,18 +2425,12 @@ export class cli {
             // 6. Convert and export KVMs in emulator JSON format (maps.json)
             if (deployment.kvms && deployment.kvms.length > 0) {
               let emulatorMaps: any[] = [];
+              const defaultEnv =
+                deployment.environments && deployment.environments.length > 0
+                  ? deployment.environments[0]
+                  : undefined;
               for (let k of deployment.kvms) {
-                let mapEntry: any = {
-                  name: k.name,
-                  scope: k.type,
-                  entries: k.values || {},
-                };
-                if (k.type === "proxy" && k.proxy) {
-                  mapEntry.proxy = k.proxy;
-                }
-                if (deployment.environments && deployment.environments.length > 0) {
-                  mapEntry.environment = deployment.environments[0];
-                }
+                let mapEntry = this.converter.kvmToApigeeEmulatorMap(k, defaultEnv);
                 emulatorMaps.push(mapEntry);
               }
               fs.writeFileSync(

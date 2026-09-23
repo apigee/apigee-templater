@@ -377,7 +377,7 @@ export class Users extends User {}
 
 export class Kvm {
   name: string = "";
-  type: "environment" | "proxy" | string = "environment";
+  type?: "environment" | "proxy" | string = "environment";
   proxy?: string;
   values: { [key: string]: string } = {};
 }
