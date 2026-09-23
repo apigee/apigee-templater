@@ -22,7 +22,7 @@ import chalk from "chalk";
 import * as YAML from "yaml";
 import yauzl from "yauzl";
 import { ApigeeConverter } from "./converter.js";
-import { Proxy, Feature, Template, Product, Products, User, Users, Deployment, Deployments, ApigeeConfig } from "./interfaces.js";
+import { Proxy, Feature, Template, Product, Products, User, Users, Deployment, Deployments, Kvm, KVM, ApigeeConfig } from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 import { GoogleAuth } from "google-auth-library";
 import { version } from "./version.js";
@@ -2419,6 +2419,29 @@ export class cli {
               fs.writeFileSync(
                 path.join(targetDir, "apps.json"),
                 JSON.stringify(emulatorApps, null, 2),
+              );
+            }
+
+            // 6. Convert and export KVMs in emulator JSON format (maps.json)
+            if (deployment.kvms && deployment.kvms.length > 0) {
+              let emulatorMaps: any[] = [];
+              for (let k of deployment.kvms) {
+                let mapEntry: any = {
+                  name: k.name,
+                  scope: k.type,
+                  entries: k.values || {},
+                };
+                if (k.type === "proxy" && k.proxy) {
+                  mapEntry.proxy = k.proxy;
+                }
+                if (deployment.environments && deployment.environments.length > 0) {
+                  mapEntry.environment = deployment.environments[0];
+                }
+                emulatorMaps.push(mapEntry);
+              }
+              fs.writeFileSync(
+                path.join(targetDir, "maps.json"),
+                JSON.stringify(emulatorMaps, null, 2),
               );
             }
 

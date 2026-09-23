@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { ApigeeConverter } from "../src/lib/converter.js";
 import { ApigeeTemplaterService } from "../src/lib/service.js";
-import { Deployment, Deployments, Template, Feature, Proxy, Product, User } from "../src/lib/interfaces.js";
+import { Deployment, Deployments, Template, Feature, Proxy, Product, User, Kvm, KVM } from "../src/lib/interfaces.js";
 import Ajv from "ajv";
 import parseYaml from "yaml";
 import fs from "fs";
@@ -22,6 +22,7 @@ describe("Deployment data type, resolution, and operations", () => {
     expect(Array.isArray(deployment.features)).toBe(true);
     expect(Array.isArray(deployment.products)).toBe(true);
     expect(Array.isArray(deployment.users)).toBe(true);
+    expect(Array.isArray(deployment.kvms)).toBe(true);
   });
 
   it("should validate deployment-01.yaml against gateway JSON schema", () => {
@@ -39,6 +40,134 @@ describe("Deployment data type, resolution, and operations", () => {
       console.error("Validation errors:", validate.errors);
     }
     expect(valid).toBe(true);
+  });
+
+  it("should create a default Kvm instance and validate KVM alias", () => {
+    const kvm = new Kvm();
+    expect(kvm.name).toBe("");
+    expect(kvm.type).toBe("environment");
+    expect(kvm.values).toEqual({});
+    expect(kvm.proxy).toBeUndefined();
+
+    const kvmAlias = new KVM();
+    expect(kvmAlias instanceof Kvm).toBe(true);
+  });
+
+  it("should validate Deployment with environment and proxy kvms against schema", () => {
+    const ajv = new Ajv({ strict: false });
+    const schemaContent = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "schema/gateway.schema.1.0.json"), "utf8"),
+    );
+    const validate = ajv.compile(schemaContent);
+
+    const deploymentWithKvms = {
+      name: "kvm-deployment",
+      type: "deployment",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      kvms: [
+        {
+          name: "env-config",
+          type: "environment",
+          values: {
+            API_KEY: "secret-key",
+            HOST: "https://api.example.com",
+          },
+        },
+        {
+          name: "proxy-config",
+          type: "proxy",
+          proxy: "my-proxy",
+          values: {
+            TIMEOUT: "3000",
+          },
+        },
+      ],
+    };
+
+    const valid = validate(deploymentWithKvms);
+    if (!valid) {
+      console.error("Validation errors for deployment with KVMs:", validate.errors);
+    }
+    expect(valid).toBe(true);
+  });
+
+  it("should fail validation if proxy KVM lacks proxy property", () => {
+    const ajv = new Ajv({ strict: false });
+    const schemaContent = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "schema/gateway.schema.1.0.json"), "utf8"),
+    );
+    const validate = ajv.compile(schemaContent);
+
+    const invalidProxyKvm = {
+      name: "invalid-proxy-deployment",
+      type: "deployment",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      kvms: [
+        {
+          name: "missing-proxy-property",
+          type: "proxy",
+          values: {
+            KEY: "val",
+          },
+        },
+      ],
+    };
+
+    const valid = validate(invalidProxyKvm);
+    expect(valid).toBe(false);
+  });
+
+  it("should fail validation if KVM has invalid type or missing required fields", () => {
+    const ajv = new Ajv({ strict: false });
+    const schemaContent = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "schema/gateway.schema.1.0.json"), "utf8"),
+    );
+    const validate = ajv.compile(schemaContent);
+
+    const invalidTypeKvm = {
+      name: "invalid-type-deployment",
+      type: "deployment",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      kvms: [
+        {
+          name: "bad-type",
+          type: "organization",
+          values: { KEY: "val" },
+        },
+      ],
+    };
+    expect(validate(invalidTypeKvm)).toBe(false);
+
+    const missingValuesKvm = {
+      name: "missing-values-deployment",
+      type: "deployment",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      kvms: [
+        {
+          name: "no-values",
+          type: "environment",
+        },
+      ],
+    };
+    expect(validate(missingValuesKvm)).toBe(false);
+
+    const missingNameKvm = {
+      name: "missing-name-deployment",
+      type: "deployment",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      kvms: [
+        {
+          type: "environment",
+          values: { KEY: "val" },
+        },
+      ],
+    };
+    expect(validate(missingNameKvm)).toBe(false);
   });
 
   it("should validate an inline Deployment object with full inline assets and references against JSON schema", () => {
@@ -296,6 +425,10 @@ describe("Deployment data type, resolution, and operations", () => {
       features: ["feature-1"],
       products: ["product-1"],
       users: ["user-1"],
+      kvms: [
+        { name: "env-kvm", type: "environment", values: { k: "v" } },
+        { name: "proxy-kvm", type: "proxy", proxy: "proxy-1", values: { p: "v" } },
+      ],
       parameters: [{ name: "ENV_NAME", value: "dev" }],
     };
 
@@ -309,10 +442,12 @@ describe("Deployment data type, resolution, and operations", () => {
     expect(lines).toContain("Features: feature-1");
     expect(lines).toContain("Products: product-1");
     expect(lines).toContain("Users: user-1");
+    expect(lines).toContain("KVMs: env-kvm, proxy-kvm");
     expect(lines).toContain("Parameters: ENV_NAME");
 
     const str = converter.deploymentToString(deployment);
     expect(str).toContain("Name: test-deployment");
+    expect(str).toContain("KVMs: env-kvm, proxy-kvm");
   });
 
   it("should update parameters across deployment and inline assets", () => {
@@ -348,6 +483,16 @@ describe("Deployment data type, resolution, and operations", () => {
           email: "user-$ENV@test.com",
         } as User,
       ],
+      kvms: [
+        {
+          name: "kvm-$ENV",
+          type: "proxy",
+          proxy: "proxy-$ENV",
+          values: {
+            "KEY_$ENV": "VAL_$ENV",
+          },
+        },
+      ],
     };
 
     converter.deploymentUpdateParameters(deployment, { ENV: "staging" });
@@ -362,6 +507,9 @@ describe("Deployment data type, resolution, and operations", () => {
     expect((deployment.products![1] as Product).name).toBe("prod-obj-staging");
     expect(deployment.users![0]).toBe("user-staging@example.com");
     expect((deployment.users![1] as User).name).toBe("user-staging");
+    expect(deployment.kvms![0].name).toBe("kvm-staging");
+    expect(deployment.kvms![0].proxy).toBe("proxy-staging");
+    expect(deployment.kvms![0].values).toEqual({ KEY_staging: "VAL_staging" });
   });
 
   it("should reset deployment returning a fresh clone", () => {
@@ -369,11 +517,13 @@ describe("Deployment data type, resolution, and operations", () => {
       name: "original-deployment",
       type: "deployment",
       templates: ["template-1"],
+      kvms: [{ name: "kvm-1", type: "environment", values: { a: "b" } }],
     };
 
     const reset = converter.deploymentReset(deployment);
     expect(reset).toEqual(deployment);
     expect(reset).not.toBe(deployment); // Must be a clone
+    expect(reset.kvms).not.toBe(deployment.kvms);
   });
 
   it("should convert product to Apigee emulator product format", () => {
@@ -578,5 +728,68 @@ describe("Deployment data type, resolution, and operations", () => {
       expect(fs.existsSync(file), `Expected ${file} to exist`).toBe(true);
       fs.rmSync(file, { force: true });
     }
+  });
+
+  it("should convert deployment with kvms and export maps.json", async () => {
+    const myCli = new cli();
+    const outDir = path.join(process.cwd(), "tests/tmp-deployment-kvms-export");
+    const deployYamlPath = path.join(process.cwd(), "tests/tmp-deployment-kvms.yaml");
+
+    const yamlContent = `
+name: deployment-with-kvms
+type: deployment
+gateway: apigee
+schemaVersion: 1.0.0
+environments:
+  - test
+kvms:
+  - name: test-env-kvm
+    type: environment
+    values:
+      API_KEY: my-secret-key
+  - name: test-proxy-kvm
+    type: proxy
+    proxy: my-proxy
+    values:
+      ROUTING: direct
+`;
+
+    fs.writeFileSync(deployYamlPath, yamlContent, "utf8");
+    if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true, force: true });
+
+    await myCli.process([
+      "bun",
+      "apigee-templater.ts",
+      deployYamlPath,
+      "-f",
+      "json",
+      "-o",
+      outDir,
+      "--no-anim",
+    ]);
+
+    expect(fs.existsSync(outDir)).toBe(true);
+    const mapsJsonPath = path.join(outDir, "maps.json");
+    expect(fs.existsSync(mapsJsonPath)).toBe(true);
+
+    const maps = JSON.parse(fs.readFileSync(mapsJsonPath, "utf8"));
+    expect(maps.length).toBe(2);
+    expect(maps[0]).toEqual({
+      name: "test-env-kvm",
+      scope: "environment",
+      entries: { API_KEY: "my-secret-key" },
+      environment: "test",
+    });
+    expect(maps[1]).toEqual({
+      name: "test-proxy-kvm",
+      scope: "proxy",
+      proxy: "my-proxy",
+      entries: { ROUTING: "direct" },
+      environment: "test",
+    });
+
+    // Cleanup
+    fs.rmSync(outDir, { recursive: true, force: true });
+    fs.rmSync(deployYamlPath, { force: true });
   });
 });

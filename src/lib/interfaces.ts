@@ -375,6 +375,15 @@ export class User {
 
 export class Users extends User {}
 
+export class Kvm {
+  name: string = "";
+  type: "environment" | "proxy" | string = "environment";
+  proxy?: string;
+  values: { [key: string]: string } = {};
+}
+
+export class KVM extends Kvm {}
+
 export class Deployment {
   constructor() {
     this.gateway = "apigee";
@@ -397,6 +406,7 @@ export class Deployment {
   features?: (string | Feature)[] = [];
   products?: (string | Product)[] = [];
   users?: (string | User)[] = [];
+  kvms?: Kvm[] = [];
   tests?: Test[] = [];
 }
 

@@ -33,6 +33,8 @@ import {
   UserAttribute,
   Deployment,
   Deployments,
+  Kvm,
+  KVM,
 } from "./interfaces.js";
 
 export class ApigeeConverter {
@@ -4094,6 +4096,10 @@ export class ApigeeConverter {
       const uNames = deployment.users.map((u) => (typeof u === "string" ? u : u.name || u.email));
       result.push(`Users: ${uNames.join(", ")}`);
     }
+    if (deployment.kvms && deployment.kvms.length > 0) {
+      const kNames = deployment.kvms.map((k) => k.name);
+      result.push(`KVMs: ${kNames.join(", ")}`);
+    }
     if (deployment.parameters && deployment.parameters.length > 0) {
       result.push(`Parameters: ${deployment.parameters.map((p) => p.name).join(", ")}`);
     }
@@ -4170,6 +4176,22 @@ export class ApigeeConverter {
         if (typeof u === "string") return replaceStr(u);
         this.userUpdateParameters(u, parameters);
         return u;
+      });
+    }
+    if (deployment.kvms) {
+      deployment.kvms = deployment.kvms.map((k) => {
+        if (k.name) k.name = replaceStr(k.name);
+        if (k.proxy) k.proxy = replaceStr(k.proxy);
+        if (k.values) {
+          const updatedValues: { [key: string]: string } = {};
+          for (const [vKey, vVal] of Object.entries(k.values)) {
+            const updatedKey = replaceStr(vKey);
+            const updatedVal = typeof vVal === "string" ? replaceStr(vVal) : vVal;
+            updatedValues[updatedKey] = updatedVal;
+          }
+          k.values = updatedValues;
+        }
+        return k;
       });
     }
   }

@@ -786,6 +786,30 @@
       "required": ["name", "type", "gateway", "schemaVersion"],
       "additionalProperties": false
     },
+    "Kvm": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["environment", "proxy"]
+        },
+        "proxy": { "type": "string" },
+        "values": {
+          "type": "object"
+        }
+      },
+      "required": ["name", "type", "values"],
+      "additionalProperties": false,
+      "if": {
+        "properties": {
+          "type": { "const": "proxy" }
+        }
+      },
+      "then": {
+        "required": ["proxy"]
+      }
+    },
     "Deployment": {
       "type": "object",
       "properties": {
@@ -850,6 +874,10 @@
               { "$ref": "#/definitions/User" }
             ]
           }
+        },
+        "kvms": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Kvm" }
         },
         "tests": {
           "type": "array",
