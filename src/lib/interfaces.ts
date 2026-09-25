@@ -4,7 +4,9 @@ export class Template {
     this.schemaVersion = "1.0.0";
   }
   name: string = "";
+  displayName?: string = "";
   yamlName?: string;
+  uid?: string;
   type: string = "template";
   gateway: string = "apigee";
   schemaVersion: string = "1.0.0"

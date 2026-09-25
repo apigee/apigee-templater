@@ -675,5 +675,94 @@ describe("templateToProxy conversion with default endpoint and target", () => {
   });
 });
 
+describe("displayName preservation during conversion", () => {
+  it("should copy displayName from template to proxy when set in source", () => {
+    const converter = new ApigeeConverter();
+    const template: Template = {
+      name: "weather-template",
+      displayName: "Weather Forecast API",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      description: "Weather API template",
+      features: [],
+      parameters: [],
+      endpoints: [],
+      targets: [],
+      type: "template",
+    };
+
+    const proxy = converter.templateToProxy(template, []);
+    expect(proxy.displayName).toBe("Weather Forecast API");
+  });
+
+  it("should replace parameters in template displayName during templateToProxy", () => {
+    const converter = new ApigeeConverter();
+    const template: Template = {
+      name: "orders-template",
+      displayName: "Orders API {ENV}",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      description: "Orders API template",
+      features: [],
+      parameters: [],
+      endpoints: [],
+      targets: [],
+      type: "template",
+    };
+
+    const proxy = converter.templateToProxy(template, [], { ENV: "prod" });
+    expect(proxy.displayName).toBe("Orders API prod");
+  });
+
+  it("should copy displayName from feature to proxy when set in source", () => {
+    const converter = new ApigeeConverter();
+    const feature: Feature = {
+      name: "auth-feature",
+      displayName: "API Key Authentication Feature",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      description: "Auth feature",
+      parameters: [],
+      endpoints: [],
+      targets: [],
+      policies: [],
+      resources: [],
+      type: "feature",
+    };
+
+    const proxy = converter.featureToProxy(feature, {});
+    expect(proxy.displayName).toBe("API Key Authentication Feature");
+  });
+
+  it("should replace parameters in feature displayName during featureToProxy", () => {
+    const converter = new ApigeeConverter();
+    const feature: Feature = {
+      name: "auth-feature",
+      displayName: "API Key Feature {ENV}",
+      gateway: "apigee",
+      schemaVersion: "1.0.0",
+      description: "Auth feature",
+      parameters: [],
+      endpoints: [],
+      targets: [],
+      policies: [],
+      resources: [],
+      type: "feature",
+    };
+
+    const proxy = converter.featureToProxy(feature, { ENV: "staging" });
+    expect(proxy.displayName).toBe("API Key Feature staging");
+  });
+
+  it("should copy displayName from proxy to template in proxyToTemplate", () => {
+    const converter = new ApigeeConverter();
+    const proxy = new Proxy();
+    proxy.name = "sample-proxy";
+    proxy.displayName = "Sample Proxy Display";
+    const template = converter.proxyToTemplate(proxy);
+    expect(template.displayName).toBe("Sample Proxy Display");
+  });
+});
+
 
 

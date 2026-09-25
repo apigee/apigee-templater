@@ -2334,6 +2334,80 @@ resources:
       console.log = origLog;
     }
   });
+
+  it("should preserve displayName when converting a template YAML to a proxy YAML via CLI", async () => {
+    const testCli = new cli();
+    const tempTemplate = path.join(__dirname, "temp-display-name-template.yaml");
+    const tempProxy = path.join(__dirname, "temp-display-name-proxy.yaml");
+    const templateContent = `gateway: apigee
+schemaVersion: 1.0.0
+name: test-template-disp
+displayName: Custom Template Display Name
+type: template
+description: Template with displayName
+`;
+    fs.writeFileSync(tempTemplate, templateContent, "utf8");
+
+    try {
+      await testCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "convert",
+        tempTemplate,
+        "-o",
+        tempProxy,
+        "-f",
+        "proxy",
+        "--no-anim",
+      ]);
+
+      expect(fs.existsSync(tempProxy)).toBe(true);
+      const parsed = YAML.parse(fs.readFileSync(tempProxy, "utf8"));
+      expect(parsed.name).toBe("temp-display-name-proxy");
+      expect(parsed.type).toBe("proxy");
+      expect(parsed.displayName).toBe("Custom Template Display Name");
+    } finally {
+      if (fs.existsSync(tempTemplate)) fs.rmSync(tempTemplate);
+      if (fs.existsSync(tempProxy)) fs.rmSync(tempProxy);
+    }
+  });
+
+  it("should preserve displayName when converting a feature YAML to a proxy YAML via CLI", async () => {
+    const testCli = new cli();
+    const tempFeature = path.join(__dirname, "temp-display-name-feature.yaml");
+    const tempProxy = path.join(__dirname, "temp-display-name-feat-proxy.yaml");
+    const featureContent = `gateway: apigee
+schemaVersion: 1.0.0
+name: test-feature-disp
+displayName: Custom Feature Display Name
+type: feature
+description: Feature with displayName
+`;
+    fs.writeFileSync(tempFeature, featureContent, "utf8");
+
+    try {
+      await testCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "convert",
+        tempFeature,
+        "-o",
+        tempProxy,
+        "-f",
+        "proxy",
+        "--no-anim",
+      ]);
+
+      expect(fs.existsSync(tempProxy)).toBe(true);
+      const parsed = YAML.parse(fs.readFileSync(tempProxy, "utf8"));
+      expect(parsed.name).toBe("temp-display-name-feat-proxy");
+      expect(parsed.type).toBe("proxy");
+      expect(parsed.displayName).toBe("Custom Feature Display Name");
+    } finally {
+      if (fs.existsSync(tempFeature)) fs.rmSync(tempFeature);
+      if (fs.existsSync(tempProxy)) fs.rmSync(tempProxy);
+    }
+  });
 });
 
 

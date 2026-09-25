@@ -601,7 +601,8 @@ export class ApigeeTemplaterService {
           (t) =>
             baseNames.includes(t.name) ||
             baseNames.includes(t.name.replace(/-+/g, "-")) ||
-            (t.yamlName && baseNames.includes(t.yamlName)),
+            (t.yamlName && baseNames.includes(t.yamlName)) ||
+            (t.displayName && baseNames.includes(t.displayName.replace(/-+/g, "-"))),
         );
         if (found) result = found;
       } catch (e) {}

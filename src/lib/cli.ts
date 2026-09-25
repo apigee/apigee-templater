@@ -2944,6 +2944,7 @@ export class cli {
             template,
             this.converter,
             inputParameters,
+            templateDir,
           );
         } else if (feature) {
           proxy = this.converter.featureToProxy(feature, inputParameters);

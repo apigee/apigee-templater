@@ -1672,6 +1672,8 @@ export class ApigeeConverter {
   ): Proxy {
     let proxy: Proxy = new Proxy();
     proxy.name = template.name;
+    if (template.displayName) proxy.displayName = template.displayName;
+    if (template.uid) proxy.uid = template.uid;
     proxy.description = template.description;
     proxy.parameters = template.parameters || [];
     if (template.priority) proxy.priority = template.priority;
@@ -1902,11 +1904,22 @@ export class ApigeeConverter {
         }
       }
     }
+    if (template.displayName && Object.keys(parameters).length > 0) {
+      for (let key of Object.keys(parameters)) {
+        if (template.displayName.includes("{" + key + "}")) {
+          template.displayName = template.displayName.replaceAll(
+            "{" + key + "}",
+            parameters[key],
+          );
+        }
+      }
+    }
   }
 
   public templateToStringArray(template: Template): string[] {
     let result: string[] = [];
     if (template.name) result.push(`Name: ${template.name}`);
+    if (template.displayName) result.push(`Display Name: ${template.displayName}`);
     if (template.description) result.push(`Description: ${template.description}`);
 
     if (template.features && template.features.length > 0) {
@@ -1954,7 +1967,10 @@ export class ApigeeConverter {
     return result.join("\n");
   }
 
-  public featureToProxy(feature: Feature, parameters: { [key: string]: string }): Proxy {
+  public featureToProxy(
+    feature: Feature,
+    parameters: { [key: string]: string } = {},
+  ): Proxy {
     let newFeature = this.featureReplaceParameters(feature, [], parameters);
     let newProxy = new Proxy();
     newProxy.name = newFeature.name;
@@ -2343,7 +2359,7 @@ export class ApigeeConverter {
   public featureReplaceParameters(
     feature: Feature,
     proxyParameters: Parameter[],
-    parameters: { [key: string]: string },
+    parameters: { [key: string]: string } = {},
   ): Feature {
     let featureString = JSON.stringify(feature);
     let proxyParametersString = JSON.stringify(proxyParameters);
@@ -2359,8 +2375,7 @@ export class ApigeeConverter {
         let proxyParam = tempProxyParameters.find((x) => x.name === parameter.name);
         if (proxyParam && proxyParam.default) paramValue = proxyParam.default;
 
-        if (parameters[parameter.name]) paramValue = parameters[parameter.name] ?? "";
-        else if (parameters[parameter.name]) paramValue = parameters[parameter.name] ?? "";
+        if (parameters && parameters[parameter.name]) paramValue = parameters[parameter.name] ?? "";
 
         // apply map, if configured
         if (parameter.maps && parameter.maps[paramValue]) {
@@ -2410,6 +2425,14 @@ export class ApigeeConverter {
       }
     }
 
+    if (parameters && Object.keys(parameters).length > 0) {
+      for (let key of Object.keys(parameters)) {
+        if (parameters[key] !== undefined) {
+          featureString = featureString.replaceAll("{" + key + "}", parameters[key]);
+        }
+      }
+    }
+
     return JSON.parse(featureString);
   }
 
@@ -2429,11 +2452,22 @@ export class ApigeeConverter {
         }
       }
     }
+    if (feature.displayName && Object.keys(parameters).length > 0) {
+      for (let key of Object.keys(parameters)) {
+        if (feature.displayName.includes("{" + key + "}")) {
+          feature.displayName = feature.displayName.replaceAll(
+            "{" + key + "}",
+            parameters[key],
+          );
+        }
+      }
+    }
   }
 
   public featureToStringArray(feature: Feature): string[] {
     let result: string[] = [];
     if (feature.name) result.push(`Name: ${feature.name}`);
+    if (feature.displayName) result.push(`Display Name: ${feature.displayName}`);
     if (feature.description) result.push(`Description: ${feature.description}`);
 
     if (feature.parameters && feature.parameters.length > 0) {
@@ -2841,6 +2875,10 @@ export class ApigeeConverter {
     let template = new Template();
 
     template.name = proxy.name;
+    if (proxy.displayName) template.displayName = proxy.displayName;
+    if (proxy.uid) template.uid = proxy.uid;
+    if (proxy.priority) template.priority = proxy.priority;
+    if (proxy.tests) template.tests = proxy.tests;
     template.description = proxy.description;
     template.parameters = proxy.parameters || [];
 
@@ -2908,11 +2946,22 @@ export class ApigeeConverter {
         }
       }
     }
+    if (proxy.displayName && Object.keys(parameters).length > 0) {
+      for (let key of Object.keys(parameters)) {
+        if (proxy.displayName.includes("{" + key + "}")) {
+          proxy.displayName = proxy.displayName.replaceAll(
+            "{" + key + "}",
+            parameters[key],
+          );
+        }
+      }
+    }
   }
 
   public proxyToStringArray(proxy: Proxy): string[] {
     let result: string[] = [];
     if (proxy.name) result.push(`Name: ${proxy.name}`);
+    if (proxy.displayName) result.push(`Display Name: ${proxy.displayName}`);
     if (proxy.description) result.push(`Description: ${proxy.description}`);
 
     if (proxy.parameters && proxy.parameters.length > 0) {
