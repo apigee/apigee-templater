@@ -250,6 +250,7 @@
         "url": { "type": "string" },
         "path": { "type": "string" },
         "method": { "type": "string" },
+        "injectGoogleToken": { "type": "boolean" },
         "headers": {
           "type": "object"
         },
