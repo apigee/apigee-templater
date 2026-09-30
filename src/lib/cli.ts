@@ -229,10 +229,23 @@ export class cli {
           (args as any)["--env"] ||
           args["--service-account"] ||
           (args as any)["--sa"] ||
-          args["--delete"] ||
-          args["--format"])
+          args["--delete"])
       ) {
         args["--input"] = args["_"][0];
+      } else if (args["_"] && args["_"][0] && args["--format"]) {
+        const fileExists = fs.existsSync(args["_"][0]);
+        if (fileExists) {
+          args["--input"] = args["_"][0];
+        } else {
+          command = "convert";
+          args["--output"] =
+            !args["_"][0].toLowerCase().endsWith(".yaml") &&
+            !args["_"][0].toLowerCase().endsWith(".json")
+              ? args["_"][0] + ".yaml"
+              : args["_"][0];
+          args["--input"] = "";
+          singlePositionalInput = "";
+        }
       } else if (args["_"] && args["_"][0]) {
         if (!explicitCommand) {
           command = "describe";
@@ -1281,8 +1294,13 @@ export class cli {
         options.singlePositionalInput.includes("/") ||
         options.singlePositionalInput.includes("\\");
 
+      const hasFileExtension =
+        options.singlePositionalInput.toLowerCase().endsWith(".yaml") ||
+        options.singlePositionalInput.toLowerCase().endsWith(".yml") ||
+        options.singlePositionalInput.toLowerCase().endsWith(".json");
+
       let repoItem: any = undefined;
-      if (!fileExists && !isRemoteUrl && !hasDirectory) {
+      if (!fileExists && !isRemoteUrl && !hasDirectory && !hasFileExtension) {
         repoItem = await this.apigeeService.repositoryGet(options.singlePositionalInput);
       }
 

@@ -2142,18 +2142,21 @@ export class ApigeeConverter {
       if (applyFeature.defaultEndpoint.routes) {
         if (!endpoint.routes) endpoint.routes = [];
         for (let route of applyFeature.defaultEndpoint.routes) {
-          let existingRouteIndex = endpoint.routes.findIndex((x) => x.name === route.name);
-          if (existingRouteIndex === -1) {
-            let defaultRouteIndex = endpoint.routes.findIndex(
-              (r) => !r.condition && (r.name === "default" || !r.condition),
-            );
-            if (route.condition && defaultRouteIndex !== -1) {
-              endpoint.routes.splice(defaultRouteIndex, 0, JSON.parse(JSON.stringify(route)));
+          // only merge default routes that are not default
+          if (route.name.toLowerCase() != "default") {
+            let existingRouteIndex = endpoint.routes.findIndex((x) => x.name === route.name);
+            if (existingRouteIndex === -1) {
+              let defaultRouteIndex = endpoint.routes.findIndex(
+                (r) => !r.condition && (r.name === "default" || !r.condition),
+              );
+              if (route.condition && defaultRouteIndex !== -1) {
+                endpoint.routes.splice(defaultRouteIndex, 0, JSON.parse(JSON.stringify(route)));
+              } else {
+                endpoint.routes.push(JSON.parse(JSON.stringify(route)));
+              }
             } else {
-              endpoint.routes.push(JSON.parse(JSON.stringify(route)));
+              endpoint.routes[existingRouteIndex] = JSON.parse(JSON.stringify(route));
             }
-          } else {
-            endpoint.routes[existingRouteIndex] = JSON.parse(JSON.stringify(route));
           }
         }
       }
@@ -4267,4 +4270,3 @@ export class ApigeeConverter {
     return clone;
   }
 }
-

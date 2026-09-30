@@ -2408,6 +2408,75 @@ description: Feature with displayName
       if (fs.existsSync(tempProxy)) fs.rmSync(tempProxy);
     }
   });
+
+  it("should create an empty template when run with <file>.yaml -f template without 404 from Apigee API", async () => {
+    const testFile = "./tests/data/MCP-CustomerService-Test.yaml";
+    if (fs.existsSync(testFile)) fs.rmSync(testFile);
+
+    const testCli = new cli();
+    let apigeeProxiesListCalled = false;
+    const origProxiesList = testCli.apigeeService.apigeeProxiesList;
+    testCli.apigeeService.apigeeProxiesList = async () => {
+      apigeeProxiesListCalled = true;
+      return [];
+    };
+
+    try {
+      await testCli.process([
+        "bun",
+        "apigee-templater.ts",
+        testFile,
+        "-f",
+        "template",
+        "--no-anim",
+      ]);
+
+      expect(apigeeProxiesListCalled).toBe(false);
+      expect(fs.existsSync(testFile)).toBe(true);
+      const parsed = YAML.parse(fs.readFileSync(testFile, "utf8"));
+      expect(parsed.name).toBe("MCP-CustomerService-Test");
+      expect(parsed.type).toBe("template");
+      expect(parsed.description).toBe("API template for MCP-CustomerService-Test");
+    } finally {
+      testCli.apigeeService.apigeeProxiesList = origProxiesList;
+      if (fs.existsSync(testFile)) fs.rmSync(testFile);
+    }
+  });
+
+  it("should create an empty template when run with <file>.yaml alone even if a candidate matches in repo", async () => {
+    const testFile = "./tests/data/test-local-template.yaml";
+    if (fs.existsSync(testFile)) fs.rmSync(testFile);
+
+    const testCli = new cli();
+    let repoGetCalled = false;
+    const origRepoGet = testCli.apigeeService.repositoryGet;
+    testCli.apigeeService.repositoryGet = async (name: string) => {
+      repoGetCalled = true;
+      return {
+        type: "template",
+        data: { name, type: "template", endpoints: [] } as any,
+      };
+    };
+
+    try {
+      await testCli.process([
+        "bun",
+        "apigee-templater.ts",
+        testFile,
+        "--no-anim",
+      ]);
+
+      // When passed as a .yaml file that does not exist locally, should create new template and not query repo
+      expect(repoGetCalled).toBe(false);
+      expect(fs.existsSync(testFile)).toBe(true);
+      const parsed = YAML.parse(fs.readFileSync(testFile, "utf8"));
+      expect(parsed.name).toBe("test-local-template");
+      expect(parsed.type).toBe("template");
+    } finally {
+      testCli.apigeeService.repositoryGet = origRepoGet;
+      if (fs.existsSync(testFile)) fs.rmSync(testFile);
+    }
+  });
 });
 
 
