@@ -2849,6 +2849,29 @@ export class cli {
               );
             }
 
+            // 7. Convert and export data collectors in emulator JSON format
+            let emulatorDataCollectors: any[] = [];
+            for (let dc of resolved.dataCollectors) {
+              this.converter.dataCollectorUpdateParameters(dc, inputParameters);
+              let emDc = this.converter.dataCollectorToApigeeDataCollector(dc);
+              emulatorDataCollectors.push(emDc);
+
+              let dcFileName = `${dc.name}.json`;
+              if (format !== "json" || !allProxyNames.includes(dc.name)) {
+                fs.writeFileSync(
+                  path.join(targetDir, dcFileName),
+                  JSON.stringify(emDc, null, 2),
+                );
+              }
+            }
+
+            if (emulatorDataCollectors.length > 0) {
+              fs.writeFileSync(
+                path.join(targetDir, "datacollectors.json"),
+                JSON.stringify(emulatorDataCollectors, null, 2),
+              );
+            }
+
             await this.printOverviewCard(
               `Deployment ${deployment.name}`,
               this.converter.deploymentToStringArray(deployment),

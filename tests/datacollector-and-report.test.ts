@@ -289,6 +289,75 @@ describe("DataCollector and CustomReport data types and operations", () => {
       expect(lines.some((l) => l.includes("Data Collectors") && l.includes("dc_metric"))).toBe(true);
       expect(lines.some((l) => l.includes("Reports") && l.includes("metric-report"))).toBe(true);
     });
+
+    it("should convert deployment with dataCollectors and export datacollectors.json and individual files", async () => {
+      const { default: cli } = await import("../src/lib/cli.js");
+      const myCli = new cli();
+      const outDir = path.join(process.cwd(), "tests/tmp-deployment-dc-export");
+      const deployYamlPath = path.join(process.cwd(), "tests/tmp-deployment-dc.yaml");
+
+      const yamlContent = `
+name: deployment-with-dc
+type: deployment
+gateway: apigee
+schemaVersion: 1.0.0
+environments:
+  - test
+dataCollectors:
+  - name: dc_test_metric
+    displayName: Test Metric
+    type: datacollector
+    gateway: apigee
+    schemaVersion: 1.0.0
+    description: Test metric collector
+    collectorType: INTEGER
+  - name: dc_test_label
+    displayName: Test Label
+    type: datacollector
+    gateway: apigee
+    schemaVersion: 1.0.0
+    description: Test label collector
+    collectorType: STRING
+`;
+
+      fs.writeFileSync(deployYamlPath, yamlContent, "utf8");
+      if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true, force: true });
+
+      try {
+        await myCli.process([
+          "bun",
+          "apigee-templater.ts",
+          deployYamlPath,
+          "-f",
+          "json",
+          "-o",
+          outDir,
+          "--no-anim",
+        ]);
+
+        expect(fs.existsSync(outDir)).toBe(true);
+        const dcJsonPath = path.join(outDir, "datacollectors.json");
+        expect(fs.existsSync(dcJsonPath)).toBe(true);
+
+        const dcs = JSON.parse(fs.readFileSync(dcJsonPath, "utf8"));
+        expect(dcs.length).toBe(2);
+        expect(dcs[0].name).toBe("dc_test_metric");
+        expect(dcs[0].type).toBe("INTEGER");
+        expect(dcs[0].description).toBe("Test metric collector");
+        expect(dcs[1].name).toBe("dc_test_label");
+        expect(dcs[1].type).toBe("STRING");
+
+        // Verify individual file export
+        const singleDcFile = path.join(outDir, "dc_test_metric.json");
+        expect(fs.existsSync(singleDcFile)).toBe(true);
+        const singleDc = JSON.parse(fs.readFileSync(singleDcFile, "utf8"));
+        expect(singleDc.name).toBe("dc_test_metric");
+        expect(singleDc.type).toBe("INTEGER");
+      } finally {
+        if (fs.existsSync(deployYamlPath)) fs.rmSync(deployYamlPath, { force: true });
+        if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe("CLI operations for DataCollector and CustomReport", () => {
