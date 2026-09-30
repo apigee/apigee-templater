@@ -22,12 +22,46 @@ import chalk from "chalk";
 import * as YAML from "yaml";
 import yauzl from "yauzl";
 import { ApigeeConverter } from "./converter.js";
-import { Proxy, Feature, Template, Product, Products, User, Users, Deployment, Deployments, Kvm, KVM, ApigeeConfig } from "./interfaces.js";
+import {
+  Proxy,
+  Feature,
+  Template,
+  Product,
+  Products,
+  User,
+  Users,
+  Deployment,
+  Deployments,
+  Kvm,
+  KVM,
+  DataCollector,
+  DataCollectors,
+  CustomReport,
+  CustomReports,
+  Report,
+  Reports,
+  ApigeeConfig,
+} from "./interfaces.js";
 import { ApigeeTemplaterService } from "./service.js";
 import { GoogleAuth } from "google-auth-library";
 import { version } from "./version.js";
 import { CompletionManager } from "./completion.js";
 import { stdin } from "process";
+
+const isDataCollectorFormat = (format?: string) =>
+  Boolean(
+    format &&
+      ["datacollector", "datacollectors", "dc", "collector", "collectors"].includes(
+        format.toLowerCase(),
+      ),
+  );
+const isReportFormat = (format?: string) =>
+  Boolean(
+    format &&
+      ["report", "reports", "customreport", "customreports", "cr"].includes(
+        format.toLowerCase(),
+      ),
+  );
 import CliAnimation, { AnimationStage } from "./animation.js";
 
 const auth = new GoogleAuth({
@@ -716,9 +750,18 @@ export class cli {
       }
 
       if (["-f", "--format"].includes(prevWord)) {
-        const formats = ["proxy", "template", "feature", "product", "user", "sharedflow", "sf"].filter(
-          (fmt) => !currentWord || fmt.startsWith(currentWord)
-        );
+        const formats = [
+          "proxy",
+          "template",
+          "feature",
+          "product",
+          "user",
+          "datacollector",
+          "report",
+          "customreport",
+          "sharedflow",
+          "sf",
+        ].filter((fmt) => !currentWord || fmt.startsWith(currentWord));
         if (formats.length > 0) console.log(formats.join("\n"));
         return;
       }
@@ -1140,6 +1183,8 @@ export class cli {
     let feature: Feature | undefined = undefined;
     let product: Product | undefined = undefined;
     let user: User | undefined = undefined;
+    let dataCollector: DataCollector | undefined = undefined;
+    let report: CustomReport | undefined = undefined;
 
     if (file && file["type"] === "deployment") deployment = file as Deployment;
     else if (file && file["type"] === "template") template = file as Template;
@@ -1147,12 +1192,16 @@ export class cli {
     else if (file && file["type"] === "feature") feature = file as Feature;
     else if (file && file["type"] === "product") product = file as Product;
     else if (file && file["type"] === "user") user = file as User;
+    else if (file && (file["type"] === "datacollector" || file["type"] === "collector")) dataCollector = file as DataCollector;
+    else if (file && (file["type"] === "report" || file["type"] === "customreport")) report = file as CustomReport;
     else if (file && options.format === "deployment") deployment = file as Deployment;
     else if (file && options.format === "template") template = file as Template;
     else if (file && options.format === "proxy") proxy = file as Proxy;
     else if (file && (options.format === "feature" || options.format === "sharedflow" || options.format === "sf")) feature = file as Feature;
     else if (file && options.format === "product") product = file as Product;
     else if (file && options.format === "user") user = file as User;
+    else if (file && isDataCollectorFormat(options.format)) dataCollector = file as DataCollector;
+    else if (file && isReportFormat(options.format)) report = file as CustomReport;
     else if (file && (file["templates"] || file["deployments"])) deployment = file as Deployment;
     else if (file && file["endpoints"] && file["features"]) template = file as Template;
     else if (file && file["endpoints"]) proxy = file as Proxy;
@@ -1160,6 +1209,8 @@ export class cli {
     else if (file && file["policies"]) feature = file as Feature;
     else if (file && (file["approvalType"] || file["operationGroup"])) product = file as Product;
     else if (file && (file["email"] || file["developerId"])) user = file as User;
+    else if (file && (file["collectorType"] || (file["name"]?.startsWith("dc_") && file["type"] && ["string", "integer", "float", "boolean", "long"].includes(file["type"].toLowerCase())))) dataCollector = file as DataCollector;
+    else if (file && (file["metrics"] || file["chartType"])) report = file as CustomReport;
     else {
       await this.stopAnimation();
       console.log(
@@ -1202,6 +1253,16 @@ export class cli {
       resetObject = user;
       title = `User ${user.name || user.email}`;
       summaryLines = this.converter.userToStringArray(user);
+    } else if (dataCollector) {
+      dataCollector = this.converter.dataCollectorReset(dataCollector);
+      resetObject = dataCollector;
+      title = `Data Collector ${dataCollector.name}`;
+      summaryLines = this.converter.dataCollectorToStringArray(dataCollector);
+    } else if (report) {
+      report = this.converter.reportReset(report);
+      resetObject = report;
+      title = `Custom Report ${report.name}`;
+      summaryLines = this.converter.reportToStringArray(report);
     }
 
     const outputPath = options.output || options.input;
@@ -1376,6 +1437,8 @@ export class cli {
     let proxy: Proxy | undefined = undefined;
     let product: Product | undefined = undefined;
     let user: User | undefined = undefined;
+    let dataCollector: DataCollector | undefined = undefined;
+    let report: CustomReport | undefined = undefined;
     let startDir = process.cwd();
     let templateDir = "";
 
@@ -1413,6 +1476,10 @@ export class cli {
           options.name + "-app",
           [],
         );
+      } else if (isDataCollectorFormat(options.format)) {
+        dataCollector = this.converter.dataCollectorCreate(options.name);
+      } else if (isReportFormat(options.format)) {
+        report = this.converter.reportCreate(options.name);
       } else {
         // console.log(`  ${chalk.cyan("ℹ Template created, converting to feature...")}`);
         template = this.converter.templateCreate(options.name, basePath, options.targetUrl);
@@ -1466,6 +1533,26 @@ export class cli {
           );
           if (apigeeUserData) {
             user = apigeeUserData;
+          }
+        } else if (isDataCollectorFormat(options.format)) {
+          let apigeeDcData = await this.apigeeService.apigeeDataCollectorGet(
+            resourceName,
+            apigeeOrg,
+            options.drz,
+            "Bearer " + options.token,
+          );
+          if (apigeeDcData) {
+            dataCollector = this.converter.apigeeDataCollectorToDataCollector(apigeeDcData);
+          }
+        } else if (isReportFormat(options.format)) {
+          let apigeeReportData = await this.apigeeService.apigeeReportGet(
+            resourceName,
+            apigeeOrg,
+            options.drz,
+            "Bearer " + options.token,
+          );
+          if (apigeeReportData) {
+            report = this.converter.apigeeReportToReport(apigeeReportData);
           }
         } else if (options.format == "sharedflow" || options.format == "sf") {
           let sharedFlowPath = await this.apigeeService.apigeeSharedFlowGet(
@@ -1531,6 +1618,28 @@ export class cli {
                 );
                 if (apigeeUserData) {
                   user = apigeeUserData;
+                } else {
+                  // Try data collector
+                  let apigeeDcData = await this.apigeeService.apigeeDataCollectorGet(
+                    resourceName,
+                    apigeeOrg,
+                    options.drz,
+                    "Bearer " + options.token,
+                  );
+                  if (apigeeDcData) {
+                    dataCollector = this.converter.apigeeDataCollectorToDataCollector(apigeeDcData);
+                  } else {
+                    // Try report
+                    let apigeeReportData = await this.apigeeService.apigeeReportGet(
+                      resourceName,
+                      apigeeOrg,
+                      options.drz,
+                      "Bearer " + options.token,
+                    );
+                    if (apigeeReportData) {
+                      report = this.converter.apigeeReportToReport(apigeeReportData);
+                    }
+                  }
                 }
               }
             }
@@ -1539,10 +1648,16 @@ export class cli {
 
         if (proxy && !proxy.description) proxy.description = "Proxy for " + proxy.name;
 
-        if (!options.output && !options.organization && (deployment || product || user || proxy || feature)) {
+        if (
+          !options.output &&
+          !options.organization &&
+          (deployment || product || user || proxy || feature || dataCollector || report)
+        ) {
           if (deployment) options.output = (deployment.name || resourceName) + ".yaml";
           else if (product) options.output = (product.name || resourceName) + ".yaml";
           else if (user) options.output = (user.name || user.email || resourceName) + ".yaml";
+          else if (dataCollector) options.output = (dataCollector.name || resourceName) + ".yaml";
+          else if (report) options.output = (report.name || resourceName) + ".yaml";
           else if (feature) options.output = (feature.name || resourceName) + ".yaml";
           else if (proxy) options.output = (proxy.name || resourceName) + ".yaml";
         }
@@ -1570,12 +1685,16 @@ export class cli {
         else if (file && file["type"] === "feature") feature = file as Feature;
         else if (file && file["type"] === "product") product = file as Product;
         else if (file && file["type"] === "user") user = file as User;
+        else if (file && (file["type"] === "datacollector" || file["type"] === "collector")) dataCollector = file as DataCollector;
+        else if (file && (file["type"] === "report" || file["type"] === "customreport")) report = file as CustomReport;
         else if (file && options.format === "deployment") deployment = file as Deployment;
         else if (file && options.format === "template") template = file as Template;
         else if (file && options.format === "proxy") proxy = file as Proxy;
         else if (file && (options.format === "feature" || options.format === "sharedflow" || options.format === "sf")) feature = file as Feature;
         else if (file && options.format === "product") product = file as Product;
         else if (file && options.format === "user") user = file as User;
+        else if (file && isDataCollectorFormat(options.format)) dataCollector = file as DataCollector;
+        else if (file && isReportFormat(options.format)) report = file as CustomReport;
         else if (file && (file["templates"] || file["deployments"])) deployment = file as Deployment;
         else if (file && file["endpoints"] && file["features"]) template = file as Template;
         else if (file && file["endpoints"]) proxy = file as Proxy;
@@ -1583,6 +1702,8 @@ export class cli {
         else if (file && file["policies"]) feature = file as Feature;
         else if (file && (file["approvalType"] || file["operationGroup"])) product = file as Product;
         else if (file && (file["email"] || file["developerId"])) user = file as User;
+        else if (file && (file["collectorType"] || (file["name"]?.startsWith("dc_") && file["type"] && ["string", "integer", "float", "boolean", "long"].includes(file["type"].toLowerCase())))) dataCollector = file as DataCollector;
+        else if (file && (file["metrics"] || file["chartType"])) report = file as CustomReport;
         else if (file) {
           console.log(
             `  ${chalk.red.bold("✖ Error reading '" + options.input + "', could not determine its type:")}\n  ${JSON.stringify(file, null, 2)}`,
@@ -1604,12 +1725,16 @@ export class cli {
           else if (file && file["type"] === "feature") feature = file as Feature;
           else if (file && file["type"] === "product") product = file as Product;
           else if (file && file["type"] === "user") user = file as User;
+          else if (file && (file["type"] === "datacollector" || file["type"] === "collector")) dataCollector = file as DataCollector;
+          else if (file && (file["type"] === "report" || file["type"] === "customreport")) report = file as CustomReport;
           else if (file && options.format === "deployment") deployment = file as Deployment;
           else if (file && options.format === "template") template = file as Template;
           else if (file && options.format === "proxy") proxy = file as Proxy;
           else if (file && (options.format === "feature" || options.format === "sharedflow" || options.format === "sf")) feature = file as Feature;
           else if (file && options.format === "product") product = file as Product;
           else if (file && options.format === "user") user = file as User;
+          else if (file && isDataCollectorFormat(options.format)) dataCollector = file as DataCollector;
+          else if (file && isReportFormat(options.format)) report = file as CustomReport;
           else if (file && (file["templates"] || file["deployments"])) deployment = file as Deployment;
           else if (file && file["endpoints"] && file["features"]) template = file as Template;
           else if (file && file["endpoints"]) proxy = file as Proxy;
@@ -1617,6 +1742,8 @@ export class cli {
           else if (file && file["policies"]) feature = file as Feature;
           else if (file && (file["approvalType"] || file["operationGroup"])) product = file as Product;
           else if (file && (file["email"] || file["developerId"])) user = file as User;
+          else if (file && (file["collectorType"] || (file["name"]?.startsWith("dc_") && file["type"] && ["string", "integer", "float", "boolean", "long"].includes(file["type"].toLowerCase())))) dataCollector = file as DataCollector;
+          else if (file && (file["metrics"] || file["chartType"])) report = file as CustomReport;
         } else {
           if (options.format == "deployment") {
             deployment = await this.apigeeService.deploymentGet(options.input);
@@ -1632,6 +1759,10 @@ export class cli {
             product = await this.apigeeService.productGet(options.input);
           } else if (options.format == "user") {
             user = await this.apigeeService.userGet(options.input);
+          } else if (isDataCollectorFormat(options.format)) {
+            dataCollector = await this.apigeeService.dataCollectorGet(options.input);
+          } else if (isReportFormat(options.format)) {
+            report = await this.apigeeService.reportGet(options.input);
           } else {
             let resolved = await this.apigeeService.repositoryGet(options.input);
             if (resolved) {
@@ -1641,9 +1772,11 @@ export class cli {
               else if (resolved.type === "feature") feature = resolved.data as Feature;
               else if (resolved.type === "product") product = resolved.data as Product;
               else if (resolved.type === "user") user = resolved.data as User;
+              else if (resolved.type === "datacollector") dataCollector = resolved.data as DataCollector;
+              else if (resolved.type === "report") report = resolved.data as CustomReport;
             }
           }
-          if (!deployment && !template && !proxy && !feature && !product && !user && options.organization) {
+          if (!deployment && !template && !proxy && !feature && !product && !user && !dataCollector && !report && options.organization) {
             // Fallback: Check if resource exists in the Apigee organization
             await fetchResourceFromApigee(options.organization, options.input);
           }
@@ -1674,6 +1807,12 @@ export class cli {
     if (user && !user.name && !user.email && options.input) {
       user.name = path.basename(options.input).replace(/\.(yaml|yml|json)$/i, "");
     }
+    if (dataCollector && !dataCollector.name && options.input) {
+      dataCollector.name = path.basename(options.input).replace(/\.(yaml|yml|json)$/i, "");
+    }
+    if (report && !report.name && options.input) {
+      report.name = path.basename(options.input).replace(/\.(yaml|yml|json)$/i, "");
+    }
 
     if (options.command === "describe") {
       process.chdir(startDir);
@@ -1693,20 +1832,24 @@ export class cli {
         await this.printOverviewCard(`Product ${product.name}`, this.converter.productToStringArray(product));
       } else if (user) {
         await this.printOverviewCard(`User ${user.name || user.email}`, this.converter.userToStringArray(user));
+      } else if (dataCollector) {
+        await this.printOverviewCard(`Data Collector ${dataCollector.name}`, this.converter.dataCollectorToStringArray(dataCollector));
+      } else if (report) {
+        await this.printOverviewCard(`Custom Report ${report.name}`, this.converter.reportToStringArray(report));
       } else {
         console.log(`  ${chalk.red.bold(`✖ Error: Could not resolve input '${options.input}' to describe.`)}\n`);
       }
       return;
     }
 
-    if (!deployment && !template && !proxy && !feature && !product && !user) {
+    if (!deployment && !template && !proxy && !feature && !product && !user && !dataCollector && !report) {
       if (!options.token) {
         let token = await auth.getAccessToken();
         if (token) options.token = token;
       }
       const targetOrg = options.organization || (options.input.endsWith(":") ? options.input.slice(0, -1) : options.input);
       if (!targetOrg) {
-        console.log(`  ${chalk.red.bold("✖ Error: No input template, proxy, product, user, or organization specified.")}`);
+        console.log(`  ${chalk.red.bold("✖ Error: No input template, proxy, product, user, data collector, custom report, or organization specified.")}`);
         return;
       }
 
@@ -1858,6 +2001,165 @@ export class cli {
           );
           for (let u of userList["developer"]) {
             console.log(`    ${chalk.green("•")} ${u["email"] || u["userName"]}`);
+          }
+          console.log();
+        }
+        return;
+      } else if (isDataCollectorFormat(options.format)) {
+        let dcList = await this.apigeeService.apigeeDataCollectorsList(
+          targetOrg,
+          options.drz,
+          `Bearer ${options.token}`,
+        );
+        let items: any[] = [];
+        if (dcList) {
+          if (Array.isArray(dcList)) items = dcList;
+          else if (Array.isArray(dcList["dataCollectors"])) items = dcList["dataCollectors"];
+          else if (Array.isArray(dcList["datacollectors"])) items = dcList["datacollectors"];
+        }
+        if (items.length > 0) {
+          if (options.output) {
+            const isDir =
+              options.output.endsWith("/") ||
+              options.output.endsWith("\\") ||
+              (fs.existsSync(options.output) && fs.statSync(options.output).isDirectory()) ||
+              (!options.output.toLowerCase().endsWith(".yaml") &&
+                !options.output.toLowerCase().endsWith(".yml") &&
+                !options.output.toLowerCase().endsWith(".json"));
+
+            let collectors: DataCollector[] = [];
+            for (let dc of items) {
+              let dcName = typeof dc === "string" ? dc : (dc.name || "");
+              if (dcName.includes("/")) dcName = dcName.split("/").pop() || dcName;
+              let fullDc = typeof dc === "object" && dc.type && dc.name ? dc : await this.apigeeService.apigeeDataCollectorGet(
+                dcName,
+                targetOrg,
+                options.drz,
+                `Bearer ${options.token}`,
+              );
+              if (fullDc) collectors.push(this.converter.apigeeDataCollectorToDataCollector(fullDc));
+            }
+
+            if (isDir) {
+              if (!fs.existsSync(options.output)) {
+                fs.mkdirSync(options.output, { recursive: true });
+              }
+              for (let col of collectors) {
+                const outPath = path.join(options.output, `${col.name}.yaml`);
+                fs.writeFileSync(
+                  outPath,
+                  YAML.stringify(col, { aliasDuplicateObjects: false, blockQuote: "literal" }),
+                );
+                await this.printOverviewCard(
+                  `Data Collector ${col.name}`,
+                  this.converter.dataCollectorToStringArray(col),
+                  outPath,
+                );
+              }
+            } else {
+              if (options.output.toLowerCase().endsWith(".json")) {
+                fs.writeFileSync(options.output, JSON.stringify(collectors, null, 2));
+              } else {
+                fs.writeFileSync(
+                  options.output,
+                  YAML.stringify(collectors, { aliasDuplicateObjects: false, blockQuote: "literal" }),
+                );
+              }
+              await this.stopAnimation();
+              console.log(
+                `\n  ${chalk.green.bold("✔")} Exported ${chalk.cyan(collectors.length)} data collectors to ${chalk.bold.yellow(options.output)}\n`,
+              );
+            }
+            return;
+          }
+
+          await this.stopAnimation();
+          console.log(
+            `\n  ${chalk.cyan.bold("Apigee org " + targetOrg + " data collectors:")} ${chalk.gray("(export data collector with -i NAME --organization " + targetOrg + " -f datacollector)")}`,
+          );
+          for (let dc of items) {
+            let dcName = typeof dc === "string" ? dc : (dc.name || "");
+            if (dcName.includes("/")) dcName = dcName.split("/").pop() || dcName;
+            console.log(`    ${chalk.green("•")} ${dcName}`);
+          }
+          console.log();
+        }
+        return;
+      } else if (isReportFormat(options.format)) {
+        let repList = await this.apigeeService.apigeeReportsList(
+          targetOrg,
+          options.drz,
+          `Bearer ${options.token}`,
+        );
+        let items: any[] = [];
+        if (repList) {
+          if (Array.isArray(repList)) items = repList;
+          else if (Array.isArray(repList["reports"])) items = repList["reports"];
+          else if (Array.isArray(repList["qualifier"])) items = repList["qualifier"];
+        }
+        if (items.length > 0) {
+          if (options.output) {
+            const isDir =
+              options.output.endsWith("/") ||
+              options.output.endsWith("\\") ||
+              (fs.existsSync(options.output) && fs.statSync(options.output).isDirectory()) ||
+              (!options.output.toLowerCase().endsWith(".yaml") &&
+                !options.output.toLowerCase().endsWith(".yml") &&
+                !options.output.toLowerCase().endsWith(".json"));
+
+            let reports: CustomReport[] = [];
+            for (let r of items) {
+              let rName = typeof r === "string" ? r : (r.name || "");
+              let fullR = typeof r === "object" && r.metrics ? r : await this.apigeeService.apigeeReportGet(
+                rName,
+                targetOrg,
+                options.drz,
+                `Bearer ${options.token}`,
+              );
+              if (fullR) reports.push(this.converter.apigeeReportToReport(fullR));
+            }
+
+            if (isDir) {
+              if (!fs.existsSync(options.output)) {
+                fs.mkdirSync(options.output, { recursive: true });
+              }
+              for (let rep of reports) {
+                const outPath = path.join(options.output, `${rep.name}.yaml`);
+                fs.writeFileSync(
+                  outPath,
+                  YAML.stringify(rep, { aliasDuplicateObjects: false, blockQuote: "literal" }),
+                );
+                await this.printOverviewCard(
+                  `Custom Report ${rep.name}`,
+                  this.converter.reportToStringArray(rep),
+                  outPath,
+                );
+              }
+            } else {
+              if (options.output.toLowerCase().endsWith(".json")) {
+                fs.writeFileSync(options.output, JSON.stringify(reports, null, 2));
+              } else {
+                fs.writeFileSync(
+                  options.output,
+                  YAML.stringify(reports, { aliasDuplicateObjects: false, blockQuote: "literal" }),
+                );
+              }
+              await this.stopAnimation();
+              console.log(
+                `\n  ${chalk.green.bold("✔")} Exported ${chalk.cyan(reports.length)} custom reports to ${chalk.bold.yellow(options.output)}\n`,
+              );
+            }
+            return;
+          }
+
+          await this.stopAnimation();
+          console.log(
+            `\n  ${chalk.cyan.bold("Apigee org " + targetOrg + " custom reports:")} ${chalk.gray("(export custom report with -i NAME --organization " + targetOrg + " -f report)")}`,
+          );
+          for (let r of items) {
+            let rName = typeof r === "string" ? r : (r.name || "");
+            let rDisp = typeof r === "object" && r.displayName ? ` (${r.displayName})` : "";
+            console.log(`    ${chalk.green("•")} ${rName}${rDisp}`);
           }
           console.log();
         }
@@ -2027,6 +2329,10 @@ export class cli {
         if (!options.format || options.format === "proxy") options.format = "product";
       } else if (user) {
         if (!options.format || options.format === "proxy") options.format = "user";
+      } else if (dataCollector) {
+        if (!options.format || options.format === "proxy") options.format = "datacollector";
+      } else if (report) {
+        if (!options.format || options.format === "proxy") options.format = "report";
       } else {
         process.chdir(startDir);
         console.log(
@@ -2059,7 +2365,15 @@ export class cli {
         if (deployment || options.format === "deployment") {
           let resolved = deployment
             ? await this.apigeeService.deploymentResolveAssets(deployment, templateDir)
-            : { templates: [], proxies: [], features: [], products: [], users: [] };
+            : {
+                templates: [],
+                proxies: [],
+                features: [],
+                products: [],
+                users: [],
+                dataCollectors: [],
+                reports: [],
+              };
 
           // 1. Delete Users first
           for (let userObj of resolved.users) {
@@ -2102,7 +2416,47 @@ export class cli {
             }
           }
 
-          // 3. Delete Proxies and Templates
+          // 3. Delete Custom Reports
+          for (let repObj of resolved.reports) {
+            this.converter.reportUpdateParameters(repObj, inputParameters);
+            let del = await this.apigeeService.apigeeReportDelete(
+              repObj.name,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Custom Report: ${chalk.cyan(repObj.name)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Custom Report: ${chalk.cyan(repObj.name)}`,
+              );
+            }
+          }
+
+          // 4. Delete Data Collectors
+          for (let dcObj of resolved.dataCollectors) {
+            this.converter.dataCollectorUpdateParameters(dcObj, inputParameters);
+            let del = await this.apigeeService.apigeeDataCollectorDelete(
+              dcObj.name,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Data Collector: ${chalk.cyan(dcObj.name)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Data Collector: ${chalk.cyan(dcObj.name)}`,
+              );
+            }
+          }
+
+          // 5. Delete Proxies and Templates
           for (let proxyObj of resolved.proxies) {
             let del = await this.apigeeService.apigeeProxyDelete(
               proxyObj.name,
@@ -2208,6 +2562,44 @@ export class cli {
             } else {
               console.log(
                 `  ${chalk.yellow.bold("⚠")} Could not delete Product: ${chalk.cyan(prodName)}`,
+              );
+            }
+          }
+        } else if (dataCollector || isDataCollectorFormat(options.format)) {
+          const dcName = dataCollector ? dataCollector.name : options.name;
+          if (dcName) {
+            let del = await this.apigeeService.apigeeDataCollectorDelete(
+              dcName,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Data Collector: ${chalk.cyan(dcName)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Data Collector: ${chalk.cyan(dcName)}`,
+              );
+            }
+          }
+        } else if (report || isReportFormat(options.format)) {
+          const rName = report ? report.name : options.name;
+          if (rName) {
+            let del = await this.apigeeService.apigeeReportDelete(
+              rName,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Custom Report: ${chalk.cyan(rName)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Custom Report: ${chalk.cyan(rName)}`,
               );
             }
           }
@@ -2611,6 +3003,28 @@ export class cli {
                 "Bearer " + options.token,
               );
             }
+
+            // 5. Export data collectors
+            for (let dc of resolved.dataCollectors) {
+              this.converter.dataCollectorUpdateParameters(dc, inputParameters);
+              await this.apigeeService.apigeeDataCollectorExport(
+                dc,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+            }
+
+            // 6. Export custom reports
+            for (let rep of resolved.reports) {
+              this.converter.reportUpdateParameters(rep, inputParameters);
+              await this.apigeeService.apigeeReportExport(
+                rep,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+            }
           }
 
           let displayDestination = options.output;
@@ -2760,6 +3174,132 @@ export class cli {
           await this.printOverviewCard(
             `User ${user.name || user.email}`,
             this.converter.userToStringArray(user),
+            displayDestination || options.output,
+          );
+        }
+      } else if (dataCollector || (options.output && isDataCollectorFormat(options.format))) {
+        process.chdir(startDir);
+        if (dataCollector) {
+          if (options.name && !dataCollector.name) dataCollector.name = options.name;
+          this.converter.dataCollectorUpdateParameters(dataCollector, inputParameters);
+
+          let pieces =
+            options.output && options.output.includes(":") ? options.output.split(":") : [];
+          let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
+          if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+            org = options.output;
+          }
+
+          if (options.output && options.output.toLowerCase().endsWith(".json")) {
+            fs.writeFileSync(options.output, JSON.stringify(dataCollector, null, 2));
+          } else if (
+            options.output &&
+            (options.output.toLowerCase().endsWith(".yaml") ||
+              options.output.toLowerCase().endsWith(".yml"))
+          ) {
+            fs.writeFileSync(
+              options.output,
+              YAML.stringify(dataCollector, {
+                aliasDuplicateObjects: false,
+                blockQuote: "literal",
+              }),
+            );
+          } else if (
+            (options.output && options.output.includes(":")) ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
+            if (!options.token) {
+              let token = await auth.getAccessToken();
+              if (token) options.token = token;
+            }
+            if (org) {
+              let exportResult = await this.apigeeService.apigeeDataCollectorExport(
+                dataCollector,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+              if (!exportResult) throw new Error("Data Collector could not be exported.");
+            }
+          }
+
+          let displayDestination = options.output;
+          if (
+            !displayDestination ||
+            !displayDestination.match(/\.(yaml|yml|json|zip|dir)$/i)
+          ) {
+            displayDestination = [org, options.name || dataCollector.name]
+              .filter(Boolean)
+              .join(":");
+          }
+
+          await this.printOverviewCard(
+            `Data Collector ${dataCollector.name}`,
+            this.converter.dataCollectorToStringArray(dataCollector),
+            displayDestination || options.output,
+          );
+        }
+      } else if (report || (options.output && isReportFormat(options.format))) {
+        process.chdir(startDir);
+        if (report) {
+          if (options.name && !report.name) report.name = options.name;
+          this.converter.reportUpdateParameters(report, inputParameters);
+
+          let pieces =
+            options.output && options.output.includes(":") ? options.output.split(":") : [];
+          let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
+          if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+            org = options.output;
+          }
+
+          if (options.output && options.output.toLowerCase().endsWith(".json")) {
+            fs.writeFileSync(options.output, JSON.stringify(report, null, 2));
+          } else if (
+            options.output &&
+            (options.output.toLowerCase().endsWith(".yaml") ||
+              options.output.toLowerCase().endsWith(".yml"))
+          ) {
+            fs.writeFileSync(
+              options.output,
+              YAML.stringify(report, {
+                aliasDuplicateObjects: false,
+                blockQuote: "literal",
+              }),
+            );
+          } else if (
+            (options.output && options.output.includes(":")) ||
+            options.organization ||
+            (options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i))
+          ) {
+            if (!options.token) {
+              let token = await auth.getAccessToken();
+              if (token) options.token = token;
+            }
+            if (org) {
+              let exportResult = await this.apigeeService.apigeeReportExport(
+                report,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+              if (!exportResult) throw new Error("Custom Report could not be exported.");
+            }
+          }
+
+          let displayDestination = options.output;
+          if (
+            !displayDestination ||
+            !displayDestination.match(/\.(yaml|yml|json|zip|dir)$/i)
+          ) {
+            displayDestination = [org, options.name || report.name]
+              .filter(Boolean)
+              .join(":");
+          }
+
+          await this.printOverviewCard(
+            `Custom Report ${report.name}`,
+            this.converter.reportToStringArray(report),
             displayDestination || options.output,
           );
         }
@@ -3281,7 +3821,7 @@ const helpCommands = [
   },
   {
     name: "--format, -f",
-    description: "An optional format to convert input into: 'proxy', 'template', 'feature', 'product', 'user', or 'sharedflow'.",
+    description: "An optional format to convert input into: 'proxy', 'template', 'feature', 'product', 'user', 'datacollector', 'report', or 'sharedflow'.",
   },
   {
     name: "--applyFeature, -a",
@@ -3310,7 +3850,7 @@ const helpCommands = [
   },
   {
     name: "--delete",
-    description: "Delete Apigee resources defined in input template, product, user, or proxy.",
+    description: "Delete Apigee resources defined in input template, product, user, datacollector, report, deployment, or proxy.",
   },
   {
     name: "--token, -t",

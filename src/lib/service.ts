@@ -1,5 +1,23 @@
 import { ApigeeConverter } from "./converter.js";
-import { Template, Proxy, Feature, Product, Products, User, Users, Deployment, Deployments, ApigeeConfig } from "./interfaces.js";
+import {
+  Template,
+  Proxy,
+  Feature,
+  Product,
+  Products,
+  User,
+  Users,
+  Deployment,
+  Deployments,
+  DataCollector,
+  DataCollectors,
+  ReportMetric,
+  CustomReport,
+  CustomReports,
+  Report,
+  Reports,
+  ApigeeConfig,
+} from "./interfaces.js";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -15,6 +33,8 @@ export class ApigeeTemplaterService {
   productsPath: string = "./data/products/";
   usersPath: string = "./data/users/";
   deploymentsPath: string = "./data/deployments/";
+  dataCollectorsPath: string = "./data/datacollectors/";
+  reportsPath: string = "./data/reports/";
   public apigeeProxyListCache: { [key: string]: string[] } = {};
   public apigeeSharedFlowListCache: { [key: string]: string[] } = {};
   public templateListCache: string[] = [];
@@ -22,6 +42,8 @@ export class ApigeeTemplaterService {
   public productListCache: string[] = [];
   public userListCache: string[] = [];
   public deploymentListCache: string[] = [];
+  public dataCollectorListCache: string[] = [];
+  public reportListCache: string[] = [];
 
   private cacheTtlMs: number = 24 * 60 * 60 * 1000; // 1 day in milliseconds
 
@@ -74,6 +96,20 @@ export class ApigeeTemplaterService {
     );
   }
 
+  public get dataCollectorsRepository(): string {
+    return (
+      process.env.AFT_DATACOLLECTORS_REPOSITORY ||
+      `${this.baseRepository}/tree/main/datacollectors`
+    );
+  }
+
+  public get reportsRepository(): string {
+    return (
+      process.env.AFT_REPORTS_REPOSITORY ||
+      `${this.baseRepository}/tree/main/reports`
+    );
+  }
+
   remoteGetBaseUrl = process.env.TEMPLATER_GET_BASE_URL
     ? process.env.TEMPLATER_GET_BASE_URL
     : "https://raw.githubusercontent.com/apigee/apigee-templater/refs/heads/main/repository/";
@@ -86,11 +122,29 @@ export class ApigeeTemplaterService {
     return path.join(homeDir, ".aft", "cache");
   }
 
-  private getCachePath(key: "templates" | "features" | "products" | "users" | "deployments"): string {
+  private getCachePath(
+    key:
+      | "templates"
+      | "features"
+      | "products"
+      | "users"
+      | "deployments"
+      | "datacollectors"
+      | "reports",
+  ): string {
     return path.join(this.getCacheDir(), `${key}.json`);
   }
 
-  private readCache<T>(key: "templates" | "features" | "products" | "users" | "deployments"): T[] | null {
+  private readCache<T>(
+    key:
+      | "templates"
+      | "features"
+      | "products"
+      | "users"
+      | "deployments"
+      | "datacollectors"
+      | "reports",
+  ): T[] | null {
     try {
       const filePath = this.getCachePath(key);
       if (!fs.existsSync(filePath)) return null;
@@ -267,6 +321,8 @@ export class ApigeeTemplaterService {
       this.proxiesPath = basePath + "proxies/";
       this.productsPath = basePath + "products/";
       this.usersPath = basePath + "users/";
+      this.dataCollectorsPath = basePath + "datacollectors/";
+      this.reportsPath = basePath + "reports/";
     } else if (basePath) {
       this.tempPath = basePath;
       this.templatesPath = basePath;
@@ -274,6 +330,8 @@ export class ApigeeTemplaterService {
       this.proxiesPath = basePath;
       this.productsPath = basePath;
       this.usersPath = basePath;
+      this.dataCollectorsPath = basePath;
+      this.reportsPath = basePath;
     }
   }
 
@@ -2434,12 +2492,16 @@ export class ApigeeTemplaterService {
     features: Feature[];
     products: Product[];
     users: User[];
+    dataCollectors: DataCollector[];
+    reports: CustomReport[];
   }> {
     const templates: Template[] = [];
     const proxies: Proxy[] = [];
     const features: Feature[] = [];
     const products: Product[] = [];
     const users: User[] = [];
+    const dataCollectors: DataCollector[] = [];
+    const reports: CustomReport[] = [];
 
     if (deployment.templates && Array.isArray(deployment.templates)) {
       for (const tRef of deployment.templates) {
@@ -2476,14 +2538,39 @@ export class ApigeeTemplaterService {
       }
     }
 
-    return { templates, proxies, features, products, users };
+    const depDataCollectors = deployment.dataCollectors || (deployment as any).datacollectors;
+    if (depDataCollectors && Array.isArray(depDataCollectors)) {
+      for (const dcRef of depDataCollectors) {
+        const dc = await this.loadDataCollector(dcRef, relativeDir);
+        if (dc) dataCollectors.push(dc);
+      }
+    }
+
+    const depReports =
+      deployment.reports || deployment.customReports || (deployment as any).customreports;
+    if (depReports && Array.isArray(depReports)) {
+      for (const rRef of depReports) {
+        const r = await this.loadReport(rRef, relativeDir);
+        if (r) reports.push(r);
+      }
+    }
+
+    return { templates, proxies, features, products, users, dataCollectors, reports };
   }
 
   public async repositoryGet(name: string): Promise<{
-    type: "template" | "feature" | "product" | "user" | "proxy" | "deployment";
-    data: Template | Feature | Product | User | Proxy | Deployment;
+    type:
+      | "template"
+      | "feature"
+      | "product"
+      | "user"
+      | "proxy"
+      | "deployment"
+      | "datacollector"
+      | "report";
+    data: Template | Feature | Product | User | Proxy | Deployment | DataCollector | CustomReport;
   } | undefined> {
-    // Check templates, features, deployments, proxies, products, users in that order
+    // Check templates, features, deployments, proxies, products, users, datacollectors, reports in that order
     let template = await this.templateGet(name);
     if (template) return { type: "template", data: template };
 
@@ -2501,6 +2588,12 @@ export class ApigeeTemplaterService {
 
     let user = await this.userGet(name);
     if (user) return { type: "user", data: user };
+
+    let dataCollector = await this.dataCollectorGet(name);
+    if (dataCollector) return { type: "datacollector", data: dataCollector };
+
+    let report = await this.reportGet(name);
+    if (report) return { type: "report", data: report };
 
     return undefined;
   }
@@ -2825,4 +2918,786 @@ export class ApigeeTemplaterService {
       }
     });
   }
+
+  // --- Data Collector Methods ---
+
+  public dataCollectorImport(dataCollector: DataCollector) {
+    if (!fs.existsSync(this.dataCollectorsPath)) {
+      fs.mkdirSync(this.dataCollectorsPath, { recursive: true });
+    }
+    let dcString = JSON.stringify(dataCollector, null, 2);
+    fs.writeFileSync(path.join(this.dataCollectorsPath, dataCollector.name + ".json"), dcString);
+    this.dataCollectorListCache = [];
+    const cachePath = this.getCachePath("datacollectors");
+    if (fs.existsSync(cachePath)) {
+      try {
+        fs.rmSync(cachePath);
+      } catch (e) {}
+    }
+  }
+
+  public dataCollectorDelete(dataCollectorName: string): boolean {
+    let deleted = false;
+    let jsonPath = path.join(this.dataCollectorsPath, dataCollectorName + ".json");
+    let yamlPath = path.join(this.dataCollectorsPath, dataCollectorName + ".yaml");
+    if (fs.existsSync(jsonPath)) {
+      fs.unlinkSync(jsonPath);
+      deleted = true;
+    }
+    if (fs.existsSync(yamlPath)) {
+      fs.unlinkSync(yamlPath);
+      deleted = true;
+    }
+    this.dataCollectorListCache = [];
+    const cachePath = this.getCachePath("datacollectors");
+    if (fs.existsSync(cachePath)) {
+      try {
+        fs.rmSync(cachePath);
+      } catch (e) {}
+    }
+    return deleted;
+  }
+
+  public async dataCollectorsList(forceRefresh: boolean = false): Promise<DataCollector[]> {
+    return new Promise(async (resolve) => {
+      let dataCollectors: DataCollector[] = [];
+      if (fs.existsSync(this.dataCollectorsPath)) {
+        let dcNames: string[] = fs.readdirSync(this.dataCollectorsPath);
+        for (let dcPath of dcNames) {
+          if (dcPath.endsWith(".json")) {
+            let dc: DataCollector = JSON.parse(
+              fs.readFileSync(path.join(this.dataCollectorsPath, dcPath), "utf8"),
+            );
+            dataCollectors.push(dc);
+          } else if (dcPath.endsWith(".yaml") || dcPath.endsWith(".yml")) {
+            let dc: DataCollector = YAML.parse(
+              fs.readFileSync(path.join(this.dataCollectorsPath, dcPath), "utf8"),
+            );
+            dataCollectors.push(dc);
+          }
+        }
+      }
+
+      if (this.dataCollectorsPath !== "./data/datacollectors/") {
+        return resolve(dataCollectors);
+      }
+
+      if (!forceRefresh) {
+        const cached = this.readCache<DataCollector>("datacollectors");
+        if (cached && cached.length > 0) {
+          for (const item of cached) {
+            if (!dataCollectors.some((d) => d.name === item.name)) {
+              dataCollectors.push(item);
+            }
+          }
+          this.dataCollectorListCache = dataCollectors.map((x) => x.name);
+          return resolve(dataCollectors);
+        }
+      }
+
+      const repoUrl = this.dataCollectorsRepository;
+      try {
+        const apiUrl = this.getRepoApiUrl(repoUrl);
+        const response = await fetch(apiUrl, {
+          headers: this.getGithubHeaders(),
+        });
+
+        if (response.status === 200) {
+          const remoteDcs: any = await response.json();
+          if (Array.isArray(remoteDcs) && remoteDcs.length > 0) {
+            for (const item of remoteDcs) {
+              if (
+                item &&
+                item.name &&
+                (item.name.endsWith(".json") ||
+                  item.name.endsWith(".yaml") ||
+                  item.name.endsWith(".yml"))
+              ) {
+                if (item.download_url) {
+                  try {
+                    const downloadResponse = await fetch(item.download_url);
+                    if (downloadResponse.status === 200) {
+                      const text = await downloadResponse.text();
+                      let remoteDc: DataCollector;
+                      if (item.name.endsWith(".yaml") || item.name.endsWith(".yml")) {
+                        remoteDc = YAML.parse(text);
+                      } else {
+                        remoteDc = JSON.parse(text);
+                      }
+                      if (remoteDc && remoteDc.name) {
+                        if (!dataCollectors.some((d) => d.name === remoteDc.name)) {
+                          dataCollectors.push(remoteDc);
+                        }
+                      }
+                    }
+                  } catch (e) {}
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {}
+
+      if (dataCollectors.length > 0) {
+        this.writeCache("datacollectors", dataCollectors);
+      }
+      this.dataCollectorListCache = dataCollectors.map((x) => x.name);
+      resolve(dataCollectors);
+    });
+  }
+
+  public async loadDataCollector(
+    dataCollectorRef: string | DataCollector,
+    relativeDir?: string,
+  ): Promise<DataCollector | undefined> {
+    return new Promise(async (resolve) => {
+      if (typeof dataCollectorRef === "object" && dataCollectorRef !== null) {
+        return resolve(dataCollectorRef as DataCollector);
+      }
+      if (typeof dataCollectorRef === "string") {
+        let res = await this.dataCollectorGet(dataCollectorRef, relativeDir);
+        return resolve(res);
+      }
+      resolve(undefined);
+    });
+  }
+
+  public async dataCollectorGet(
+    name: string,
+    relativeDir?: string,
+  ): Promise<DataCollector | undefined> {
+    return new Promise(async (resolve) => {
+      let result: DataCollector | undefined = undefined;
+      const candidates = this.getCandidateFilenames(name);
+
+      // 1. Direct local file check
+      const directCandidates = [
+        name,
+        relativeDir ? path.join(relativeDir, name) : "",
+        path.join(process.cwd(), name),
+      ].filter(Boolean);
+
+      for (const direct of directCandidates) {
+        if (fs.existsSync(direct) && fs.statSync(direct).isFile()) {
+          try {
+            const raw = fs.readFileSync(direct, "utf8");
+            result = direct.endsWith(".json") ? JSON.parse(raw) : YAML.parse(raw);
+            if (result) {
+              if (!result.name) {
+                result.name = path.basename(direct).replace(/\.(yaml|yml|json)$/i, "");
+              }
+              return resolve(result);
+            }
+          } catch (e) {}
+        }
+      }
+
+      // Check candidates locally in relativeDir and dataCollectorsPath
+      const candidateDirs = [
+        relativeDir || "",
+        this.dataCollectorsPath,
+        "./data/datacollectors/",
+      ].filter(Boolean);
+
+      for (const dir of candidateDirs) {
+        for (const candidate of candidates) {
+          const checkPath = path.join(dir, candidate);
+          if (fs.existsSync(checkPath) && fs.statSync(checkPath).isFile()) {
+            try {
+              const raw = fs.readFileSync(checkPath, "utf8");
+              result = checkPath.endsWith(".json") ? JSON.parse(raw) : YAML.parse(raw);
+              if (result) {
+                if (!result.name) {
+                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                }
+                return resolve(result);
+              }
+            } catch (e) {}
+          }
+        }
+      }
+
+      // 2. URL or remote repo check
+      if (name.startsWith("https://") || name.startsWith("http://")) {
+        try {
+          const res = await fetch(name, { headers: this.getGithubHeaders() });
+          if (res.status === 200) {
+            const text = await res.text();
+            result = name.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
+            if (result) {
+              if (!result.name) {
+                result.name = path.basename(name).replace(/\.(yaml|yml|json)$/i, "");
+              }
+              return resolve(result);
+            }
+          }
+        } catch (e) {}
+      } else {
+        const rawBaseUrl = this.getRepoRawBaseUrl(this.dataCollectorsRepository);
+        for (const candidate of candidates) {
+          try {
+            const res = await fetch(`${rawBaseUrl}${candidate}`, {
+              headers: this.getGithubHeaders(),
+            });
+            if (res.status === 200) {
+              const text = await res.text();
+              result = candidate.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
+              if (result) {
+                if (!result.name) {
+                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                }
+                return resolve(result);
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      // 3. Fallback: repository list search
+      try {
+        const allDcs = await this.dataCollectorsList();
+        const baseNames = candidates.map((c) => c.replace(/\.(yaml|yml|json)$/i, ""));
+        const found = allDcs.find(
+          (d) =>
+            baseNames.includes(d.name) ||
+            baseNames.includes(d.name.replace(/-+/g, "-")) ||
+            (d.displayName && baseNames.includes(d.displayName.replace(/-+/g, "-"))),
+        );
+        if (found) result = found;
+      } catch (e) {}
+
+      resolve(result);
+    });
+  }
+
+  public async apigeeDataCollectorsList(
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<any | undefined> {
+    return new Promise(async (resolve) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/datacollectors`;
+      let response = await fetch(url, {
+        headers: {
+          Authorization: token,
+        },
+      });
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        resolve(responseBody);
+      } else {
+        await this.logApiError("datacollectors list", url, response, "Got response " + response.status);
+        resolve(undefined);
+      }
+    });
+  }
+
+  public async apigeeDataCollectorGet(
+    dataCollectorName: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<any | undefined> {
+    return new Promise(async (resolve) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/datacollectors/${dataCollectorName}`;
+      let response = await fetch(url, {
+        headers: {
+          Authorization: token,
+        },
+      });
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        resolve(responseBody);
+      } else {
+        await this.logApiError(
+          "datacollector GET",
+          url,
+          response,
+          `> Apigee datacollector GET response: ${response.status}`,
+        );
+        resolve(undefined);
+      }
+    });
+  }
+
+  public async apigeeDataCollectorExport(
+    dataCollector: DataCollector | any,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve) => {
+      let converter = new ApigeeConverter();
+      let payload =
+        dataCollector.type === "datacollector" ||
+        dataCollector.collectorType ||
+        dataCollector.dataType
+          ? converter.dataCollectorToApigeeDataCollector(dataCollector)
+          : dataCollector;
+      let name = payload.name;
+
+      if (!name) {
+        console.log(chalk.red.bold.italic(" > Error: Data Collector name is required for export."));
+        return resolve(false);
+      }
+
+      let checkResponse = await fetch(
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/datacollectors/${name}`,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      let method = "POST";
+      let url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/datacollectors`;
+      let body: any = payload;
+
+      if (checkResponse.status === 200) {
+        method = "PATCH";
+        url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/datacollectors/${name}?updateMask=description`;
+        body = { description: payload.description || "" };
+      }
+
+      let response = await fetch(url, {
+        method: method,
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (response.status === 200 || response.status === 201) {
+        resolve(true);
+      } else {
+        await this.logApiError(`datacollector ${method}`, url, response);
+        resolve(false);
+      }
+    });
+  }
+
+  public async apigeeDataCollectorDelete(
+    dataCollectorName: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/datacollectors/${dataCollectorName}`;
+      let response = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          Authorization: token,
+        },
+      });
+
+      if (response.status === 200) {
+        resolve(true);
+      } else {
+        await this.logApiError("datacollector DELETE", url, response);
+        resolve(false);
+      }
+    });
+  }
+
+  // --- Custom Report Methods ---
+
+  public reportImport(report: CustomReport) {
+    if (!fs.existsSync(this.reportsPath)) {
+      fs.mkdirSync(this.reportsPath, { recursive: true });
+    }
+    let rString = JSON.stringify(report, null, 2);
+    fs.writeFileSync(path.join(this.reportsPath, report.name + ".json"), rString);
+    this.reportListCache = [];
+    const cachePath = this.getCachePath("reports");
+    if (fs.existsSync(cachePath)) {
+      try {
+        fs.rmSync(cachePath);
+      } catch (e) {}
+    }
+  }
+
+  public reportDelete(reportName: string): boolean {
+    let deleted = false;
+    let jsonPath = path.join(this.reportsPath, reportName + ".json");
+    let yamlPath = path.join(this.reportsPath, reportName + ".yaml");
+    if (fs.existsSync(jsonPath)) {
+      fs.unlinkSync(jsonPath);
+      deleted = true;
+    }
+    if (fs.existsSync(yamlPath)) {
+      fs.unlinkSync(yamlPath);
+      deleted = true;
+    }
+    this.reportListCache = [];
+    const cachePath = this.getCachePath("reports");
+    if (fs.existsSync(cachePath)) {
+      try {
+        fs.rmSync(cachePath);
+      } catch (e) {}
+    }
+    return deleted;
+  }
+
+  public async reportsList(forceRefresh: boolean = false): Promise<CustomReport[]> {
+    return new Promise(async (resolve) => {
+      let reports: CustomReport[] = [];
+      if (fs.existsSync(this.reportsPath)) {
+        let rNames: string[] = fs.readdirSync(this.reportsPath);
+        for (let rPath of rNames) {
+          if (rPath.endsWith(".json")) {
+            let r: CustomReport = JSON.parse(
+              fs.readFileSync(path.join(this.reportsPath, rPath), "utf8"),
+            );
+            reports.push(r);
+          } else if (rPath.endsWith(".yaml") || rPath.endsWith(".yml")) {
+            let r: CustomReport = YAML.parse(
+              fs.readFileSync(path.join(this.reportsPath, rPath), "utf8"),
+            );
+            reports.push(r);
+          }
+        }
+      }
+
+      if (this.reportsPath !== "./data/reports/") {
+        return resolve(reports);
+      }
+
+      if (!forceRefresh) {
+        const cached = this.readCache<CustomReport>("reports");
+        if (cached && cached.length > 0) {
+          for (const item of cached) {
+            if (!reports.some((r) => r.name === item.name)) {
+              reports.push(item);
+            }
+          }
+          this.reportListCache = reports.map((x) => x.name);
+          return resolve(reports);
+        }
+      }
+
+      const repoUrl = this.reportsRepository;
+      try {
+        const apiUrl = this.getRepoApiUrl(repoUrl);
+        const response = await fetch(apiUrl, {
+          headers: this.getGithubHeaders(),
+        });
+
+        if (response.status === 200) {
+          const remoteReports: any = await response.json();
+          if (Array.isArray(remoteReports) && remoteReports.length > 0) {
+            for (const item of remoteReports) {
+              if (
+                item &&
+                item.name &&
+                (item.name.endsWith(".json") ||
+                  item.name.endsWith(".yaml") ||
+                  item.name.endsWith(".yml"))
+              ) {
+                if (item.download_url) {
+                  try {
+                    const downloadResponse = await fetch(item.download_url);
+                    if (downloadResponse.status === 200) {
+                      const text = await downloadResponse.text();
+                      let remoteReport: CustomReport;
+                      if (item.name.endsWith(".yaml") || item.name.endsWith(".yml")) {
+                        remoteReport = YAML.parse(text);
+                      } else {
+                        remoteReport = JSON.parse(text);
+                      }
+                      if (remoteReport && remoteReport.name) {
+                        if (!reports.some((r) => r.name === remoteReport.name)) {
+                          reports.push(remoteReport);
+                        }
+                      }
+                    }
+                  } catch (e) {}
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {}
+
+      if (reports.length > 0) {
+        this.writeCache("reports", reports);
+      }
+      this.reportListCache = reports.map((x) => x.name);
+      resolve(reports);
+    });
+  }
+
+  public async loadReport(
+    reportRef: string | CustomReport,
+    relativeDir?: string,
+  ): Promise<CustomReport | undefined> {
+    return new Promise(async (resolve) => {
+      if (typeof reportRef === "object" && reportRef !== null) {
+        return resolve(reportRef as CustomReport);
+      }
+      if (typeof reportRef === "string") {
+        let res = await this.reportGet(reportRef, relativeDir);
+        return resolve(res);
+      }
+      resolve(undefined);
+    });
+  }
+
+  public async reportGet(
+    name: string,
+    relativeDir?: string,
+  ): Promise<CustomReport | undefined> {
+    return new Promise(async (resolve) => {
+      let result: CustomReport | undefined = undefined;
+      const candidates = this.getCandidateFilenames(name);
+
+      // 1. Direct local file check
+      const directCandidates = [
+        name,
+        relativeDir ? path.join(relativeDir, name) : "",
+        path.join(process.cwd(), name),
+      ].filter(Boolean);
+
+      for (const direct of directCandidates) {
+        if (fs.existsSync(direct) && fs.statSync(direct).isFile()) {
+          try {
+            const raw = fs.readFileSync(direct, "utf8");
+            result = direct.endsWith(".json") ? JSON.parse(raw) : YAML.parse(raw);
+            if (result) {
+              if (!result.name) {
+                result.name = path.basename(direct).replace(/\.(yaml|yml|json)$/i, "");
+              }
+              return resolve(result);
+            }
+          } catch (e) {}
+        }
+      }
+
+      // Check candidates locally in relativeDir and reportsPath
+      const candidateDirs = [
+        relativeDir || "",
+        this.reportsPath,
+        "./data/reports/",
+      ].filter(Boolean);
+
+      for (const dir of candidateDirs) {
+        for (const candidate of candidates) {
+          const checkPath = path.join(dir, candidate);
+          if (fs.existsSync(checkPath) && fs.statSync(checkPath).isFile()) {
+            try {
+              const raw = fs.readFileSync(checkPath, "utf8");
+              result = checkPath.endsWith(".json") ? JSON.parse(raw) : YAML.parse(raw);
+              if (result) {
+                if (!result.name) {
+                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                }
+                return resolve(result);
+              }
+            } catch (e) {}
+          }
+        }
+      }
+
+      // 2. URL or remote repo check
+      if (name.startsWith("https://") || name.startsWith("http://")) {
+        try {
+          const res = await fetch(name, { headers: this.getGithubHeaders() });
+          if (res.status === 200) {
+            const text = await res.text();
+            result = name.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
+            if (result) {
+              if (!result.name) {
+                result.name = path.basename(name).replace(/\.(yaml|yml|json)$/i, "");
+              }
+              return resolve(result);
+            }
+          }
+        } catch (e) {}
+      } else {
+        const rawBaseUrl = this.getRepoRawBaseUrl(this.reportsRepository);
+        for (const candidate of candidates) {
+          try {
+            const res = await fetch(`${rawBaseUrl}${candidate}`, {
+              headers: this.getGithubHeaders(),
+            });
+            if (res.status === 200) {
+              const text = await res.text();
+              result = candidate.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
+              if (result) {
+                if (!result.name) {
+                  result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
+                }
+                return resolve(result);
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      // 3. Fallback: repository list search
+      try {
+        const allReports = await this.reportsList();
+        const baseNames = candidates.map((c) => c.replace(/\.(yaml|yml|json)$/i, ""));
+        const found = allReports.find(
+          (r) =>
+            baseNames.includes(r.name) ||
+            baseNames.includes(r.name.replace(/-+/g, "-")) ||
+            (r.displayName && baseNames.includes(r.displayName.replace(/-+/g, "-"))),
+        );
+        if (found) result = found;
+      } catch (e) {}
+
+      resolve(result);
+    });
+  }
+
+  public async apigeeReportsList(
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<any | undefined> {
+    return new Promise(async (resolve) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports?expand=true`;
+      let response = await fetch(url, {
+        headers: {
+          Authorization: token,
+        },
+      });
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        resolve(responseBody);
+      } else {
+        // Fallback without expand=true
+        const fallbackUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports`;
+        let fallbackResp = await fetch(fallbackUrl, {
+          headers: {
+            Authorization: token,
+          },
+        });
+        if (fallbackResp.status === 200) {
+          let fallbackBody: any = await fallbackResp.json();
+          resolve(fallbackBody);
+        } else {
+          await this.logApiError("reports list", url, response, "Got response " + response.status);
+          resolve(undefined);
+        }
+      }
+    });
+  }
+
+  public async apigeeReportGet(
+    reportName: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<any | undefined> {
+    return new Promise(async (resolve) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports/${reportName}`;
+      let response = await fetch(url, {
+        headers: {
+          Authorization: token,
+        },
+      });
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        resolve(responseBody);
+      } else {
+        await this.logApiError(
+          "report GET",
+          url,
+          response,
+          `> Apigee report GET response: ${response.status}`,
+        );
+        resolve(undefined);
+      }
+    });
+  }
+
+  public async apigeeReportExport(
+    report: CustomReport | any,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve) => {
+      let converter = new ApigeeConverter();
+      let payload =
+        report.type === "report" ||
+        report.type === "customreport" ||
+        report.metrics ||
+        report.chartType
+          ? converter.reportToApigeeReport(report)
+          : report;
+      let reportName = payload.name;
+
+      if (!reportName) {
+        console.log(chalk.red.bold.italic(" > Error: Report name is required for export."));
+        return resolve(false);
+      }
+
+      let checkResponse = await fetch(
+        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports/${reportName}`,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      let method = "POST";
+      let url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports`;
+
+      if (checkResponse.status === 200) {
+        method = "PUT";
+        url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports/${reportName}`;
+      }
+
+      let response = await fetch(url, {
+        method: method,
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.status === 200 || response.status === 201) {
+        resolve(true);
+      } else {
+        await this.logApiError(`report ${method}`, url, response);
+        resolve(false);
+      }
+    });
+  }
+
+  public async apigeeReportDelete(
+    reportName: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports/${reportName}`;
+      let response = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          Authorization: token,
+        },
+      });
+
+      if (response.status === 200) {
+        resolve(true);
+      } else {
+        await this.logApiError("report DELETE", url, response);
+        resolve(false);
+      }
+    });
+  }
 }
+

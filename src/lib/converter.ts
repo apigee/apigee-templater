@@ -35,6 +35,13 @@ import {
   Deployments,
   Kvm,
   KVM,
+  DataCollector,
+  DataCollectors,
+  ReportMetric,
+  CustomReport,
+  CustomReports,
+  Report,
+  Reports,
 } from "./interfaces.js";
 
 export class ApigeeConverter {
@@ -43,6 +50,8 @@ export class ApigeeConverter {
   featuresPath: string = "./data/features/";
   productsPath: string = "./data/products/";
   usersPath: string = "./data/users/";
+  dataCollectorsPath: string = "./data/datacollectors/";
+  reportsPath: string = "./data/reports/";
   constructor(basePath: string = "", subDirs: boolean = true) {
     if (basePath && subDirs) {
       this.tempPath = basePath + "temp/";
@@ -50,11 +59,16 @@ export class ApigeeConverter {
       this.featuresPath = basePath + "features/";
       this.productsPath = basePath + "products/";
       this.usersPath = basePath + "users/";
+      this.dataCollectorsPath = basePath + "datacollectors/";
+      this.reportsPath = basePath + "reports/";
     } else {
       this.tempPath = basePath;
       this.templatesPath = basePath;
       this.featuresPath = basePath;
       this.productsPath = basePath;
+      this.usersPath = basePath;
+      this.dataCollectorsPath = basePath;
+      this.reportsPath = basePath;
     }
   }
 
@@ -4168,6 +4182,16 @@ export class ApigeeConverter {
       const kNames = deployment.kvms.map((k) => k.name);
       result.push(`KVMs: ${kNames.join(", ")}`);
     }
+    const depDataCollectors = deployment.dataCollectors || (deployment as any).datacollectors;
+    if (depDataCollectors && depDataCollectors.length > 0) {
+      const dcNames = depDataCollectors.map((d: any) => (typeof d === "string" ? d : d.name));
+      result.push(`Data Collectors: ${dcNames.join(", ")}`);
+    }
+    const depReports = deployment.reports || deployment.customReports || (deployment as any).customreports;
+    if (depReports && depReports.length > 0) {
+      const rNames = depReports.map((r: any) => (typeof r === "string" ? r : r.displayName || r.name));
+      result.push(`Custom Reports: ${rNames.join(", ")}`);
+    }
     if (deployment.parameters && deployment.parameters.length > 0) {
       result.push(`Parameters: ${deployment.parameters.map((p) => p.name).join(", ")}`);
     }
@@ -4188,6 +4212,7 @@ export class ApigeeConverter {
       let res = str;
       for (const [k, v] of Object.entries(parameters)) {
         res = res
+          .replaceAll("{{" + k + "}}", v)
           .replaceAll("{" + k + "}", v)
           .replaceAll("%" + k + "%", v)
           .replaceAll("${" + k + "}", v)
@@ -4263,10 +4288,310 @@ export class ApigeeConverter {
         return k;
       });
     }
+    if (deployment.dataCollectors) {
+      deployment.dataCollectors = deployment.dataCollectors.map((dc) => {
+        if (typeof dc === "string") return replaceStr(dc);
+        this.dataCollectorUpdateParameters(dc, parameters);
+        return dc;
+      });
+    }
+    if ((deployment as any).datacollectors) {
+      (deployment as any).datacollectors = (deployment as any).datacollectors.map((dc: any) => {
+        if (typeof dc === "string") return replaceStr(dc);
+        this.dataCollectorUpdateParameters(dc, parameters);
+        return dc;
+      });
+    }
+    if (deployment.reports) {
+      deployment.reports = deployment.reports.map((r) => {
+        if (typeof r === "string") return replaceStr(r);
+        this.reportUpdateParameters(r, parameters);
+        return r;
+      });
+    }
+    if (deployment.customReports) {
+      deployment.customReports = deployment.customReports.map((r) => {
+        if (typeof r === "string") return replaceStr(r);
+        this.reportUpdateParameters(r, parameters);
+        return r;
+      });
+    }
+    if ((deployment as any).customreports) {
+      (deployment as any).customreports = (deployment as any).customreports.map((r: any) => {
+        if (typeof r === "string") return replaceStr(r);
+        this.reportUpdateParameters(r, parameters);
+        return r;
+      });
+    }
   }
 
   public deploymentReset(deployment: Deployment): Deployment {
     const clone: Deployment = JSON.parse(JSON.stringify(deployment));
     return clone;
   }
+
+  public dataCollectorCreate(
+    name: string = "dc_custom_variable",
+    collectorTypeOrDesc: string = "STRING",
+    descOrCollectorType: string = "",
+  ): DataCollector {
+    let tempName = name.replaceAll(" ", "_");
+    if (!tempName.startsWith("dc_")) {
+      tempName = "dc_" + tempName;
+    }
+    let dc = new DataCollector();
+    dc.name = tempName;
+    dc.displayName = name;
+    dc.type = "datacollector";
+    dc.gateway = "apigee";
+    dc.schemaVersion = "1.0.0";
+
+    const knownTypes = ["string", "integer", "float", "boolean", "long"];
+    if (collectorTypeOrDesc && knownTypes.includes(collectorTypeOrDesc.toLowerCase())) {
+      dc.collectorType = collectorTypeOrDesc.toUpperCase();
+      dc.description = descOrCollectorType || `Data collector for ${name}`;
+    } else if (descOrCollectorType && knownTypes.includes(descOrCollectorType.toLowerCase())) {
+      dc.collectorType = descOrCollectorType.toUpperCase();
+      dc.description = collectorTypeOrDesc || `Data collector for ${name}`;
+    } else {
+      dc.description = collectorTypeOrDesc || `Data collector for ${name}`;
+      dc.collectorType = (descOrCollectorType || "STRING").toUpperCase();
+    }
+    return dc;
+  }
+
+  public dataCollectorToApigeeDataCollector(dc: DataCollector): any {
+    let typeVal = dc.collectorType || dc.dataType;
+    if (
+      !typeVal &&
+      dc.type &&
+      !["datacollector", "datacollectors", "dc", "collector"].includes(dc.type.toLowerCase())
+    ) {
+      typeVal = dc.type;
+    }
+    return {
+      name: dc.name,
+      description: dc.description || "",
+      type: typeVal || "STRING",
+    };
+  }
+
+  public apigeeDataCollectorToDataCollector(apigeeDc: any): DataCollector {
+    let dc = new DataCollector();
+    const rawName = apigeeDc.name || "";
+    dc.name = rawName.includes("/") ? rawName.split("/").pop()! : rawName;
+    dc.displayName = apigeeDc.displayName || dc.name;
+    dc.type = "datacollector";
+    dc.gateway = "apigee";
+    dc.schemaVersion = "1.0.0";
+    dc.description = apigeeDc.description || "";
+    dc.collectorType = apigeeDc.type || "STRING";
+    if (apigeeDc.createdAt) dc.createdAt = String(apigeeDc.createdAt);
+    if (apigeeDc.lastModifiedAt) dc.lastModifiedAt = String(apigeeDc.lastModifiedAt);
+    return dc;
+  }
+
+  public dataCollectorUpdateParameters(
+    dc: DataCollector,
+    parameters: { [key: string]: string } = {},
+  ) {
+    const replaceStr = (str: string): string => {
+      let res = str;
+      for (let key of Object.keys(parameters)) {
+        const val = parameters[key]!;
+        res = res
+          .replaceAll("{{" + key + "}}", val)
+          .replaceAll("{" + key + "}", val)
+          .replaceAll("%" + key + "%", val)
+          .replaceAll("${" + key + "}", val)
+          .replaceAll("$" + key, val);
+      }
+      return res;
+    };
+    if (dc.name) dc.name = replaceStr(dc.name);
+    if (dc.displayName) dc.displayName = replaceStr(dc.displayName);
+    if (dc.description) dc.description = replaceStr(dc.description);
+    if (dc.collectorType) dc.collectorType = replaceStr(dc.collectorType);
+    if (dc.dataType) dc.dataType = replaceStr(dc.dataType);
+  }
+
+  public dataCollectorToStringArray(dc: DataCollector): string[] {
+    let result: string[] = [];
+    if (dc.name) result.push(`Name: ${dc.name}`);
+    if (dc.displayName) result.push(`Display Name: ${dc.displayName}`);
+    if (dc.description) result.push(`Description: ${dc.description}`);
+    const typeVal =
+      dc.collectorType || dc.dataType || (dc.type !== "datacollector" ? dc.type : "STRING");
+    result.push(`Type: ${typeVal}`);
+    if (dc.createdAt) result.push(`Created At: ${dc.createdAt}`);
+    if (dc.lastModifiedAt) result.push(`Last Modified At: ${dc.lastModifiedAt}`);
+    return result;
+  }
+
+  public dataCollectorToString(dc: DataCollector): string {
+    return this.dataCollectorToStringArray(dc).join("\n");
+  }
+
+  public dataCollectorReset(dc: DataCollector): DataCollector {
+    let resetDc = new DataCollector();
+    resetDc.name = dc.name;
+    resetDc.displayName = dc.displayName;
+    resetDc.description = dc.description;
+    resetDc.collectorType = dc.collectorType || dc.dataType || "STRING";
+    return resetDc;
+  }
+
+  public reportCreate(
+    name: string = "custom-report",
+    displayNameOrDesc: string = "",
+    metrics: ReportMetric[] = [],
+    dimensions: string[] = [],
+    chartType: string = "COLUMN",
+  ): CustomReport {
+    let report = new CustomReport();
+    report.name = name.replaceAll(" ", "-");
+    report.displayName = displayNameOrDesc || name;
+    report.type = "report";
+    report.gateway = "apigee";
+    report.schemaVersion = "1.0.0";
+    report.description = displayNameOrDesc || `Custom report for ${name}`;
+    report.chartType = chartType || "COLUMN";
+    report.metrics = metrics.length > 0 ? metrics : [{ name: "message_count", function: "sum" }];
+    report.dimensions = dimensions.length > 0 ? dimensions : ["apiproxy"];
+    return report;
+  }
+
+  public reportToApigeeReport(report: CustomReport): any {
+    let apigeeReport: any = {
+      name: report.name,
+      displayName: report.displayName || report.name,
+    };
+    if (report.description) apigeeReport.description = report.description;
+    if (report.chartType) apigeeReport.chartType = report.chartType;
+    if (report.metrics && report.metrics.length > 0) {
+      apigeeReport.metrics = report.metrics.map((m) => {
+        let metricObj: any = { name: m.name };
+        if (m.function) metricObj.function = m.function;
+        if (m.alias) metricObj.alias = m.alias;
+        if (m.operator) metricObj.operator = m.operator;
+        if (m.value !== undefined) metricObj.value = m.value;
+        return metricObj;
+      });
+    }
+    if (report.dimensions && report.dimensions.length > 0) {
+      apigeeReport.dimensions = [...report.dimensions];
+    }
+    if (report.filter) apigeeReport.filter = report.filter;
+    if (report.timeUnit) apigeeReport.timeUnit = report.timeUnit;
+    if (report.sortOrder) apigeeReport.sortOrder = report.sortOrder;
+    if (report.limit) {
+      apigeeReport.limit = report.limit;
+      apigeeReport.topk = report.limit;
+    }
+    return apigeeReport;
+  }
+
+  public apigeeReportToReport(apigeeReport: any): CustomReport {
+    let report = new CustomReport();
+    const rawName = apigeeReport.name || "";
+    report.name = rawName.includes("/") ? rawName.split("/").pop()! : rawName;
+    report.displayName = apigeeReport.displayName || report.name;
+    report.type = "report";
+    report.gateway = "apigee";
+    report.schemaVersion = "1.0.0";
+    report.description = apigeeReport.description || "";
+    report.chartType = apigeeReport.chartType || "COLUMN";
+    if (apigeeReport.metrics && Array.isArray(apigeeReport.metrics)) {
+      report.metrics = apigeeReport.metrics.map((m: any) => ({
+        name: m.name || "",
+        ...(m.function ? { function: m.function } : {}),
+        ...(m.alias ? { alias: m.alias } : {}),
+        ...(m.operator ? { operator: m.operator } : {}),
+        ...(m.value !== undefined ? { value: String(m.value) } : {}),
+      }));
+    }
+    if (apigeeReport.dimensions && Array.isArray(apigeeReport.dimensions)) {
+      report.dimensions = [...apigeeReport.dimensions];
+    }
+    if (apigeeReport.filter) report.filter = apigeeReport.filter;
+    if (apigeeReport.timeUnit) report.timeUnit = apigeeReport.timeUnit;
+    if (apigeeReport.sortOrder) report.sortOrder = apigeeReport.sortOrder;
+    if (apigeeReport.limit || apigeeReport.topk) {
+      report.limit = Number(apigeeReport.limit || apigeeReport.topk);
+    }
+    if (apigeeReport.createdAt) report.createdAt = String(apigeeReport.createdAt);
+    if (apigeeReport.lastModifiedAt) report.lastModifiedAt = String(apigeeReport.lastModifiedAt);
+    return report;
+  }
+
+  public reportUpdateParameters(
+    report: CustomReport,
+    parameters: { [key: string]: string } = {},
+  ) {
+    const replaceStr = (str: string): string => {
+      let res = str;
+      for (let key of Object.keys(parameters)) {
+        const val = parameters[key]!;
+        res = res
+          .replaceAll("{{" + key + "}}", val)
+          .replaceAll("{" + key + "}", val)
+          .replaceAll("%" + key + "%", val)
+          .replaceAll("${" + key + "}", val)
+          .replaceAll("$" + key, val);
+      }
+      return res;
+    };
+    if (report.name) report.name = replaceStr(report.name);
+    if (report.displayName) report.displayName = replaceStr(report.displayName);
+    if (report.description) report.description = replaceStr(report.description);
+    if (report.filter) report.filter = replaceStr(report.filter);
+    if (report.chartType) report.chartType = replaceStr(report.chartType);
+    if (report.dimensions) report.dimensions = report.dimensions.map(replaceStr);
+    if (report.metrics) {
+      for (let m of report.metrics) {
+        if (m.name) m.name = replaceStr(m.name);
+        if (m.alias) m.alias = replaceStr(m.alias);
+        if (m.function) m.function = replaceStr(m.function);
+        if (m.operator) m.operator = replaceStr(m.operator);
+        if (m.value !== undefined) m.value = replaceStr(m.value);
+      }
+    }
+  }
+
+  public reportToStringArray(report: CustomReport): string[] {
+    let result: string[] = [];
+    if (report.name) result.push(`Name: ${report.name}`);
+    if (report.displayName) result.push(`Display Name: ${report.displayName}`);
+    if (report.description) result.push(`Description: ${report.description}`);
+    if (report.chartType) result.push(`Chart Type: ${report.chartType}`);
+    if (report.metrics && report.metrics.length > 0) {
+      const mStrs = report.metrics.map((m) => (m.function ? `${m.function}(${m.name})` : m.name));
+      result.push(`Metrics: ${mStrs.join(", ")}`);
+    }
+    if (report.dimensions && report.dimensions.length > 0) {
+      result.push(`Dimensions: ${report.dimensions.join(", ")}`);
+    }
+    if (report.filter) result.push(`Filter: ${report.filter}`);
+    if (report.timeUnit) result.push(`Time Unit: ${report.timeUnit}`);
+    if (report.sortOrder) result.push(`Sort Order: ${report.sortOrder}`);
+    if (report.limit) result.push(`Limit: ${report.limit}`);
+    return result;
+  }
+
+  public reportToString(report: CustomReport): string {
+    return this.reportToStringArray(report).join("\n");
+  }
+
+  public reportReset(report: CustomReport): CustomReport {
+    let resetReport = new CustomReport();
+    resetReport.name = report.name;
+    resetReport.displayName = report.displayName;
+    resetReport.description = report.description;
+    resetReport.chartType = report.chartType;
+    resetReport.metrics = report.metrics ? JSON.parse(JSON.stringify(report.metrics)) : [];
+    resetReport.dimensions = report.dimensions ? [...report.dimensions] : [];
+    resetReport.filter = report.filter;
+    return resetReport;
+  }
 }
+

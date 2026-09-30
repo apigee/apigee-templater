@@ -9,6 +9,8 @@
     { "$ref": "#/definitions/Template" },
     { "$ref": "#/definitions/Product" },
     { "$ref": "#/definitions/User" },
+    { "$ref": "#/definitions/DataCollector" },
+    { "$ref": "#/definitions/CustomReport" },
     { "$ref": "#/definitions/Deployment" }
   ],
   "definitions": {
@@ -250,6 +252,7 @@
         "url": { "type": "string" },
         "path": { "type": "string" },
         "method": { "type": "string" },
+        "product": { "type": "string" },
         "injectGoogleToken": { "type": "boolean" },
         "headers": {
           "type": "object"
@@ -814,6 +817,77 @@
         "required": ["proxy"]
       }
     },
+    "DataCollector": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "displayName": { "type": "string" },
+        "uid": { "type": "string" },
+        "type": { "type": "string", "const": "datacollector" },
+        "collectorType": {
+          "type": "string",
+          "enum": ["STRING", "INTEGER", "FLOAT", "BOOLEAN", "LONG", "string", "integer", "float", "boolean", "long"]
+        },
+        "dataType": {
+          "type": "string",
+          "enum": ["STRING", "INTEGER", "FLOAT", "BOOLEAN", "LONG", "string", "integer", "float", "boolean", "long"]
+        },
+        "gateway": { "type": "string" },
+        "schemaVersion": { "type": "string" },
+        "priority": { "type": "number" },
+        "description": { "type": "string" },
+        "documentation": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "lastModifiedAt": { "type": "string" }
+      },
+      "required": ["name", "type", "gateway", "schemaVersion"],
+      "additionalProperties": false
+    },
+    "ReportMetric": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "function": { "type": "string" },
+        "alias": { "type": "string" },
+        "operator": { "type": "string" },
+        "value": { "type": "string" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "CustomReport": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "displayName": { "type": "string" },
+        "uid": { "type": "string" },
+        "type": { "type": "string", "const": "report" },
+        "gateway": { "type": "string" },
+        "schemaVersion": { "type": "string" },
+        "priority": { "type": "number" },
+        "description": { "type": "string" },
+        "documentation": { "type": "string" },
+        "chartType": { "type": "string" },
+        "metrics": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ReportMetric" }
+        },
+        "dimensions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "filter": { "type": "string" },
+        "timeUnit": { "type": "string" },
+        "sortOrder": { "type": "string" },
+        "limit": { "type": "number" },
+        "organization": { "type": "string" },
+        "environment": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "lastModifiedAt": { "type": "string" }
+      },
+      "required": ["name", "type", "gateway", "schemaVersion"],
+      "additionalProperties": false
+    },
     "Deployment": {
       "type": "object",
       "properties": {
@@ -876,6 +950,33 @@
             "oneOf": [
               { "type": "string" },
               { "$ref": "#/definitions/User" }
+            ]
+          }
+        },
+        "dataCollectors": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/definitions/DataCollector" }
+            ]
+          }
+        },
+        "reports": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/definitions/CustomReport" }
+            ]
+          }
+        },
+        "customReports": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/definitions/CustomReport" }
             ]
           }
         },
