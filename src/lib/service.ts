@@ -2919,6 +2919,115 @@ export class ApigeeTemplaterService {
     });
   }
 
+  public async apigeeAppsList(
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<any | undefined> {
+    return new Promise(async (resolve) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apps`;
+      let response = await fetch(
+        url,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        resolve(responseBody);
+      } else {
+        await this.logApiError("apps list", url, response, "Got response " + response.status);
+        resolve(undefined);
+      }
+    });
+  }
+
+  public async apigeeAppGet(
+    appId: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<any | undefined> {
+    return new Promise(async (resolve) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/apps/${encodeURIComponent(appId)}`;
+      let response = await fetch(
+        url,
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        let responseBody: any = await response.json();
+        resolve(responseBody);
+      } else {
+        await this.logApiError("app GET", url, response, "Got response " + response.status);
+        resolve(undefined);
+      }
+    });
+  }
+
+  public async apigeeAppDelete(
+    developerEmail: string,
+    appName: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/developers/${encodeURIComponent(developerEmail)}/apps/${encodeURIComponent(appName)}`;
+      let response = await fetch(
+        url,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        resolve(true);
+      } else {
+        await this.logApiError("developer app DELETE", url, response);
+        resolve(false);
+      }
+    });
+  }
+
+  public async apigeeCompanyAppDelete(
+    companyName: string,
+    appName: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/companies/${encodeURIComponent(companyName)}/apps/${encodeURIComponent(appName)}`;
+      let response = await fetch(
+        url,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        resolve(true);
+      } else {
+        await this.logApiError("company app DELETE", url, response);
+        resolve(false);
+      }
+    });
+  }
+
   // --- Data Collector Methods ---
 
   public dataCollectorImport(dataCollector: DataCollector) {

@@ -2335,6 +2335,187 @@ resources:
     }
   });
 
+  it("should reset an entire Apigee organization with reset --project <org>, undeploying and deleting proxies, apps, users, and products", async () => {
+    const testCli = new cli();
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (...args: any[]) => logs.push(args.join(" "));
+
+    const undeployedAndDeletedProxies: string[] = [];
+    const deletedApps: string[] = [];
+    const deletedUsers: string[] = [];
+    const deletedProducts: string[] = [];
+
+    const origProxiesList = testCli.apigeeService.apigeeProxiesList;
+    const origProxyDelete = testCli.apigeeService.apigeeProxyDelete;
+    const origUsersList = testCli.apigeeService.apigeeUsersList;
+    const origUserGet = testCli.apigeeService.apigeeUserGet;
+    const origAppDelete = testCli.apigeeService.apigeeAppDelete;
+    const origUserDelete = testCli.apigeeService.apigeeUserDelete;
+    const origProductsList = testCli.apigeeService.apigeeProductsList;
+    const origProductDelete = testCli.apigeeService.apigeeProductDelete;
+
+    testCli.apigeeService.apigeeProxiesList = async (org: string, drz: string, token: string) => {
+      return {
+        proxies: [{ name: "proxy-one" }, { name: "proxy-two" }],
+      };
+    };
+
+    testCli.apigeeService.apigeeProxyDelete = async (
+      name: string,
+      org: string,
+      drz: string,
+      token: string,
+    ) => {
+      undeployedAndDeletedProxies.push(name);
+      return true;
+    };
+
+    testCli.apigeeService.apigeeUsersList = async (org: string, drz: string, token: string) => {
+      return {
+        developer: [
+          { email: "dev1@example.com", userName: "dev1" },
+          { email: "dev2@example.com", userName: "dev2" },
+        ],
+      };
+    };
+
+    testCli.apigeeService.apigeeUserGet = async (
+      email: string,
+      org: string,
+      drz: string,
+      token: string,
+    ) => {
+      if (email === "dev1@example.com") {
+        return {
+          name: "dev1",
+          email: "dev1@example.com",
+          apps: [{ name: "app-alpha" }, { name: "app-beta" }],
+        };
+      }
+      return {
+        name: "dev2",
+        email: "dev2@example.com",
+        apps: [{ name: "app-gamma" }],
+      };
+    };
+
+    testCli.apigeeService.apigeeAppDelete = async (
+      email: string,
+      appName: string,
+      org: string,
+      drz: string,
+      token: string,
+    ) => {
+      deletedApps.push(`${email}:${appName}`);
+      return true;
+    };
+
+    testCli.apigeeService.apigeeUserDelete = async (
+      email: string,
+      org: string,
+      drz: string,
+      token: string,
+    ) => {
+      deletedUsers.push(email);
+      return true;
+    };
+
+    testCli.apigeeService.apigeeProductsList = async (
+      org: string,
+      drz: string,
+      token: string,
+    ) => {
+      return {
+        apiProduct: [{ name: "product-a" }, { name: "product-b" }],
+      };
+    };
+
+    testCli.apigeeService.apigeeProductDelete = async (
+      name: string,
+      org: string,
+      drz: string,
+      token: string,
+    ) => {
+      deletedProducts.push(name);
+      return true;
+    };
+
+    try {
+      await testCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "reset",
+        "--project",
+        "my-test-org",
+        "--token",
+        "fake-token",
+        "--no-anim",
+      ]);
+
+      expect(undeployedAndDeletedProxies).toEqual(["proxy-one", "proxy-two"]);
+      expect(deletedApps).toEqual([
+        "dev1@example.com:app-alpha",
+        "dev1@example.com:app-beta",
+        "dev2@example.com:app-gamma",
+      ]);
+      expect(deletedUsers).toEqual(["dev1@example.com", "dev2@example.com"]);
+      expect(deletedProducts).toEqual(["product-a", "product-b"]);
+
+      const combined = logs.join("\n");
+      expect(combined).toContain("OVERVIEW");
+      expect(combined).toContain("Reset Organization my-test-org");
+      expect(combined).toContain("Undeployed and deleted Proxy: proxy-one");
+      expect(combined).toContain("Deleted App: app-alpha");
+      expect(combined).toContain("Deleted User: dev1@example.com");
+      expect(combined).toContain("Deleted Product: product-a");
+    } finally {
+      console.log = origLog;
+      testCli.apigeeService.apigeeProxiesList = origProxiesList;
+      testCli.apigeeService.apigeeProxyDelete = origProxyDelete;
+      testCli.apigeeService.apigeeUsersList = origUsersList;
+      testCli.apigeeService.apigeeUserGet = origUserGet;
+      testCli.apigeeService.apigeeAppDelete = origAppDelete;
+      testCli.apigeeService.apigeeUserDelete = origUserDelete;
+      testCli.apigeeService.apigeeProductsList = origProductsList;
+      testCli.apigeeService.apigeeProductDelete = origProductDelete;
+    }
+  });
+
+  it("should support reset <org> --project with positional argument rearrangement", async () => {
+    const testCli = new cli();
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (...args: any[]) => logs.push(args.join(" "));
+
+    let orgQueried = "";
+    const origProxiesList = testCli.apigeeService.apigeeProxiesList;
+    testCli.apigeeService.apigeeProxiesList = async (org: string) => {
+      orgQueried = org;
+      return [];
+    };
+
+    try {
+      await testCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "reset",
+        "positional-test-org",
+        "--project",
+        "--token",
+        "fake-token",
+        "--no-anim",
+      ]);
+
+      expect(orgQueried).toBe("positional-test-org");
+      const combined = logs.join("\n");
+      expect(combined).toContain("Reset Organization positional-test-org");
+    } finally {
+      console.log = origLog;
+      testCli.apigeeService.apigeeProxiesList = origProxiesList;
+    }
+  });
+
   it("should preserve displayName when converting a template YAML to a proxy YAML via CLI", async () => {
     const testCli = new cli();
     const tempTemplate = path.join(__dirname, "temp-display-name-template.yaml");

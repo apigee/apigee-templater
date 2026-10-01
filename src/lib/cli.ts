@@ -120,7 +120,7 @@ export class cli {
       argv = argv.slice(1);
     }
 
-    if (command === "describe") {
+    if (command === "describe" || command === "reset") {
       const flagsWithValue = new Set([
         "-i", "--input",
         "-n", "--name",
@@ -513,7 +513,7 @@ export class cli {
     console.log(`  ${chalk.bold.cyan("USAGE:")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("[convert]")} ${chalk.yellow("[options]")} ${chalk.dim("[<input> | <output>]")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("describe")} ${chalk.yellow("[options]")} ${chalk.dim("[<input>]")}`);
-    console.log(`    ${chalk.green("aft")} ${chalk.yellow("reset")} ${chalk.yellow("[options]")} ${chalk.dim("<input> [<output>]")}`);
+    console.log(`    ${chalk.green("aft")} ${chalk.yellow("reset")} ${chalk.yellow("[options]")} ${chalk.dim("[<input> [<output>]]")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("completion <install | zsh | bash | fish | powershell>")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("skill <install | uninstall>")}`);
     console.log(`    ${chalk.green("aft")} ${chalk.yellow("cache <clear>")}\n`);
@@ -521,7 +521,7 @@ export class cli {
     console.log(`  ${chalk.bold.cyan("COMMANDS:")}`);
     console.log(`    ${chalk.bold.yellow("convert".padEnd(22))} ${chalk.white("Convert between Apigee proxies, features & templates (default command).")}`);
     console.log(`    ${chalk.bold.yellow("describe".padEnd(22))} ${chalk.white("Describe an Apigee template, proxy, feature, product, user, or organization (--project) in the terminal summary.")}`);
-    console.log(`    ${chalk.bold.yellow("reset".padEnd(22))} ${chalk.white("Reset a template, proxy, or feature file to default empty contents.")}`);
+    console.log(`    ${chalk.bold.yellow("reset".padEnd(22))} ${chalk.white("Reset a template, proxy, or feature file to default empty contents, or reset an Apigee organization (--project).")}`);
     console.log(`    ${chalk.bold.yellow("completion".padEnd(22))} ${chalk.white("Install or display shell tab-completion scripts (install, uninstall, zsh, bash, fish, powershell).")}`);
     console.log(`    ${chalk.bold.yellow("skill".padEnd(22))} ${chalk.white("Install or uninstall Apigee Templater skill for AI coding assistants.")}`);
     console.log(`    ${chalk.bold.yellow("cache".padEnd(22))} ${chalk.white("Manage local cache of templates and features (clear).")}\n`);
@@ -1032,6 +1032,10 @@ export class cli {
         console.log(`    ${chalk.bold("Operations:")}    ${chalk.white(line.replace("Operations: ", ""))}`);
       } else if (line.startsWith("Apps:")) {
         console.log(`    ${chalk.bold("Apps:")}          ${chalk.white(line.replace("Apps: ", ""))}`);
+      } else if (line.startsWith("Users:")) {
+        console.log(`    ${chalk.bold("Users:")}         ${chalk.white(line.replace("Users: ", ""))}`);
+      } else if (line.startsWith("Products:")) {
+        console.log(`    ${chalk.bold("Products:")}      ${chalk.white(line.replace("Products: ", ""))}`);
       } else if (line.startsWith("  - ")) {
         console.log(`        ${chalk.dim("└─")} ${chalk.white(line.substring(4))}`);
       } else if (line.startsWith("- ")) {
@@ -1120,21 +1124,297 @@ export class cli {
     console.log(chalk.gray("  ─────────────────────────────────────────────────────────\n"));
   }
 
+  private async handleResetOrgCommand(options: cliArgs) {
+    const org = options.organization;
+    if (!org) {
+      await this.stopAnimation();
+      console.log(`  ${chalk.red.bold("✖ Error: Please specify a project/organization to reset.")}\n`);
+      return;
+    }
+
+    if (!options.token) {
+      let token = await auth.getAccessToken();
+      if (token) options.token = token;
+    }
+    const authHeader = options.token
+      ? (options.token.startsWith("Bearer ") ? options.token : `Bearer ${options.token}`)
+      : "";
+
+    this.startAnimation();
+
+    // 1. Undeploy and delete all Proxies
+    let deletedProxies: string[] = [];
+    let failedProxies: string[] = [];
+    try {
+      const proxyList = await this.apigeeService.apigeeProxiesList(
+        org,
+        options.drz,
+        authHeader,
+      );
+      let proxyNames: string[] = [];
+      if (Array.isArray(proxyList)) {
+        proxyNames = proxyList.map((p: any) => (typeof p === "string" ? p : p.name)).filter(Boolean);
+      } else if (proxyList && Array.isArray(proxyList.proxies)) {
+        proxyNames = proxyList.proxies.map((p: any) => (typeof p === "string" ? p : p.name)).filter(Boolean);
+      }
+
+      for (const proxyName of proxyNames) {
+        const del = await this.apigeeService.apigeeProxyDelete(
+          proxyName,
+          org,
+          options.drz,
+          authHeader,
+        );
+        if (del) {
+          deletedProxies.push(proxyName);
+          console.log(
+            `  ${chalk.green.bold("✔")} Undeployed and deleted Proxy: ${chalk.cyan(proxyName)} from org ${chalk.cyan(org)}`,
+          );
+        } else {
+          failedProxies.push(proxyName);
+          console.log(
+            `  ${chalk.yellow.bold("⚠")} Could not delete Proxy: ${chalk.cyan(proxyName)}`,
+          );
+        }
+      }
+    } catch (e) {}
+
+    // 2. Delete all Apps (Developer apps and Company apps)
+    let deletedApps: { name: string; owner: string }[] = [];
+    let failedApps: { name: string; owner: string }[] = [];
+    const processedAppKeys = new Set<string>();
+
+    let developers: any[] = [];
+    try {
+      const userList = await this.apigeeService.apigeeUsersList(
+        org,
+        options.drz,
+        authHeader,
+      );
+      if (Array.isArray(userList)) {
+        developers = userList;
+      } else if (userList && Array.isArray(userList.developer)) {
+        developers = userList.developer;
+      }
+
+      for (const dev of developers) {
+        const email = dev.email || dev.userName;
+        if (!email) continue;
+        try {
+          const usr = await this.apigeeService.apigeeUserGet(
+            email,
+            org,
+            options.drz,
+            authHeader,
+          );
+          if (usr && Array.isArray(usr.apps)) {
+            for (const app of usr.apps) {
+              const appName = typeof app === "string" ? app : app.name;
+              if (!appName) continue;
+              const key = `${email}:${appName}`.toLowerCase();
+              if (processedAppKeys.has(key)) continue;
+              processedAppKeys.add(key);
+
+              const del = await this.apigeeService.apigeeAppDelete(
+                email,
+                appName,
+                org,
+                options.drz,
+                authHeader,
+              );
+              if (del) {
+                deletedApps.push({ name: appName, owner: email });
+                console.log(
+                  `  ${chalk.green.bold("✔")} Deleted App: ${chalk.cyan(appName)} (${chalk.dim(email)}) from org ${chalk.cyan(org)}`,
+                );
+              } else {
+                failedApps.push({ name: appName, owner: email });
+                console.log(
+                  `  ${chalk.yellow.bold("⚠")} Could not delete App: ${chalk.cyan(appName)} (${chalk.dim(email)})`,
+                );
+              }
+            }
+          }
+        } catch (e) {}
+      }
+    } catch (e) {}
+
+    // Check org-level apps list for any remaining apps (including company apps)
+    try {
+      const orgApps = await this.apigeeService.apigeeAppsList(
+        org,
+        options.drz,
+        authHeader,
+      );
+      let appEntries: any[] = [];
+      if (Array.isArray(orgApps)) {
+        appEntries = orgApps;
+      } else if (orgApps && Array.isArray(orgApps.app)) {
+        appEntries = orgApps.app;
+      }
+
+      for (const item of appEntries) {
+        const appId = typeof item === "string" ? item : item.appId || item.name;
+        if (!appId) continue;
+        let appDetail = item;
+        if (!appDetail.developerId && !appDetail.companyName && !appDetail.developerEmail) {
+          appDetail = await this.apigeeService.apigeeAppGet(
+            appId,
+            org,
+            options.drz,
+            authHeader,
+          );
+        }
+        if (!appDetail) continue;
+        const appName = appDetail.name || appId;
+        const devOwner = appDetail.developerEmail || appDetail.developerId;
+        const companyOwner = appDetail.companyName;
+
+        if (devOwner) {
+          const key = `${devOwner}:${appName}`.toLowerCase();
+          if (!processedAppKeys.has(key)) {
+            processedAppKeys.add(key);
+            const del = await this.apigeeService.apigeeAppDelete(
+              devOwner,
+              appName,
+              org,
+              options.drz,
+              authHeader,
+            );
+            if (del) {
+              deletedApps.push({ name: appName, owner: devOwner });
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted App: ${chalk.cyan(appName)} (${chalk.dim(devOwner)}) from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              failedApps.push({ name: appName, owner: devOwner });
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete App: ${chalk.cyan(appName)} (${chalk.dim(devOwner)})`,
+              );
+            }
+          }
+        } else if (companyOwner) {
+          const key = `company:${companyOwner}:${appName}`.toLowerCase();
+          if (!processedAppKeys.has(key)) {
+            processedAppKeys.add(key);
+            const del = await this.apigeeService.apigeeCompanyAppDelete(
+              companyOwner,
+              appName,
+              org,
+              options.drz,
+              authHeader,
+            );
+            if (del) {
+              deletedApps.push({ name: appName, owner: companyOwner });
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Company App: ${chalk.cyan(appName)} (${chalk.dim(companyOwner)}) from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              failedApps.push({ name: appName, owner: companyOwner });
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Company App: ${chalk.cyan(appName)} (${chalk.dim(companyOwner)})`,
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {}
+
+    // 3. Delete all Users (Developers)
+    let deletedUsers: string[] = [];
+    let failedUsers: string[] = [];
+    try {
+      for (const dev of developers) {
+        const userKey = dev.email || dev.userName;
+        if (!userKey) continue;
+        const del = await this.apigeeService.apigeeUserDelete(
+          userKey,
+          org,
+          options.drz,
+          authHeader,
+        );
+        if (del) {
+          deletedUsers.push(userKey);
+          console.log(
+            `  ${chalk.green.bold("✔")} Deleted User: ${chalk.cyan(userKey)} from org ${chalk.cyan(org)}`,
+          );
+        } else {
+          failedUsers.push(userKey);
+          console.log(
+            `  ${chalk.yellow.bold("⚠")} Could not delete User: ${chalk.cyan(userKey)}`,
+          );
+        }
+      }
+    } catch (e) {}
+
+    // 4. Delete all Products
+    let deletedProducts: string[] = [];
+    let failedProducts: string[] = [];
+    try {
+      const productList = await this.apigeeService.apigeeProductsList(
+        org,
+        options.drz,
+        authHeader,
+      );
+      let productNames: string[] = [];
+      if (Array.isArray(productList)) {
+        productNames = productList.map((p: any) => (typeof p === "string" ? p : p.name)).filter(Boolean);
+      } else if (productList && Array.isArray(productList.apiProduct)) {
+        productNames = productList.apiProduct.map((p: any) => (typeof p === "string" ? p : p.name)).filter(Boolean);
+      }
+
+      for (const prodName of productNames) {
+        const del = await this.apigeeService.apigeeProductDelete(
+          prodName,
+          org,
+          options.drz,
+          authHeader,
+        );
+        if (del) {
+          deletedProducts.push(prodName);
+          console.log(
+            `  ${chalk.green.bold("✔")} Deleted Product: ${chalk.cyan(prodName)} from org ${chalk.cyan(org)}`,
+          );
+        } else {
+          failedProducts.push(prodName);
+          console.log(
+            `  ${chalk.yellow.bold("⚠")} Could not delete Product: ${chalk.cyan(prodName)}`,
+          );
+        }
+      }
+    } catch (e) {}
+
+    await this.stopAnimation();
+
+    const summaryLines: string[] = [
+      `Name: ${org}`,
+      `Proxies: ${deletedProxies.length > 0 ? deletedProxies.join(", ") : "none"}`,
+      `Apps: ${deletedApps.length > 0 ? deletedApps.map((a) => a.name).join(", ") : "none"}`,
+      `Users: ${deletedUsers.length > 0 ? deletedUsers.join(", ") : "none"}`,
+      `Products: ${deletedProducts.length > 0 ? deletedProducts.join(", ") : "none"}`,
+    ];
+    await this.printOverviewCard(`Reset Organization ${org}`, summaryLines);
+  }
+
   private async handleResetCommand(options: cliArgs) {
+    if (options.organization) {
+      await this.handleResetOrgCommand(options);
+      return;
+    }
+
     if (!options.input) {
       await this.stopAnimation();
-      console.log(`  ${chalk.red.bold("✖ Error: Please specify an input file to reset.")}\n`);
+      console.log(`  ${chalk.red.bold("✖ Error: Please specify an input file to reset, or provide --project to reset an organization.")}\n`);
       return;
     }
 
     if (
       options.input.includes(":") ||
-      options.organization ||
       options.input.toLowerCase().startsWith("http://") ||
       options.input.toLowerCase().startsWith("https://")
     ) {
       await this.stopAnimation();
-      console.log(`  ${chalk.red.bold("✖ Error: The 'reset' command only supports local files.")}\n`);
+      console.log(`  ${chalk.red.bold("✖ Error: The 'reset' command only supports local files, or an organization with --project.")}\n`);
       return;
     }
 
@@ -3832,7 +4112,7 @@ const helpCommands = [
   },
   {
     name: "--organization, --org, --project",
-    description: "Apigee organization or GCP project name to export from, deploy to, or describe.",
+    description: "Apigee organization or GCP project name to export from, deploy to, describe, or reset.",
   },
   {
     name: "--environment, --env, -e",
