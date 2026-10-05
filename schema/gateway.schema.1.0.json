@@ -418,7 +418,6 @@
     "ProductOperation": {
       "type": "object",
       "properties": {
-        "apiSource": { "type": "string" },
         "name": { "type": "string" },
         "methods": {
           "type": "array",
@@ -440,19 +439,17 @@
           "type": "array",
           "items": { "$ref": "#/definitions/ProductOperation" }
         },
-        "quota": { "$ref": "#/definitions/ProductQuota" },
         "attributes": {
           "type": "array",
           "items": { "$ref": "#/definitions/ProductAttribute" }
         }
       },
-      "required": ["operations"],
+      "required": ["apiSource", "operations"],
       "additionalProperties": false
     },
     "ProductLlmOperation": {
       "type": "object",
       "properties": {
-        "apiSource": { "type": "string" },
         "name": { "type": "string" },
         "methods": {
           "type": "array",
@@ -477,21 +474,17 @@
           "type": "array",
           "items": { "$ref": "#/definitions/ProductLlmOperation" }
         },
-        "quota": { "$ref": "#/definitions/ProductQuota" },
-        "llmTokenQuota": { "$ref": "#/definitions/ProductQuota" },
-        "tokenQuota": { "$ref": "#/definitions/ProductQuota" },
         "attributes": {
           "type": "array",
           "items": { "$ref": "#/definitions/ProductAttribute" }
         }
       },
-      "required": ["operations"],
+      "required": ["apiSource", "operations"],
       "additionalProperties": false
     },
     "ProductPayloadOperation": {
       "type": "object",
       "properties": {
-        "apiSource": { "type": "string" },
         "protocol": { "type": "string" },
         "name": { "type": "string" },
         "operation": { "type": "string" },
@@ -514,26 +507,19 @@
         "protocol": { "type": "string" },
         "operations": {
           "type": "array",
-          "items": {
-            "oneOf": [
-              { "type": "string" },
-              { "$ref": "#/definitions/ProductPayloadOperation" }
-            ]
-          }
+          "items": { "$ref": "#/definitions/ProductPayloadOperation" }
         },
-        "quota": { "$ref": "#/definitions/ProductQuota" },
         "attributes": {
           "type": "array",
           "items": { "$ref": "#/definitions/ProductAttribute" }
         }
       },
-      "required": ["operations"],
+      "required": ["apiSource", "operations"],
       "additionalProperties": false
     },
     "ProductGraphqlOperation": {
       "type": "object",
       "properties": {
-        "apiSource": { "type": "string" },
         "operation": { "type": "string" },
         "operationTypes": {
           "type": "array",
@@ -555,24 +541,22 @@
           "type": "array",
           "items": { "$ref": "#/definitions/ProductGraphqlOperation" }
         },
-        "quota": { "$ref": "#/definitions/ProductQuota" },
         "attributes": {
           "type": "array",
           "items": { "$ref": "#/definitions/ProductAttribute" }
         }
       },
-      "required": ["operations"],
+      "required": ["apiSource", "operations"],
       "additionalProperties": false
     },
     "ProductGrpcOperation": {
       "type": "object",
       "properties": {
-        "apiSource": { "type": "string" },
+        "service": { "type": "string" },
         "methods": {
           "type": "array",
           "items": { "type": "string" }
         },
-        "service": { "type": "string" },
         "quota": { "$ref": "#/definitions/ProductQuota" },
         "attributes": {
           "type": "array",
@@ -589,13 +573,12 @@
           "type": "array",
           "items": { "$ref": "#/definitions/ProductGrpcOperation" }
         },
-        "quota": { "$ref": "#/definitions/ProductQuota" },
         "attributes": {
           "type": "array",
           "items": { "$ref": "#/definitions/ProductAttribute" }
         }
       },
-      "required": ["operations"],
+      "required": ["apiSource", "operations"],
       "additionalProperties": false
     },
     "Product": {
@@ -640,48 +623,23 @@
         },
         "operations": {
           "type": "array",
-          "items": {
-            "oneOf": [
-              { "$ref": "#/definitions/ProductOperation" },
-              { "$ref": "#/definitions/ProductOperationConfig" }
-            ]
-          }
+          "items": { "$ref": "#/definitions/ProductOperationConfig" }
         },
         "llmOperations": {
           "type": "array",
-          "items": {
-            "oneOf": [
-              { "$ref": "#/definitions/ProductLlmOperation" },
-              { "$ref": "#/definitions/ProductLlmOperationConfig" }
-            ]
-          }
+          "items": { "$ref": "#/definitions/ProductLlmOperationConfig" }
         },
         "payloadOperations": {
           "type": "array",
-          "items": {
-            "oneOf": [
-              { "$ref": "#/definitions/ProductPayloadOperation" },
-              { "$ref": "#/definitions/ProductPayloadOperationConfig" }
-            ]
-          }
+          "items": { "$ref": "#/definitions/ProductPayloadOperationConfig" }
         },
         "graphqlOperations": {
           "type": "array",
-          "items": {
-            "oneOf": [
-              { "$ref": "#/definitions/ProductGraphqlOperation" },
-              { "$ref": "#/definitions/ProductGraphqlOperationConfig" }
-            ]
-          }
+          "items": { "$ref": "#/definitions/ProductGraphqlOperationConfig" }
         },
         "grpcOperations": {
           "type": "array",
-          "items": {
-            "oneOf": [
-              { "$ref": "#/definitions/ProductGrpcOperation" },
-              { "$ref": "#/definitions/ProductGrpcOperationConfig" }
-            ]
-          }
+          "items": { "$ref": "#/definitions/ProductGrpcOperationConfig" }
         }
       },
       "required": ["name", "type", "gateway", "schemaVersion"],

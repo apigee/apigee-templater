@@ -132,10 +132,10 @@ products:
       operations:
         - name: /json
           methods: []
-      quota:
-        limit: "5"
-        interval: "1"
-        timeUnit: minute
+          quota:
+            limit: "5"
+            interval: "1"
+            timeUnit: minute
   llmOperations: []
   payloadOperations: []
   graphqlOperations: []

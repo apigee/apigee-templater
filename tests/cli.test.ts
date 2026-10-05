@@ -986,11 +986,18 @@ targets:
     let deployedEnv = "";
     let exportedProducts: any[] = [];
     let exportedUsers: any[] = [];
+    const logs: string[] = [];
 
+    const origLog = console.log;
     const origProxyExport = myCli.apigeeService.apigeeProxyExport;
     const origDeploy = myCli.apigeeService.apigeeProxyRevisionDeploy;
     const origProductExport = myCli.apigeeService.apigeeProductExport;
     const origUserExport = myCli.apigeeService.apigeeUserExport;
+
+    console.log = (...args: any[]) => {
+      logs.push(args.join(" "));
+      origLog(...args);
+    };
 
     myCli.apigeeService.apigeeProxyExport = async (name, path, org, drz, token) => {
       exportedProxyName = name;
@@ -1032,11 +1039,97 @@ targets:
       expect(exportedProducts[0].environments).toContain("dev");
       expect(exportedUsers.length).toBe(1);
       expect(exportedUsers[0].email).toBe("john.doe@example.com");
+
+      expect(logs.some((l) => l.includes("Processing Template:") && l.includes("template-basic-weather-api"))).toBe(true);
+      expect(logs.some((l) => l.includes("Processing Product:") && l.includes("standard-api-product"))).toBe(true);
+      expect(logs.some((l) => l.includes("Processing User:") && l.includes("john.doe@example.com"))).toBe(true);
     } finally {
+      console.log = origLog;
       myCli.apigeeService.apigeeProxyExport = origProxyExport;
       myCli.apigeeService.apigeeProxyRevisionDeploy = origDeploy;
       myCli.apigeeService.apigeeProductExport = origProductExport;
       myCli.apigeeService.apigeeUserExport = origUserExport;
+    }
+  });
+
+  it("should output type and name for proxy, feature, data collector, and report when deploying", async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    const origProxyExport = myCli.apigeeService.apigeeProxyExport;
+    const origDataCollectorExport = myCli.apigeeService.apigeeDataCollectorExport;
+    const origReportExport = myCli.apigeeService.apigeeReportExport;
+
+    console.log = (...args: any[]) => {
+      logs.push(args.join(" "));
+      origLog(...args);
+    };
+
+    myCli.apigeeService.apigeeProxyExport = async () => "1";
+    myCli.apigeeService.apigeeDataCollectorExport = async () => true;
+    myCli.apigeeService.apigeeReportExport = async () => true;
+
+    const tempDeploymentFile = path.join(process.cwd(), "tests/temp-inline-deployment.yaml");
+    const testDeploymentYaml = `
+gateway: apigee
+schemaVersion: 1.0.0
+name: test-all-resources-deployment
+type: deployment
+proxies:
+  - name: direct-test-proxy
+    type: proxy
+    gateway: apigee
+    schemaVersion: 1.0.0
+    endpoints:
+      - name: default
+        basePath: /test
+        routes: []
+features:
+  - name: direct-test-feature
+    type: feature
+    gateway: apigee
+    schemaVersion: 1.0.0
+    endpoints:
+      - name: default
+        basePath: /feat
+dataCollectors:
+  - name: dc-test-collector
+    type: dataCollector
+    gateway: apigee
+    schemaVersion: 1.0.0
+    collectorType: STRING
+reports:
+  - name: rep-test-report
+    type: report
+    gateway: apigee
+    schemaVersion: 1.0.0
+    metrics:
+      - name: message_count
+        function: sum
+`;
+    fs.writeFileSync(tempDeploymentFile, testDeploymentYaml.trim());
+
+    try {
+      await myCli.process([
+        "bun",
+        "apigee-templater.ts",
+        "-i",
+        tempDeploymentFile,
+        "--organization",
+        "test-org",
+        "--token",
+        "test-token",
+      ]);
+
+      expect(logs.some((l) => l.includes("Processing Proxy:") && l.includes("direct-test-proxy"))).toBe(true);
+      expect(logs.some((l) => l.includes("Processing Feature:") && l.includes("direct-test-feature"))).toBe(true);
+      expect(logs.some((l) => l.includes("Processing Data Collector:") && l.includes("dc-test-collector"))).toBe(true);
+      expect(logs.some((l) => l.includes("Processing Custom Report:") && l.includes("rep-test-report"))).toBe(true);
+    } finally {
+      console.log = origLog;
+      myCli.apigeeService.apigeeProxyExport = origProxyExport;
+      myCli.apigeeService.apigeeDataCollectorExport = origDataCollectorExport;
+      myCli.apigeeService.apigeeReportExport = origReportExport;
+      if (fs.existsSync(tempDeploymentFile)) fs.rmSync(tempDeploymentFile);
     }
   });
 

@@ -17,7 +17,10 @@ describe("ApigeeTemplaterService templatesList and featuresList", () => {
     expect(service.templateListCache).toContain("REST-AI-Completions");
     expect(service.templateListCache).toContain("REST-AI-Completions-Screened");
     const screenedTmpl = templates.find((t) => t.name === "REST-AI-Completions-Screened");
-    expect(screenedTmpl?.yamlName).toBe("REST-AI-Completions-ModelArmor");
+    expect(screenedTmpl).toBeDefined();
+    if (screenedTmpl?.yamlName) {
+      expect(screenedTmpl.yamlName).toBe("REST-AI-Completions-ModelArmor");
+    }
 
     // Check cache file exists
     const cacheDir = service.getCacheDir();

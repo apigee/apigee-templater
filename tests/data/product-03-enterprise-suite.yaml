@@ -21,25 +21,27 @@ attributes:
   - name: tier
     value: enterprise-platinum
 operations:
-  - name: /v1/customers/**
-    apiSource: enterprise-gateway-v1
-    methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
+  - apiSource: enterprise-gateway-v1
+    operations:
+      - name: /v1/customers/**
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
 graphqlOperations:
-  - operation: CustomerQuery
-    apiSource: enterprise-gateway-v1
-    operationTypes:
-      - QUERY
-  - operation: UpdateCustomerMutation
-    apiSource: enterprise-gateway-v1
-    operationTypes:
-      - MUTATION
+  - apiSource: enterprise-gateway-v1
+    operations:
+      - operation: CustomerQuery
+        operationTypes:
+          - QUERY
+      - operation: UpdateCustomerMutation
+        operationTypes:
+          - MUTATION
 grpcOperations:
-  - service: customer.v1.CustomerService
-    apiSource: enterprise-gateway-v1
-    methods:
-      - GetCustomer
-      - StreamCustomerEvents
+  - apiSource: enterprise-gateway-v1
+    operations:
+      - service: customer.v1.CustomerService
+        methods:
+          - GetCustomer
+          - StreamCustomerEvents

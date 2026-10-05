@@ -422,5 +422,55 @@ products:
     expect(convertedBack.name).toBe("mcp-customer-service-product");
     expect(convertedBack.payloadOperations?.length).toBe(7);
   });
+
+  it("should ensure every operationConfig in deployment products contains exactly one operation entity and no empty quotas", () => {
+    const deploymentPath = path.resolve(__dirname, "data/deployment-products-01.yaml");
+    const rawYaml = fs.readFileSync(deploymentPath, "utf8");
+    const deployment = parseYaml.parse(rawYaml);
+    expect(deployment.products).toBeDefined();
+    expect(deployment.products.length).toBe(3);
+
+    for (const prod of deployment.products) {
+      const apigeeProd = converter.productToApigeeProduct(prod);
+
+      // Verify operationGroup
+      if (apigeeProd.operationGroup?.operationConfigs) {
+        for (const config of apigeeProd.operationGroup.operationConfigs) {
+          expect(config.operations).toBeDefined();
+          expect(config.operations.length).toBe(1);
+          if (config.quota) {
+            expect(Object.keys(config.quota).length).toBeGreaterThan(0);
+            expect(config.quota.limit).toBeDefined();
+          }
+        }
+      }
+
+      // Verify llmOperationGroup
+      if (apigeeProd.llmOperationGroup?.operationConfigs) {
+        for (const config of apigeeProd.llmOperationGroup.operationConfigs) {
+          const ops = config.llmOperations || config.operations;
+          expect(ops).toBeDefined();
+          expect(ops.length).toBe(1);
+          if (config.llmTokenQuota) {
+            expect(Object.keys(config.llmTokenQuota).length).toBeGreaterThan(0);
+            expect(config.llmTokenQuota.limit).toBeDefined();
+          }
+        }
+      }
+
+      // Verify payloadOperationGroup
+      if (apigeeProd.payloadOperationGroup?.operationConfigs) {
+        for (const config of apigeeProd.payloadOperationGroup.operationConfigs) {
+          expect(config.operations).toBeDefined();
+          expect(config.operations.length).toBe(1);
+          if (config.quota) {
+            expect(Object.keys(config.quota).length).toBeGreaterThan(0);
+            expect(config.quota.limit).toBeDefined();
+          }
+        }
+      }
+    }
+  });
 });
+
 

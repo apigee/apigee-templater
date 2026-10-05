@@ -186,9 +186,7 @@ export class ProductQuota {
 }
 
 export class ProductOperation {
-  apiSource?: string;
   name?: string;
-  resource?: string;
   methods?: string[] = [];
   quota?: ProductQuota;
   attributes?: ProductAttribute[] = [];
@@ -197,18 +195,11 @@ export class ProductOperation {
 export class ProductOperationConfig {
   apiSource: string = "";
   operations?: ProductOperation[] = [];
-  quota?: ProductQuota;
   attributes?: ProductAttribute[] = [];
-  name?: string;
-  resource?: string;
-  methods?: string[];
 }
 
 export class ProductLlmOperation {
-  apiSource?: string;
   name?: string;
-  path?: string;
-  resource?: string;
   methods?: string[] = [];
   model?: string;
   models?: string[] = [];
@@ -222,20 +213,10 @@ export class ProductLlmOperationConfig {
   apiSource: string = "";
   operations?: ProductLlmOperation[] = [];
   llmOperations?: ProductLlmOperation[] = [];
-  llmTokenQuota?: ProductQuota;
-  tokenQuota?: ProductQuota;
-  quota?: ProductQuota;
-  name?: string;
-  path?: string;
-  resource?: string;
-  methods?: string[];
-  model?: string;
-  models?: string[];
   attributes?: ProductAttribute[] = [];
 }
 
 export class ProductPayloadOperation {
-  apiSource?: string;
   protocol?: string = "MCP";
   name?: string;
   operation?: string;
@@ -247,15 +228,11 @@ export class ProductPayloadOperation {
 export class ProductPayloadOperationConfig {
   apiSource: string = "";
   protocol?: string = "MCP";
-  name?: string;
-  operation?: string;
   operations?: (ProductPayloadOperation | string)[] = [];
-  quota?: ProductQuota;
   attributes?: ProductAttribute[];
 }
 
 export class ProductGraphqlOperation {
-  apiSource?: string;
   operation?: string;
   operationTypes?: string[];
   quota?: ProductQuota;
@@ -264,15 +241,11 @@ export class ProductGraphqlOperation {
 
 export class ProductGraphqlOperationConfig {
   apiSource: string = "";
-  operation?: string;
-  operationTypes?: string[];
   operations?: ProductGraphqlOperation[] = [];
-  quota?: ProductQuota;
   attributes?: ProductAttribute[];
 }
 
 export class ProductGrpcOperation {
-  apiSource?: string;
   service?: string;
   methods?: string[];
   quota?: ProductQuota;
@@ -281,10 +254,7 @@ export class ProductGrpcOperation {
 
 export class ProductGrpcOperationConfig {
   apiSource: string = "";
-  service?: string;
-  methods?: string[];
   operations?: ProductGrpcOperation[] = [];
-  quota?: ProductQuota;
   attributes?: ProductAttribute[];
 }
 
@@ -311,11 +281,11 @@ export class Product {
   quotaInterval?: string;
   quotaTimeUnit?: string;
   scopes?: string[] = [];
-  operations?: (ProductOperationConfig | ProductOperation)[] = [];
-  llmOperations?: (ProductLlmOperationConfig | ProductLlmOperation)[] = [];
-  payloadOperations?: (ProductPayloadOperationConfig | ProductPayloadOperation)[] = [];
-  graphqlOperations?: (ProductGraphqlOperationConfig | ProductGraphqlOperation)[] = [];
-  grpcOperations?: (ProductGrpcOperationConfig | ProductGrpcOperation)[] = [];
+  operations?: ProductOperationConfig[] = [];
+  llmOperations?: ProductLlmOperationConfig[] = [];
+  payloadOperations?: ProductPayloadOperationConfig[] = [];
+  graphqlOperations?: ProductGraphqlOperationConfig[] = [];
+  grpcOperations?: ProductGrpcOperationConfig[] = [];
 }
 
 export class Products extends Product {}

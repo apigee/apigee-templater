@@ -1465,7 +1465,7 @@ export class ApigeeTemplaterService {
         if (!latestRevisionId) resolve("");
         else resolve(latestRevisionId);
       } else {
-        await this.logApiError("proxy EXPORT", url, response);
+        await this.logApiError(`proxy (${proxyName}) EXPORT`, url, response);
         resolve("");
       }
     });
@@ -1496,7 +1496,7 @@ export class ApigeeTemplaterService {
         if (!latestRevisionId) resolve("");
         else resolve(latestRevisionId);
       } else {
-        await this.logApiError("proxy DEPLOY", url, response);
+        await this.logApiError(`proxy (${proxyName}) DEPLOY`, url, response);
         resolve("");
       }
     });
@@ -1564,7 +1564,7 @@ export class ApigeeTemplaterService {
       );
       if (response.status === 200) resolve(true);
       else {
-        await this.logApiError("proxy UNDEPLOY", url, response);
+        await this.logApiError(`proxy (${proxyName}) UNDEPLOY`, url, response);
         resolve(false);
       }
     });
@@ -1585,7 +1585,7 @@ export class ApigeeTemplaterService {
             let env = dep.environment || dep.environmentName;
             let rev = dep.revision || dep.revisionName;
             if (env && rev) {
-              await this.apigeeProxyUndeploy(proxyName, env, rev, apigeeOrg, drz, token);
+               await this.apigeeProxyUndeploy(proxyName, env, rev, apigeeOrg, drz, token);
             }
           }
         }
@@ -1609,7 +1609,7 @@ export class ApigeeTemplaterService {
         }
         resolve(true);
       } else {
-        await this.logApiError("proxy DELETE", url, response);
+        await this.logApiError(`proxy (${proxyName}) DELETE`, url, response);
         resolve(false);
       }
     });
@@ -2025,7 +2025,7 @@ export class ApigeeTemplaterService {
       if (response.status === 200 || response.status === 201) {
         resolve(true);
       } else {
-        await this.logApiError(`product ${method}`, url, response);
+        await this.logApiError(`product (${productName}) ${method}`, url, response);
         resolve(false);
       }
     });
@@ -2052,7 +2052,7 @@ export class ApigeeTemplaterService {
       if (response.status === 200) {
         resolve(true);
       } else {
-        await this.logApiError("product DELETE", url, response);
+        await this.logApiError(`product (${productName}) DELETE`, url, response);
         resolve(false);
       }
     });
@@ -2712,7 +2712,7 @@ export class ApigeeTemplaterService {
       });
 
       if (response.status !== 200 && response.status !== 201) {
-        await this.logApiError(`developer ${method}`, url, response);
+        await this.logApiError(`developer (${email}) ${method}`, url, response);
         resolve(false);
         return;
       }
@@ -2756,7 +2756,7 @@ export class ApigeeTemplaterService {
         });
 
         if (appResp.status !== 200 && appResp.status !== 201) {
-          await this.logApiError(`app ${appMethod}`, appUrl, appResp);
+          await this.logApiError(`app (${appName}) ${appMethod}`, appUrl, appResp);
         }
 
         if (app.credentials && Array.isArray(app.credentials)) {
@@ -2913,7 +2913,7 @@ export class ApigeeTemplaterService {
       if (response.status === 200) {
         resolve(true);
       } else {
-        await this.logApiError("developer DELETE", url, response);
+        await this.logApiError(`developer (${developerEmail}) DELETE`, url, response);
         resolve(false);
       }
     });
@@ -3383,7 +3383,7 @@ export class ApigeeTemplaterService {
       if (response.status === 200 || response.status === 201) {
         resolve(true);
       } else {
-        await this.logApiError(`datacollector ${method}`, url, response);
+        await this.logApiError(`datacollector (${name}) ${method}`, url, response);
         resolve(false);
       }
     });
@@ -3407,7 +3407,7 @@ export class ApigeeTemplaterService {
       if (response.status === 200) {
         resolve(true);
       } else {
-        await this.logApiError("datacollector DELETE", url, response);
+        await this.logApiError(`datacollector (${dataCollectorName}) DELETE`, url, response);
         resolve(false);
       }
     });
@@ -3779,7 +3779,7 @@ export class ApigeeTemplaterService {
       if (response.status === 200 || response.status === 201) {
         resolve(true);
       } else {
-        await this.logApiError(`report ${method}`, url, response);
+        await this.logApiError(`report (${name}) ${method}`, url, response);
         resolve(false);
       }
     });
@@ -3803,7 +3803,7 @@ export class ApigeeTemplaterService {
       if (response.status === 200) {
         resolve(true);
       } else {
-        await this.logApiError("report DELETE", url, response);
+        await this.logApiError(`report (${reportName}) DELETE`, url, response);
         resolve(false);
       }
     });

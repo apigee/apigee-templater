@@ -16,61 +16,50 @@ quota: "100000"
 quotaInterval: "1"
 quotaTimeUnit: month
 payloadOperations:
-  - name: tools/list
-    apiSource: MCP-CustomerService
+  - apiSource: MCP-CustomerService
     protocol: MCP
-    quota:
-      limit: "500"
-      interval: "1"
-      timeUnit: minute
-  - name: tools/call
-    apiSource: MCP-CustomerService
-    protocol: MCP
-    attributes:
-      - name: tool
-        value: lookup_customer
-    quota:
-      limit: "100"
-      interval: "1"
-      timeUnit: minute
-  - name: tools/call
-    apiSource: MCP-CustomerService
-    protocol: MCP
-    attributes:
-      - name: tool
-        value: create_support_ticket
-    quota:
-      limit: "20"
-      interval: "1"
-      timeUnit: minute
-  - name: tools/call
-    apiSource: MCP-CustomerService
-    protocol: MCP
-    attributes:
-      - name: tool
-        value: refund_order
-    quota:
-      limit: "5"
-      interval: "1"
-      timeUnit: minute
-  - name: resources/list
-    apiSource: MCP-CustomerService
-    protocol: MCP
-    quota:
-      limit: "200"
-      interval: "1"
-      timeUnit: minute
-  - name: resources/read
-    apiSource: MCP-CustomerService
-    protocol: MCP
-    quota:
-      limit: "200"
-      interval: "1"
-      timeUnit: minute
-  - name: prompts/list
-    apiSource: MCP-CustomerService
-    protocol: MCP
-    quota:
-      limit: "100"
-      interval: "1"
-      timeUnit: minute
+    operations:
+      - name: tools/list
+        quota:
+          limit: "500"
+          interval: "1"
+          timeUnit: minute
+      - name: tools/call
+        attributes:
+          - name: tool
+            value: lookup_customer
+        quota:
+          limit: "100"
+          interval: "1"
+          timeUnit: minute
+      - name: tools/call
+        attributes:
+          - name: tool
+            value: create_support_ticket
+        quota:
+          limit: "20"
+          interval: "1"
+          timeUnit: minute
+      - name: tools/call
+        attributes:
+          - name: tool
+            value: refund_order
+        quota:
+          limit: "5"
+          interval: "1"
+          timeUnit: minute
+      - name: resources/list
+        quota:
+          limit: "200"
+          interval: "1"
+          timeUnit: minute
+      - name: resources/read
+        quota:
+          limit: "200"
+          interval: "1"
+          timeUnit: minute
+      - name: prompts/list
+        quota:
+          limit: "100"
+          interval: "1"
+          timeUnit: minute

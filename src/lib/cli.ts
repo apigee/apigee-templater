@@ -3199,6 +3199,8 @@ export class cli {
 
             // 1. Export & deploy proxies from templates
             for (let t of resolved.templates) {
+              const templateName = t.name || "unnamed";
+              console.log(`  Processing Template: ${chalk.cyan(templateName)}`);
               let tProxy = await this.apigeeService.templateObjectToProxy(
                 t,
                 this.converter,
@@ -3231,6 +3233,7 @@ export class cli {
 
             // 2. Export & deploy direct proxies
             for (let p of resolved.proxies) {
+              console.log(`  Processing Proxy: ${chalk.cyan(p.name)}`);
               this.converter.proxyUpdateParameters(p, inputParameters);
               let zipPath = await this.converter.proxyToApigeeZip(p);
               let lastRev = await this.apigeeService.apigeeProxyExport(
@@ -3256,6 +3259,8 @@ export class cli {
 
             // 3. Export & deploy direct features
             for (let f of resolved.features) {
+              const featName = f.name || "unnamed";
+              console.log(`  Processing Feature: ${chalk.cyan(featName)}`);
               let fProxy = this.converter.featureToProxy(f, inputParameters);
               let zipPath = await this.converter.proxyToApigeeZip(fProxy);
               let lastRev = await this.apigeeService.apigeeProxyExport(
@@ -3281,6 +3286,7 @@ export class cli {
 
             // 4. Export products
             for (let prod of resolved.products) {
+              console.log(`  Processing Product: ${chalk.cyan(prod.name)}`);
               this.converter.productUpdateParameters(prod, inputParameters);
               const targetEnv = options.environment || env;
               if (targetEnv) {
@@ -3296,8 +3302,10 @@ export class cli {
               );
             }
 
-            // 4. Export users
+            // 5. Export users
             for (let u of resolved.users) {
+              const userKey = u.email || u.userName || u.name;
+              console.log(`  Processing User: ${chalk.cyan(userKey)}`);
               this.converter.userUpdateParameters(u, inputParameters);
               await this.apigeeService.apigeeUserExport(
                 u,
@@ -3307,8 +3315,9 @@ export class cli {
               );
             }
 
-            // 5. Export data collectors
+            // 6. Export data collectors
             for (let dc of resolved.dataCollectors) {
+              console.log(`  Processing Data Collector: ${chalk.cyan(dc.name)}`);
               this.converter.dataCollectorUpdateParameters(dc, inputParameters);
               await this.apigeeService.apigeeDataCollectorExport(
                 dc,
@@ -3318,8 +3327,9 @@ export class cli {
               );
             }
 
-            // 6. Export custom reports
+            // 7. Export custom reports
             for (let rep of resolved.reports) {
+              console.log(`  Processing Custom Report: ${chalk.cyan(rep.name)}`);
               this.converter.reportUpdateParameters(rep, inputParameters);
               await this.apigeeService.apigeeReportExport(
                 rep,

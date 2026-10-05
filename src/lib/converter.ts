@@ -3286,6 +3286,12 @@ export class ApigeeConverter {
       apigeeProduct.attributes = attributes;
     }
 
+    const isValidQuota = (q: any) =>
+      q &&
+      typeof q === "object" &&
+      Object.keys(q).length > 0 &&
+      (q.limit !== undefined || q.interval !== undefined);
+
     // operations -> operationGroup
     if (product.operations && product.operations.length > 0) {
       let operationConfigs: any[] = [];
@@ -3293,37 +3299,27 @@ export class ApigeeConverter {
         const apiSource = op.apiSource || product.proxies?.[0] || product.name;
         const ops = op.operations;
         if (ops && ops.length > 0) {
-          const hasIndividualQuotas = ops.some((o: any) => typeof o === "object" && o && o.quota);
-          if (hasIndividualQuotas) {
-            for (let o of ops) {
-              const opApiSource = (typeof o === "object" && o.apiSource) ? o.apiSource : apiSource;
-              const opName = typeof o === "string" ? o : o.name || o.resource || "/";
-              const opMethods = typeof o === "object" && o.methods ? o.methods : ["GET"];
-              const opQuota = typeof o === "object" && o.quota ? o.quota : op.quota;
-              const opAttrs = typeof o === "object" && o.attributes ? o.attributes : op.attributes;
-              let singleConfig: any = {
-                apiSource: opApiSource,
-                operations: [{ resource: opName, methods: opMethods }],
-              };
-              if (opQuota) singleConfig.quota = opQuota;
-              if (opAttrs && opAttrs.length > 0) singleConfig.attributes = opAttrs;
-              operationConfigs.push(singleConfig);
-            }
-            continue;
+          for (let o of ops) {
+            const opApiSource = typeof o === "object" && o.apiSource ? o.apiSource : apiSource;
+            const opName = typeof o === "string" ? o : o.name || o.resource || "/";
+            const opMethods = typeof o === "object" && o.methods ? o.methods : ["GET"];
+            const opQuota =
+              typeof o === "object" && isValidQuota(o.quota)
+                ? o.quota
+                : isValidQuota(op.quota)
+                  ? op.quota
+                  : undefined;
+            const opAttrs = typeof o === "object" && o.attributes ? o.attributes : op.attributes;
+            let singleConfig: any = {
+              apiSource: opApiSource,
+              operations: [{ resource: opName, methods: opMethods }],
+            };
+            if (opQuota) singleConfig.quota = opQuota;
+            if (opAttrs && opAttrs.length > 0) singleConfig.attributes = opAttrs;
+            operationConfigs.push(singleConfig);
           }
-
-          let config: any = {
-            apiSource: apiSource,
-            operations: ops.map((o: any) => ({
-              resource: typeof o === "string" ? o : o.name || o.resource || "/",
-              methods: (typeof o === "object" && o.methods) ? o.methods : ["GET"],
-            })),
-          };
-          if (op.quota) config.quota = op.quota;
-          if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
-          operationConfigs.push(config);
         } else if (op.resource || (op as any).name) {
-          let config: any = {
+          let singleConfig: any = {
             apiSource: apiSource,
             operations: [
               {
@@ -3332,9 +3328,9 @@ export class ApigeeConverter {
               },
             ],
           };
-          if (op.quota) config.quota = op.quota;
-          if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
-          operationConfigs.push(config);
+          if (isValidQuota(op.quota)) singleConfig.quota = op.quota;
+          if (op.attributes && op.attributes.length > 0) singleConfig.attributes = op.attributes;
+          operationConfigs.push(singleConfig);
         }
       }
       apigeeProduct.operationGroup = {
@@ -3349,52 +3345,45 @@ export class ApigeeConverter {
       for (let op of llmOps) {
         const apiSource = op.apiSource || product.proxies?.[0] || product.name;
         const ops = op.operations || op.llmOperations;
+        const parentQuota = isValidQuota(op.llmTokenQuota)
+          ? op.llmTokenQuota
+          : isValidQuota(op.tokenQuota)
+            ? op.tokenQuota
+            : isValidQuota(op.quota)
+              ? op.quota
+              : undefined;
         if (ops && ops.length > 0) {
-          const hasIndividualQuotas = ops.some(
-            (o: any) => typeof o === "object" && o && (o.llmTokenQuota || o.tokenQuota || o.quota)
-          );
-          if (hasIndividualQuotas) {
-            for (let o of ops) {
-              const opApiSource = (typeof o === "object" && o.apiSource) ? o.apiSource : apiSource;
-              const opResource = typeof o === "string" ? o : o.name || o.path || o.resource || "/";
-              const opMethods = typeof o === "object" && o.methods ? o.methods : ["POST"];
-              const opQuota =
-                typeof o === "object" ? (o.llmTokenQuota || o.tokenQuota || o.quota) : undefined;
-              const opAttrs = typeof o === "object" && o.attributes ? o.attributes : op.attributes;
-              let singleConfig: any = {
-                apiSource: opApiSource,
-                llmOperations: [
-                  {
-                    resource: opResource,
-                    methods: opMethods,
-                    ...(typeof o === "object" && o.model ? { model: o.model } : {}),
-                    ...(typeof o === "object" && o.models ? { models: o.models } : {}),
-                  },
-                ],
-              };
-              if (opQuota) singleConfig.llmTokenQuota = opQuota;
-              if (opAttrs && opAttrs.length > 0) singleConfig.attributes = opAttrs;
-              operationConfigs.push(singleConfig);
-            }
-            continue;
+          for (let o of ops) {
+            const opApiSource = typeof o === "object" && o.apiSource ? o.apiSource : apiSource;
+            const opResource = typeof o === "string" ? o : o.name || o.path || o.resource || "/";
+            const opMethods = typeof o === "object" && o.methods ? o.methods : ["POST"];
+            const opQuota =
+              (typeof o === "object" &&
+                (isValidQuota(o.llmTokenQuota)
+                  ? o.llmTokenQuota
+                  : isValidQuota(o.tokenQuota)
+                    ? o.tokenQuota
+                    : isValidQuota(o.quota)
+                      ? o.quota
+                      : undefined)) || parentQuota;
+            const opAttrs = typeof o === "object" && o.attributes ? o.attributes : op.attributes;
+            let singleConfig: any = {
+              apiSource: opApiSource,
+              llmOperations: [
+                {
+                  resource: opResource,
+                  methods: opMethods,
+                  ...(typeof o === "object" && o.model ? { model: o.model } : {}),
+                  ...(typeof o === "object" && o.models ? { models: o.models } : {}),
+                },
+              ],
+            };
+            if (opQuota) singleConfig.llmTokenQuota = opQuota;
+            if (opAttrs && opAttrs.length > 0) singleConfig.attributes = opAttrs;
+            operationConfigs.push(singleConfig);
           }
-
-          let config: any = {
-            apiSource: apiSource,
-            llmOperations: ops.map((o: any) => ({
-              resource: typeof o === "string" ? o : o.name || o.path || o.resource || "/",
-              methods: typeof o === "object" && o.methods ? o.methods : ["POST"],
-              ...(typeof o === "object" && o.model ? { model: o.model } : {}),
-              ...(typeof o === "object" && o.models ? { models: o.models } : {}),
-            })),
-          };
-          if (op.llmTokenQuota) config.llmTokenQuota = op.llmTokenQuota;
-          else if (op.tokenQuota) config.llmTokenQuota = op.tokenQuota;
-          else if (op.quota && !config.llmTokenQuota) config.llmTokenQuota = op.quota;
-          if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
-          operationConfigs.push(config);
         } else if (op.path || (op as any).resource || (op as any).name) {
-          let config: any = {
+          let singleConfig: any = {
             apiSource: apiSource,
             llmOperations: [
               {
@@ -3405,11 +3394,9 @@ export class ApigeeConverter {
               },
             ],
           };
-          if (op.llmTokenQuota) config.llmTokenQuota = op.llmTokenQuota;
-          else if (op.tokenQuota) config.llmTokenQuota = op.tokenQuota;
-          else if (op.quota && !config.llmTokenQuota) config.llmTokenQuota = op.quota;
-          if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
-          operationConfigs.push(config);
+          if (parentQuota) singleConfig.llmTokenQuota = parentQuota;
+          if (op.attributes && op.attributes.length > 0) singleConfig.attributes = op.attributes;
+          operationConfigs.push(singleConfig);
         }
       }
       apigeeProduct.llmOperationGroup = {
@@ -3424,58 +3411,34 @@ export class ApigeeConverter {
       for (let op of payloadOps) {
         const apiSource = op.apiSource || product.proxies?.[0] || product.name;
         const ops = op.operations || (op as any).payloadOperations;
+        const parentQuota = isValidQuota(op.quota) ? op.quota : undefined;
         if (ops && ops.length > 0) {
-          // If operations have individual quotas, split them into separate configs so each gets its quota
-          const hasIndividualQuotas = ops.some(
-            (o: any) => typeof o === "object" && o && o.quota
-          );
-          if (hasIndividualQuotas) {
-            for (let o of ops) {
-              const opApiSource =
-                (typeof o === "object" && o.apiSource) ? o.apiSource : apiSource;
-              const opName =
-                typeof o === "string"
-                  ? o
-                  : o.operation || o.name || o.resource || "/";
-              const opQuota = typeof o === "object" && o.quota ? o.quota : op.quota;
-              const opAttrs =
-                typeof o === "object" && o.attributes ? o.attributes : op.attributes;
-              let singleConfig: any = {
-                apiSource: opApiSource,
-                operations: [{ operation: opName }],
-              };
-              if (opQuota) singleConfig.quota = opQuota;
-              if (opAttrs && opAttrs.length > 0) singleConfig.attributes = opAttrs;
-              operationConfigs.push(singleConfig);
-            }
-            continue;
+          for (let o of ops) {
+            const opApiSource = typeof o === "object" && o.apiSource ? o.apiSource : apiSource;
+            const opName =
+              typeof o === "string" ? o : o.operation || o.name || o.resource || "/";
+            const opQuota = typeof o === "object" && isValidQuota(o.quota) ? o.quota : parentQuota;
+            const opAttrs = typeof o === "object" && o.attributes ? o.attributes : op.attributes;
+            let singleConfig: any = {
+              apiSource: opApiSource,
+              operations: [{ operation: opName }],
+            };
+            if (opQuota) singleConfig.quota = opQuota;
+            if (opAttrs && opAttrs.length > 0) singleConfig.attributes = opAttrs;
+            operationConfigs.push(singleConfig);
           }
-
-          let config: any = {
-            apiSource: apiSource,
-            operations: ops.map((o: any) => ({
-              operation:
-                typeof o === "string"
-                  ? o
-                  : o.operation || o.name || o.resource || "/",
-            })),
-          };
-          if (op.quota) config.quota = op.quota;
-          if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
-          operationConfigs.push(config);
         } else if ((op as any).operation || (op as any).name || (op as any).resource) {
-          let config: any = {
+          let singleConfig: any = {
             apiSource: apiSource,
             operations: [
               {
-                operation:
-                  (op as any).operation || (op as any).name || (op as any).resource,
+                operation: (op as any).operation || (op as any).name || (op as any).resource,
               },
             ],
           };
-          if (op.quota) config.quota = op.quota;
-          if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
-          operationConfigs.push(config);
+          if (parentQuota) singleConfig.quota = parentQuota;
+          if (op.attributes && op.attributes.length > 0) singleConfig.attributes = op.attributes;
+          operationConfigs.push(singleConfig);
         }
       }
       apigeeProduct.payloadOperationGroup = {
@@ -3488,19 +3451,28 @@ export class ApigeeConverter {
       let operationConfigs: any[] = [];
       for (let op of product.graphqlOperations) {
         const apiSource = op.apiSource || product.proxies?.[0] || product.name;
-        if (op.operations && op.operations.length > 0) {
-          let config: any = {
-            apiSource: apiSource,
-            operations: op.operations.map((o: any) => ({
-              operation: o.operation || o.name || "",
-              operationTypes: o.operationTypes || [],
-            })),
-          };
-          if (op.quota) config.quota = op.quota;
-          if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
-          operationConfigs.push(config);
+        const ops = op.operations;
+        const parentQuota = isValidQuota(op.quota) ? op.quota : undefined;
+        if (ops && ops.length > 0) {
+          for (let o of ops) {
+            const opApiSource = typeof o === "object" && o.apiSource ? o.apiSource : apiSource;
+            const opQuota = typeof o === "object" && isValidQuota(o.quota) ? o.quota : parentQuota;
+            const opAttrs = typeof o === "object" && o.attributes ? o.attributes : op.attributes;
+            let singleConfig: any = {
+              apiSource: opApiSource,
+              operations: [
+                {
+                  operation: o.operation || o.name || "",
+                  operationTypes: o.operationTypes || [],
+                },
+              ],
+            };
+            if (opQuota) singleConfig.quota = opQuota;
+            if (opAttrs && opAttrs.length > 0) singleConfig.attributes = opAttrs;
+            operationConfigs.push(singleConfig);
+          }
         } else if (op.operation || (op as any).name) {
-          let config: any = {
+          let singleConfig: any = {
             apiSource: apiSource,
             operations: [
               {
@@ -3509,9 +3481,9 @@ export class ApigeeConverter {
               },
             ],
           };
-          if (op.quota) config.quota = op.quota;
-          if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
-          operationConfigs.push(config);
+          if (parentQuota) singleConfig.quota = parentQuota;
+          if (op.attributes && op.attributes.length > 0) singleConfig.attributes = op.attributes;
+          operationConfigs.push(singleConfig);
         }
       }
       apigeeProduct.graphqlOperationGroup = {
@@ -3524,19 +3496,28 @@ export class ApigeeConverter {
       let operationConfigs: any[] = [];
       for (let op of product.grpcOperations) {
         const apiSource = op.apiSource || product.proxies?.[0] || product.name;
-        if (op.operations && op.operations.length > 0) {
-          let config: any = {
-            apiSource: apiSource,
-            operations: op.operations.map((o: any) => ({
-              service: o.service || o.name || "",
-              methods: o.methods || [],
-            })),
-          };
-          if (op.quota) config.quota = op.quota;
-          if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
-          operationConfigs.push(config);
+        const ops = op.operations;
+        const parentQuota = isValidQuota(op.quota) ? op.quota : undefined;
+        if (ops && ops.length > 0) {
+          for (let o of ops) {
+            const opApiSource = typeof o === "object" && o.apiSource ? o.apiSource : apiSource;
+            const opQuota = typeof o === "object" && isValidQuota(o.quota) ? o.quota : parentQuota;
+            const opAttrs = typeof o === "object" && o.attributes ? o.attributes : op.attributes;
+            let singleConfig: any = {
+              apiSource: opApiSource,
+              operations: [
+                {
+                  service: o.service || o.name || "",
+                  methods: o.methods || [],
+                },
+              ],
+            };
+            if (opQuota) singleConfig.quota = opQuota;
+            if (opAttrs && opAttrs.length > 0) singleConfig.attributes = opAttrs;
+            operationConfigs.push(singleConfig);
+          }
         } else if (op.service || (op as any).name) {
-          let config: any = {
+          let singleConfig: any = {
             apiSource: apiSource,
             operations: [
               {
@@ -3545,9 +3526,9 @@ export class ApigeeConverter {
               },
             ],
           };
-          if (op.quota) config.quota = op.quota;
-          if (op.attributes && op.attributes.length > 0) config.attributes = op.attributes;
-          operationConfigs.push(config);
+          if (parentQuota) singleConfig.quota = parentQuota;
+          if (op.attributes && op.attributes.length > 0) singleConfig.attributes = op.attributes;
+          operationConfigs.push(singleConfig);
         }
       }
       apigeeProduct.grpcOperationGroup = {
@@ -3644,7 +3625,11 @@ export class ApigeeConverter {
             ...(o.attributes ? { attributes: o.attributes } : {}),
           }));
         }
-        if (config.quota) opConfig.quota = config.quota;
+        if (config.quota && opConfig.operations && opConfig.operations.length > 0) {
+          if (!opConfig.operations[0].quota) {
+            opConfig.operations[0].quota = config.quota;
+          }
+        }
         if (config.attributes) opConfig.attributes = config.attributes;
         product.operations.push(opConfig);
       }
@@ -3665,11 +3650,17 @@ export class ApigeeConverter {
             ...(o.model ? { model: o.model } : {}),
             ...(o.models ? { models: o.models } : {}),
             ...(o.quota ? { quota: o.quota } : {}),
+            ...(o.llmTokenQuota ? { llmTokenQuota: o.llmTokenQuota } : {}),
             ...(o.attributes ? { attributes: o.attributes } : {}),
           }));
         }
-        if (config.llmTokenQuota) opConfig.llmTokenQuota = config.llmTokenQuota;
-        if (config.quota) opConfig.quota = config.quota;
+        if (opConfig.operations && opConfig.operations.length > 0) {
+          if (config.llmTokenQuota && !opConfig.operations[0].llmTokenQuota) {
+            opConfig.operations[0].llmTokenQuota = config.llmTokenQuota;
+          } else if (config.quota && !opConfig.operations[0].quota) {
+            opConfig.operations[0].quota = config.quota;
+          }
+        }
         if (config.attributes) opConfig.attributes = config.attributes;
         product.llmOperations.push(opConfig);
       }
@@ -3690,7 +3681,11 @@ export class ApigeeConverter {
             ...(o.attributes ? { attributes: o.attributes } : {}),
           }));
         }
-        if (config.quota) opConfig.quota = config.quota;
+        if (config.quota && opConfig.operations && opConfig.operations.length > 0) {
+          if (!opConfig.operations[0].quota) {
+            opConfig.operations[0].quota = config.quota;
+          }
+        }
         if (config.attributes) opConfig.attributes = config.attributes;
         product.payloadOperations.push(opConfig);
       }
@@ -3711,7 +3706,11 @@ export class ApigeeConverter {
             ...(o.attributes ? { attributes: o.attributes } : {}),
           }));
         }
-        if (config.quota) opConfig.quota = config.quota;
+        if (config.quota && opConfig.operations && opConfig.operations.length > 0) {
+          if (!opConfig.operations[0].quota) {
+            opConfig.operations[0].quota = config.quota;
+          }
+        }
         if (config.attributes) opConfig.attributes = config.attributes;
         product.graphqlOperations.push(opConfig);
       }
@@ -3732,7 +3731,11 @@ export class ApigeeConverter {
             ...(o.attributes ? { attributes: o.attributes } : {}),
           }));
         }
-        if (config.quota) opConfig.quota = config.quota;
+        if (config.quota && opConfig.operations && opConfig.operations.length > 0) {
+          if (!opConfig.operations[0].quota) {
+            opConfig.operations[0].quota = config.quota;
+          }
+        }
         if (config.attributes) opConfig.attributes = config.attributes;
         product.grpcOperations.push(opConfig);
       }
