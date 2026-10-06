@@ -1386,6 +1386,74 @@ export class ApigeeTemplaterService {
     });
   }
 
+  public async apigeeSharedFlowDeploymentsGet(
+    sharedFlowName: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<any[]> {
+    return new Promise(async (resolve) => {
+      try {
+        let response = await fetch(
+          `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}/deployments`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: token,
+            },
+          },
+        );
+        if (response.status === 200) {
+          let body: any = await response.json();
+          let deployments: any[] = [];
+          if (body.deployments && Array.isArray(body.deployments)) {
+            deployments = body.deployments;
+          } else if (body.environment && Array.isArray(body.environment)) {
+            for (let envObj of body.environment) {
+              if (envObj.revision && Array.isArray(envObj.revision)) {
+                for (let revObj of envObj.revision) {
+                  deployments.push({
+                    environment: envObj.name,
+                    revision: revObj.name,
+                  });
+                }
+              }
+            }
+          }
+          return resolve(deployments);
+        }
+      } catch (e) {}
+      resolve([]);
+    });
+  }
+
+  public async apigeeSharedFlowUndeploy(
+    sharedFlowName: string,
+    environment: string,
+    revision: string,
+    apigeeOrg: string,
+    drz: string,
+    token: string,
+  ): Promise<boolean> {
+    return new Promise(async (resolve) => {
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/environments/${environment}/sharedflows/${sharedFlowName}/revisions/${revision}/deployments`;
+      let response = await fetch(
+        url,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+      if (response.status === 200 || response.status === 204) resolve(true);
+      else {
+        await this.logApiError(`SharedFlow (${sharedFlowName}) UNDEPLOY`, url, response);
+        resolve(false);
+      }
+    });
+  }
+
   public async apigeeSharedFlowDelete(
     sharedFlowName: string,
     apigeeOrg: string,
@@ -1393,6 +1461,33 @@ export class ApigeeTemplaterService {
     token: string,
   ): Promise<boolean> {
     return new Promise(async (resolve, reject) => {
+      // 1. Undeploy all active deployments
+      try {
+        let deployments = await this.apigeeSharedFlowDeploymentsGet(
+          sharedFlowName,
+          apigeeOrg,
+          drz,
+          token,
+        );
+        if (deployments && deployments.length > 0) {
+          for (let dep of deployments) {
+            let env = dep.environment || dep.environmentName;
+            let rev = dep.revision || dep.revisionName;
+            if (env && rev) {
+              await this.apigeeSharedFlowUndeploy(
+                sharedFlowName,
+                env,
+                rev,
+                apigeeOrg,
+                drz,
+                token,
+              );
+            }
+          }
+        }
+      } catch (e) {}
+
+      // 2. Delete the shared flow
       const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/sharedflows/${sharedFlowName}`;
       let response = await fetch(
         url,
@@ -1403,8 +1498,12 @@ export class ApigeeTemplaterService {
           },
         },
       );
-      if (response.status === 200) resolve(true);
-      else {
+      if (response.status === 200 || response.status === 204) {
+        if (this.apigeeSharedFlowListCache[apigeeOrg]) {
+          delete this.apigeeSharedFlowListCache[apigeeOrg];
+        }
+        resolve(true);
+      } else {
         await this.logApiError("SharedFlow DELETE", url, response);
         resolve(false);
       }
@@ -3404,7 +3503,7 @@ export class ApigeeTemplaterService {
         },
       });
 
-      if (response.status === 200) {
+      if (response.status === 200 || response.status === 204) {
         resolve(true);
       } else {
         await this.logApiError(`datacollector (${dataCollectorName}) DELETE`, url, response);
@@ -3779,7 +3878,7 @@ export class ApigeeTemplaterService {
       if (response.status === 200 || response.status === 201) {
         resolve(true);
       } else {
-        await this.logApiError(`report (${name}) ${method}`, url, response);
+        await this.logApiError(`report (${reportName}) ${method}`, url, response);
         resolve(false);
       }
     });
@@ -3800,7 +3899,7 @@ export class ApigeeTemplaterService {
         },
       });
 
-      if (response.status === 200) {
+      if (response.status === 200 || response.status === 204) {
         resolve(true);
       } else {
         await this.logApiError(`report (${reportName}) DELETE`, url, response);

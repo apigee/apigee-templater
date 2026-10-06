@@ -301,7 +301,7 @@ Use `aft reset <file>` to reset any template, feature, or proxy file to its defa
 - **Templates**: Resets to an empty template with no features, parameters, endpoints, or targets.
 - **Features**: Removes all policies, flows, and resources, leaving endpoints and targets with no flow steps.
 - **Proxies**: Removes all policies, flows, and resources, preserving endpoints and targets with no flow steps.
-- **Organizations**: Undeploys and deletes all API proxies, and deletes all developer apps, users (developers), and API products in the organization.
+- **Organizations**: Undeploys and deletes all API proxies and shared flows, and deletes all developer apps, users (developers), API products, custom reports, and data collectors in the organization (leaving environments and environment KVMs intact).
 
 ```bash
 # Reset a template file in-place
@@ -316,7 +316,7 @@ aft reset SimpleProxy-v1.yaml
 # Reset and write to an alternative output file
 aft reset MyTemplate.yaml -o CleanTemplate.yaml
 
-# Reset an entire Apigee organization (undeploy & delete proxies, delete apps, users, and products)
+# Reset an entire Apigee organization (proxies, shared flows, apps, users, products, custom reports, data collectors)
 aft reset --project MyApigeeOrg
 ```
 

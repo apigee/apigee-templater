@@ -669,5 +669,168 @@ dataCollectors:
       expect(delRep).toBe(true);
       expect(deletedUrls.some((u) => u.includes("/reports/my-report"))).toBe(true);
     });
+
+    it("should export DataCollectors first before templates/proxies and CustomReports during deployment export", async () => {
+      const { default: cli } = await import("../src/lib/cli.js");
+      const myCli = new cli();
+
+      const deployYamlPath = path.join(process.cwd(), "tests/tmp-order-deployment.yaml");
+      const yamlContent = `
+name: order-test-deployment
+type: deployment
+gateway: apigee
+schemaVersion: 1.0.0
+proxies:
+  - name: test-proxy-1
+    type: proxy
+    gateway: apigee
+    schemaVersion: 1.0.0
+    endpoints:
+      - name: default
+        basePath: /v1/test
+dataCollectors:
+  - name: dc_order_test
+    type: datacollector
+    gateway: apigee
+    schemaVersion: 1.0.0
+    collectorType: STRING
+reports:
+  - name: report_order_test
+    type: report
+    gateway: apigee
+    schemaVersion: 1.0.0
+    metrics:
+      - name: message_count
+        function: sum
+`;
+      fs.writeFileSync(deployYamlPath, yamlContent, "utf8");
+
+      const callSequence: string[] = [];
+      const origDcExport = myCli.apigeeService.apigeeDataCollectorExport;
+      const origProxyExport = myCli.apigeeService.apigeeProxyExport;
+      const origRepExport = myCli.apigeeService.apigeeReportExport;
+
+      myCli.apigeeService.apigeeDataCollectorExport = async (dc: any) => {
+        callSequence.push(`dc:${dc.name}`);
+        return true;
+      };
+      myCli.apigeeService.apigeeProxyExport = async (name: string) => {
+        callSequence.push(`proxy:${name}`);
+        return "1";
+      };
+      myCli.apigeeService.apigeeReportExport = async (rep: any) => {
+        callSequence.push(`report:${rep.name}`);
+        return true;
+      };
+
+      try {
+        await myCli.process([
+          "bun",
+          "apigee-templater.ts",
+          "-i",
+          deployYamlPath,
+          "-o",
+          "apigee",
+          "-p",
+          "mock-org",
+          "--token",
+          "mock-token",
+          "--no-anim",
+        ]);
+
+        expect(callSequence).toEqual([
+          "dc:dc_order_test",
+          "proxy:test-proxy-1",
+          "report:report_order_test",
+        ]);
+      } finally {
+        myCli.apigeeService.apigeeDataCollectorExport = origDcExport;
+        myCli.apigeeService.apigeeProxyExport = origProxyExport;
+        myCli.apigeeService.apigeeReportExport = origRepExport;
+        if (fs.existsSync(deployYamlPath)) fs.unlinkSync(deployYamlPath);
+      }
+    });
+
+    it("should delete CustomReports before DataCollectors, and proxies before DataCollectors during deployment deletion", async () => {
+      const { default: cli } = await import("../src/lib/cli.js");
+      const myCli = new cli();
+
+      const deployYamlPath = path.join(process.cwd(), "tests/tmp-delete-order-deployment.yaml");
+      const yamlContent = `
+name: delete-order-deployment
+type: deployment
+gateway: apigee
+schemaVersion: 1.0.0
+proxies:
+  - name: test-proxy-del
+    type: proxy
+    gateway: apigee
+    schemaVersion: 1.0.0
+    endpoints:
+      - name: default
+        basePath: /v1/test
+dataCollectors:
+  - name: dc_delete_test
+    type: datacollector
+    gateway: apigee
+    schemaVersion: 1.0.0
+    collectorType: STRING
+reports:
+  - name: report_delete_test
+    type: report
+    gateway: apigee
+    schemaVersion: 1.0.0
+    metrics:
+      - name: message_count
+        function: sum
+`;
+      fs.writeFileSync(deployYamlPath, yamlContent, "utf8");
+
+      const callSequence: string[] = [];
+      const origDcDelete = myCli.apigeeService.apigeeDataCollectorDelete;
+      const origProxyDelete = myCli.apigeeService.apigeeProxyDelete;
+      const origRepDelete = myCli.apigeeService.apigeeReportDelete;
+
+      myCli.apigeeService.apigeeProxyDelete = async (name: string) => {
+        callSequence.push(`proxy:${name}`);
+        return true;
+      };
+      myCli.apigeeService.apigeeReportDelete = async (name: string) => {
+        callSequence.push(`report:${name}`);
+        return true;
+      };
+      myCli.apigeeService.apigeeDataCollectorDelete = async (name: string) => {
+        callSequence.push(`dc:${name}`);
+        return true;
+      };
+
+      try {
+        await myCli.process([
+          "bun",
+          "apigee-templater.ts",
+          "-i",
+          deployYamlPath,
+          "-o",
+          "apigee",
+          "-p",
+          "mock-org",
+          "--delete",
+          "--token",
+          "mock-token",
+          "--no-anim",
+        ]);
+
+        expect(callSequence).toEqual([
+          "proxy:test-proxy-del",
+          "report:report_delete_test",
+          "dc:dc_delete_test",
+        ]);
+      } finally {
+        myCli.apigeeService.apigeeDataCollectorDelete = origDcDelete;
+        myCli.apigeeService.apigeeProxyDelete = origProxyDelete;
+        myCli.apigeeService.apigeeReportDelete = origRepDelete;
+        if (fs.existsSync(deployYamlPath)) fs.unlinkSync(deployYamlPath);
+      }
+    });
   });
 });

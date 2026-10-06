@@ -2428,25 +2428,34 @@ resources:
     }
   });
 
-  it("should reset an entire Apigee organization with reset --project <org>, undeploying and deleting proxies, apps, users, and products", async () => {
+  it("should reset an entire Apigee organization with reset --project <org>, undeploying and deleting proxies, shared flows, apps, users, products, custom reports, and data collectors", async () => {
     const testCli = new cli();
     const logs: string[] = [];
     const origLog = console.log;
     console.log = (...args: any[]) => logs.push(args.join(" "));
 
     const undeployedAndDeletedProxies: string[] = [];
+    const undeployedAndDeletedSharedFlows: string[] = [];
     const deletedApps: string[] = [];
     const deletedUsers: string[] = [];
     const deletedProducts: string[] = [];
+    const deletedReports: string[] = [];
+    const deletedDataCollectors: string[] = [];
 
     const origProxiesList = testCli.apigeeService.apigeeProxiesList;
     const origProxyDelete = testCli.apigeeService.apigeeProxyDelete;
+    const origSharedFlowList = testCli.apigeeService.apigeeSharedFlowList;
+    const origSharedFlowDelete = testCli.apigeeService.apigeeSharedFlowDelete;
     const origUsersList = testCli.apigeeService.apigeeUsersList;
     const origUserGet = testCli.apigeeService.apigeeUserGet;
     const origAppDelete = testCli.apigeeService.apigeeAppDelete;
     const origUserDelete = testCli.apigeeService.apigeeUserDelete;
     const origProductsList = testCli.apigeeService.apigeeProductsList;
     const origProductDelete = testCli.apigeeService.apigeeProductDelete;
+    const origReportsList = testCli.apigeeService.apigeeReportsList;
+    const origReportDelete = testCli.apigeeService.apigeeReportDelete;
+    const origDataCollectorsList = testCli.apigeeService.apigeeDataCollectorsList;
+    const origDataCollectorDelete = testCli.apigeeService.apigeeDataCollectorDelete;
 
     testCli.apigeeService.apigeeProxiesList = async (org: string, drz: string, token: string) => {
       return {
@@ -2461,6 +2470,20 @@ resources:
       token: string,
     ) => {
       undeployedAndDeletedProxies.push(name);
+      return true;
+    };
+
+    testCli.apigeeService.apigeeSharedFlowList = async (org: string, drz: string, token: string) => {
+      return ["sf-one", "sf-two"];
+    };
+
+    testCli.apigeeService.apigeeSharedFlowDelete = async (
+      name: string,
+      org: string,
+      drz: string,
+      token: string,
+    ) => {
+      undeployedAndDeletedSharedFlows.push(name);
       return true;
     };
 
@@ -2534,6 +2557,41 @@ resources:
       return true;
     };
 
+    testCli.apigeeService.apigeeReportsList = async (org: string, drz: string, token: string) => {
+      return {
+        qualifier: [
+          { name: "report-uuid-1", displayName: "Report Alpha" },
+          { name: "report-uuid-2", displayName: "Report Beta" },
+        ],
+      };
+    };
+
+    testCli.apigeeService.apigeeReportDelete = async (
+      name: string,
+      org: string,
+      drz: string,
+      token: string,
+    ) => {
+      deletedReports.push(name);
+      return true;
+    };
+
+    testCli.apigeeService.apigeeDataCollectorsList = async (org: string, drz: string, token: string) => {
+      return {
+        dataCollectors: [{ name: "dc_cost_center" }, { name: "dc_model_name" }],
+      };
+    };
+
+    testCli.apigeeService.apigeeDataCollectorDelete = async (
+      name: string,
+      org: string,
+      drz: string,
+      token: string,
+    ) => {
+      deletedDataCollectors.push(name);
+      return true;
+    };
+
     try {
       await testCli.process([
         "bun",
@@ -2547,6 +2605,7 @@ resources:
       ]);
 
       expect(undeployedAndDeletedProxies).toEqual(["proxy-one", "proxy-two"]);
+      expect(undeployedAndDeletedSharedFlows).toEqual(["sf-one", "sf-two"]);
       expect(deletedApps).toEqual([
         "dev1@example.com:app-alpha",
         "dev1@example.com:app-beta",
@@ -2554,24 +2613,35 @@ resources:
       ]);
       expect(deletedUsers).toEqual(["dev1@example.com", "dev2@example.com"]);
       expect(deletedProducts).toEqual(["product-a", "product-b"]);
+      expect(deletedReports).toEqual(["report-uuid-1", "report-uuid-2"]);
+      expect(deletedDataCollectors).toEqual(["dc_cost_center", "dc_model_name"]);
 
       const combined = logs.join("\n");
       expect(combined).toContain("OVERVIEW");
       expect(combined).toContain("Reset Organization my-test-org");
       expect(combined).toContain("Undeployed and deleted Proxy: proxy-one");
+      expect(combined).toContain("Undeployed and deleted Shared Flow: sf-one");
       expect(combined).toContain("Deleted App: app-alpha");
       expect(combined).toContain("Deleted User: dev1@example.com");
       expect(combined).toContain("Deleted Product: product-a");
+      expect(combined).toContain("Deleted Custom Report: Report Alpha (report-uuid-1)");
+      expect(combined).toContain("Deleted Data Collector: dc_cost_center");
     } finally {
       console.log = origLog;
       testCli.apigeeService.apigeeProxiesList = origProxiesList;
       testCli.apigeeService.apigeeProxyDelete = origProxyDelete;
+      testCli.apigeeService.apigeeSharedFlowList = origSharedFlowList;
+      testCli.apigeeService.apigeeSharedFlowDelete = origSharedFlowDelete;
       testCli.apigeeService.apigeeUsersList = origUsersList;
       testCli.apigeeService.apigeeUserGet = origUserGet;
       testCli.apigeeService.apigeeAppDelete = origAppDelete;
       testCli.apigeeService.apigeeUserDelete = origUserDelete;
       testCli.apigeeService.apigeeProductsList = origProductsList;
       testCli.apigeeService.apigeeProductDelete = origProductDelete;
+      testCli.apigeeService.apigeeReportsList = origReportsList;
+      testCli.apigeeService.apigeeReportDelete = origReportDelete;
+      testCli.apigeeService.apigeeDataCollectorsList = origDataCollectorsList;
+      testCli.apigeeService.apigeeDataCollectorDelete = origDataCollectorDelete;
     }
   });
 

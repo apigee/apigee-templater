@@ -1179,7 +1179,42 @@ export class cli {
       }
     } catch (e) {}
 
-    // 2. Delete all Apps (Developer apps and Company apps)
+    // 2. Undeploy and delete all Shared Flows
+    let deletedSharedFlows: string[] = [];
+    let failedSharedFlows: string[] = [];
+    try {
+      const sfList = await this.apigeeService.apigeeSharedFlowList(
+        org,
+        options.drz,
+        authHeader,
+      );
+      let sfNames: string[] = [];
+      if (Array.isArray(sfList)) {
+        sfNames = sfList.map((s: any) => (typeof s === "string" ? s : s.name)).filter(Boolean);
+      }
+
+      for (const sfName of sfNames) {
+        const del = await this.apigeeService.apigeeSharedFlowDelete(
+          sfName,
+          org,
+          options.drz,
+          authHeader,
+        );
+        if (del) {
+          deletedSharedFlows.push(sfName);
+          console.log(
+            `  ${chalk.green.bold("✔")} Undeployed and deleted Shared Flow: ${chalk.cyan(sfName)} from org ${chalk.cyan(org)}`,
+          );
+        } else {
+          failedSharedFlows.push(sfName);
+          console.log(
+            `  ${chalk.yellow.bold("⚠")} Could not delete Shared Flow: ${chalk.cyan(sfName)}`,
+          );
+        }
+      }
+    } catch (e) {}
+
+    // 3. Delete all Apps (Developer apps and Company apps)
     let deletedApps: { name: string; owner: string }[] = [];
     let failedApps: { name: string; owner: string }[] = [];
     const processedAppKeys = new Set<string>();
@@ -1320,7 +1355,7 @@ export class cli {
       }
     } catch (e) {}
 
-    // 3. Delete all Users (Developers)
+    // 4. Delete all Users (Developers)
     let deletedUsers: string[] = [];
     let failedUsers: string[] = [];
     try {
@@ -1347,7 +1382,7 @@ export class cli {
       }
     } catch (e) {}
 
-    // 4. Delete all Products
+    // 5. Delete all Products
     let deletedProducts: string[] = [];
     let failedProducts: string[] = [];
     try {
@@ -1384,14 +1419,102 @@ export class cli {
       }
     } catch (e) {}
 
+    // 6. Delete all Custom Reports
+    let deletedReports: { name: string; displayName?: string }[] = [];
+    let failedReports: { name: string; displayName?: string }[] = [];
+    try {
+      const reportList = await this.apigeeService.apigeeReportsList(
+        org,
+        options.drz,
+        authHeader,
+      );
+      let reportsToDelete: { name: string; displayName?: string }[] = [];
+      if (Array.isArray(reportList)) {
+        reportsToDelete = reportList.map((r: any) =>
+          typeof r === "string" ? { name: r } : { name: r.name, displayName: r.displayName }
+        ).filter((r: any) => Boolean(r.name));
+      } else if (reportList && Array.isArray(reportList.qualifier)) {
+        reportsToDelete = reportList.qualifier.map((r: any) =>
+          typeof r === "string" ? { name: r } : { name: r.name, displayName: r.displayName }
+        ).filter((r: any) => Boolean(r.name));
+      } else if (reportList && Array.isArray(reportList.reports)) {
+        reportsToDelete = reportList.reports.map((r: any) =>
+          typeof r === "string" ? { name: r } : { name: r.name, displayName: r.displayName }
+        ).filter((r: any) => Boolean(r.name));
+      }
+
+      for (const rep of reportsToDelete) {
+        const del = await this.apigeeService.apigeeReportDelete(
+          rep.name,
+          org,
+          options.drz,
+          authHeader,
+        );
+        const displayName = rep.displayName ? `${rep.displayName} (${rep.name})` : rep.name;
+        if (del) {
+          deletedReports.push(rep);
+          console.log(
+            `  ${chalk.green.bold("✔")} Deleted Custom Report: ${chalk.cyan(displayName)} from org ${chalk.cyan(org)}`,
+          );
+        } else {
+          failedReports.push(rep);
+          console.log(
+            `  ${chalk.yellow.bold("⚠")} Could not delete Custom Report: ${chalk.cyan(displayName)}`,
+          );
+        }
+      }
+    } catch (e) {}
+
+    // 7. Delete all Data Collectors
+    let deletedDataCollectors: string[] = [];
+    let failedDataCollectors: string[] = [];
+    try {
+      const dcList = await this.apigeeService.apigeeDataCollectorsList(
+        org,
+        options.drz,
+        authHeader,
+      );
+      let dcNames: string[] = [];
+      if (Array.isArray(dcList)) {
+        dcNames = dcList.map((dc: any) => (typeof dc === "string" ? dc : dc.name)).filter(Boolean);
+      } else if (dcList && Array.isArray(dcList.dataCollectors)) {
+        dcNames = dcList.dataCollectors.map((dc: any) => (typeof dc === "string" ? dc : dc.name)).filter(Boolean);
+      } else if (dcList && Array.isArray(dcList.datacollectors)) {
+        dcNames = dcList.datacollectors.map((dc: any) => (typeof dc === "string" ? dc : dc.name)).filter(Boolean);
+      }
+
+      for (const dcName of dcNames) {
+        const del = await this.apigeeService.apigeeDataCollectorDelete(
+          dcName,
+          org,
+          options.drz,
+          authHeader,
+        );
+        if (del) {
+          deletedDataCollectors.push(dcName);
+          console.log(
+            `  ${chalk.green.bold("✔")} Deleted Data Collector: ${chalk.cyan(dcName)} from org ${chalk.cyan(org)}`,
+          );
+        } else {
+          failedDataCollectors.push(dcName);
+          console.log(
+            `  ${chalk.yellow.bold("⚠")} Could not delete Data Collector: ${chalk.cyan(dcName)}`,
+          );
+        }
+      }
+    } catch (e) {}
+
     await this.stopAnimation();
 
     const summaryLines: string[] = [
       `Name: ${org}`,
       `Proxies: ${deletedProxies.length > 0 ? deletedProxies.join(", ") : "none"}`,
+      `Shared Flows: ${deletedSharedFlows.length > 0 ? deletedSharedFlows.join(", ") : "none"}`,
       `Apps: ${deletedApps.length > 0 ? deletedApps.map((a) => a.name).join(", ") : "none"}`,
       `Users: ${deletedUsers.length > 0 ? deletedUsers.join(", ") : "none"}`,
       `Products: ${deletedProducts.length > 0 ? deletedProducts.join(", ") : "none"}`,
+      `Custom Reports: ${deletedReports.length > 0 ? deletedReports.map((r) => r.displayName || r.name).join(", ") : "none"}`,
+      `Data Collectors: ${deletedDataCollectors.length > 0 ? deletedDataCollectors.join(", ") : "none"}`,
     ];
     await this.printOverviewCard(`Reset Organization ${org}`, summaryLines);
   }
@@ -2696,47 +2819,7 @@ export class cli {
             }
           }
 
-          // 3. Delete Custom Reports
-          for (let repObj of resolved.reports) {
-            this.converter.reportUpdateParameters(repObj, inputParameters);
-            let del = await this.apigeeService.apigeeReportDelete(
-              repObj.name,
-              org,
-              options.drz,
-              "Bearer " + options.token,
-            );
-            if (del) {
-              console.log(
-                `  ${chalk.green.bold("✔")} Deleted Custom Report: ${chalk.cyan(repObj.name)} from org ${chalk.cyan(org)}`,
-              );
-            } else {
-              console.log(
-                `  ${chalk.yellow.bold("⚠")} Could not delete Custom Report: ${chalk.cyan(repObj.name)}`,
-              );
-            }
-          }
-
-          // 4. Delete Data Collectors
-          for (let dcObj of resolved.dataCollectors) {
-            this.converter.dataCollectorUpdateParameters(dcObj, inputParameters);
-            let del = await this.apigeeService.apigeeDataCollectorDelete(
-              dcObj.name,
-              org,
-              options.drz,
-              "Bearer " + options.token,
-            );
-            if (del) {
-              console.log(
-                `  ${chalk.green.bold("✔")} Deleted Data Collector: ${chalk.cyan(dcObj.name)} from org ${chalk.cyan(org)}`,
-              );
-            } else {
-              console.log(
-                `  ${chalk.yellow.bold("⚠")} Could not delete Data Collector: ${chalk.cyan(dcObj.name)}`,
-              );
-            }
-          }
-
-          // 5. Delete Proxies and Templates
+          // 3. Delete Proxies and Templates
           for (let proxyObj of resolved.proxies) {
             let del = await this.apigeeService.apigeeProxyDelete(
               proxyObj.name,
@@ -2785,6 +2868,46 @@ export class cli {
             } else {
               console.log(
                 `  ${chalk.yellow.bold("⚠")} Could not delete Feature Proxy: ${chalk.cyan(featObj.name)}`,
+              );
+            }
+          }
+
+          // 4. Delete Custom Reports (before Data Collectors)
+          for (let repObj of resolved.reports) {
+            this.converter.reportUpdateParameters(repObj, inputParameters);
+            let del = await this.apigeeService.apigeeReportDelete(
+              repObj.name,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Custom Report: ${chalk.cyan(repObj.name)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Custom Report: ${chalk.cyan(repObj.name)}`,
+              );
+            }
+          }
+
+          // 5. Delete Data Collectors
+          for (let dcObj of resolved.dataCollectors) {
+            this.converter.dataCollectorUpdateParameters(dcObj, inputParameters);
+            let del = await this.apigeeService.apigeeDataCollectorDelete(
+              dcObj.name,
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (del) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Deleted Data Collector: ${chalk.cyan(dcObj.name)} from org ${chalk.cyan(org)}`,
+              );
+            } else {
+              console.log(
+                `  ${chalk.yellow.bold("⚠")} Could not delete Data Collector: ${chalk.cyan(dcObj.name)}`,
               );
             }
           }
@@ -3197,7 +3320,19 @@ export class cli {
 
             const resolved = await this.apigeeService.deploymentResolveAssets(deployment, templateDir);
 
-            // 1. Export & deploy proxies from templates
+            // 1. Export data collectors first
+            for (let dc of resolved.dataCollectors) {
+              console.log(`  Processing Data Collector: ${chalk.cyan(dc.name)}`);
+              this.converter.dataCollectorUpdateParameters(dc, inputParameters);
+              await this.apigeeService.apigeeDataCollectorExport(
+                dc,
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+            }
+
+            // 2. Export & deploy proxies from templates
             for (let t of resolved.templates) {
               const templateName = t.name || "unnamed";
               console.log(`  Processing Template: ${chalk.cyan(templateName)}`);
@@ -3231,7 +3366,7 @@ export class cli {
               }
             }
 
-            // 2. Export & deploy direct proxies
+            // 3. Export & deploy direct proxies
             for (let p of resolved.proxies) {
               console.log(`  Processing Proxy: ${chalk.cyan(p.name)}`);
               this.converter.proxyUpdateParameters(p, inputParameters);
@@ -3257,7 +3392,7 @@ export class cli {
               if (fs.existsSync(zipPath)) fs.rmSync(zipPath);
             }
 
-            // 3. Export & deploy direct features
+            // 4. Export & deploy direct features
             for (let f of resolved.features) {
               const featName = f.name || "unnamed";
               console.log(`  Processing Feature: ${chalk.cyan(featName)}`);
@@ -3284,7 +3419,7 @@ export class cli {
               if (fs.existsSync(zipPath)) fs.rmSync(zipPath);
             }
 
-            // 4. Export products
+            // 5. Export products
             for (let prod of resolved.products) {
               console.log(`  Processing Product: ${chalk.cyan(prod.name)}`);
               this.converter.productUpdateParameters(prod, inputParameters);
@@ -3302,25 +3437,13 @@ export class cli {
               );
             }
 
-            // 5. Export users
+            // 6. Export users
             for (let u of resolved.users) {
               const userKey = u.email || u.userName || u.name;
               console.log(`  Processing User: ${chalk.cyan(userKey)}`);
               this.converter.userUpdateParameters(u, inputParameters);
               await this.apigeeService.apigeeUserExport(
                 u,
-                org,
-                options.drz,
-                "Bearer " + options.token,
-              );
-            }
-
-            // 6. Export data collectors
-            for (let dc of resolved.dataCollectors) {
-              console.log(`  Processing Data Collector: ${chalk.cyan(dc.name)}`);
-              this.converter.dataCollectorUpdateParameters(dc, inputParameters);
-              await this.apigeeService.apigeeDataCollectorExport(
-                dc,
                 org,
                 options.drz,
                 "Bearer " + options.token,

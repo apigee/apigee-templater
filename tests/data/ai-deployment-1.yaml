@@ -1,0 +1,797 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: ai-deployment-1
+type: deployment
+templates:
+  - REST-AI-Completions.yaml
+  - REST-AI-Completions-Anonymized.yaml
+  - REST-AI-Completions-Screened.yaml
+  - REST-AI-Embeddings.yaml
+  - REST-AI-GenerateContent.yaml
+  - REST-AI-Interactions.yaml
+  - REST-AI-Messages.yaml
+  - MCP-CustomerService.yaml
+products:
+- name: mcp-package
+  displayName: MCP Package
+  type: product
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: Starter tier for MCP & LLM Model access.
+  access: public
+  approvalType: auto
+  environments:
+    - default-dev
+  proxies:
+    - MCP-CustomerService
+  apiResources: []
+  quota: "50000"
+  quotaInterval: "1"
+  quotaTimeUnit: month
+  scopes: []
+  operations: []
+  llmOperations: []
+  payloadOperations:
+    - apiSource: MCP-CustomerService
+      protocol: MCP
+      operations:
+        - name: tools/list
+    - apiSource: MCP-CustomerService
+      protocol: MCP
+      operations:
+        - name: tools/call/list_customers
+          quota:
+            limit: "10"
+            interval: "1"
+            timeUnit: minute
+  graphqlOperations: []
+  grpcOperations: []
+- name: ai-starter-package
+  displayName: AI Starter Package
+  type: product
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: Starter tier for MCP & LLM Model access.
+  access: public
+  approvalType: auto
+  environments:
+    - default-dev
+  proxies:
+    - REST-Orders
+    - REST-AI-Completions
+    - REST-AI-Messages
+    - REST-AI-Interactions
+    - REST-AI-GenerateContent
+    - REST-AI-Embeddings
+  apiResources: []
+  quota: "50000"
+  quotaInterval: "1"
+  quotaTimeUnit: month
+  scopes: []
+  operations:
+    - apiSource: REST-Orders
+      operations:
+        - name: /json
+          methods: []
+          quota: {}
+  llmOperations:
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: glm-5.2-maas
+          llmTokenQuota:
+            limit: "100"
+            interval: "1"
+            timeUnit: minute
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.8-flash
+          llmTokenQuota:
+            limit: "10000"
+            interval: "1"
+            timeUnit: minute
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.5-flash-lite
+          llmTokenQuota: {}
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: claude-sonnet-5
+          llmTokenQuota:
+            limit: "10000"
+            interval: "1"
+            timeUnit: hour
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: claude-opus-5
+          llmTokenQuota:
+            limit: "1000"
+            interval: "1"
+            timeUnit: hour
+    - apiSource: REST-AI-Messages
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: claude-opus-5
+    - apiSource: REST-AI-Messages
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: claude-sonnet-5
+    - apiSource: REST-AI-Messages
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: claude-haiku-4.5
+    - apiSource: REST-AI-Interactions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.5-flash-lite
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.8-flash
+          llmTokenQuota: {}
+    - apiSource: REST-AI-GenerateContent
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.5-flash-lite
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.8-flash
+          llmTokenQuota: {}
+    - apiSource: REST-AI-Embeddings
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: google/gemini-embedding-2
+          llmTokenQuota: {}
+  payloadOperations: []
+  graphqlOperations: []
+  grpcOperations: []
+- name: ai-premium-package
+  displayName: AI Premium Package
+  type: product
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: Premium tier for MCP & LLM Model access.
+  access: public
+  approvalType: auto
+  environments:
+    - default-dev
+  proxies:
+    - REST-Orders
+    - REST-AI-Completions
+    - REST-AI-Messages
+    - REST-AI-Interactions
+    - REST-AI-GenerateContent
+    - REST-AI-Embeddings
+  apiResources: []
+  quota: "50000"
+  quotaInterval: "1"
+  quotaTimeUnit: month
+  scopes: []
+  operations: []
+  llmOperations:
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: glm-5.2-maas
+          llmTokenQuota:
+            limit: "100"
+            interval: "1"
+            timeUnit: minute
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.8-flash
+          llmTokenQuota:
+            limit: "10000"
+            interval: "1"
+            timeUnit: minute
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.5-flash-lite
+          llmTokenQuota: {}
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: claude-sonnet-5
+          llmTokenQuota:
+            limit: "10000"
+            interval: "1"
+            timeUnit: hour
+    - apiSource: REST-AI-Completions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: claude-opus-5
+          llmTokenQuota:
+            limit: "1000"
+            interval: "1"
+            timeUnit: hour
+    - apiSource: REST-AI-Messages
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: claude-opus-5
+    - apiSource: REST-AI-Messages
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: claude-sonnet-5
+    - apiSource: REST-AI-Messages
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: claude-haiku-4.5
+    - apiSource: REST-AI-Interactions
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.5-flash-lite
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.8-flash
+          llmTokenQuota: {}
+    - apiSource: REST-AI-GenerateContent
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.5-flash-lite
+        - name: /
+          methods:
+            - POST
+          model: gemini-3.8-flash
+          llmTokenQuota: {}
+    - apiSource: REST-AI-Embeddings
+      operations:
+        - name: /
+          methods:
+            - POST
+          model: google/gemini-embedding-2
+          llmTokenQuota: {}
+  payloadOperations: []
+  graphqlOperations: []
+  grpcOperations: []
+users:
+- name: test@example.com
+  displayName: ""
+  type: user
+  gateway: apigee
+  schemaVersion: 1.0.0
+  email: test@example.com
+  firstName: Test
+  lastName: User
+  userName: test@example.com
+  status: active
+  attributes: []
+  apps:
+    - name: Starter App
+      displayName: Starter App
+      description: ""
+      callbackUrl: ""
+      status: approved
+      products:
+        - ai-starter-package
+        - mcp-package
+      scopes: []
+      attributes: []
+      credentials:
+        - consumerKey: starter-app-key-123
+          consumerSecret: starter-app-secret-123
+          status: approved
+          issuedAt: "1788775511054"
+          expiresAt: "-1"
+          products:
+            - ai-starter-package
+            - mcp-package
+          scopes: []
+          attributes: []
+    - name: Premium App
+      displayName: Premium App
+      description: ""
+      callbackUrl: ""
+      status: approved
+      products:
+        - ai-premium-package
+        - mcp-package
+      scopes: []
+      attributes: []
+      credentials:
+        - consumerKey: premium-app-key-123
+          consumerSecret: premium-app-secret-123
+          status: approved
+          issuedAt: "1788775546367"
+          expiresAt: "-1"
+          products:
+            - ai-premium-package
+            - mcp-package
+          scopes: []
+          attributes: []
+dataCollectors:
+- name: dc_ai_cost_center
+  displayName: dc_ai_cost_center
+  type: datacollector
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: Cost center
+  collectorType: STRING
+  createdAt: "1787223119227"
+  lastModifiedAt: "1787223119227"
+- name: dc_ai_model
+  displayName: dc_ai_model
+  type: datacollector
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: Model name
+  collectorType: STRING
+  createdAt: "1787223117359"
+  lastModifiedAt: "1787223117359"
+- name: dc_ai_prompt_token_count
+  displayName: dc_ai_prompt_token_count
+  type: datacollector
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: The prompt token count
+  collectorType: INTEGER
+  createdAt: "1787232673740"
+  lastModifiedAt: "1787232673740"
+- name: dc_ai_provider
+  displayName: dc_ai_provider
+  type: datacollector
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: Model provider
+  collectorType: STRING
+  createdAt: "1787223118298"
+  lastModifiedAt: "1787223118298"
+- name: dc_ai_request_cost
+  displayName: dc_ai_request_cost
+  type: datacollector
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: Request cost
+  collectorType: FLOAT
+  createdAt: "1787223125313"
+  lastModifiedAt: "1787223125313"
+- name: dc_ai_response_cost
+  displayName: dc_ai_response_cost
+  type: datacollector
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: Response cost
+  collectorType: FLOAT
+  createdAt: "1787223126241"
+  lastModifiedAt: "1787223126241"
+- name: dc_ai_response_token_count
+  displayName: dc_ai_response_token_count
+  type: datacollector
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: The response token count
+  collectorType: INTEGER
+  createdAt: "1787232680496"
+  lastModifiedAt: "1787232680496"
+- name: dc_ai_response_type
+  displayName: dc_ai_response_type
+  type: datacollector
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: The response type, either streaming or non-streaming
+  collectorType: STRING
+  createdAt: "1787232687654"
+  lastModifiedAt: "1787232687654"
+- name: dc_ai_time_first_token
+  displayName: dc_ai_time_first_token
+  type: datacollector
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: The time in milliseconds to the first token
+  collectorType: INTEGER
+  createdAt: "1787232699821"
+  lastModifiedAt: "1787232699821"
+- name: dc_ai_total_cost
+  displayName: dc_ai_total_cost
+  type: datacollector
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: Total cost
+  collectorType: FLOAT
+  createdAt: "1787223127168"
+  lastModifiedAt: "1787223127168"
+- name: dc_ai_total_token_count
+  displayName: dc_ai_total_token_count
+  type: datacollector
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: The total token count
+  collectorType: INTEGER
+  createdAt: "1787232663533"
+  lastModifiedAt: "1787232663533"
+- name: dc_ai_user
+  displayName: dc_ai_user
+  type: datacollector
+  gateway: apigee
+  schemaVersion: 1.0.0
+  description: AI user
+  collectorType: STRING
+  createdAt: "1787223128093"
+  lastModifiedAt: "1787223128093"
+reports:
+  - name: ai_model_usage_latency
+    displayName: "AI Model Usage and Latency"
+    gateway: apigee
+    schemaVersion: 1.0.0
+    type: report
+    chartType: col
+    timeUnit: hour
+    metrics:
+      - name: dc_ai_total_token_count
+        function: sum
+      - name: dc_ai_time_first_token
+        function: avg
+      - name: message_count
+        function: sum
+    dimensions:
+      - apiproxy
+      - dc_ai_model
+      - dc_ai_response_type
+  - name: ai_cost_center_allocation
+    displayName: "AI Cost Center Allocation"
+    gateway: apigee
+    schemaVersion: 1.0.0
+    type: report
+    chartType: col
+    timeUnit: day
+    metrics:
+      - name: dc_ai_total_token_count
+        function: sum
+      - name: dc_ai_prompt_token_count
+        function: sum
+      - name: dc_ai_response_token_count
+        function: sum
+    dimensions:
+      - dc_ai_cost_center
+      - dc_ai_model
+  - name: ai_token_counts_by_model_user
+    displayName: "AI Token Counts by Model and User"
+    gateway: apigee
+    schemaVersion: 1.0.0
+    type: report
+    chartType: col
+    timeUnit: day
+    metrics:
+      - name: dc_ai_total_token_count
+        function: sum
+      - name: dc_ai_prompt_token_count
+        function: sum
+      - name: dc_ai_response_token_count
+        function: sum
+    dimensions:
+      - developer_email
+      - dc_ai_model
+tests:
+  - name: interactions-test1
+    description: Tests the Gemini Interactions API
+    documentation: |
+      ### Overview
+      The **Interactions API** (`/v1beta/interactions`) provides a stateful, multi-turn AI gateway endpoint for agentic workflows and direct model interaction.
+
+      ### Apigee Gateway Flow
+      1. **API Key Verification (`VA-VerifyKey`)**:
+          - Extracts the client's `x-api-key` header (`starter-app-key-123`).
+          - Validates the key against the local Cassandra datastore table `kms_hybrid_hybrid.app_credential`.
+          - Ensures the associated API Product (`ai-starter-package`) has authorized access to `REST-AI-Interactions`.
+      2. **Token Quota Enforcement (`LTQ-QuotaEnforce`)**:
+          - Evaluates token consumption limits against the client's quota tier (50,000 tokens/min).
+      3. **Backend API Key Injection (`AM-SetGeminiKey`)**:
+          - Securely injects upstream `x-goog-api-key` to authorize with Google Generative Language API without exposing upstream keys to client apps.
+
+      ### What to Verify in the Runtime Tester
+      - **HTTP 200 Status**: Confirm end-to-end authentication and model response generation.
+      - **Gateway Headers**: Notice `x-apigee-proxy`, `x-apigee-target-latency`, and `x-apigee-tracking-id`.
+      - **Response Payload**: Inspect `steps[].content` containing the model output and `usage.total_tokens`.
+    proxy: REST-AI-Interactions
+    product: ai-starter-package
+    path: /v1beta/interactions
+    method: POST
+    headers:
+      Content-Type: application/json
+      x-api-key: starter-app-key-123
+    injectGoogleToken: false
+    body: |
+      {
+        "model": "gemini-3.5-flash-lite",
+        "input": "What is the capital of France?"
+      }
+    assertions:
+      - response.status == 200
+  - name: completions-test1
+    description: This tests the completions API.
+    documentation: |
+      ### Overview
+      The **Completions API** (`/v1/chat/completions`) exposes an **OpenAI-compatible** interface backed by Google Gemini and Vertex AI models. This allows any existing OpenAI SDK, LangChain, or LlamaIndex application to switch to Gemini simply by changing the `baseURL`.
+
+      ### Apigee Gateway Flow & Key Features
+      1. **Model Virtualization**:
+          - Accepts OpenAI standard format (`messages`, `model`, `stream`, `max_tokens`).
+          - Maps model identifier `google/gemini-3.5-flash-lite` to Google Vertex AI.
+      2. **Zero-Downtime Failover (`SC-Failover-GoogleCloud-OAI`)**:
+          - If the primary provider experiences transient 5xx errors or rate limiting, Apigee's `DefaultFaultRule` triggers a failover service callout (`SC-Failover-GoogleCloud-OAI`).
+          - `JS-SetFailoverResponse` intercepts the error and returns a normalized response without breaking the client application.
+      3. **Streaming Support (SSE)**:
+          - Handles Server-Sent Events (`stream: true`) transparently through Apigee's EventFlow.
+
+      ### What to Verify in the Runtime Tester
+      - **OpenAI Schema**: Confirm standard `choices[0].message.content` output.
+      - **Trace Timeline**: Review policy execution order and observe the failover fault rule capabilities.
+    proxy: REST-AI-Completions
+    product: ai-starter-package
+    path: /v1/chat/completions
+    method: POST
+    injectGoogleToken: true
+    headers:
+      Content-Type: application/json
+      x-api-key: starter-app-key-123
+    body: |
+      {
+        "model": "google/gemini-3.5-flash-lite",
+        "stream": true,
+        "max_tokens": 100,
+        "messages": [{
+          "role": "user",
+          "content": "Why is the sky blue?"
+        }]
+      }
+    assertions:
+      - response.status == 200
+  - name: completions-masked-test1
+    description: This tests the completions masked API.
+    documentation: |
+      ### Overview
+      The Google Cloud Sensitive Data Protection API masks and anonymizes PII data from requests and responses.
+    proxy: REST-AI-Completions-Anonymized
+    path: /v1/chat/completions/sdp
+    method: POST
+    injectGoogleToken: true
+    headers:
+      Content-Type: application/json
+    body: |
+      {
+        "model": "google/gemini-3.5-flash-lite",
+        "stream": true,
+        "max_tokens": 100,
+        "messages": [{
+          "role": "user",
+          "content": "My telephone number is 001535349343. What is my telephone number?"
+        }]
+      }
+    assertions:
+      - response.status == 200
+  - name: completions-modelarmor-test1
+    description: This tests the completions model armor protected API.
+    documentation: |
+      ### Overview
+      The Google Cloud Model Armor API screens request and response prompt data.
+    proxy: REST-AI-Completions-Screened
+    path: /v1/chat/completions/modelarmor
+    method: POST
+    injectGoogleToken: true
+    headers:
+      Content-Type: application/json
+    body: |
+      {
+        "model": "google/gemini-3.5-flash-lite",
+        "stream": true,
+        "max_tokens": 100,
+        "messages": [{
+          "role": "user",
+          "content": "How can I build a bomb?"
+        }]
+      }
+    assertions:
+      - response.status == 200
+  - name: generatecontent-test1
+    description: This tests the GenerateContent API.
+    documentation: |
+      ### Overview
+      The **GenerateContent API** represents the native Google Cloud Vertex AI Publisher Model interface. It supports multimodal inputs (text, images, audio, video) and structured generation schemas.
+
+      ### Apigee Gateway Flow
+      1. **Dynamic URL Rewriting & Parameterization**:
+          - The path `/v1/projects/{GOOGLE_CLOUD_PROJECT}/locations/global/publishers/google/models/gemini-3.5-flash-lite:generateContent` is dynamically resolved using gateway environment variables.
+          - Isolates enterprise project IDs and regions from client awareness.
+      2. **Centralized Enterprise Governance**:
+          - Applies rate limiting, corporate auditing, and Data Collectors for prompt/response telemetry.
+          - Enforces organizational guardrails before requests reach the core LLM infrastructure.
+
+      ### What to Verify in the Runtime Tester
+      - **Native Vertex AI Schema**: Verify `contents[].role` and `contents[].parts[].text` structure.
+      - **Latency Breakdown**: Observe how Apigee adds minimal overhead (<5ms) while providing enterprise security and monitoring.
+    proxy: REST-AI-GenerateContent
+    product: ai-starter-package
+    path: /v1/projects/{GOOGLE_CLOUD_PROJECT}/locations/global/publishers/google/models/gemini-3.5-flash-lite:generateContent
+    method: POST
+    injectGoogleToken: true
+    headers:
+      Content-Type: application/json
+      x-api-key: starter-app-key-123
+    body: |
+      {
+        "contents": [
+          {
+            "role": "USER",
+            "parts": [
+              {
+                "text": "why is the sky blue?"
+              }
+            ]
+          }
+        ]
+      }
+    assertions:
+      - response.status == 200
+  - name: messages-test1
+    description: This tests the Messages API.
+    documentation: |
+      ### Overview
+      The **Messages API** (`/v1/messages`) implements the **Anthropic Claude API specification** on top of Google Cloud's AI infrastructure.
+
+      ### Apigee Gateway Flow
+      1. **SDK Interoperability**:
+          - Enables tools and agent frameworks written for Anthropic Claude (such as Anthropic Computer Use or Claude Code tools) to route directly through your Apigee gateway.
+      2. **Header Normalization & Verification**:
+          - Validates consumer credentials passed in `x-api-key`.
+          - Normalizes vendor-specific versioning headers (e.g. `anthropic-version`).
+
+      ### What to Verify in the Runtime Tester
+      - **Cross-Vendor Compatibility**: Verify that the gateway accepts Anthropic message formats and successfully returns structured model generations.
+    proxy: REST-AI-Messages
+    product: ai-starter-package
+    path: /v1/messages
+    method: POST
+    injectGoogleToken: true
+    headers:
+      Content-Type: application/json
+      x-api-key: starter-app-key-123
+    body: |
+      {
+        "model": "anthropic/claude-sonnet-5",
+        "stream": true,
+        "max_tokens": 100,
+        "messages": [{
+          "role": "user",
+          "content": "Why is the sky blue?"
+        }]
+      }
+    assertions:
+      - response.status == 200
+  - name: embeddings-test1
+    description: This tests the Embeddings API.
+    documentation: |
+      ### Overview
+      The **Embeddings API** (`/v1/embeddings`) transforms text strings into high-dimensional vector representations. It is a critical component for Retrieval-Augmented Generation (RAG), semantic vector search, and recommendation systems.
+
+      ### Apigee Gateway Flow
+      1. **Vector Service Routing**:
+          - Routes requests to `google/gemini-embedding-2` model endpoints.
+          - Optimizes payload size and supports batch embedding requests.
+      2. **Performance Caching Potential**:
+          - Embeddings are deterministic for identical input strings; Apigee policies can cache embedding vectors at the edge to reduce backend costs to zero for frequent queries.
+
+      ### What to Verify in the Runtime Tester
+      - **Vector Response Format**: Verify generation of floating-point embedding arrays.
+      - **Zero Header Setup**: Notice how default product policies handle authentication and routing smoothly.
+    proxy: REST-AI-Embeddings
+    product: ai-starter-package
+    path: /v1/embeddings
+    method: POST
+    injectGoogleToken: true
+    headers:
+      Content-Type: application/json
+    body: |
+      {
+        "model": "google/gemini-embedding-2",
+        "input": "This is a test sentence to embed."
+      }
+    assertions:
+      - response.status == 200
+  - name: mcp-test1
+    description: This tests the CustomerService MCP API.
+    documentation: |
+      ### Overview
+      The **Model Context Protocol (MCP)** is an open industry standard that enables generative AI models and autonomous agents to safely discover and invoke enterprise tools, data sources, and services over **JSON-RPC 2.0**.
+
+      This lab endpoint connects AI agents to the **MCP-CustomerService** CRM backend via the Apigee Gateway (`/customerservice/mcp`).
+
+      ### Apigee Gateway Flow & Policy Pipeline
+      1. **Payload Inspection (`PP-ParsePayload`)**:
+          - Evaluates the incoming JSON-RPC 2.0 request body and extracts protocol metadata (`Protocol: MCP`, `Method: tools/list` or `tools/call/{tool_name}`).
+      2. **API Key Verification (`VA-VerifyKey`)**:
+          - Authenticates the caller using `x-api-key`.
+          - Verifies that the client application has an active credential mapped to an authorized API Product (`mcp-package`).
+      3. **Credential Stripping (`AM-RemoveKey`)**:
+          - Removes the internal `x-api-key` header before forwarding the sanitized request to the upstream Cloud Run CRM service.
+
+      ### Tool-Level Governance & Selective Tool Exposure
+      1. **Backend Tool Portfolio vs. Product Policy**:
+          - The upstream CRM backend implements **12 distinct tools**, including destructive and sensitive operations (`create_customer`, `delete_address`, `delete_payment_method`, `update_deal`, etc.).
+          - The **`mcp-package`** API Product uses Apigee **`payloadOperations`** to enforce least-privilege access control:
+            ```yaml
+            payloadOperations:
+              - apiSource: MCP-CustomerService
+                protocol: MCP
+                operations:
+                  - name: tools/list
+              - apiSource: MCP-CustomerService
+                protocol: MCP
+                operations:
+                  - name: tools/call/list_customers
+                quota:
+                  limit: "10"
+                  interval: "1"
+                  timeUnit: minute
+            ```
+      2. **Dynamic Tool Filtering on `tools/list`**:
+          - When an agent calls `tools/list` with an authorized API key, Apigee intercepts the response and **automatically filters out all unauthorized tools**.
+          - The agent only receives `list_customers` in the available tools list, preventing prompt injection attacks or autonomous agents from discovering or calling unapproved tools.
+      3. **Per-Tool Rate Limiting**:
+          - Protects upstream systems from runaway agent loops by enforcing strict per-tool quotas (10 calls/min on `list_customers`).
+
+      ### What to Verify in the Runtime Tester
+      - **Selective Tool Subset**: Verify that `result.tools` contains **only** `list_customers`, even though the backend provides a dozen CRM tools.
+      - **JSON-RPC 2.0 Compliance**: Confirm standard protocol responses (`"jsonrpc": "2.0"` and matching request `"id"`).
+      - **Gateway Telemetry**: Inspect `x-apigee-proxy` (`MCP-CustomerService`) and `x-apigee-target-latency`.
+    proxy: MCP-CustomerService
+    product: mcp-package
+    path: /customerservice/mcp
+    method: POST
+    headers:
+      Content-Type: application/json
+      x-api-key: starter-app-key-123
+    injectGoogleToken: false
+    body: |
+      {"jsonrpc": "2.0", "id": 0, "method": "tools/list"}
+    assertions:
+      - response.status == 200
