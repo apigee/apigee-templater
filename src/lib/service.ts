@@ -3832,6 +3832,7 @@ export class ApigeeTemplaterService {
     apigeeOrg: string,
     drz: string,
     token: string,
+    existingReports?: any[],
   ): Promise<boolean> {
     return new Promise(async (resolve) => {
       let converter = new ApigeeConverter();
@@ -3842,28 +3843,63 @@ export class ApigeeTemplaterService {
         report.chartType
           ? converter.reportToApigeeReport(report)
           : report;
-      let reportName = payload.name;
+      let targetDisplayName = (payload.displayName || payload.name || "").trim();
+      let reportName = (payload.name || "").trim();
 
-      if (!reportName) {
-        console.log(chalk.red.bold.italic(" > Error: Report name is required for export."));
+      if (!reportName && !targetDisplayName) {
+        console.log(chalk.red.bold.italic(" > Error: Report name or displayName is required for export."));
         return resolve(false);
       }
 
-      let checkResponse = await fetch(
-        `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports/${reportName}`,
-        {
-          headers: {
-            Authorization: token,
-          },
-        },
-      );
+      let reportsList = existingReports;
+      if (reportsList === undefined) {
+        try {
+          const repList = await this.apigeeReportsList(apigeeOrg, drz, token);
+          if (repList) {
+            if (Array.isArray(repList)) reportsList = repList;
+            else if (Array.isArray(repList["qualifier"])) reportsList = repList["qualifier"];
+            else if (Array.isArray(repList["reports"])) reportsList = repList["reports"];
+          }
+        } catch (e) {}
+      }
+
+      let matchedReport: any = undefined;
+      if (reportsList && reportsList.length > 0) {
+        matchedReport = reportsList.find((r: any) => {
+          if (!r) return false;
+          const rDisplayName = (typeof r === "object" && r.displayName ? r.displayName : "").trim();
+          const rName = (typeof r === "object" ? r.name : r || "").trim();
+          if (rDisplayName && targetDisplayName && rDisplayName === targetDisplayName) return true;
+          if (rDisplayName && targetDisplayName && rDisplayName.toLowerCase() === targetDisplayName.toLowerCase()) return true;
+          if (rName && (rName === reportName || rName === targetDisplayName)) return true;
+          if (rName && (rName.toLowerCase() === reportName.toLowerCase() || rName.toLowerCase() === targetDisplayName.toLowerCase())) return true;
+          return false;
+        });
+      }
 
       let method = "POST";
       let url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports`;
 
-      if (checkResponse.status === 200) {
+      if (matchedReport) {
+        const technicalId = typeof matchedReport === "object" ? matchedReport.name : matchedReport;
         method = "PUT";
-        url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports/${reportName}`;
+        url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports/${encodeURIComponent(technicalId)}`;
+        payload = { ...payload, name: technicalId };
+      } else if (reportName && (!reportsList || !Array.isArray(reportsList))) {
+        try {
+          let checkResponse = await fetch(
+            `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports/${encodeURIComponent(reportName)}`,
+            {
+              headers: {
+                Authorization: token,
+              },
+            },
+          );
+          if (checkResponse.status === 200) {
+            method = "PUT";
+            url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports/${encodeURIComponent(reportName)}`;
+          }
+        } catch (e) {}
       }
 
       let response = await fetch(url, {
@@ -3876,9 +3912,21 @@ export class ApigeeTemplaterService {
       });
 
       if (response.status === 200 || response.status === 201) {
+        if (reportsList && Array.isArray(reportsList)) {
+          try {
+            const resJson = await response.json();
+            if (resJson && resJson.name) {
+              if (matchedReport && typeof matchedReport === "object") {
+                Object.assign(matchedReport, resJson);
+              } else {
+                reportsList.push(resJson);
+              }
+            }
+          } catch (e) {}
+        }
         resolve(true);
       } else {
-        await this.logApiError(`report (${reportName}) ${method}`, url, response);
+        await this.logApiError(`report (${targetDisplayName || reportName}) ${method}`, url, response);
         resolve(false);
       }
     });
@@ -3891,7 +3939,7 @@ export class ApigeeTemplaterService {
     token: string,
   ): Promise<boolean> {
     return new Promise(async (resolve) => {
-      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports/${reportName}`;
+      const url = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports/${encodeURIComponent(reportName)}`;
       let response = await fetch(url, {
         method: "DELETE",
         headers: {
@@ -3901,6 +3949,45 @@ export class ApigeeTemplaterService {
 
       if (response.status === 200 || response.status === 204) {
         resolve(true);
+      } else if (response.status === 404) {
+        try {
+          const repList = await this.apigeeReportsList(apigeeOrg, drz, token);
+          let list: any[] = [];
+          if (repList) {
+            if (Array.isArray(repList)) list = repList;
+            else if (Array.isArray(repList["qualifier"])) list = repList["qualifier"];
+            else if (Array.isArray(repList["reports"])) list = repList["reports"];
+          }
+          const target = reportName.trim();
+          const matched = list.find((r: any) => {
+            if (!r) return false;
+            const rDisplayName = (typeof r === "object" && r.displayName ? r.displayName : "").trim();
+            const rName = (typeof r === "object" ? r.name : r || "").trim();
+            if (rDisplayName && target && rDisplayName === target) return true;
+            if (rDisplayName && target && rDisplayName.toLowerCase() === target.toLowerCase()) return true;
+            if (rName && (rName === target || rName.toLowerCase() === target.toLowerCase())) return true;
+            return false;
+          });
+
+          if (matched) {
+            const technicalId = typeof matched === "object" ? matched.name : matched;
+            if (technicalId && technicalId !== reportName) {
+              const retryUrl = `https://apigee${drz ? "." + drz + ".rep" : ""}.googleapis.com/v1/organizations/${apigeeOrg}/reports/${encodeURIComponent(technicalId)}`;
+              let retryResponse = await fetch(retryUrl, {
+                method: "DELETE",
+                headers: {
+                  Authorization: token,
+                },
+              });
+              if (retryResponse.status === 200 || retryResponse.status === 204) {
+                return resolve(true);
+              }
+            }
+          }
+        } catch (e) {}
+
+        await this.logApiError(`report (${reportName}) DELETE`, url, response);
+        resolve(false);
       } else {
         await this.logApiError(`report (${reportName}) DELETE`, url, response);
         resolve(false);

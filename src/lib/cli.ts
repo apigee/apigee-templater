@@ -246,6 +246,16 @@ export class cli {
       if (!args["--output"] && args["_"] && args["_"][1]) {
         args["--output"] = args["_"][1];
       }
+      if (
+        !args["--organization"] &&
+        !(args as any)["--org"] &&
+        !(args as any)["--project"] &&
+        args["--parameters"] &&
+        !args["--parameters"].includes("=")
+      ) {
+        args["--organization"] = args["--parameters"];
+        delete args["--parameters"];
+      }
     } else {
       if (args["_"] && args["_"].length >= 2 && !args["--input"] && !args["--output"]) {
         args["--input"] = args["_"][0];
@@ -1521,7 +1531,40 @@ export class cli {
 
   private async handleResetCommand(options: cliArgs) {
     if (options.organization) {
-      await this.handleResetOrgCommand(options);
+      const isInputFile =
+        Boolean(options.input) &&
+        options.input !== options.organization &&
+        (fs.existsSync(options.input) ||
+          fs.existsSync(options.input + ".yaml") ||
+          fs.existsSync(options.input + ".yml") ||
+          fs.existsSync(options.input + ".json") ||
+          Boolean(options.input.match(/\.(yaml|yml|json)$/i)));
+
+      if (!isInputFile) {
+        await this.handleResetOrgCommand(options);
+        return;
+      }
+
+      options.delete = true;
+      options.command = "convert";
+      if (options.input && !fs.existsSync(options.input)) {
+        if (fs.existsSync(options.input + ".yaml")) options.input = options.input + ".yaml";
+        else if (fs.existsSync(options.input + ".yml")) options.input = options.input + ".yml";
+        else if (fs.existsSync(options.input + ".json")) options.input = options.input + ".json";
+      }
+      await this.process([
+        "bun",
+        "apigee-templater.ts",
+        "convert",
+        options.input,
+        "--organization",
+        options.organization,
+        "--delete",
+        ...(options.token ? ["--token", options.token] : []),
+        ...(options.drz ? ["--drz", options.drz] : []),
+        ...(options.environment ? ["--environment", options.environment] : []),
+        "--no-anim",
+      ]);
       return;
     }
 
@@ -1784,9 +1827,30 @@ export class cli {
       }
     }
 
+    if (options.input && !fs.existsSync(options.input)) {
+      if (fs.existsSync(options.input + ".yaml")) {
+        options.input = options.input + ".yaml";
+      } else if (fs.existsSync(options.input + ".yml")) {
+        options.input = options.input + ".yml";
+      } else if (fs.existsSync(options.input + ".json")) {
+        options.input = options.input + ".json";
+      }
+    }
+
     if (options.command === "reset") {
-      await this.handleResetCommand(options);
-      return;
+      const isInputFile =
+        Boolean(options.input) &&
+        options.input !== options.organization &&
+        (fs.existsSync(options.input) ||
+          Boolean(options.input.match(/\.(yaml|yml|json)$/i)));
+
+      if (options.organization && isInputFile) {
+        options.delete = true;
+        options.command = "convert";
+      } else {
+        await this.handleResetCommand(options);
+        return;
+      }
     }
 
     if (options.command === "describe") {
@@ -2873,21 +2937,56 @@ export class cli {
           }
 
           // 4. Delete Custom Reports (before Data Collectors)
+          let existingReports: any[] = [];
+          try {
+            let repList = await this.apigeeService.apigeeReportsList(
+              org,
+              options.drz,
+              "Bearer " + options.token,
+            );
+            if (repList) {
+              if (Array.isArray(repList)) existingReports = repList;
+              else if (Array.isArray(repList["qualifier"])) existingReports = repList["qualifier"];
+              else if (Array.isArray(repList["reports"])) existingReports = repList["reports"];
+            }
+          } catch (e) {}
+
           for (let repObj of resolved.reports) {
             this.converter.reportUpdateParameters(repObj, inputParameters);
+            const targetDisplayName = (repObj.displayName || repObj.name || "").trim();
+            const yamlName = (repObj.name || "").trim();
+
+            const matched = existingReports.find((r: any) => {
+              if (!r) return false;
+              const rDisplayName = (typeof r === "object" && r.displayName ? r.displayName : "").trim();
+              const rName = (typeof r === "object" ? r.name : r || "").trim();
+              if (rDisplayName && targetDisplayName && rDisplayName === targetDisplayName) return true;
+              if (rDisplayName && targetDisplayName && rDisplayName.toLowerCase() === targetDisplayName.toLowerCase()) return true;
+              if (rName && (rName === yamlName || rName === targetDisplayName)) return true;
+              if (rName && (rName.toLowerCase() === yamlName.toLowerCase() || rName.toLowerCase() === targetDisplayName.toLowerCase())) return true;
+              return false;
+            });
+
+            const technicalId = matched ? (typeof matched === "object" ? matched.name : matched) : (yamlName || targetDisplayName);
+            const displayTitle = repObj.displayName || repObj.name;
+
             let del = await this.apigeeService.apigeeReportDelete(
-              repObj.name,
+              technicalId,
               org,
               options.drz,
               "Bearer " + options.token,
             );
             if (del) {
+              if (matched) {
+                const idx = existingReports.indexOf(matched);
+                if (idx !== -1) existingReports.splice(idx, 1);
+              }
               console.log(
-                `  ${chalk.green.bold("✔")} Deleted Custom Report: ${chalk.cyan(repObj.name)} from org ${chalk.cyan(org)}`,
+                `  ${chalk.green.bold("✔")} Deleted Custom Report: ${chalk.cyan(displayTitle)} from org ${chalk.cyan(org)}`,
               );
             } else {
               console.log(
-                `  ${chalk.yellow.bold("⚠")} Could not delete Custom Report: ${chalk.cyan(repObj.name)}`,
+                `  ${chalk.yellow.bold("⚠")} Could not delete Custom Report: ${chalk.cyan(displayTitle)}`,
               );
             }
           }
@@ -2988,21 +3087,51 @@ export class cli {
             }
           }
         } else if (report || isReportFormat(options.format)) {
-          const rName = report ? report.name : options.name;
-          if (rName) {
+          const targetDisplayName = (report?.displayName || "").trim();
+          const targetName = (report?.name || options.name || "").trim();
+          let rIdentifier = targetName;
+          const displayLabel = targetDisplayName || targetName;
+
+          if (displayLabel) {
+            try {
+              let repList = await this.apigeeService.apigeeReportsList(
+                org,
+                options.drz,
+                "Bearer " + options.token,
+              );
+              let existingReports: any[] = [];
+              if (repList) {
+                if (Array.isArray(repList)) existingReports = repList;
+                else if (Array.isArray(repList["qualifier"])) existingReports = repList["qualifier"];
+                else if (Array.isArray(repList["reports"])) existingReports = repList["reports"];
+              }
+              const matched = existingReports.find((r: any) => {
+                if (!r) return false;
+                const rDisplayName = (typeof r === "object" && r.displayName ? r.displayName : "").trim();
+                const rName = (typeof r === "object" ? r.name : r || "").trim();
+                if (targetDisplayName && rDisplayName && (rDisplayName === targetDisplayName || rDisplayName.toLowerCase() === targetDisplayName.toLowerCase())) return true;
+                if (targetName && rDisplayName && (rDisplayName === targetName || rDisplayName.toLowerCase() === targetName.toLowerCase())) return true;
+                if (targetName && rName && (rName === targetName || rName.toLowerCase() === targetName.toLowerCase())) return true;
+                return false;
+              });
+              if (matched) {
+                rIdentifier = typeof matched === "object" ? matched.name : matched;
+              }
+            } catch (e) {}
+
             let del = await this.apigeeService.apigeeReportDelete(
-              rName,
+              rIdentifier,
               org,
               options.drz,
               "Bearer " + options.token,
             );
             if (del) {
               console.log(
-                `  ${chalk.green.bold("✔")} Deleted Custom Report: ${chalk.cyan(rName)} from org ${chalk.cyan(org)}`,
+                `  ${chalk.green.bold("✔")} Deleted Custom Report: ${chalk.cyan(displayLabel)} from org ${chalk.cyan(org)}`,
               );
             } else {
               console.log(
-                `  ${chalk.yellow.bold("⚠")} Could not delete Custom Report: ${chalk.cyan(rName)}`,
+                `  ${chalk.yellow.bold("⚠")} Could not delete Custom Report: ${chalk.cyan(displayLabel)}`,
               );
             }
           }
@@ -3451,14 +3580,32 @@ export class cli {
             }
 
             // 7. Export custom reports
+            let existingReports: any[] = [];
+            if (resolved.reports.length > 0) {
+              try {
+                let repList = await this.apigeeService.apigeeReportsList(
+                  org,
+                  options.drz,
+                  "Bearer " + options.token,
+                );
+                if (repList) {
+                  if (Array.isArray(repList)) existingReports = repList;
+                  else if (Array.isArray(repList["qualifier"])) existingReports = repList["qualifier"];
+                  else if (Array.isArray(repList["reports"])) existingReports = repList["reports"];
+                }
+              } catch (e) {}
+            }
+
             for (let rep of resolved.reports) {
-              console.log(`  Processing Custom Report: ${chalk.cyan(rep.name)}`);
+              const repDisplayName = rep.displayName || rep.name;
+              console.log(`  Processing Custom Report: ${chalk.cyan(repDisplayName)}`);
               this.converter.reportUpdateParameters(rep, inputParameters);
               await this.apigeeService.apigeeReportExport(
                 rep,
                 org,
                 options.drz,
                 "Bearer " + options.token,
+                existingReports,
               );
             }
           }

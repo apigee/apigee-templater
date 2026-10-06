@@ -832,5 +832,243 @@ reports:
         if (fs.existsSync(deployYamlPath)) fs.unlinkSync(deployYamlPath);
       }
     });
+
+    it("should export CustomReport by matching displayName and updating existing report via PUT with technical UUID", async () => {
+      let putUrl: string = "";
+      let putBody: any = null;
+
+      globalThis.fetch = (async (url: any, init?: any) => {
+        const urlStr = String(url);
+        const method = init?.method || "GET";
+
+        if (urlStr.includes("/reports") && method === "PUT") {
+          putUrl = urlStr;
+          putBody = JSON.parse(init.body);
+          return new Response(JSON.stringify(putBody), { status: 200 });
+        }
+        return new Response("{}", { status: 200 });
+      }) as any;
+
+      const existingReports = [
+        {
+          name: "uuid-9876-report",
+          displayName: "AI Model Usage and Latency",
+          metrics: [{ name: "message_count", function: "sum" }],
+        },
+      ];
+
+      const rep: CustomReport = {
+        name: "ai_model_usage_latency",
+        displayName: "AI Model Usage and Latency",
+        type: "report",
+        gateway: "apigee",
+        schemaVersion: "1.0.0",
+        metrics: [{ name: "dc_ai_prompt_token_count", function: "sum" }],
+        dimensions: ["apiproxy"],
+      };
+
+      const result = await service.apigeeReportExport(
+        rep,
+        "my-org",
+        "",
+        "Bearer token",
+        existingReports,
+      );
+
+      expect(result).toBe(true);
+      expect(putUrl).toContain("/reports/uuid-9876-report");
+      expect(putBody).toBeDefined();
+      expect(putBody.name).toBe("uuid-9876-report");
+      expect(putBody.displayName).toBe("AI Model Usage and Latency");
+    });
+
+    it("should export CustomReport with POST when displayName does not match any existing report", async () => {
+      let postUrl: string = "";
+      let postBody: any = null;
+
+      globalThis.fetch = (async (url: any, init?: any) => {
+        const urlStr = String(url);
+        const method = init?.method || "GET";
+
+        if (urlStr.includes("/reports") && method === "POST") {
+          postUrl = urlStr;
+          postBody = JSON.parse(init.body);
+          return new Response(JSON.stringify({ ...postBody, name: "new-generated-uuid" }), {
+            status: 201,
+          });
+        }
+        if (method === "GET") {
+          return new Response("Not found", { status: 404 });
+        }
+        return new Response("{}", { status: 200 });
+      }) as any;
+
+      const existingReports = [
+        {
+          name: "uuid-9876-report",
+          displayName: "Different Report",
+        },
+      ];
+
+      const rep: CustomReport = {
+        name: "brand-new-report",
+        displayName: "Brand New Report",
+        type: "report",
+        gateway: "apigee",
+        schemaVersion: "1.0.0",
+        metrics: [{ name: "message_count", function: "sum" }],
+        dimensions: ["apiproxy"],
+      };
+
+      const result = await service.apigeeReportExport(
+        rep,
+        "my-org",
+        "",
+        "Bearer token",
+        existingReports,
+      );
+
+      expect(result).toBe(true);
+      expect(postUrl.endsWith("/reports")).toBe(true);
+      expect(postBody).toBeDefined();
+      expect(postBody.displayName).toBe("Brand New Report");
+      expect(existingReports.some((r) => r.name === "new-generated-uuid")).toBe(true);
+    });
+
+    it("should delete CustomReport by resolving technical UUID from displayName during deployment delete", async () => {
+      const { default: cli } = await import("../src/lib/cli.js");
+      const myCli = new cli();
+
+      const deployYamlPath = path.join(process.cwd(), "tests/tmp-del-rep-uuid.yaml");
+      const yamlContent = `
+name: del-rep-uuid-deployment
+type: deployment
+gateway: apigee
+schemaVersion: 1.0.0
+reports:
+  - name: ai_model_usage_latency
+    displayName: AI Model Usage and Latency
+    type: report
+    gateway: apigee
+    schemaVersion: 1.0.0
+    metrics:
+      - name: message_count
+        function: sum
+`;
+      fs.writeFileSync(deployYamlPath, yamlContent, "utf8");
+
+      const origReportsList = myCli.apigeeService.apigeeReportsList;
+      const origRepDelete = myCli.apigeeService.apigeeReportDelete;
+      let deletedReportId: string = "";
+
+      myCli.apigeeService.apigeeReportsList = async () => {
+        return [
+          {
+            name: "uuid-1234-5678",
+            displayName: "AI Model Usage and Latency",
+          },
+        ];
+      };
+      myCli.apigeeService.apigeeReportDelete = async (id: string) => {
+        deletedReportId = id;
+        return true;
+      };
+
+      try {
+        await myCli.process([
+          "bun",
+          "apigee-templater.ts",
+          "-i",
+          deployYamlPath,
+          "--organization",
+          "mock-org",
+          "--delete",
+          "--token",
+          "mock-token",
+          "--no-anim",
+        ]);
+
+        expect(deletedReportId).toBe("uuid-1234-5678");
+      } finally {
+        myCli.apigeeService.apigeeReportsList = origReportsList;
+        myCli.apigeeService.apigeeReportDelete = origRepDelete;
+        if (fs.existsSync(deployYamlPath)) fs.unlinkSync(deployYamlPath);
+      }
+    });
+
+    it("should reset deployment and delete its reports matching displayName when using agy reset with deployment file", async () => {
+      const { default: cli } = await import("../src/lib/cli.js");
+      const myCli = new cli();
+
+      const deployYamlPath = path.join(process.cwd(), "tests/tmp-reset-deployment.yaml");
+      const yamlContent = `
+name: reset-test-deployment
+type: deployment
+gateway: apigee
+schemaVersion: 1.0.0
+dataCollectors:
+  - name: dc_reset_test
+    type: datacollector
+    gateway: apigee
+    schemaVersion: 1.0.0
+    collectorType: STRING
+reports:
+  - name: reset_report_yaml_name
+    displayName: Reset Test Report
+    type: report
+    gateway: apigee
+    schemaVersion: 1.0.0
+    metrics:
+      - name: message_count
+        function: sum
+`;
+      fs.writeFileSync(deployYamlPath, yamlContent, "utf8");
+
+      const deletedItems: string[] = [];
+      const origReportsList = myCli.apigeeService.apigeeReportsList;
+      const origRepDelete = myCli.apigeeService.apigeeReportDelete;
+      const origDcDelete = myCli.apigeeService.apigeeDataCollectorDelete;
+
+      myCli.apigeeService.apigeeReportsList = async () => {
+        return [
+          {
+            name: "uuid-reset-report-999",
+            displayName: "Reset Test Report",
+          },
+        ];
+      };
+      myCli.apigeeService.apigeeReportDelete = async (id: string) => {
+        deletedItems.push(`report:${id}`);
+        return true;
+      };
+      myCli.apigeeService.apigeeDataCollectorDelete = async (name: string) => {
+        deletedItems.push(`dc:${name}`);
+        return true;
+      };
+
+      try {
+        await myCli.process([
+          "bun",
+          "apigee-templater.ts",
+          "reset",
+          deployYamlPath,
+          "-p",
+          "mock-org",
+          "--token",
+          "mock-token",
+          "--no-anim",
+        ]);
+
+        expect(deletedItems).toEqual([
+          "report:uuid-reset-report-999",
+          "dc:dc_reset_test",
+        ]);
+      } finally {
+        myCli.apigeeService.apigeeReportsList = origReportsList;
+        myCli.apigeeService.apigeeReportDelete = origRepDelete;
+        myCli.apigeeService.apigeeDataCollectorDelete = origDcDelete;
+        if (fs.existsSync(deployYamlPath)) fs.unlinkSync(deployYamlPath);
+      }
+    });
   });
 });
