@@ -665,11 +665,118 @@ aft template-enterprise-gateway.yaml --organization my-apigee-org --environment 
 
 ---
 
-## 13. Resource Deletion (`--delete`)
+## 14. Full-Stack Deployment YAML (`type: deployment`)
 
-To clean up resources created from a template, product, user, or proxy, provide `--delete` along with the target `--organization` (or colon-separated output):
+Apigee Templater supports a unified **Deployment YAML** manifest (`type: deployment`) that bundles all Apigee resources into a single declarative file. It combines:
+- **Proxy Templates** (`templates`) & **Modular Features** (`features`)
+- **Standalone Proxies** (`proxies`)
+- **API Products** (`products`) with REST operations, `llmOperations`, and `payloadOperations` (MCP)
+- **Key-Value Maps** (`kvms`) with environment-scoped (`type: environment`) and proxy-scoped (`type: proxy`) entries
+- **Developer Users** (`users`) with nested apps and pre-provisioned API credentials
+- **Data Collectors** (`dataCollectors`) and **Custom Reports** (`reports`)
+- **Runtime Tests** (`tests`) with contract assertions
+
+Deployment YAML supports **linking external YAML files**, **embedding inline resources**, and **hybrid mixing**.
+
+### A. Full-Stack Deployment Structure
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: enterprise-ai-suite
+type: deployment
+description: Production-grade deployment bundling templates, direct proxies, KVMs, products, users, and tests.
+environments:
+  - dev
+  - prod
+
+templates:
+  - REST-AI-Completions.yaml
+
+proxies:
+  - name: MockServiceProxy-v1
+    type: proxy
+    endpoints:
+      - name: default
+        basePath: /v1/mock
+        routes:
+          - name: default
+            target: default
+    targets:
+      - name: default
+        url: https://mocktarget.apigee.net
+
+kvms:
+  - name: GlobalEnvConfig
+    type: environment
+    values:
+      ROUTING_TIER: enterprise
+      TIMEOUT: "3500"
+  - name: MockRoutingKvm
+    type: proxy
+    proxy: MockServiceProxy-v1
+    values:
+      DEFAULT_REGION: us-central1
+
+products:
+  - name: enterprise-ai-product
+    type: product
+    environments: [dev]
+    proxies: [REST-AI-Completions, MockServiceProxy-v1]
+    quota: "50000"
+    quotaInterval: "1"
+    quotaTimeUnit: month
+
+users:
+  - name: partner-dev
+    type: user
+    email: partner@example.com
+    apps:
+      - name: Partner App
+        products: [enterprise-ai-product]
+        credentials:
+          - consumerKey: partner-key-12345
+            consumerSecret: partner-secret-67890
+
+tests:
+  - name: test-mock-endpoint
+    proxy: MockServiceProxy-v1
+    path: /v1/mock
+    method: GET
+    assertions:
+      - response.status == 200
+```
+
+### B. Deployment & Teardown CLI Commands
+- **Deploy entire deployment to GCP / Apigee X:**
+  ```bash
+  aft deployment.yaml --project my-gcp-project --environment dev
+  # With attached service account:
+  aft deployment.yaml --project my-gcp-project --environment prod --sa apigee-runtime
+  ```
+- **Delete / Tear down all deployment resources:**
+  ```bash
+  aft deployment.yaml --delete --project my-gcp-project
+  ```
+  *(Deletes Users -> Products -> Proxies -> Reports -> Data Collectors)*
+
+### C. Apigee Emulator Export
+Export deployment to local emulator bundles and JSON metadata files:
+```bash
+aft deployment.yaml -f zip -o ./emulator-dist/
+```
+Generates proxy `.zip` bundles, `products.json`, `developers.json`, `developerapps.json`, and `maps.json` for offline testing with [Apigee Emulator Service](https://github.com/tyayers/apigee-emulator-service).
+
+---
+
+## 15. Resource Deletion (`--delete`)
+
+To clean up resources created from a deployment, template, product, user, or proxy, provide `--delete` along with the target `--organization` or `--project`:
 
 ```bash
+# Delete entire deployment (Users -> Products -> Proxies -> Reports -> Data Collectors)
+aft deployment.yaml --delete --project my-apigee-org
+
 # Delete template resources (deletes Users first -> Products second -> Proxy third)
 aft template-enterprise-gateway.yaml --delete --organization my-apigee-org
 
@@ -685,7 +792,7 @@ aft my-proxy-name --delete --organization my-apigee-org
 
 ---
 
-## 14. Organization Configuration Inspection (`describe --project`)
+## 16. Organization Configuration Inspection (`describe --project`)
 
 Use `describe --project` (or `--org` / `--organization`) to inspect organization topology, runtime settings, and environments:
 
@@ -703,11 +810,11 @@ aft describe --project my-apigee-org -f yaml
 
 ---
 
-## 15. AI Agent Proxy Construction & Catalog Discovery (`-l`, `convert`, `-a`, `-r`)
+## 17. AI Agent Proxy Construction & Catalog Discovery (`-l`, `convert`, `-a`, `-r`)
 
 AI coding agents (such as Antigravity and Claude Code) can discover available repository templates and features, inspect their parameter schemas, and construct custom Apigee proxies with natural language.
 
-### 15.1 Token-Efficient Catalog Discovery (`-l` / `--list`)
+### 17.1 Token-Efficient Catalog Discovery (`-l` / `--list`)
 To inspect all available templates, features, and their configurable parameters in a token-efficient format, use `-f json` or `-f yaml`:
 
 ```bash
@@ -725,7 +832,7 @@ The output catalog structure provides:
 - **`templates`**: `name`, `description`, composed `features` list, and `parameters` (`name`, `description`, `default`).
 - **`features`**: `name`, `description`, and `parameters` (`name`, `description`, `default`).
 
-### 15.2 Building Proxies with Multi-Feature Chaining (`-a`)
+### 17.2 Building Proxies with Multi-Feature Chaining (`-a`)
 Apply multiple features in a single command using comma-separated values or repeated flags:
 
 ```bash
@@ -739,7 +846,7 @@ aft convert -n MySecuredAiProxy -b /v1/ai -u https://api.openai.com -a auth-apik
 aft -n MySecuredAiProxy -b /v1/ai -u https://api.openai.com -a auth-apikey-validate,ai-post-analytics -f template -o my-proxy.yaml
 ```
 
-### 15.3 Removing Multiple Features (`-r`)
+### 17.3 Removing Multiple Features (`-r`)
 Remove multiple features sequentially from a proxy or template:
 
 ```bash
@@ -748,7 +855,7 @@ aft convert -i my-proxy.yaml -r auth-apikey-validate,ai-post-analytics -o update
 
 ---
 
-## 16. Checklist & Best Practices
+## 18. Checklist & Best Practices
 - [ ] Check if `setValue` is used instead of `value` for all KVM `put` operations.
 - [ ] Ensure `response.content` assignments occur in `mode: Response` flows (`PostFlow` or target response flows).
 - [ ] Attach `EventFlow` on target responses when processing streaming / SSE data.
@@ -756,7 +863,9 @@ aft convert -i my-proxy.yaml -r auth-apikey-validate,ai-post-analytics -o update
 - [ ] Use `-f sharedflow` or `-f sf` when exporting Features as Apigee SharedFlow bundles or deploying SharedFlows to Apigee X.
 - [ ] When fetching from repositories, reference names directly without needing full URLs or file extensions (e.g. `aft auth-oauth21-server --organization my-org`).
 - [ ] Use direct flat list items for `operations`, `llmOperations`, and `payloadOperations` in Product YAML files for cleaner structure.
-- [ ] When deploying a template to an Apigee organization/environment, referenced `products` and `users` are deployed automatically alongside the proxy.
+- [ ] In Deployment YAML files (`type: deployment`), combine proxy templates, direct proxies, products, KVMs, users/credentials, and tests into a unified manifest.
+- [ ] Deploy complete Deployment YAMLs directly to GCP with `aft deployment.yaml --project my-project --environment dev`.
+- [ ] Export Deployment YAMLs to Apigee Emulator bundles with `aft deployment.yaml -f zip -o ./emulator-dist/` and test locally with `apigee-emulator-service`.
 - [ ] Use `--delete` to tear down resources in reverse dependency order (User -> Product -> Proxy).
 - [ ] Use `aft -c <org>` for a formatted overview of the Apigee organization and its environments/hostnames.
 - [ ] Use `aft -l -f json` or `aft -l -f yaml` to fetch the token-efficient catalog of templates and features.

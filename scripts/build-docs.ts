@@ -42,7 +42,7 @@ const commands = [
     flags: [
       { flag: "-i, --input <path|name>", desc: "Input ZIP bundle, YAML/JSON file, or remote Apigee resource name." },
       { flag: "-o, --output <path>", desc: "Target output file or directory path (e.g. proxy.yaml, bundle.zip, ./proxies/)." },
-      { flag: "-f, --format <format>", desc: "Target conversion format: 'proxy', 'template', 'feature', 'product', 'user', or 'sharedflow' ('sf')." },
+      { flag: "-f, --format <format>", desc: "Target conversion format: 'proxy', 'template', 'feature', 'product', 'user', 'deployment', or 'sharedflow' ('sf')." },
       { flag: "-a, --applyFeature <name>", desc: "Apply a feature (or comma-separated list of features) to a template or proxy." },
       { flag: "-r, --removeFeature <name>", desc: "Remove a feature (or comma-separated list) from a template or proxy." },
       { flag: "-p, --parameters <list>", desc: "Parameter substitutions for template instantiation (e.g. param1=val1,param2=val2)." },
@@ -52,7 +52,7 @@ const commands = [
       { flag: "--organization, --org, --project <name>", desc: "Target Apigee organization or GCP project for deployment or export." },
       { flag: "--environment, --env <name>", desc: "Apigee environment name to deploy the proxy revision to (e.g. dev, prod)." },
       { flag: "--service-account, --sa <name|email>", desc: "Google Cloud service account email or name attached to proxy deployment. If not an email address, automatically formats as {sa-name}@{project-id}.iam.gserviceaccount.com." },
-      { flag: "--delete", desc: "Delete Apigee resources defined in input template, product, user, or proxy." },
+      { flag: "--delete", desc: "Delete Apigee resources defined in input template, product, user, deployment, or proxy." },
       { flag: "-d, --drz <region>", desc: "Specify DRZ endpoint region ('us', 'eu', 'in') for data-residency compliance." },
     ],
     examples: [
@@ -65,6 +65,16 @@ const commands = [
         title: "Compile YAML Proxy to deployable ZIP Bundle",
         description: "Compiles a YAML proxy into an official Apigee-compliant ZIP bundle ready for import via apigeecli or Cloud Console.",
         command: "aft -i WeatherAPI.yaml -o WeatherAPI.zip",
+      },
+      {
+        title: "Deploy Full-Stack Deployment YAML to Apigee Project",
+        description: "Deploys an entire multi-resource Deployment YAML (proxies, products, KVMs, users, credentials) to an Apigee X environment in a single command.",
+        command: "aft -i deployment.yaml --project my-gcp-project --environment dev",
+      },
+      {
+        title: "Export Deployment YAML for Apigee Emulator",
+        description: "Compiles a Deployment YAML into proxy ZIP bundles and emulator JSON manifests (products.json, developers.json, apps.json, maps.json).",
+        command: "aft -i deployment.yaml -f zip -o ./emulator-dist/",
       },
       {
         title: "Create a new Proxy from scratch with BasePath and Target",
@@ -102,12 +112,12 @@ const commands = [
     badgeColor: "purple",
     syntax: "aft describe <input>   |   aft <input>",
     description:
-      "Inspects and summarizes any local file, remote repository resource (template, proxy, feature, product, or user), or Apigee organization configuration (--project). Renders a high-contrast terminal card detailing the name, description, endpoints, target URLs, flows, policies, parameters, or org runtime settings without modifying or creating files. If given a non-existent filename as a single argument, AFT safely creates an empty template proxy instead.",
+      "Inspects and summarizes any local file, remote repository resource (template, proxy, feature, product, user, or deployment), or Apigee organization configuration (--project). Renders a high-contrast terminal card detailing the name, description, endpoints, target URLs, flows, policies, parameters, KVMs, products, or org runtime settings without modifying or creating files. If given a non-existent filename as a single argument, AFT safely creates an empty template proxy instead.",
     flags: [
       { flag: "<input>", desc: "Path to a local YAML/JSON file, or the identifier of a feature/template in the repository." },
       { flag: "-i, --input <path|name>", desc: "Explicit flag alternative for the input resource." },
       { flag: "--project, --org, --organization <name>", desc: "Inspect Apigee organization/project configuration, or scope remote resources." },
-      { flag: "-f, --format <format>", desc: "Output format: 'json' or 'yaml' for raw payloads, or format hint ('proxy', 'template', 'feature', 'product', 'user', 'sf')." },
+      { flag: "-f, --format <format>", desc: "Output format: 'json' or 'yaml' for raw payloads, or format hint ('proxy', 'template', 'feature', 'product', 'user', 'deployment', 'sf')." },
       { flag: "-t, --token <token>", desc: "Google Cloud OAuth2 token (defaults to Application Default Credentials)." },
       { flag: "-d, --drz <region>", desc: "Specify DRZ endpoint ('us', 'eu', 'in')." },
     ],
@@ -121,6 +131,11 @@ const commands = [
         title: "Export Organization Configuration to JSON / YAML",
         description: "Fetches full organization details and prints the raw JSON or YAML response.",
         command: "aft describe --project my-apigee-org -f json",
+      },
+      {
+        title: "Describe a Full-Stack Deployment YAML",
+        description: "Displays a consolidated overview of all templates, proxies, products, KVMs, users, and tests defined in a Deployment YAML.",
+        command: "aft describe deployment.yaml",
       },
       {
         title: "Describe a local Proxy YAML",
@@ -387,13 +402,18 @@ const cloudOperations = [
         command: "aft -i FullTemplate.yaml --org my-org --environment dev",
         explanation: "Orchestrates a full deployment in one command: deploys the proxy, provisions all associated products, and creates users with app keys.",
       },
+      {
+        title: "Deploy Full-Stack Deployment YAML (Proxies + Products + Users + KVMs + Telemetry)",
+        command: "aft -i deployment.yaml --project my-gcp-project --environment dev",
+        explanation: "Orchestrates deployment of all resources in a single command: data collectors, proxies/templates, API products, developers, apps with credentials, and custom analytics reports.",
+      },
     ],
   },
   {
     id: "cloud-delete",
     title: "Resource Deletion (--delete)",
     description:
-      "Tears down and deletes Apigee resources defined in local YAML files. Handles multi-resource templates with automatic reverse dependency ordering (Users -> Products -> Proxies).",
+      "Tears down and deletes Apigee resources defined in local YAML files. Handles multi-resource templates and deployment YAMLs with automatic reverse dependency ordering (Users -> Products -> Proxies -> Reports -> Data Collectors).",
     examples: [
       {
         title: "Delete Proxy from Apigee",
@@ -415,6 +435,11 @@ const cloudOperations = [
         command: "aft -i FullTemplate.yaml --org my-org --delete",
         explanation: "Safely cleans up everything created by the template in the correct dependency order.",
       },
+      {
+        title: "Tear down Full-Stack Deployment YAML Environment",
+        command: "aft -i deployment.yaml --project my-gcp-project --delete",
+        explanation: "Safely cleans up all resources defined in the deployment YAML in reverse dependency order: users/apps -> products -> proxies/templates -> custom reports -> data collectors.",
+      },
     ],
   },
 ];
@@ -426,7 +451,7 @@ const cliOptions = [
   { flag: "--organization, --org, --project", arg: "<name>", desc: "Apigee organization or GCP project name to export from, deploy to, or describe (inspect org configuration). All 3 aliases are interchangeable." },
   { flag: "--environment, --env", arg: "<name>", desc: "Apigee environment name to deploy the proxy revision to (e.g. dev, test, prod)." },
   { flag: "--service-account, --sa", arg: "<name|email>", desc: "Google Cloud service account email or name attached to proxy deployment. If not an email address, automatically formats as {sa-name}@{project-id}.iam.gserviceaccount.com." },
-  { flag: "--format, -f", arg: "<format>", desc: "Resource format: 'proxy', 'template', 'feature', 'product', 'user', or 'sharedflow' ('sf')." },
+  { flag: "--format, -f", arg: "<format>", desc: "Resource format: 'proxy', 'template', 'feature', 'product', 'user', 'deployment', or 'sharedflow' ('sf')." },
   { flag: "--applyFeature, -a", arg: "<features>", desc: "Feature name or comma-separated list of features to apply to a template or proxy." },
   { flag: "--removeFeature, -r", arg: "<features>", desc: "Feature name or comma-separated list of features to remove from a template or proxy." },
   { flag: "--parameters, -p", arg: "<list>", desc: "Parameter substitutions when instantiating a template (e.g. key1=val1,key2=val2)." },
@@ -434,7 +459,7 @@ const cliOptions = [
   { flag: "--targetUrl, -u", arg: "<url>", desc: "Backend target URL when scaffolding a new proxy or template." },
   { flag: "--name, -n", arg: "<name>", desc: "The name for the output template, feature, or proxy." },
   { flag: "--list, -l", arg: "--", desc: "List all templates and features available in the central repository (supports -f json/yaml)." },
-  { flag: "--delete", arg: "--", desc: "Delete Apigee resources defined in input template, product, user, or proxy." },
+  { flag: "--delete", arg: "--", desc: "Delete Apigee resources defined in input template, product, user, deployment, or proxy." },
   { flag: "--token, -t", arg: "<token>", desc: "Google Cloud OAuth2 token for Apigee API (uses Application Default Credentials if omitted)." },
   { flag: "--drz, -d", arg: "<region>", desc: "Use a DRZ Apigee endpoint ('us', 'eu', 'in') for data-residency compliance." },
   { flag: "--help, -h", arg: "--", desc: "Display CLI usage instructions and version information." },
@@ -506,6 +531,33 @@ const cookbook = [
         step: "2. Compile into an Apigee SharedFlow ZIP bundle",
         code: "aft -i auth-apikey-verify.yaml -f sf -o SF-ApiKeyVerify.zip",
         note: "Builds a standard SharedFlow bundle ready for gcloud or apigeecli deployment.",
+      },
+    ],
+  },
+  {
+    id: "recipe-deployment-fullstack",
+    title: "Recipe 4: Full-Stack Deployment with Proxies, KVMs, Products & Apigee Emulator",
+    description: "Author a unified deployment YAML combining an AI proxy, environment & proxy KVMs, an API product with LLM rate limiting, a test developer with credentials, and deploy or export to the Apigee Emulator.",
+    steps: [
+      {
+        step: "1. Inspect unified deployment YAML (deployment.yaml)",
+        code: "aft describe deployment.yaml",
+        note: "Inspect all embedded and linked resources in the terminal overview card without modifying files.",
+      },
+      {
+        step: "2. Deploy everything to Apigee X in one command",
+        code: "aft deployment.yaml --project my-gcp-project --environment dev",
+        note: "Automatically deploys proxies, products, developers, apps, and credentials to GCP in coordinated order.",
+      },
+      {
+        step: "3. Export bundles & JSON configs for Apigee Emulator",
+        code: "aft deployment.yaml -f zip -o ./emulator-dist/",
+        note: "Generates proxy ZIPs, maps.json, products.json, and developerapps.json for local testing with apigee-emulator-service.",
+      },
+      {
+        step: "4. Cleanly tear down all resources when finished",
+        code: "aft deployment.yaml --delete --project my-gcp-project",
+        note: "Deletes apps, users, products, and proxies in reverse dependency order with zero orphaned references.",
       },
     ],
   },
@@ -1192,6 +1244,47 @@ function generateDocsHtml(): string {
       border-radius: 4px;
     }
 
+    .code-block-multi {
+      position: relative;
+      background: var(--bg-code);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: var(--radius-sm);
+      padding: 16px 18px;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: #e2e8f0;
+      overflow-x: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+      margin-bottom: 16px;
+    }
+
+    .code-block-multi pre {
+      margin: 0;
+      white-space: pre;
+    }
+
+    .code-block-multi .copy-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+    }
+
+    .callout-box {
+      background: rgba(6, 182, 212, 0.08);
+      border-left: 3px solid var(--accent-cyan);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      padding: 14px 18px;
+      margin: 18px 0;
+      font-size: 13.5px;
+      color: #e5e7eb;
+    }
+
+    .callout-box strong {
+      color: var(--accent-cyan-light);
+    }
+
     .copy-btn {
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1334,6 +1427,7 @@ function generateDocsHtml(): string {
     <div class="filter-pills">
       <button class="pill-btn active" data-filter="all">All</button>
       <button class="pill-btn" data-filter="core">Core</button>
+      <button class="pill-btn" data-filter="deployments">Deployments</button>
       <button class="pill-btn" data-filter="cloud">Cloud</button>
       <button class="pill-btn" data-filter="tooling">Tooling</button>
       <button class="pill-btn" data-filter="reference">Reference</button>
@@ -1376,6 +1470,29 @@ function generateDocsHtml(): string {
         <a href="#cmd-cache" class="nav-link" data-search="cache clear refresh templates features">
           <span>cache</span>
           <span class="nav-tag">tooling</span>
+        </a>
+      </div>
+
+      <div class="nav-group" data-category="deployments">
+        <div class="nav-group-title">Deployment YAML</div>
+        <a href="#deployments-overview" class="nav-link" data-search="deployment deployments overview concept manifest unified embedded linked architecture">
+          <span>Overview &amp; Concept</span>
+          <span class="nav-tag">new</span>
+        </a>
+        <a href="#deployment-starter" class="nav-link" data-search="deployment starter simple minimal external files links template product user">
+          <span>Starter Deployment</span>
+        </a>
+        <a href="#deployment-full-stack" class="nav-link" data-search="deployment full-stack multi-resource embedded templates proxies kvms products users credentials tests datacollectors reports">
+          <span>Full-Stack Manifest</span>
+        </a>
+        <a href="#deployment-resources" class="nav-link" data-search="deployment resource types reference templates proxies features products kvm users credentials tests data collectors">
+          <span>Resource Reference</span>
+        </a>
+        <a href="#deployment-cloud" class="nav-link" data-search="deployment cloud deploy delete project org teardown service-account sa">
+          <span>Deploy &amp; Teardown</span>
+        </a>
+        <a href="#deployment-emulator" class="nav-link" data-search="deployment emulator local apigee-emulator-service maps products users apps docker testing">
+          <span>Apigee Emulator</span>
         </a>
       </div>
 
@@ -1543,6 +1660,460 @@ function generateDocsHtml(): string {
           .join("\n")}
       </section>
 
+      <!-- Section: Full-Stack Deployment YAML -->
+      <section class="doc-section" id="deployments-section">
+        <div class="hero-badge-row" style="margin-bottom: 14px;">
+          <span class="badge badge-purple">Unified Architecture</span>
+          <span class="badge badge-cyan">Declarative GitOps</span>
+          <span class="badge badge-green">Apigee Emulator Ready</span>
+        </div>
+        <h2>📦 Full-Stack Deployment YAML Specification</h2>
+        <p>
+          <strong>Deployment YAML</strong> (<code>type: deployment</code>) is a unified declarative manifest designed for modern Apigee GitOps. Instead of managing fragmented proxy files, API products, developer credentials, and Key-Value Maps across disparate directories and executing disjointed deployment scripts, a single Deployment YAML bundles <em>all</em> Apigee resource types into one coherent, version-controllable ecosystem manifest.
+        </p>
+
+        <div class="callout-box">
+          <strong>Key Capability: Linked Files + Embedded Resources</strong><br />
+          Deployment YAML natively supports both <strong>external YAML file references</strong> (e.g. <code>templates: [ templates/AI-Completions.yaml ]</code>) and <strong>inline embedded resources</strong> (defining proxies, products, KVMs, users, credentials, and tests directly in the same file), or any hybrid combination thereof.
+        </div>
+
+        <!-- 1. Overview & Concepts -->
+        <article class="command-card searchable-item" id="deployments-overview" data-category="deployments" data-search="deployments overview architecture unified manifest benefits gitops embedded linked hybrid">
+          <div class="command-header">
+            <div class="command-title">
+              <h3>1. Deployment Architecture &amp; Why It Exists</h3>
+              <span class="badge badge-purple">Architecture</span>
+            </div>
+          </div>
+          <p>
+            In production Apigee environments, an API proxy never lives in isolation. It relies on backend routing configurations, security policies, Key-Value Maps (KVMs) for runtime lookups, API Products to govern quotas and operations, Developer Users who own client applications, API Keys / Secrets for authentication, Data Collectors for runtime telemetry, and automated tests to verify contract validity.
+          </p>
+          <p>
+            Traditionally, deploying this ecosystem required running several sequential tools (e.g., creating KVMs first, then deploying proxy revisions, then provisioning products, then issuing credentials, then running test runners). If any step failed, the environment was left in a half-configured state.
+          </p>
+          <p>
+            With AFT Deployment YAML:
+          </p>
+          <ul>
+            <li><strong>Single Source of Truth</strong>: Every asset required to run, secure, and test the API is captured in one manifest.</li>
+            <li><strong>Coordinated Multi-Asset Deployment</strong>: One CLI command deploys Data Collectors &rarr; Proxies &amp; Templates &rarr; API Products &rarr; Developer Users &amp; Apps &rarr; Custom Reports in proper dependency order.</li>
+            <li><strong>Clean Teardown</strong>: One command deletes the entire ecosystem in reverse dependency order (Users &rarr; Products &rarr; Proxies &rarr; Reports &rarr; Data Collectors) without leaving orphaned assets.</li>
+            <li><strong>Offline Emulation</strong>: Directly exports proxy bundles and emulator JSON configuration files (<code>products.json</code>, <code>developers.json</code>, <code>developerapps.json</code>, <code>maps.json</code>) for instantaneous testing with <a href="https://github.com/tyayers/apigee-emulator-service" target="_blank" rel="noopener noreferrer" class="external-link">Apigee Emulator Service ↗</a>.</li>
+          </ul>
+        </article>
+
+        <!-- 2. Starter Deployment -->
+        <article class="command-card searchable-item" id="deployment-starter" data-category="deployments" data-search="deployment starter minimal simple links external files template product user">
+          <div class="command-header">
+            <div class="command-title">
+              <h3>2. Start Simple: Minimal Starter Deployment (Linked Files)</h3>
+              <span class="badge badge-green">Starter Example</span>
+            </div>
+          </div>
+          <p>
+            The simplest way to use Deployment YAML is to link existing external template, product, and user YAML files. AFT resolves relative file paths starting from the deployment file's directory. If a file is not found locally, AFT automatically searches the central <a href="https://github.com/gcp-samples/apigee-template-repository" target="_blank" rel="noopener noreferrer" class="external-link">Apigee Template Repository ↗</a>.
+          </p>
+          <div class="code-block-multi">
+            <button class="copy-btn">Copy</button>
+            <pre><code># yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: starter-deployment
+type: deployment
+description: Minimal deployment linking modular templates, products, and users
+
+environments:
+  - dev
+
+# Links to external YAML files (relative or repository names)
+templates:
+  - templates/REST-AI-Completions.yaml
+
+products:
+  - products/ai-starter-package.yaml
+
+users:
+  - users/partner-developer.yaml</code></pre>
+          </div>
+          <div class="example-box">
+            <div class="example-title">Inspect with Describe</div>
+            <div class="example-desc">Preview all linked assets and their resolved endpoints without deploying:</div>
+            <div class="code-block">
+              <code>aft describe starter-deployment.yaml</code>
+              <button class="copy-btn" data-clipboard="aft describe starter-deployment.yaml">Copy</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- 3. Full-Stack Multi-Resource Manifest -->
+        <article class="command-card searchable-item" id="deployment-full-stack" data-category="deployments" data-search="deployment full-stack multi-resource embedded proxies kvm products users credentials tests datacollectors reports">
+          <div class="command-header">
+            <div class="command-title">
+              <h3>3. Comprehensive Full-Stack Manifest (Embedded &amp; Linked)</h3>
+              <span class="badge badge-blue">Complete Specification</span>
+            </div>
+          </div>
+          <p>
+            A production-ready Deployment YAML can embed standalone proxies, environment-scoped and proxy-scoped KVMs, advanced API products (REST, LLM, and MCP tools), developer identities with pre-provisioned credentials, telemetry collectors, and automated test assertions:
+          </p>
+          <div class="code-block-multi">
+            <button class="copy-btn">Copy</button>
+            <pre><code># yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: enterprise-ai-suite
+displayName: Enterprise AI Gateway Suite
+type: deployment
+description: Production-grade deployment with proxy templates, direct proxies, KVMs, products, users, telemetry, and automated tests.
+environments:
+  - dev
+  - prod
+
+# 1. Composed Proxy Templates (referencing modular features)
+templates:
+  - REST-AI-Completions.yaml
+
+# 2. Standalone Direct Proxies (embedded inline or linked)
+proxies:
+  - name: MockServiceProxy-v1
+    displayName: Mock Service Proxy
+    type: proxy
+    description: Mock edge service with JavaScript response manipulation
+    endpoints:
+      - name: default
+        basePath: /v1/mock
+        routes:
+          - name: default
+            target: default
+        flows:
+          - name: PostFlow
+            mode: Response
+            steps:
+              - name: JS-AddTimestamp
+    targets:
+      - name: default
+        url: https://mocktarget.apigee.net
+    policies:
+      - name: JS-AddTimestamp
+        type: Javascript
+        content:
+          Javascript:
+            metadata:
+              name: JS-AddTimestamp
+            Source: |
+              var body = JSON.parse(response.content || "{}");
+              body.edgeTimestamp = Date.now();
+              response.content = JSON.stringify(body);
+
+# 3. Key-Value Maps (Environment-Scoped & Proxy-Scoped)
+kvms:
+  - name: GlobalEnvConfig
+    type: environment
+    values:
+      ROUTING_TIER: enterprise-tier
+      UPSTREAM_TIMEOUT: "3500"
+      ENABLE_DEBUG_HEADERS: "false"
+  - name: MockRoutingKvm
+    type: proxy
+    proxy: MockServiceProxy-v1
+    values:
+      DEFAULT_REGION: us-central1
+      MAX_PAYLOAD_SIZE_KB: "1024"
+
+# 4. API Products (Governing REST, LLM Model Garden, and MCP Tool Calls)
+products:
+  - name: enterprise-ai-product
+    displayName: Enterprise AI Product
+    type: product
+    description: Bundled access to Gemini completions, mock service, and MCP CRM tools
+    access: public
+    approvalType: auto
+    environments:
+      - dev
+    proxies:
+      - REST-AI-Completions
+      - MockServiceProxy-v1
+    quota: "100000"
+    quotaInterval: "1"
+    quotaTimeUnit: month
+    operations:
+      - apiSource: MockServiceProxy-v1
+        operations:
+          - name: /json
+            methods: [GET]
+    llmOperations:
+      - apiSource: REST-AI-Completions
+        operations:
+          - name: /v1/chat/completions
+            methods: [POST]
+            model: gemini-2.5-flash
+            llmTokenQuota:
+              limit: "25000"
+              interval: "1"
+              timeUnit: minute
+    payloadOperations:
+      - apiSource: REST-AI-Completions
+        protocol: MCP
+        operations:
+          - name: tools/list
+          - name: tools/call/get_customer_profile
+            quota:
+              limit: "120"
+              interval: "1"
+              timeUnit: minute
+
+# 5. Developer Users, Apps & Pre-Provisioned API Credentials
+users:
+  - name: partner-dev
+    type: user
+    email: partner-dev@example.com
+    firstName: Partner
+    lastName: Developer
+    userName: partnerdev
+    status: active
+    apps:
+      - name: Enterprise Analytics Client
+        displayName: Enterprise Analytics Client
+        status: approved
+        products:
+          - enterprise-ai-product
+        credentials:
+          - consumerKey: client-api-key-998877
+            consumerSecret: client-secret-554433
+            status: approved
+            products:
+              - enterprise-ai-product
+
+# 6. Data Collectors (Runtime Telemetry Capture)
+dataCollectors:
+  - name: dc_ai_model
+    type: datacollector
+    collectorType: STRING
+    description: Name of the AI model invoked
+  - name: dc_ai_prompt_token_count
+    type: datacollector
+    collectorType: INTEGER
+    description: Token count for the request prompt
+
+# 7. Custom Analytics Reports
+reports:
+  - name: ai_token_usage_by_model
+    displayName: "AI Token Usage by Model"
+    type: report
+    chartType: col
+    timeUnit: hour
+    metrics:
+      - name: dc_ai_prompt_token_count
+        function: sum
+    dimensions:
+      - apiproxy
+      - dc_ai_model
+
+# 8. Automated Runtime Test Assertions
+tests:
+  - name: test-chat-completions-auth
+    description: Validates end-to-end authorization and 200 OK status
+    proxy: REST-AI-Completions
+    product: enterprise-ai-product
+    path: /v1/chat/completions
+    method: POST
+    injectGoogleToken: true
+    headers:
+      Content-Type: application/json
+      x-api-key: client-api-key-998877
+    body: |
+      {
+        "model": "gemini-2.5-flash",
+        "messages": [{"role": "user", "content": "Ping"}]
+      }
+    assertions:
+      - response.status == 200</code></pre>
+          </div>
+        </article>
+
+        <!-- 4. Resource Block Reference -->
+        <article class="command-card searchable-item" id="deployment-resources" data-category="deployments" data-search="deployment resource types templates proxies features products kvm users credentials tests data collectors reports reference">
+          <div class="command-header">
+            <div class="command-title">
+              <h3>4. Resource Block Reference Guide</h3>
+              <span class="badge badge-cyan">Schema Reference</span>
+            </div>
+          </div>
+          <p>Every resource block within a Deployment YAML is strictly typed and validated against the JSON schema:</p>
+
+          <div class="flags-table-wrap">
+            <table class="flags-table">
+              <thead>
+                <tr>
+                  <th style="width: 20%;">Resource Block</th>
+                  <th style="width: 25%;">Item Types</th>
+                  <th>Description &amp; Capabilities</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="flag-name">templates</td>
+                  <td>File paths or inline <code>Template</code> objects</td>
+                  <td>Reusable proxy templates composed of features. Automatically instantiated with parameter substitutions and converted to deployable proxy bundles.</td>
+                </tr>
+                <tr>
+                  <td class="flag-name">proxies</td>
+                  <td>File paths or inline <code>Proxy</code> objects</td>
+                  <td>Concrete API proxies with complete <code>endpoints</code>, <code>targets</code>, <code>flows</code>, <code>policies</code>, and <code>resources</code>.</td>
+                </tr>
+                <tr>
+                  <td class="flag-name">features</td>
+                  <td>File paths or inline <code>Feature</code> objects</td>
+                  <td>Modular policy and flow definitions deployed directly as reusable proxy or SharedFlow assets.</td>
+                </tr>
+                <tr>
+                  <td class="flag-name">products</td>
+                  <td>File paths or inline <code>Product</code> objects</td>
+                  <td>Apigee API Products. Supports flat operations, <code>llmOperations</code> for AI token quotas, and <code>payloadOperations</code> for MCP tool control. Bound to deployment proxies and environments automatically.</td>
+                </tr>
+                <tr>
+                  <td class="flag-name">kvms</td>
+                  <td>Array of <code>Kvm</code> objects</td>
+                  <td>Key-Value Maps. Set <code>type: environment</code> (default) or <code>type: proxy</code> (with <code>proxy: &lt;proxy-name&gt;</code>) along with <code>values: { KEY: "VAL" }</code>. Exports to <code>maps.json</code> for the emulator.</td>
+                </tr>
+                <tr>
+                  <td class="flag-name">users</td>
+                  <td>File paths, emails, or inline <code>User</code> objects</td>
+                  <td>Developer profiles with nested <code>apps</code> and pre-configured <code>credentials</code> (consumerKey, consumerSecret, status, products).</td>
+                </tr>
+                <tr>
+                  <td class="flag-name">dataCollectors</td>
+                  <td>File paths or inline <code>DataCollector</code> objects</td>
+                  <td>Runtime analytics collectors (STRING, INTEGER, FLOAT, BOOLEAN) deployed to Apigee before proxies.</td>
+                </tr>
+                <tr>
+                  <td class="flag-name">reports</td>
+                  <td>File paths or inline <code>CustomReport</code> objects</td>
+                  <td>Analytics reporting definitions specifying chart types (column, line), metrics (sum, avg), and dimensions.</td>
+                </tr>
+                <tr>
+                  <td class="flag-name">tests</td>
+                  <td>Array of <code>Test</code> objects</td>
+                  <td>Integration test definitions specifying target proxy, path, HTTP method, headers, request body, and assertions (e.g. <code>response.status == 200</code>).</td>
+                </tr>
+                <tr>
+                  <td class="flag-name">parameters</td>
+                  <td>Array of <code>Parameter</code> objects</td>
+                  <td>Deployment-wide parameters for variable substitution (e.g. <code>$ENV</code>, <code>\${BACKEND}</code>) across all child proxies, targets, products, and KVMs.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <!-- 5. Cloud Deployment & Teardown -->
+        <article class="command-card searchable-item" id="deployment-cloud" data-category="deployments" data-search="deployment cloud deploy delete project org teardown gcp service-account sa">
+          <div class="command-header">
+            <div class="command-title">
+              <h3>5. Cloud Operations: One-Command Deploy &amp; Teardown</h3>
+              <span class="badge badge-amber">Apigee X &amp; Hybrid</span>
+            </div>
+          </div>
+          <p>
+            AFT orchestrates complete multi-resource deployments and safe teardowns directly against your Google Cloud project using standard Application Default Credentials. Use <code>--project</code>, <code>--org</code>, or <code>--organization</code> interchangeably:
+          </p>
+
+          <h4 style="font-size: 15px; font-weight: 600; margin: 20px 0 10px; color: #e2e8f0;">Deploying to Apigee X / Hybrid</h4>
+          <div class="example-box">
+            <div class="example-title">Deploy all resources to environment</div>
+            <div class="example-desc">Executes the multi-stage deployment pipeline in dependency order:</div>
+            <div class="code-block">
+              <code>aft deployment.yaml --project my-gcp-project --environment dev</code>
+              <button class="copy-btn" data-clipboard="aft deployment.yaml --project my-gcp-project --environment dev">Copy</button>
+            </div>
+          </div>
+
+          <div class="example-box">
+            <div class="example-title">Deploy with Google Cloud Service Account attached</div>
+            <div class="example-desc">Attaches a runtime service account to all deployed proxy revisions:</div>
+            <div class="code-block">
+              <code>aft deployment.yaml --project my-gcp-project --environment prod --sa apigee-runtime</code>
+              <button class="copy-btn" data-clipboard="aft deployment.yaml --project my-gcp-project --environment prod --sa apigee-runtime">Copy</button>
+            </div>
+          </div>
+
+          <h4 style="font-size: 15px; font-weight: 600; margin: 24px 0 10px; color: #e2e8f0;">Tearing Down Resources (--delete)</h4>
+          <p>
+            When tearing down a temporary testing or preview environment, passing <code>--delete</code> cleans up all assets in <strong>strict reverse dependency order</strong> to prevent orphaned resources or foreign key constraints:
+          </p>
+          <ol>
+            <li><strong>Developer Apps &amp; Users</strong>: Deletes developer apps and credentials first, then deletes developer identities.</li>
+            <li><strong>API Products</strong>: Deletes API products and detaches environment/proxy associations.</li>
+            <li><strong>Proxies, Templates &amp; Features</strong>: Undeploys all revisions from environments and deletes the proxy bundles.</li>
+            <li><strong>Custom Reports</strong>: Removes analytics custom reports.</li>
+            <li><strong>Data Collectors</strong>: Deletes data collector definitions last.</li>
+          </ol>
+
+          <div class="example-box">
+            <div class="example-title">One-command teardown</div>
+            <div class="code-block">
+              <code>aft deployment.yaml --delete --project my-gcp-project</code>
+              <button class="copy-btn" data-clipboard="aft deployment.yaml --delete --project my-gcp-project">Copy</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- 6. Apigee Emulator Integration -->
+        <article class="command-card searchable-item" id="deployment-emulator" data-category="deployments" data-search="deployment emulator local apigee-emulator-service maps products users apps docker testing offline">
+          <div class="command-header">
+            <div class="command-title">
+              <h3>6. Local Emulation with Apigee Emulator</h3>
+              <span class="badge badge-green">Local Testing</span>
+            </div>
+          </div>
+          <p>
+            AFT can compile an entire Deployment YAML into the exact artifacts required by the <strong>Apigee Emulator</strong>. This enables local development, zero-cloud-cost debugging, and offline CI/CD pipelines without connecting to a live GCP organization:
+          </p>
+
+          <div class="example-box">
+            <div class="example-title">Export Deployment to Emulator directory (-f zip)</div>
+            <div class="example-desc">Compiles proxies into ZIP bundles and generates all emulator JSON metadata:</div>
+            <div class="code-block">
+              <code>aft deployment.yaml -f zip -o ./emulator-dist/</code>
+              <button class="copy-btn" data-clipboard="aft deployment.yaml -f zip -o ./emulator-dist/">Copy</button>
+            </div>
+          </div>
+
+          <p>This single command generates the full suite of Apigee Emulator configuration files:</p>
+          <ul>
+            <li><code>{ProxyName}.zip</code>: Deployable proxy bundles containing policies, endpoints, and resources.</li>
+            <li><code>products.json</code> &amp; <code>apiproducts.json</code>: Emulator-compliant API product catalog with quota limits and proxy associations.</li>
+            <li><code>developers.json</code> &amp; <code>users.json</code>: Developer identities mapped to the emulator runtime.</li>
+            <li><code>developerapps.json</code> &amp; <code>apps.json</code>: Developer apps populated with consumer API keys and secrets.</li>
+            <li><code>maps.json</code>: Environment and proxy-scoped Key-Value Maps (KVMs).</li>
+            <li><code>datacollectors.json</code>: Runtime data collector metadata.</li>
+          </ul>
+
+          <h4 style="font-size: 15px; font-weight: 600; margin: 24px 0 10px; color: #e2e8f0;">Running with Apigee Emulator Service</h4>
+          <p>
+            The generated artifacts can be directly mounted into the <a href="https://github.com/tyayers/apigee-emulator-service" target="_blank" rel="noopener noreferrer" class="external-link">Apigee Emulator Service ↗</a> container:
+          </p>
+
+          <div class="code-block-multi">
+            <button class="copy-btn">Copy</button>
+            <pre><code># 1. Export deployment to a local testdata directory
+aft deployment.yaml -f zip -o ./emulator-dist/
+
+# 2. Spin up the Apigee Emulator Service container with the exported artifacts mounted
+docker run -d --name apigee-emulator \
+  -p 8080:8080 -p 8443:8443 -p 8998:8998 \
+  -v $(pwd)/emulator-dist:/opt/apigee/testdata \
+  ghcr.io/tyayers/apigee-emulator-service:latest
+
+# 3. Test your endpoints locally using the pre-provisioned credentials
+curl -H "x-api-key: client-api-key-998877" http://localhost:8080/v1/mock</code></pre>
+          </div>
+          <p>
+            Explore sample configurations, Docker Compose setups, and automated testing patterns in the <a href="https://github.com/tyayers/apigee-emulator-service" target="_blank" rel="noopener noreferrer" class="external-link">Apigee Emulator Service repository ↗</a>.
+          </p>
+        </article>
+      </section>
+
       <!-- Section: Apigee X Cloud Operations -->
       <section class="doc-section" id="cloud-section">
         <h2>☁️ Apigee X Cloud Operations</h2>
@@ -1672,7 +2243,11 @@ function generateDocsHtml(): string {
       // 2. Copy to Clipboard
       document.querySelectorAll('.copy-btn').forEach((btn) => {
         btn.addEventListener('click', async () => {
-          const text = btn.getAttribute('data-clipboard');
+          let text = btn.getAttribute('data-clipboard');
+          if (!text && btn.parentElement) {
+            const codeEl = btn.parentElement.querySelector('code');
+            if (codeEl) text = codeEl.innerText;
+          }
           if (!text) return;
           try {
             await navigator.clipboard.writeText(text);

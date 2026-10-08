@@ -103,4 +103,20 @@ describe("Documentation Generator", () => {
       '<a href="https://github.com/gcp-samples/apigee-template-repository" target="_blank" rel="noopener noreferrer"'
     );
   });
+
+  it("should document full-stack Deployment YAML and Apigee Emulator Service integration", () => {
+    const content = fs.readFileSync(docsPath, "utf-8");
+    expect(content).toContain('id="deployments-section"');
+    expect(content).toContain('id="deployments-overview"');
+    expect(content).toContain('id="deployment-starter"');
+    expect(content).toContain('id="deployment-full-stack"');
+    expect(content).toContain('id="deployment-resources"');
+    expect(content).toContain('id="deployment-cloud"');
+    expect(content).toContain('id="deployment-emulator"');
+    expect(content).toContain("data-filter=\"deployments\"");
+    expect(content).toContain("https://github.com/tyayers/apigee-emulator-service");
+    expect(content).toContain("type: deployment");
+    expect(content).toContain("maps.json");
+    expect(content).toContain("products.json");
+  });
 });

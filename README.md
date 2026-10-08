@@ -22,6 +22,7 @@
 * 🎨 Optimized and beautiful **YAML & JSON** exports, no funny artifacts or strange attributes.
 * 💯 **100% compatibility** to the Apigee bundle format - all policies and structures can be converted to and from YAML / JSON. If something doesn't work, create an issue and it will be fixed.
 * ⛲ **Feature Driven Development** - create reusable feature files that can be easily applied to many proxies, teams & deployments.
+* 📦 **Full-Stack Deployment YAML** - bundle proxy templates, direct proxies, products, KVMs, users, credentials, and tests in a unified manifest with one-command deploy, teardown, and Apigee Emulator export.
 
 ## Documentation & Reference
 
@@ -30,6 +31,7 @@ For comprehensive developer documentation with interactive search, category filt
 👉 **[https://apigee.github.io/apigee-templater](https://apigee.github.io/apigee-templater)**
 
 * **Real-Time Search & Filter**: Search across all commands, flags, parameters, and examples.
+* **Full-Stack Deployment Guide**: Step-by-step instructions for constructing Deployment YAML manifests, embedding KVMs, developers, credentials, and exporting to the Apigee Emulator.
 * **Complete Command Coverage**: In-depth syntax and options for `convert`, `describe`, `list`, `completion`, `skill`, `cache`, and Apigee X deployments.
 * **Copy-Pasteable Recipes**: End-to-end examples for AI model gateways, API key enforcement, SharedFlow bundles, and GitOps migrations.
 * **Template Repository**: Browse pre-built templates and features in the [apigee-template-repository](https://github.com/gcp-samples/apigee-template-repository). You can also set your own repository with the `AFT_REPOSITORY` environment variable (use the same directory format as the sample repository). If you ever reference a template, feature or proxy without a file path, it will be looked up in the repository as either a YAML or JSON file.
@@ -352,6 +354,205 @@ aft REST-AI-Gateway.yaml --organization MyApigeeOrg --environment dev
 ### Convert between templates, features and proxies
 
 You can convert any Apigee proxy to/from a feature just by using the **-f feature** flag, which turns any proxy into a feature, with parameters and the possibility to apply policies to all endpoints and targets in destination proxies (the **default** endpoint and **default** target policies are applied to all endpoints and targets in a destination proxy, which can be useful to apply general flows like auth or traffic management).
+
+## Full-Stack Deployment YAML
+
+**Deployment YAML** (`type: deployment`) is a unified manifest format introduced in recent versions of `aft`. In production API platforms, a proxy depends on a web of interconnected assets: API products, runtime Key-Value Maps (KVMs), developer profiles, application credentials, analytics collectors, and verification tests. 
+
+Instead of maintaining fragmented scripts and executing multi-step CLI commands, Deployment YAML brings the entire Apigee environment into **one declarative, version-controllable file**.
+
+### Linked Files vs. Embedded Resources
+
+Deployment YAML allows you to construct environments in whatever way fits your project:
+* **Linked External Files**: Reference external YAML files by relative path (e.g. `templates: [ REST-AI-Completions.yaml ]` or `products: [ products/starter.yaml ]`), which `aft` resolves locally or from the central template repository.
+* **Embedded / Inline Resources**: Embed standalone proxies, API products, KVMs, users with app credentials, telemetry collectors, and tests directly within the same YAML.
+* **Hybrid Mixing**: Combine linked external files and inline definitions in the same deployment manifest.
+
+### Constructing a Deployment YAML
+
+Start simple by linking modular files, or embed resources inline:
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json
+gateway: apigee
+schemaVersion: 1.0.0
+name: enterprise-ai-suite
+displayName: Enterprise AI Suite
+type: deployment
+description: Full-stack deployment bundling proxy templates, direct proxies, KVMs, products, users, and tests.
+environments:
+  - dev
+  - prod
+
+# 1. Composed Proxy Templates (external file reference or inline)
+templates:
+  - REST-AI-Completions.yaml
+
+# 2. Standalone Direct Proxies (embedded inline or linked)
+proxies:
+  - name: MockTargetProxy-v1
+    displayName: Mock Target Proxy
+    type: proxy
+    endpoints:
+      - name: default
+        basePath: /v1/mock
+        routes:
+          - name: default
+            target: default
+    targets:
+      - name: default
+        url: https://mocktarget.apigee.net
+
+# 3. Key-Value Maps (Environment-Scoped & Proxy-Scoped)
+kvms:
+  - name: GlobalConfig
+    type: environment
+    values:
+      ROUTING_TIER: enterprise
+      API_TIMEOUT: "5000"
+  - name: ProxyRouting
+    type: proxy
+    proxy: MockTargetProxy-v1
+    values:
+      DEFAULT_HEADER: enabled
+
+# 4. API Products (Governing REST, LLM Model Garden, and MCP Tool Calls)
+products:
+  - name: enterprise-ai-product
+    displayName: Enterprise AI Product
+    type: product
+    access: public
+    approvalType: auto
+    environments:
+      - dev
+    proxies:
+      - REST-AI-Completions
+      - MockTargetProxy-v1
+    quota: "50000"
+    quotaInterval: "1"
+    quotaTimeUnit: month
+    llmOperations:
+      - apiSource: REST-AI-Completions
+        operations:
+          - name: /
+            methods: [POST]
+            model: gemini-2.5-flash
+            llmTokenQuota:
+              limit: "10000"
+              interval: "1"
+              timeUnit: minute
+    payloadOperations:
+      - apiSource: REST-AI-Completions
+        protocol: MCP
+        operations:
+          - name: tools/list
+          - name: tools/call/get_customer
+            quota:
+              limit: "60"
+              interval: "1"
+              timeUnit: minute
+
+# 5. Developer Users, Apps & Pre-Provisioned Credentials
+users:
+  - name: partner-dev
+    type: user
+    email: partner@example.com
+    firstName: Partner
+    lastName: Developer
+    userName: partnerdev
+    status: active
+    apps:
+      - name: Partner Integration App
+        displayName: Partner Integration App
+        status: approved
+        products:
+          - enterprise-ai-product
+        credentials:
+          - consumerKey: partner-client-key-12345
+            consumerSecret: partner-client-secret-67890
+            status: approved
+            products:
+              - enterprise-ai-product
+
+# 6. Automated Runtime Tests & Assertions
+tests:
+  - name: test-completions
+    description: Verifies end-to-end authentication and status code
+    proxy: REST-AI-Completions
+    product: enterprise-ai-product
+    path: /v1/chat/completions
+    method: POST
+    headers:
+      Content-Type: application/json
+      x-api-key: partner-client-key-12345
+    body: |
+      {"model": "gemini-2.5-flash", "messages": [{"role": "user", "content": "Ping"}]}
+    assertions:
+      - response.status == 200
+```
+
+### One-Command Deployment to GCP / Apigee X (`--project`)
+
+Deploy all data collectors, proxy templates, standalone proxies, API products, developers, apps, and credentials to your GCP project or Apigee organization in a single command:
+
+```bash
+aft deployment.yaml --project my-gcp-project --environment dev
+# Or using --org / --organization:
+aft deployment.yaml --org my-org --environment dev
+
+# Attach a Google Cloud Service Account to deployed proxies:
+aft deployment.yaml --project my-gcp-project --environment prod --sa apigee-runtime
+```
+
+`aft` automatically coordinates dependency provisioning:
+1. Data Collectors are created first.
+2. Proxy Templates & standalone Proxies are compiled to bundles and revision-deployed.
+3. API Products are provisioned with environment and proxy bindings.
+4. Developer Users & Apps are provisioned with API credentials.
+5. Custom Analytics Reports are registered.
+
+### One-Command Teardown & Deletion (`--delete`)
+
+Clean up the entire ecosystem in a single call with `--delete`:
+
+```bash
+aft deployment.yaml --delete --project my-gcp-project
+```
+
+`aft` safely deletes all resources in **reverse dependency order** to avoid dependency locks:
+1. **Developer Apps & Credentials**: Revokes keys and deletes registered apps.
+2. **Developer Users**: Deletes developer profiles.
+3. **API Products**: Deletes API products and detaches proxies.
+4. **Proxies & Templates**: Undeploys revisions from environments and deletes the proxy bundles.
+5. **Reports & Data Collectors**: Cleans up custom reports and telemetry collectors.
+
+### Local Emulation with Apigee Emulator
+
+`aft` compiles and exports a Deployment YAML into the complete directory structure expected by the **Apigee Emulator**:
+
+```bash
+# Export proxy ZIP bundles and emulator JSON manifests
+aft deployment.yaml -f zip -o ./emulator-dist/
+```
+
+This generates:
+* `{ProxyName}.zip` - Apigee proxy bundles ready for emulator deployment
+* `products.json` & `apiproducts.json` - Emulator API products catalog
+* `developers.json` & `users.json` - Emulator developer identities
+* `developerapps.json` & `apps.json` - Registered apps with pre-loaded API keys & secrets
+* `maps.json` - Environment and proxy-scoped Key-Value Maps (KVMs)
+* `datacollectors.json` - Telemetry collectors
+
+You can mount this output directly into the [Apigee Emulator Service](https://github.com/tyayers/apigee-emulator-service) Docker container for instant, zero-cloud-cost local development and offline CI/CD test execution:
+
+```bash
+docker run -d --name apigee-emulator \
+  -p 8080:8080 -p 8443:8443 -p 8998:8998 \
+  -v $(pwd)/emulator-dist:/opt/apigee/testdata \
+  ghcr.io/tyayers/apigee-emulator-service:latest
+```
+
+Check out the [Apigee Emulator Service repository](https://github.com/tyayers/apigee-emulator-service) for examples, Docker Compose templates, and automated emulator testing workflows.
 
 ### Common variables
 
