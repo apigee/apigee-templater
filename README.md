@@ -9,9 +9,9 @@
 ![image](https://img.shields.io/badge/Apache--2.0-green?style=for-the-badge)
 
 > [!IMPORTANT]
-> 🚀 **Exciting News: Native Apigee X & `gcloud` YAML Proxy Support is now in BETA!**
+> 🚀 **Native Apigee X & `gcloud` YAML Proxy Support is now generally available (GA)!**
 > 
-> Google Cloud has launched native [Apigee YAML Proxy Configurations](https://docs.cloud.google.com/apigee/docs/api-platform/fundamentals/configure-proxy-with-yaml) and [`gcloud beta apigee apis import`](https://docs.cloud.google.com/sdk/gcloud/reference/beta/apigee/apis/import)!
+> Google Cloud has launched native [Apigee YAML Proxy Configurations](https://docs.cloud.google.com/apigee/docs/api-platform/fundamentals/configure-proxy-with-yaml) and [`gcloud apigee apis import`](https://docs.cloud.google.com/sdk/gcloud/reference/apigee/apis/import)!
 > 
 > **AFT v5** is fully aligned with the official Apigee YAML schema, giving you a seamless bridge between local feature templating and native `gcloud` / Apigee X deployments.
 
