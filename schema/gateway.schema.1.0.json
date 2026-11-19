@@ -28,6 +28,7 @@
       "properties": {
         "name": { "type": "string" },
         "mode": { "type": "string", "enum": ["Request", "Response", ""] },
+        "position": { "type": "string" },
         "condition": { "type": "string" },
         "steps": {
           "type": "array",
@@ -247,6 +248,7 @@
       "properties": {
         "name": { "type": "string" },
         "description": { "type": "string" },
+        "serviceAccount": { "type": "string" },
         "documentation": { "type": "string" },
         "proxy": { "type": "string" },
         "url": { "type": "string" },
@@ -282,6 +284,7 @@
         "schemaVersion": { "type": "string" },
         "priority": { "type": "number" },
         "description": { "type": "string" },
+        "serviceAccount": { "type": "string" },
         "documentation": { "type": "string" },
         "features": {
           "type": "array",
@@ -317,6 +320,7 @@
         "gateway": { "type": "string" },
         "schemaVersion": { "type": "string" },
         "description": { "type": "string" },
+        "serviceAccount": { "type": "string" },
         "documentation": { "type": "string" },
         "priority": { "type": "number" },
         "categories": {
@@ -368,6 +372,7 @@
           "items": { "type": "string" }
         },
         "description": { "type": "string" },
+        "serviceAccount": { "type": "string" },
         "documentation": { "type": "string" },
         "parameters": {
           "type": "array",
@@ -474,6 +479,9 @@
           "type": "array",
           "items": { "$ref": "#/definitions/ProductLlmOperation" }
         },
+        "quota": { "$ref": "#/definitions/ProductQuota" },
+        "llmTokenQuota": { "$ref": "#/definitions/ProductQuota" },
+        "tokenQuota": { "$ref": "#/definitions/ProductQuota" },
         "attributes": {
           "type": "array",
           "items": { "$ref": "#/definitions/ProductAttribute" }
@@ -731,6 +739,7 @@
         "schemaVersion": { "type": "string" },
         "priority": { "type": "number" },
         "description": { "type": "string" },
+        "serviceAccount": { "type": "string" },
         "documentation": { "type": "string" },
         "email": { "type": "string" },
         "firstName": { "type": "string" },
@@ -794,6 +803,7 @@
         "schemaVersion": { "type": "string" },
         "priority": { "type": "number" },
         "description": { "type": "string" },
+        "serviceAccount": { "type": "string" },
         "documentation": { "type": "string" },
         "createdAt": { "type": "string" },
         "lastModifiedAt": { "type": "string" }
@@ -824,6 +834,7 @@
         "schemaVersion": { "type": "string" },
         "priority": { "type": "number" },
         "description": { "type": "string" },
+        "serviceAccount": { "type": "string" },
         "documentation": { "type": "string" },
         "chartType": { "type": "string" },
         "metrics": {
@@ -857,6 +868,7 @@
         "schemaVersion": { "type": "string" },
         "priority": { "type": "number" },
         "description": { "type": "string" },
+        "serviceAccount": { "type": "string" },
         "documentation": { "type": "string" },
         "environments": {
           "type": "array",

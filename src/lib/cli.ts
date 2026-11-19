@@ -62,6 +62,17 @@ const isReportFormat = (format?: string) =>
         format.toLowerCase(),
       ),
   );
+const isEmulatorTarget = (options: any) =>
+  Boolean(
+    (options?.format && options.format.toLowerCase() === "emulator") ||
+      (options?.output &&
+        (options.output.startsWith("http://") || options.output.startsWith("https://"))),
+  );
+const getEmulatorUrl = (options: any) =>
+  options?.output &&
+  (options.output.startsWith("http://") || options.output.startsWith("https://"))
+    ? options.output
+    : process.env.APIGEE_EMULATOR_URL || "http://localhost:8083";
 import CliAnimation, { AnimationStage } from "./animation.js";
 
 const auth = new GoogleAuth({
@@ -184,6 +195,7 @@ export class cli {
         "--help": Boolean,
         "--version": Boolean,
         "--delete": Boolean,
+        "--reset": Boolean,
         "--drz": String,
         "--no-animation": Boolean,
         "--no-anim": "--no-animation",
@@ -325,13 +337,21 @@ export class cli {
     }
 
     const isList = args["--listFeatures"] || false;
+    const isEmulatorOut =
+      Boolean(
+        args["--output"] &&
+          (args["--output"].startsWith("http://") || args["--output"].startsWith("https://")),
+      ) || Boolean(args["--format"] && args["--format"].toLowerCase() === "emulator");
+
     const org =
       args["--organization"] ||
       (args as any)["--org"] ||
       (args as any)["--project"] ||
-      (args["--output"] && args["--output"].includes(":")
+      (!isEmulatorOut && args["--output"] && args["--output"].includes(":")
         ? args["--output"].split(":")[0]
-        : args["--output"] && !args["--output"].match(/\.(yaml|yml|json|zip|dir)$/i)
+        : !isEmulatorOut &&
+            args["--output"] &&
+            !args["--output"].match(/\.(yaml|yml|json|zip|dir)$/i)
           ? args["--output"]
           : "");
 
@@ -365,6 +385,7 @@ export class cli {
       help: args["--help"] || false,
       version: args["--version"] || false,
       delete: args["--delete"] || false,
+      reset: Boolean(args["--reset"]),
       drz: args["--drz"] || "",
       noAnimation: noAnimation,
     };
@@ -375,12 +396,15 @@ export class cli {
 
     if (
       !options.format &&
+      !isEmulatorTarget(options) &&
       (options.output.includes(":") ||
         options.organization ||
         options.environment ||
         options.serviceAccount)
     ) {
       options.format = "proxy";
+    } else if (!options.format && isEmulatorTarget(options)) {
+      options.format = "emulator";
     }
 
     if (!options.name) {
@@ -494,6 +518,11 @@ export class cli {
       return "";
     }
 
+    if (primary.startsWith("http://") || primary.startsWith("https://")) {
+      if (secondary) return this.sanitizeName(secondary, "");
+      return "";
+    }
+
     if (primary.includes(":")) {
       let pieces = primary.split(":");
       if (pieces.length > 1 && pieces[1]) result = pieces[1];
@@ -533,7 +562,7 @@ export class cli {
     console.log(`    ${chalk.bold.yellow("describe".padEnd(22))} ${chalk.white("Describe an Apigee template, proxy, feature, product, user, or organization (--project) in the terminal summary.")}`);
     console.log(`    ${chalk.bold.yellow("reset".padEnd(22))} ${chalk.white("Reset a template, proxy, or feature file to default empty contents, or reset an Apigee organization (--project).")}`);
     console.log(`    ${chalk.bold.yellow("completion".padEnd(22))} ${chalk.white("Install or display shell tab-completion scripts (install, uninstall, zsh, bash, fish, powershell).")}`);
-    console.log(`    ${chalk.bold.yellow("skill".padEnd(22))} ${chalk.white("Install or uninstall Apigee Templater skill for AI coding assistants.")}`);
+    console.log(`    ${chalk.bold.yellow("skill".padEnd(22))} ${chalk.white("Install or uninstall AFT skill for AI coding assistants.")}`);
     console.log(`    ${chalk.bold.yellow("cache".padEnd(22))} ${chalk.white("Manage local cache of templates and features (clear).")}\n`);
 
     console.log(`  ${chalk.bold.cyan("OPTIONS:")}`);
@@ -569,10 +598,10 @@ export class cli {
     } else if (target === "uninstall") {
       this.uninstallSkillCommand();
     } else {
-      console.log(`\n  ${chalk.bold.cyan("📦 Apigee Templater AI Agent Skill:")}\n`);
-      console.log(`  ${chalk.white("Installs the Apigee Templater skill for AI assistants (Antigravity, Gemini CLI, Claude Code, Cursor, Codex, etc.).")}\n`);
+      console.log(`\n  ${chalk.bold.cyan("📦 AFT AI Agent Skill:")}\n`);
+      console.log(`  ${chalk.white("Installs the AFT skill for AI assistants (Antigravity, Gemini CLI, Claude Code, Cursor, Codex, etc.).")}\n`);
       console.log(`  ${chalk.bold.cyan("USAGE:")}`);
-      console.log(`    ${chalk.green("aft skill install")}     ${chalk.white("Install skill to ~/.agents/skills/apigee-templater")}`);
+      console.log(`    ${chalk.green("aft skill install")}     ${chalk.white("Install skill to ~/.agents/skills/aft")}`);
       console.log(`    ${chalk.green("aft skill uninstall")}   ${chalk.white("Remove installed skill")}\n`);
     }
   }
@@ -585,13 +614,16 @@ export class cli {
         return;
       }
 
-      const targetDir = path.join(homeDir, ".agents", "skills", "apigee-templater");
+      const targetDir = path.join(homeDir, ".agents", "skills", "aft");
       if (!fs.existsSync(targetDir)) {
         fs.mkdirSync(targetDir, { recursive: true });
       }
 
       const currentFileDir = path.dirname(new URL(import.meta.url).pathname);
       const possibleSkillSources = [
+        path.join(currentFileDir, "..", "skills", "aft"),
+        path.join(currentFileDir, "..", "..", "skills", "aft"),
+        path.join(process.cwd(), "skills", "aft"),
         path.join(currentFileDir, "..", "skills", "apigee-templater"),
         path.join(currentFileDir, "..", "..", "skills", "apigee-templater"),
         path.join(process.cwd(), "skills", "apigee-templater"),
@@ -605,24 +637,45 @@ export class cli {
         }
       }
 
+      let installed = false;
       if (sourceSkillDir) {
         fs.cpSync(sourceSkillDir, targetDir, { recursive: true });
-        console.log(`\n  ${chalk.green.bold("✔ Successfully installed Apigee Templater skill!")}`);
+        installed = true;
+      } else {
+        console.log(`  ${chalk.dim("Fetching latest skill definition from GitHub...")}`);
+        const skillUrls = [
+          "https://raw.githubusercontent.com/apigee/apigee-templater/main/skills/aft/SKILL.md",
+          "https://raw.githubusercontent.com/apigee/apigee-templater/main/skills/apigee-templater/SKILL.md",
+        ];
+        for (const skillUrl of skillUrls) {
+          const res = await fetch(skillUrl);
+          if (res.status === 200) {
+            const content = await res.text();
+            fs.writeFileSync(path.join(targetDir, "SKILL.md"), content, "utf8");
+            installed = true;
+            break;
+          }
+        }
+      }
+
+      if (installed) {
+        // Also sync to ~/.gemini/config/skills/aft if the directory exists
+        const geminiSkillsDir = path.join(homeDir, ".gemini", "config", "skills");
+        if (fs.existsSync(geminiSkillsDir)) {
+          const geminiTargetDir = path.join(geminiSkillsDir, "aft");
+          try {
+            if (!fs.existsSync(geminiTargetDir)) {
+              fs.mkdirSync(geminiTargetDir, { recursive: true });
+            }
+            fs.cpSync(targetDir, geminiTargetDir, { recursive: true });
+          } catch {}
+        }
+
+        console.log(`\n  ${chalk.green.bold("✔ Successfully installed AFT skill!")}`);
         console.log(`    Location: ${chalk.cyan(targetDir)}`);
         console.log(`    Compatible with: ${chalk.dim("Antigravity, Gemini CLI, Claude Code, Cursor, Codex, and other AI agents.")}\n`);
       } else {
-        console.log(`  ${chalk.dim("Fetching latest skill definition from GitHub...")}`);
-        const skillUrl = "https://raw.githubusercontent.com/apigee/apigee-templater/main/skills/apigee-templater/SKILL.md";
-        const res = await fetch(skillUrl);
-        if (res.status === 200) {
-          const content = await res.text();
-          fs.writeFileSync(path.join(targetDir, "SKILL.md"), content, "utf8");
-          console.log(`\n  ${chalk.green.bold("✔ Successfully installed Apigee Templater skill!")}`);
-          console.log(`    Location: ${chalk.cyan(targetDir)}`);
-          console.log(`    Compatible with: ${chalk.dim("Antigravity, Gemini CLI, Claude Code, Cursor, Codex, and other AI agents.")}\n`);
-        } else {
-          console.log(`\n  ${chalk.red("❌ Could not locate or download apigee-templater skill.")}\n`);
-        }
+        console.log(`\n  ${chalk.red("❌ Could not locate or download aft skill.")}\n`);
       }
     } catch (e: any) {
       console.log(`\n  ${chalk.red("❌ Failed to install skill:")} ${e.message}\n`);
@@ -633,10 +686,21 @@ export class cli {
     try {
       const homeDir = process.env.HOME || process.env.USERPROFILE;
       if (!homeDir) return;
-      const targetDir = path.join(homeDir, ".agents", "skills", "apigee-templater");
-      if (fs.existsSync(targetDir)) {
-        fs.rmSync(targetDir, { recursive: true, force: true });
-        console.log(`\n  ${chalk.green.bold("✔ Successfully uninstalled Apigee Templater skill.")}\n`);
+      const targetDir = path.join(homeDir, ".agents", "skills", "aft");
+      const legacyTargetDir = path.join(homeDir, ".agents", "skills", "apigee-templater");
+      const geminiTargetDir = path.join(homeDir, ".gemini", "config", "skills", "aft");
+      const geminiLegacyDir = path.join(homeDir, ".gemini", "config", "skills", "apigee-templater");
+
+      let removed = false;
+      for (const dir of [targetDir, legacyTargetDir, geminiTargetDir, geminiLegacyDir]) {
+        if (fs.existsSync(dir)) {
+          fs.rmSync(dir, { recursive: true, force: true });
+          removed = true;
+        }
+      }
+
+      if (removed) {
+        console.log(`\n  ${chalk.green.bold("✔ Successfully uninstalled AFT skill.")}\n`);
       } else {
         console.log(`\n  ${chalk.yellow("ℹ Skill is not currently installed.")}\n`);
       }
@@ -3412,31 +3476,142 @@ export class cli {
             return;
           }
 
+          if (isEmulatorTarget(options)) {
+            const emulatorUrl = getEmulatorUrl(options);
+            const env = options.environment || "test";
+            const reset = Boolean(options.reset);
+            const consolidated = await this.apigeeService.consolidateDeployment(
+              deployment,
+              templateDir,
+              inputParameters,
+              this.converter,
+            );
+            const yamlStr = YAML.stringify(consolidated, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            });
+            const finalYaml = yamlStr.startsWith("#")
+              ? yamlStr
+              : `# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json\n${yamlStr}`;
+
+            console.log(
+              `  ${chalk.cyan("ℹ Deploying to Apigee Emulator Service:")} ${chalk.white(emulatorUrl)}`,
+            );
+            const deployResult = await this.apigeeService.deployToEmulatorService(emulatorUrl, {
+              yaml: finalYaml,
+              environment: env,
+              reset,
+              parameters: inputParameters,
+            });
+
+            if (deployResult && deployResult.success) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Successfully deployed to Apigee Emulator (${deployResult.environment || env}) in ${deployResult.durationMs || 0}ms`,
+              );
+              if (deployResult.deployedProxies && deployResult.deployedProxies.length > 0) {
+                for (const p of deployResult.deployedProxies) {
+                  console.log(
+                    `    ${chalk.cyan("•")} ${chalk.bold(p.name)} (rev ${p.revision}) → ${chalk.green(p.basePath)}`,
+                  );
+                }
+              }
+              await this.printOverviewCard(
+                `Emulator Deployment: ${consolidated.name}`,
+                [
+                  `Target: Apigee Emulator Service`,
+                  `Endpoint: ${emulatorUrl}`,
+                  `Environment: ${deployResult.environment || env}`,
+                  `Revision: ${deployResult.revision || "1"}`,
+                  `Total Deployed: ${deployResult.totalDeployed ?? deployResult.deployedProxies?.length ?? 1}`,
+                  ...(deployResult.deployedProxies || []).map(
+                    (p: any) => `Proxy: ${p.name} (${p.basePath})`,
+                  ),
+                ],
+                emulatorUrl,
+              );
+              return;
+            } else {
+              const errMsg = deployResult?.error || deployResult?.message || "Unknown error";
+              console.error(`  ${chalk.red.bold("✖ Deployment failed:")} ${errMsg}`);
+              throw new Error(`Emulator deployment failed: ${errMsg}`);
+            }
+          }
+
           let pieces =
-            options.output && options.output.includes(":") ? options.output.split(":") : [];
+            options.output && !isEmulatorTarget(options) && options.output.includes(":")
+              ? options.output.split(":")
+              : [];
           let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
-          if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+          if (
+            !org &&
+            options.output &&
+            !isEmulatorTarget(options) &&
+            !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)
+          ) {
             org = options.output;
           }
           let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
-          let rawSa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+          let rawSa = options.serviceAccount || deployment?.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
           let sa = this.formatServiceAccount(rawSa, org);
           if (sa) options.serviceAccount = sa;
 
           if (options.output && options.output.toLowerCase().endsWith(".json")) {
-            fs.writeFileSync(options.output, JSON.stringify(deployment, null, 2));
+            let outDep = deployment;
+            if (
+              options.format === "deployment" ||
+              (deployment.templates && deployment.templates.length > 0)
+            ) {
+              outDep = await this.apigeeService.consolidateDeployment(
+                deployment,
+                templateDir,
+                inputParameters,
+                this.converter,
+              );
+            }
+            if (path.dirname(options.output) && !fs.existsSync(path.dirname(options.output))) {
+              fs.mkdirSync(path.dirname(options.output), { recursive: true });
+            }
+            fs.writeFileSync(options.output, JSON.stringify(outDep, null, 2));
+            await this.printOverviewCard(
+              `Deployment ${outDep.name}`,
+              this.converter.deploymentToStringArray(outDep),
+              options.output,
+            );
+            return;
           } else if (
             options.output &&
             (options.output.toLowerCase().endsWith(".yaml") ||
               options.output.toLowerCase().endsWith(".yml"))
           ) {
-            fs.writeFileSync(
+            let outDep = deployment;
+            if (
+              options.format === "deployment" ||
+              (deployment.templates && deployment.templates.length > 0)
+            ) {
+              outDep = await this.apigeeService.consolidateDeployment(
+                deployment,
+                templateDir,
+                inputParameters,
+                this.converter,
+              );
+            }
+            if (path.dirname(options.output) && !fs.existsSync(path.dirname(options.output))) {
+              fs.mkdirSync(path.dirname(options.output), { recursive: true });
+            }
+            const yamlStr = YAML.stringify(outDep, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            });
+            const finalYaml = yamlStr.startsWith("#")
+              ? yamlStr
+              : `# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json\n${yamlStr}`;
+            fs.writeFileSync(options.output, finalYaml);
+            await this.printOverviewCard(
+              `Deployment ${outDep.name}`,
+              this.converter.deploymentToStringArray(outDep),
               options.output,
-              YAML.stringify(deployment, {
-                aliasDuplicateObjects: false,
-                blockQuote: "literal",
-              }),
             );
+            return;
           } else if (
             (options.output && options.output.includes(":")) ||
             options.organization ||
@@ -3472,6 +3647,44 @@ export class cli {
                 templateDir,
               );
               if (tProxy) {
+                let proxySa =
+                  sa ||
+                  this.formatServiceAccount(
+                    tProxy.serviceAccount || (t as any).serviceAccount || "",
+                    org,
+                  );
+                if (env) {
+                  const saReq = this.converter.detectServiceAccountRequirements(tProxy);
+                  if (saReq.required && !proxySa) {
+                    if (process.stdin.isTTY) {
+                      console.log(`\n  ${chalk.yellow.bold("⚠ Google Service Account Required:")}`);
+                      console.log(
+                        `  ${chalk.white(
+                          `Template proxy '${tProxy.name}' requires a Service Account for Apigee X deployment:`,
+                        )}`,
+                      );
+                      for (const r of saReq.reasons) {
+                        console.log(`    ${chalk.yellow("•")} ${chalk.white(r)}`);
+                      }
+                      const answer = await inquirer.prompt([
+                        {
+                          type: "input",
+                          name: "serviceAccount",
+                          message: chalk.cyan(`Enter Google Service Account name or email for project '${org}':`),
+                          validate: (val: string) => val.trim().length > 0 || "Service Account cannot be empty",
+                        },
+                      ]);
+                      if (answer.serviceAccount) {
+                        proxySa = this.formatServiceAccount(answer.serviceAccount, org);
+                      }
+                    }
+                    if (!proxySa) {
+                      throw new Error(
+                        `Template proxy '${tProxy.name}' requires a Google Service Account for deployment to environment '${env}' (${saReq.reasons.join(", ")}). Please specify via --sa <name-or-email>.`,
+                      );
+                    }
+                  }
+                }
                 let zipPath = await this.converter.proxyToApigeeZip(tProxy);
                 let lastRev = await this.apigeeService.apigeeProxyExport(
                   tProxy.name,
@@ -3484,7 +3697,7 @@ export class cli {
                   await this.apigeeService.apigeeProxyRevisionDeploy(
                     tProxy.name,
                     lastRev,
-                    sa,
+                    proxySa,
                     env,
                     org,
                     options.drz,
@@ -3499,6 +3712,44 @@ export class cli {
             for (let p of resolved.proxies) {
               console.log(`  Processing Proxy: ${chalk.cyan(p.name)}`);
               this.converter.proxyUpdateParameters(p, inputParameters);
+              let proxySa =
+                sa ||
+                this.formatServiceAccount(
+                  p.serviceAccount || "",
+                  org,
+                );
+              if (env) {
+                const saReq = this.converter.detectServiceAccountRequirements(p);
+                if (saReq.required && !proxySa) {
+                  if (process.stdin.isTTY) {
+                    console.log(`\n  ${chalk.yellow.bold("⚠ Google Service Account Required:")}`);
+                    console.log(
+                      `  ${chalk.white(
+                        `Proxy '${p.name}' requires a Service Account for Apigee X deployment:`,
+                      )}`,
+                    );
+                    for (const r of saReq.reasons) {
+                      console.log(`    ${chalk.yellow("•")} ${chalk.white(r)}`);
+                    }
+                    const answer = await inquirer.prompt([
+                      {
+                        type: "input",
+                        name: "serviceAccount",
+                        message: chalk.cyan(`Enter Google Service Account name or email for project '${org}':`),
+                        validate: (val: string) => val.trim().length > 0 || "Service Account cannot be empty",
+                      },
+                    ]);
+                    if (answer.serviceAccount) {
+                      proxySa = this.formatServiceAccount(answer.serviceAccount, org);
+                    }
+                  }
+                  if (!proxySa) {
+                    throw new Error(
+                      `Proxy '${p.name}' requires a Google Service Account for deployment to environment '${env}' (${saReq.reasons.join(", ")}). Please specify via --sa <name-or-email>.`,
+                    );
+                  }
+                }
+              }
               let zipPath = await this.converter.proxyToApigeeZip(p);
               let lastRev = await this.apigeeService.apigeeProxyExport(
                 p.name,
@@ -3511,7 +3762,7 @@ export class cli {
                 await this.apigeeService.apigeeProxyRevisionDeploy(
                   p.name,
                   lastRev,
-                  sa,
+                  proxySa,
                   env,
                   org,
                   options.drz,
@@ -3526,6 +3777,44 @@ export class cli {
               const featName = f.name || "unnamed";
               console.log(`  Processing Feature: ${chalk.cyan(featName)}`);
               let fProxy = this.converter.featureToProxy(f, inputParameters);
+              let proxySa =
+                sa ||
+                this.formatServiceAccount(
+                  fProxy.serviceAccount || f.serviceAccount || "",
+                  org,
+                );
+              if (env) {
+                const saReq = this.converter.detectServiceAccountRequirements(fProxy);
+                if (saReq.required && !proxySa) {
+                  if (process.stdin.isTTY) {
+                    console.log(`\n  ${chalk.yellow.bold("⚠ Google Service Account Required:")}`);
+                    console.log(
+                      `  ${chalk.white(
+                        `Feature proxy '${fProxy.name}' requires a Service Account for Apigee X deployment:`,
+                      )}`,
+                    );
+                    for (const r of saReq.reasons) {
+                      console.log(`    ${chalk.yellow("•")} ${chalk.white(r)}`);
+                    }
+                    const answer = await inquirer.prompt([
+                      {
+                        type: "input",
+                        name: "serviceAccount",
+                        message: chalk.cyan(`Enter Google Service Account name or email for project '${org}':`),
+                        validate: (val: string) => val.trim().length > 0 || "Service Account cannot be empty",
+                      },
+                    ]);
+                    if (answer.serviceAccount) {
+                      proxySa = this.formatServiceAccount(answer.serviceAccount, org);
+                    }
+                  }
+                  if (!proxySa) {
+                    throw new Error(
+                      `Feature proxy '${fProxy.name}' requires a Google Service Account for deployment to environment '${env}' (${saReq.reasons.join(", ")}). Please specify via --sa <name-or-email>.`,
+                    );
+                  }
+                }
+              }
               let zipPath = await this.converter.proxyToApigeeZip(fProxy);
               let lastRev = await this.apigeeService.apigeeProxyExport(
                 fProxy.name,
@@ -3538,7 +3827,7 @@ export class cli {
                 await this.apigeeService.apigeeProxyRevisionDeploy(
                   fProxy.name,
                   lastRev,
-                  sa,
+                  proxySa,
                   env,
                   org,
                   options.drz,
@@ -4006,9 +4295,43 @@ export class cli {
               org = options.output;
             }
             let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
-            let rawSa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+            let rawSa = options.serviceAccount || feature.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
             let sa = this.formatServiceAccount(rawSa, org);
             if (sa) options.serviceAccount = sa;
+
+            if (org && env) {
+              const saReq = this.converter.detectServiceAccountRequirements(feature);
+              if (saReq.required && !sa) {
+                if (process.stdin.isTTY) {
+                  console.log(`\n  ${chalk.yellow.bold("⚠ Google Service Account Required:")}`);
+                  console.log(
+                    `  ${chalk.white(
+                      `SharedFlow '${options.name || feature.name}' requires a Service Account for Apigee X deployment:`,
+                    )}`,
+                  );
+                  for (const r of saReq.reasons) {
+                    console.log(`    ${chalk.yellow("•")} ${chalk.white(r)}`);
+                  }
+                  const answer = await inquirer.prompt([
+                    {
+                      type: "input",
+                      name: "serviceAccount",
+                      message: chalk.cyan(`Enter Google Service Account name or email for project '${org}':`),
+                      validate: (val: string) => val.trim().length > 0 || "Service Account cannot be empty",
+                    },
+                  ]);
+                  if (answer.serviceAccount) {
+                    sa = this.formatServiceAccount(answer.serviceAccount, org);
+                    options.serviceAccount = sa;
+                  }
+                }
+                if (!sa) {
+                  throw new Error(
+                    `SharedFlow '${options.name || feature.name}' requires a Google Service Account for deployment to environment '${env}' (${saReq.reasons.join(", ")}). Please specify via --sa <name-or-email> or in the output target '${org}:${feature.name}:${env}:<sa>'.`,
+                  );
+                }
+              }
+            }
             let lastRevision = "";
 
             if (!options.token) {
@@ -4071,9 +4394,11 @@ export class cli {
 
         const targetOrg =
           options.organization ||
-          (options.output && options.output.includes(":")
+          (!isEmulatorTarget(options) && options.output && options.output.includes(":")
             ? options.output.split(":")[0]
-            : options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)
+            : !isEmulatorTarget(options) &&
+                options.output &&
+                !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)
               ? options.output
               : "");
         if (targetOrg && !inputParameters["PROJECT_ID"]) {
@@ -4094,6 +4419,62 @@ export class cli {
         process.chdir(startDir);
         if (proxy) {
           if (options.name) proxy.name = options.name;
+
+          if (isEmulatorTarget(options)) {
+            const emulatorUrl = getEmulatorUrl(options);
+            const env = options.environment || "test";
+            const reset = Boolean(options.reset);
+            const yamlStr = YAML.stringify(proxy, {
+              aliasDuplicateObjects: false,
+              blockQuote: "literal",
+            });
+            const finalYaml = yamlStr.startsWith("#")
+              ? yamlStr
+              : `# yaml-language-server: $schema=https://raw.githubusercontent.com/apigee/apigee-templater/main/schema/gateway.schema.1.0.json\n${yamlStr}`;
+
+            console.log(
+              `  ${chalk.cyan("ℹ Deploying to Apigee Emulator Service:")} ${chalk.white(emulatorUrl)}`,
+            );
+            const deployResult = await this.apigeeService.deployToEmulatorService(emulatorUrl, {
+              yaml: finalYaml,
+              environment: env,
+              reset,
+              parameters: inputParameters,
+            });
+
+            if (deployResult && deployResult.success) {
+              console.log(
+                `  ${chalk.green.bold("✔")} Successfully deployed to Apigee Emulator (${deployResult.environment || env}) in ${deployResult.durationMs || 0}ms`,
+              );
+              if (deployResult.deployedProxies && deployResult.deployedProxies.length > 0) {
+                for (const p of deployResult.deployedProxies) {
+                  console.log(
+                    `    ${chalk.cyan("•")} ${chalk.bold(p.name)} (rev ${p.revision}) → ${chalk.green(p.basePath)}`,
+                  );
+                }
+              }
+              await this.printOverviewCard(
+                `Emulator Deployment: ${proxy.name}`,
+                [
+                  `Target: Apigee Emulator Service`,
+                  `Endpoint: ${emulatorUrl}`,
+                  `Environment: ${deployResult.environment || env}`,
+                  `Revision: ${deployResult.revision || "1"}`,
+                  `Total Deployed: ${deployResult.totalDeployed ?? deployResult.deployedProxies?.length ?? 1}`,
+                  ...(deployResult.deployedProxies || []).map(
+                    (p: any) => `Proxy: ${p.name} (${p.basePath})`,
+                  ),
+                ],
+                emulatorUrl,
+              );
+              return;
+            } else {
+              const errMsg = deployResult?.error || deployResult?.message || "Unknown error";
+              console.error(`  ${chalk.red.bold("✖ Deployment failed:")} ${errMsg}`);
+              throw new Error(`Emulator deployment failed: ${errMsg}`);
+            }
+          }
+
           if (options.output && options.output.toLowerCase().endsWith(".json")) {
             if (path.dirname(options.output) && !fs.existsSync(path.dirname(options.output))) {
               fs.mkdirSync(path.dirname(options.output), { recursive: true });
@@ -4122,15 +4503,56 @@ export class cli {
             let outputPath = await this.converter.proxyToApigeeZip(proxy);
             if (!options.name) options.name = proxy.name;
             let pieces =
-              options.output && options.output.includes(":") ? options.output.split(":") : [];
+              options.output && !isEmulatorTarget(options) && options.output.includes(":")
+                ? options.output.split(":")
+                : [];
             let org = options.organization || (pieces.length > 0 ? pieces[0] : "");
-            if (!org && options.output && !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)) {
+            if (
+              !org &&
+              options.output &&
+              !isEmulatorTarget(options) &&
+              !options.output.match(/\.(yaml|yml|json|zip|dir)$/i)
+            ) {
               org = options.output;
             }
             let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
-            let rawSa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+            let rawSa = options.serviceAccount || proxy.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
             let sa = this.formatServiceAccount(rawSa, org);
             if (sa) options.serviceAccount = sa;
+
+            if (org && env) {
+              const saReq = this.converter.detectServiceAccountRequirements(proxy);
+              if (saReq.required && !sa) {
+                if (process.stdin.isTTY) {
+                  console.log(`\n  ${chalk.yellow.bold("⚠ Google Service Account Required:")}`);
+                  console.log(
+                    `  ${chalk.white(
+                      `Proxy '${options.name || proxy.name}' requires a Service Account for Apigee X deployment:`,
+                    )}`,
+                  );
+                  for (const r of saReq.reasons) {
+                    console.log(`    ${chalk.yellow("•")} ${chalk.white(r)}`);
+                  }
+                  const answer = await inquirer.prompt([
+                    {
+                      type: "input",
+                      name: "serviceAccount",
+                      message: chalk.cyan(`Enter Google Service Account name or email for project '${org}':`),
+                      validate: (val: string) => val.trim().length > 0 || "Service Account cannot be empty",
+                    },
+                  ]);
+                  if (answer.serviceAccount) {
+                    sa = this.formatServiceAccount(answer.serviceAccount, org);
+                    options.serviceAccount = sa;
+                  }
+                }
+                if (!sa) {
+                  throw new Error(
+                    `Proxy '${options.name || proxy.name}' requires a Google Service Account for deployment to environment '${env}' (${saReq.reasons.join(", ")}). Please specify via --sa <name-or-email> or in the output target '${org}:${options.name || proxy.name}:${env}:<sa>'.`,
+                  );
+                }
+              }
+            }
             let lastRevision = "";
 
             if (!options.token) {
@@ -4178,7 +4600,7 @@ export class cli {
             org = options.output;
           }
           let env = options.environment || (pieces.length > 2 ? pieces[2] : "");
-          let rawSa = options.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
+          let rawSa = options.serviceAccount || proxy?.serviceAccount || (pieces.length > 3 ? pieces[3] : "");
           let sa = this.formatServiceAccount(rawSa, org);
           if (sa) options.serviceAccount = sa;
           if (
@@ -4373,6 +4795,7 @@ class cliArgs {
   help = false;
   version = false;
   delete = false;
+  reset = false;
   drz = "";
   noAnimation = false;
 }
@@ -4388,7 +4811,8 @@ const helpCommands = [
   },
   {
     name: "--output, -o",
-    description: "An optional file or directory output path (e.g. AI-Template-v1.yaml, ./proxies/).",
+    description:
+      "An optional file or directory output path (e.g. deployment.yaml, ./proxies/), Apigee target 'org:proxy:env', or Emulator Service URL (e.g. https://apigee-emulator.run.app or http://localhost:8083).",
   },
   {
     name: "--organization, --org, --project",
@@ -4404,7 +4828,8 @@ const helpCommands = [
   },
   {
     name: "--format, -f",
-    description: "An optional format to convert input into: 'proxy', 'template', 'feature', 'product', 'user', 'datacollector', 'report', or 'sharedflow'.",
+    description:
+      "An optional format to convert input into: 'proxy', 'template', 'feature', 'deployment', 'product', 'user', 'datacollector', 'report', 'sharedflow', or 'emulator'.",
   },
   {
     name: "--applyFeature, -a",
@@ -4434,6 +4859,10 @@ const helpCommands = [
   {
     name: "--delete",
     description: "Delete Apigee resources defined in input template, product, user, datacollector, report, deployment, or proxy.",
+  },
+  {
+    name: "--reset",
+    description: "Reset runtime state before deploying to the Apigee Emulator Service.",
   },
   {
     name: "--token, -t",

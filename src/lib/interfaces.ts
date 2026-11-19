@@ -12,6 +12,7 @@ export class Template {
   schemaVersion: string = "1.0.0"
   priority?: number;
   description: string = "";
+  serviceAccount?: string;
   features: string[] = [];
   parameters: Parameter[] = [];
   defaultEndpoint?: ProxyEndpoint;
@@ -53,6 +54,7 @@ export class Proxy {
   priority?: number;
   categories?: string[] = [];
   description: string = "";
+  serviceAccount?: string;
   documentation?: string = "";
   parameters: Parameter[] = [];
   endpoints: ProxyEndpoint[] = [];
@@ -143,6 +145,7 @@ export class Feature {
   uid?: string;
   type: string = "feature";
   description: string = "";
+  serviceAccount?: string;
   documentation?: string = "";
   gateway: string = "apigee";
   schemaVersion: string = "1.0.0"
@@ -427,6 +430,7 @@ export class Deployment {
   schemaVersion: string = "1.0.0";
   priority?: number;
   description: string = "";
+  serviceAccount?: string;
   documentation?: string = "";
   environments?: string[] = [];
   parameters: Parameter[] = [];

@@ -593,6 +593,7 @@ export class ApigeeTemplaterService {
                 result = YAML.parse(content) as Template;
               }
               if (result) {
+                (result as any)._dir = path.dirname(path.resolve(lp));
                 if (!result.name) {
                   result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
                 }
@@ -681,7 +682,15 @@ export class ApigeeTemplaterService {
       }
       if (typeof templateRef === "string") {
         let res = await this.templateGet(templateRef, relativeDir);
-        if (res && !res.features) res.features = [];
+        if (res) {
+          if (!res.features) res.features = [];
+          if (!(res as any)._dir && relativeDir) {
+            const candidate = path.resolve(relativeDir, templateRef);
+            if (fs.existsSync(candidate)) {
+              (res as any)._dir = path.dirname(candidate);
+            }
+          }
+        }
         return resolve(res);
       }
       resolve(undefined);
@@ -715,6 +724,7 @@ export class ApigeeTemplaterService {
                 result = YAML.parse(content) as Proxy;
               }
               if (result) {
+                (result as any)._dir = path.dirname(path.resolve(lp));
                 if (!result.name) {
                   result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
                 }
@@ -838,6 +848,7 @@ export class ApigeeTemplaterService {
                 result = YAML.parse(content) as Feature;
               }
               if (result) {
+                (result as any)._dir = path.dirname(path.resolve(lp));
                 if (!result.name) {
                   result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
                 }
@@ -1069,10 +1080,11 @@ export class ApigeeTemplaterService {
       let proxy: Proxy | undefined = undefined;
 
       if (template) {
+        const effectiveDir = (template as any)._dir || relativeDir;
         let features: Feature[] = [];
         if (template.features && Array.isArray(template.features)) {
           for (let templateFeature of template.features) {
-            let loadedFeature = await this.loadFeature(templateFeature, relativeDir);
+            let loadedFeature = await this.loadFeature(templateFeature, effectiveDir);
             if (loadedFeature) {
               features.push(loadedFeature);
             } else {
@@ -1961,6 +1973,7 @@ export class ApigeeTemplaterService {
                 result = YAML.parse(content) as Product;
               }
               if (result) {
+                (result as any)._dir = path.dirname(path.resolve(lp));
                 if (!result.name) {
                   result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
                 }
@@ -1997,6 +2010,7 @@ export class ApigeeTemplaterService {
               const text = await res.text();
               result = candidate.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
               if (result) {
+                (result as any)._dir = path.dirname(path.resolve(lp));
                 if (!result.name) {
                   result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
                 }
@@ -2503,6 +2517,7 @@ export class ApigeeTemplaterService {
                 result = YAML.parse(content) as Deployment;
               }
               if (result) {
+                (result as any)._dir = path.dirname(path.resolve(lp));
                 if (!result.name) {
                   result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
                 }
@@ -2539,6 +2554,7 @@ export class ApigeeTemplaterService {
               const text = await res.text();
               result = candidate.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
               if (result) {
+                (result as any)._dir = path.dirname(path.resolve(lp));
                 if (!result.name) {
                   result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
                 }
@@ -2655,6 +2671,217 @@ export class ApigeeTemplaterService {
     }
 
     return { templates, proxies, features, products, users, dataCollectors, reports };
+  }
+
+  public async consolidateDeployment(
+    deployment: Deployment,
+    relativeDir?: string,
+    parameters: { [key: string]: string } = {},
+    converter?: ApigeeConverter,
+  ): Promise<Deployment> {
+    const conv = converter || new ApigeeConverter();
+    const consolidated: Deployment = new Deployment();
+    consolidated.gateway = deployment.gateway || "apigee";
+    consolidated.schemaVersion = deployment.schemaVersion || "1.0.0";
+    consolidated.name = deployment.name;
+    if (deployment.displayName) consolidated.displayName = deployment.displayName;
+    consolidated.type = "deployment";
+    if (deployment.description) consolidated.description = deployment.description;
+    if (deployment.documentation) consolidated.documentation = deployment.documentation;
+    if (deployment.serviceAccount) consolidated.serviceAccount = deployment.serviceAccount;
+    if (deployment.priority !== undefined) consolidated.priority = deployment.priority;
+    if (deployment.environments && deployment.environments.length > 0) {
+      consolidated.environments = [...deployment.environments];
+    }
+    if (deployment.parameters && deployment.parameters.length > 0) {
+      consolidated.parameters = JSON.parse(JSON.stringify(deployment.parameters));
+    }
+    if (deployment.kvms && deployment.kvms.length > 0) {
+      consolidated.kvms = JSON.parse(JSON.stringify(deployment.kvms));
+    }
+    if (deployment.tests && deployment.tests.length > 0) {
+      consolidated.tests = JSON.parse(JSON.stringify(deployment.tests));
+    }
+
+    const resolved = await this.deploymentResolveAssets(deployment, relativeDir);
+
+    consolidated.proxies = [];
+
+    // 1. Convert templates to compiled proxies
+    for (const t of resolved.templates) {
+      const tDir = (t as any)._dir || relativeDir;
+      const tProxy = await this.templateObjectToProxy(t, conv, parameters, tDir);
+      if (tProxy) {
+        consolidated.proxies.push(tProxy);
+      }
+    }
+
+    // 2. Direct proxies
+    for (const p of resolved.proxies) {
+      conv.proxyUpdateParameters(p, parameters);
+      consolidated.proxies.push(p);
+    }
+
+    // 3. Standalone features converted to proxies
+    for (const f of resolved.features) {
+      const fProxy = conv.featureToProxy(f, parameters);
+      if (fProxy) {
+        consolidated.proxies.push(fProxy);
+      }
+    }
+
+    // 4. Products (from deployment and templates)
+    const products: Product[] = [];
+    for (const prod of resolved.products) {
+      conv.productUpdateParameters(prod, parameters);
+      products.push(prod);
+    }
+    for (const t of resolved.templates) {
+      if (t.products && Array.isArray(t.products)) {
+        const tDir = (t as any)._dir || relativeDir;
+        for (const pRef of t.products) {
+          const pObj = await this.loadProduct(pRef, tDir);
+          if (pObj && !products.some((existing) => existing.name === pObj.name)) {
+            conv.productUpdateParameters(pObj, parameters);
+            products.push(pObj);
+          }
+        }
+      }
+    }
+    if (products.length > 0) {
+      consolidated.products = products;
+    }
+
+    // 5. Users (from deployment and templates)
+    const users: User[] = [];
+    for (const u of resolved.users) {
+      conv.userUpdateParameters(u, parameters);
+      users.push(u);
+    }
+    for (const t of resolved.templates) {
+      if (t.users && Array.isArray(t.users)) {
+        const tDir = (t as any)._dir || relativeDir;
+        for (const uRef of t.users) {
+          const uObj = await this.loadUser(uRef, tDir);
+          if (
+            uObj &&
+            !users.some(
+              (existing) =>
+                existing.name === uObj.name ||
+                (existing.email && uObj.email && existing.email === uObj.email),
+            )
+          ) {
+            conv.userUpdateParameters(uObj, parameters);
+            users.push(uObj);
+          }
+        }
+      }
+    }
+    if (users.length > 0) {
+      consolidated.users = users;
+    }
+
+    // 6. Data Collectors
+    if (resolved.dataCollectors.length > 0) {
+      consolidated.dataCollectors = [];
+      for (const dc of resolved.dataCollectors) {
+        conv.dataCollectorUpdateParameters(dc, parameters);
+        consolidated.dataCollectors.push(dc);
+      }
+    }
+
+    // 7. Reports
+    if (resolved.reports.length > 0) {
+      consolidated.reports = [...resolved.reports];
+    }
+
+    // Remove templates and features references from top-level since they are inlined/compiled
+    delete (consolidated as any).templates;
+    delete (consolidated as any).features;
+    delete (consolidated as any).yamlName;
+    delete (consolidated as any)._dir;
+
+    for (const p of consolidated.proxies) {
+      delete (p as any).yamlName;
+      delete (p as any)._dir;
+    }
+    if (consolidated.products) {
+      for (const prod of consolidated.products) {
+        delete (prod as any).yamlName;
+        delete (prod as any)._dir;
+      }
+    }
+    if (consolidated.users) {
+      for (const u of consolidated.users) {
+        delete (u as any).yamlName;
+        delete (u as any)._dir;
+      }
+    }
+
+    // Apply any top-level parameters to consolidated deployment itself
+    conv.deploymentUpdateParameters(consolidated, parameters);
+
+    return consolidated;
+  }
+
+  public async deployToEmulatorService(
+    emulatorUrl: string,
+    payload: {
+      yaml?: string;
+      payload?: any;
+      target?: string;
+      environment?: string;
+      reset?: boolean;
+      parameters?: { [key: string]: string };
+    },
+  ): Promise<{
+    success: boolean;
+    revision?: string;
+    runtimeType?: string;
+    environment?: string;
+    deployedProxies?: { name: string; revision: string; basePath: string }[];
+    totalDeployed?: number;
+    durationMs?: number;
+    message?: string;
+    error?: string;
+  }> {
+    const baseUrl = emulatorUrl.replace(/\/+$/, "");
+    const deployUrl = `${baseUrl}/api/v1/runtime/deploy`;
+    try {
+      const response = await fetch(deployUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          yaml: payload.yaml,
+          payload: payload.payload,
+          target: payload.target || "emulator",
+          environment: payload.environment || "test",
+          reset: payload.reset || false,
+          parameters: payload.parameters,
+        }),
+      });
+
+      const data: any = await response.json();
+      if (!response.ok) {
+        return {
+          success: false,
+          error:
+            data?.message ||
+            data?.error ||
+            `HTTP ${response.status}: ${response.statusText}`,
+          ...data,
+        };
+      }
+      return data;
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e?.message || String(e),
+      };
+    }
   }
 
   public async repositoryGet(name: string): Promise<{
@@ -3315,6 +3542,7 @@ export class ApigeeTemplaterService {
               const raw = fs.readFileSync(checkPath, "utf8");
               result = checkPath.endsWith(".json") ? JSON.parse(raw) : YAML.parse(raw);
               if (result) {
+                (result as any)._dir = path.dirname(path.resolve(lp));
                 if (!result.name) {
                   result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
                 }
@@ -3351,6 +3579,7 @@ export class ApigeeTemplaterService {
               const text = await res.text();
               result = candidate.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
               if (result) {
+                (result as any)._dir = path.dirname(path.resolve(lp));
                 if (!result.name) {
                   result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
                 }
@@ -3700,6 +3929,7 @@ export class ApigeeTemplaterService {
               const raw = fs.readFileSync(checkPath, "utf8");
               result = checkPath.endsWith(".json") ? JSON.parse(raw) : YAML.parse(raw);
               if (result) {
+                (result as any)._dir = path.dirname(path.resolve(lp));
                 if (!result.name) {
                   result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
                 }
@@ -3736,6 +3966,7 @@ export class ApigeeTemplaterService {
               const text = await res.text();
               result = candidate.endsWith(".json") ? JSON.parse(text) : YAML.parse(text);
               if (result) {
+                (result as any)._dir = path.dirname(path.resolve(lp));
                 if (!result.name) {
                   result.name = candidate.replace(/\.(yaml|yml|json)$/i, "");
                 }

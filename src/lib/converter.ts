@@ -4,7 +4,6 @@ import yazl from "yazl";
 import { JSONPath } from "jsonpath-plus";
 import path from "path";
 import fs from "fs";
-import vm from "vm";
 import {
   Proxy,
   Endpoint,
@@ -380,23 +379,20 @@ export class ApigeeConverter {
               "utf8",
             );
             if (manifestContent) {
-              const sandbox = { metadata: undefined };
-              vm.createContext(sandbox);
-              vm.runInContext(manifestContent, sandbox);
-
-              if (sandbox.metadata) {
-                if (sandbox.metadata["description"])
-                  newProxy.description = sandbox.metadata["description"];
-                if (sandbox.metadata["documentation"])
-                  newProxy.documentation = sandbox.metadata["documentation"];
-                if (sandbox.metadata["uid"]) newProxy.uid = sandbox.metadata["uid"];
-                if (sandbox.metadata["parameters"])
-                  newProxy.parameters = sandbox.metadata["parameters"];
-                if (sandbox.metadata["priority"]) newProxy.priority = sandbox.metadata["priority"];
-                if (sandbox.metadata["displayName"])
-                  newProxy.displayName = sandbox.metadata["displayName"];
-                if (sandbox.metadata["categories"])
-                  newProxy.categories = sandbox.metadata["categories"];
+              try {
+                let jsonStr = manifestContent.replace(/^var metadata\s*=\s*/, "").replace(/;\s*$/, "");
+                let metadata = JSON.parse(jsonStr);
+                if (metadata) {
+                  if (metadata["description"]) newProxy.description = metadata["description"];
+                  if (metadata["documentation"]) newProxy.documentation = metadata["documentation"];
+                  if (metadata["uid"]) newProxy.uid = metadata["uid"];
+                  if (metadata["parameters"]) newProxy.parameters = metadata["parameters"];
+                  if (metadata["priority"]) newProxy.priority = metadata["priority"];
+                  if (metadata["displayName"]) newProxy.displayName = metadata["displayName"];
+                  if (metadata["categories"]) newProxy.categories = metadata["categories"];
+                }
+              } catch (e) {
+                // ignore parse error if metadata format differs
               }
             }
           } else {
@@ -1688,6 +1684,7 @@ export class ApigeeConverter {
     proxy.name = template.name;
     if (template.displayName) proxy.displayName = template.displayName;
     if (template.uid) proxy.uid = template.uid;
+    if (template.serviceAccount) proxy.serviceAccount = template.serviceAccount;
     proxy.description = template.description;
     proxy.parameters = template.parameters || [];
     if (template.priority) proxy.priority = template.priority;
@@ -1928,12 +1925,23 @@ export class ApigeeConverter {
         }
       }
     }
+    if (template.serviceAccount && Object.keys(parameters).length > 0) {
+      for (let key of Object.keys(parameters)) {
+        if (template.serviceAccount.includes("{" + key + "}")) {
+          template.serviceAccount = template.serviceAccount.replaceAll(
+            "{" + key + "}",
+            parameters[key],
+          );
+        }
+      }
+    }
   }
 
   public templateToStringArray(template: Template): string[] {
     let result: string[] = [];
     if (template.name) result.push(`Name: ${template.name}`);
     if (template.displayName) result.push(`Display Name: ${template.displayName}`);
+    if (template.serviceAccount) result.push(`Service Account: ${template.serviceAccount}`);
     if (template.description) result.push(`Description: ${template.description}`);
 
     if (template.features && template.features.length > 0) {
@@ -1995,6 +2003,7 @@ export class ApigeeConverter {
     if (newFeature.displayName) newProxy.displayName = newFeature.displayName;
     if (newFeature.categories) newProxy.categories = newFeature.categories;
     if (newFeature.uid) newProxy.uid = newFeature.uid;
+    if (newFeature.serviceAccount) newProxy.serviceAccount = newFeature.serviceAccount;
     if (newFeature.priority) newProxy.priority = newFeature.priority;
     if (newFeature.tests) newProxy.tests = newFeature.tests;
 
@@ -2479,12 +2488,23 @@ export class ApigeeConverter {
         }
       }
     }
+    if (feature.serviceAccount && Object.keys(parameters).length > 0) {
+      for (let key of Object.keys(parameters)) {
+        if (feature.serviceAccount.includes("{" + key + "}")) {
+          feature.serviceAccount = feature.serviceAccount.replaceAll(
+            "{" + key + "}",
+            parameters[key],
+          );
+        }
+      }
+    }
   }
 
   public featureToStringArray(feature: Feature): string[] {
     let result: string[] = [];
     if (feature.name) result.push(`Name: ${feature.name}`);
     if (feature.displayName) result.push(`Display Name: ${feature.displayName}`);
+    if (feature.serviceAccount) result.push(`Service Account: ${feature.serviceAccount}`);
     if (feature.description) result.push(`Description: ${feature.description}`);
 
     if (feature.parameters && feature.parameters.length > 0) {
@@ -2894,6 +2914,7 @@ export class ApigeeConverter {
     template.name = proxy.name;
     if (proxy.displayName) template.displayName = proxy.displayName;
     if (proxy.uid) template.uid = proxy.uid;
+    if (proxy.serviceAccount) template.serviceAccount = proxy.serviceAccount;
     if (proxy.priority) template.priority = proxy.priority;
     if (proxy.tests) template.tests = proxy.tests;
     template.description = proxy.description;
@@ -2923,6 +2944,7 @@ export class ApigeeConverter {
     newFeature.parameters = proxy.parameters || [];
     newFeature.gateway = "apigee";
     newFeature.schemaVersion = "1.0.0";
+    if (proxy.serviceAccount) newFeature.serviceAccount = proxy.serviceAccount;
     if (proxy.uid) newFeature.uid = proxy.uid;
     if (proxy.priority) newFeature.priority = proxy.priority;
     if (proxy.tests) newFeature.tests = proxy.tests;
@@ -2973,12 +2995,92 @@ export class ApigeeConverter {
         }
       }
     }
+    if (proxy.serviceAccount && Object.keys(parameters).length > 0) {
+      for (let key of Object.keys(parameters)) {
+        if (proxy.serviceAccount.includes("{" + key + "}")) {
+          proxy.serviceAccount = proxy.serviceAccount.replaceAll(
+            "{" + key + "}",
+            parameters[key],
+          );
+        }
+      }
+    }
+  }
+
+  public detectServiceAccountRequirements(proxy: any): { required: boolean; reasons: string[] } {
+    const reasons: string[] = [];
+    if (!proxy) return { required: false, reasons };
+
+    const checkAuthNode = (node: any, label: string) => {
+      if (!node) return;
+      const str = JSON.stringify(node).toLowerCase();
+      if (str.includes("googleaccesstoken")) {
+        reasons.push(`${label} uses GoogleAccessToken authentication`);
+      }
+      if (str.includes("googleidtoken")) {
+        reasons.push(`${label} uses GoogleIDToken authentication`);
+      }
+    };
+
+    // 1. Targets and defaultTarget
+    const targets: any[] = [];
+    if (proxy.targets && Array.isArray(proxy.targets)) targets.push(...proxy.targets);
+    if (proxy.defaultTarget) targets.push(proxy.defaultTarget);
+
+    for (const tgt of targets) {
+      const tgtName = tgt.name || "default";
+      if (tgt.auth && typeof tgt.auth === "string" && tgt.auth.toLowerCase().includes("google")) {
+        reasons.push(`Target '${tgtName}' specifies Google authentication (${tgt.auth})`);
+      }
+      if (tgt.scopes && Array.isArray(tgt.scopes) && tgt.scopes.length > 0) {
+        reasons.push(`Target '${tgtName}' specifies Google OAuth scopes (${tgt.scopes.join(", ")})`);
+      }
+      if (tgt.aud) {
+        reasons.push(`Target '${tgtName}' specifies Google ID token audience (${tgt.aud})`);
+      }
+      if (tgt.httpTargetConnection) {
+        checkAuthNode(tgt.httpTargetConnection, `Target '${tgtName}'`);
+      }
+      if (tgt.authentication) {
+        checkAuthNode(tgt.authentication, `Target '${tgtName}'`);
+      }
+    }
+
+    // 2. Policies
+    const policies: any[] = proxy.policies || [];
+    for (const policy of policies) {
+      const pName = policy.name || "unnamed";
+      const pType = (policy.type || "").toLowerCase();
+
+      if (pType.includes("modelarmor")) {
+        reasons.push(`Policy '${pName}' is a Model Armor policy (${policy.type})`);
+      }
+      if (pType.includes("vertexai") || pType.includes("gemini")) {
+        reasons.push(`Policy '${pName}' is a Vertex AI / Gemini policy (${policy.type})`);
+      }
+
+      if (policy.content) {
+        const contentStr = JSON.stringify(policy.content);
+        const contentLower = contentStr.toLowerCase();
+        if (contentLower.includes("modelarmor")) {
+          reasons.push(`Policy '${pName}' references Model Armor configuration`);
+        }
+        checkAuthNode(policy.content, `Policy '${pName}' (${policy.type || "unknown"})`);
+      }
+    }
+
+    const uniqueReasons = Array.from(new Set(reasons));
+    return {
+      required: uniqueReasons.length > 0,
+      reasons: uniqueReasons,
+    };
   }
 
   public proxyToStringArray(proxy: Proxy): string[] {
     let result: string[] = [];
     if (proxy.name) result.push(`Name: ${proxy.name}`);
     if (proxy.displayName) result.push(`Display Name: ${proxy.displayName}`);
+    if (proxy.serviceAccount) result.push(`Service Account: ${proxy.serviceAccount}`);
     if (proxy.description) result.push(`Description: ${proxy.description}`);
 
     if (proxy.parameters && proxy.parameters.length > 0) {
@@ -4158,6 +4260,7 @@ export class ApigeeConverter {
     let result: string[] = [];
     if (deployment.name) result.push(`Name: ${deployment.name}`);
     if (deployment.displayName) result.push(`Display Name: ${deployment.displayName}`);
+    if (deployment.serviceAccount) result.push(`Service Account: ${deployment.serviceAccount}`);
     if (deployment.description) result.push(`Description: ${deployment.description}`);
     if (deployment.environments && deployment.environments.length > 0)
       result.push(`Environments: ${deployment.environments.join(", ")}`);
@@ -4226,6 +4329,7 @@ export class ApigeeConverter {
 
     if (deployment.name) deployment.name = replaceStr(deployment.name);
     if (deployment.displayName) deployment.displayName = replaceStr(deployment.displayName);
+    if (deployment.serviceAccount) deployment.serviceAccount = replaceStr(deployment.serviceAccount);
     if (deployment.description) deployment.description = replaceStr(deployment.description);
     if (deployment.environments) {
       deployment.environments = deployment.environments.map(replaceStr);

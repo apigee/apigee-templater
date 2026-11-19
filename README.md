@@ -86,7 +86,7 @@ aft completion powershell  # Windows PowerShell (alias: pwsh)
 Install the native `apigee-templater` skill for AI coding assistants (such as Google Antigravity, Gemini CLI, Claude Code, Cursor, Codex, and others):
 
 ```bash
-# Installs the apigee-templater skill to ~/.agents/skills/apigee-templater
+# Installs the apigee-templater skill to ~/.agents/skills/aft
 aft skill install
 
 # To remove the skill later

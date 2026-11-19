@@ -285,10 +285,10 @@ const commands = [
     badgeColor: "cyan",
     syntax: "aft skill <install | uninstall>",
     description:
-      "Manages the native Apigee Templater skill for AI coding assistants. Installs the SKILL.md specification and guides into ~/.agents/skills/apigee-templater, enabling tools like Google Antigravity, Gemini CLI, Claude Code, Cursor, and Codex to author and debug AFT proxies automatically.",
+      "Manages the native AFT skill for AI coding assistants. Installs the SKILL.md specification and guides into ~/.agents/skills/aft, enabling tools like Google Antigravity, Gemini CLI, Claude Code, Cursor, and Codex to author and debug AFT proxies automatically.",
     flags: [
-      { flag: "install", desc: "Installs the apigee-templater skill to ~/.agents/skills/apigee-templater." },
-      { flag: "uninstall", desc: "Removes the apigee-templater skill from ~/.agents/skills/apigee-templater." },
+      { flag: "install", desc: "Installs the aft skill to ~/.agents/skills/aft." },
+      { flag: "uninstall", desc: "Removes the aft skill from ~/.agents/skills/aft." },
     ],
     examples: [
       {
